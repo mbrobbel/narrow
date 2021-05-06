@@ -4,7 +4,7 @@ A Rust implementation of [Apache Arrow](https://arrow.apache.org).
 
 ## Docs
 
-- [Docs (main)](https://mbrobbel.github.io/narrow/rustdoc/narrow/index.html)
+- [Docs (main)](https://mbrobbel.github.io/narrow/narrow/index.html)
 
 ## Minimum supported Rust version
 
