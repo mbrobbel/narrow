@@ -1,0 +1,15 @@
+[package]
+name = "narrow-derive"
+version = "0.1.0"
+authors = ["Matthijs Brobbel <m1brobbel@gmail.com>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[features]
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "1", features = ["derive", "full", "parsing", "extra-traits"] }
