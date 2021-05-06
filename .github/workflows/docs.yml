@@ -20,6 +20,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
+          name: rustdoc
           path: target/doc
 
   deploy:
@@ -29,6 +30,9 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
     - uses: actions/download-artifact@v2
+      with:
+        name: rustdoc
+        path: rustdoc
     - uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
