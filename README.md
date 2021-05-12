@@ -12,7 +12,7 @@ A Rust implementation of [Apache Arrow](https://arrow.apache.org).
 - [ ] Array
   - [x] Fixed-size primitive
   - [x] Boolean
-  - [ ] Variable-size binary
+  - [x] Variable-size binary
   - [ ] Variable-size list
   - [ ] Fixed-size list
   - [ ] Struct

@@ -3,7 +3,9 @@
 //! A Rust implementation of [Apache Arrow](https://arrow.apache.org).
 
 use std::{
+    convert::{TryFrom, TryInto},
     fmt::Debug,
+    num::TryFromIntError,
     ops::{Add, AddAssign, Sub},
 };
 
@@ -131,7 +133,13 @@ pub trait Data: Default + sealed::SealedData {
 /// Types storing offset values.
 ///
 /// This trait is sealed to prevent downstream implementations.
-pub trait OffsetType: Primitive + crate::sealed::SealedOffsetType {}
+pub trait OffsetType:
+    Primitive
+    + TryFrom<usize, Error = TryFromIntError>
+    + TryInto<usize, Error = TryFromIntError>
+    + crate::sealed::SealedOffsetType
+{
+}
 
 impl OffsetType for i32 {}
 impl OffsetType for i64 {}

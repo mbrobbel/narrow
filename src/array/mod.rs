@@ -6,6 +6,9 @@ pub use fixed_size_primitive::*;
 mod boolean;
 pub use boolean::*;
 
+mod variable_size_binary;
+pub use variable_size_binary::*;
+
 /// Types storing sequences of values.
 pub trait Array {
     /// Data type that stores the values of the array.
