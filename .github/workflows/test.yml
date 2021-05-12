@@ -76,7 +76,7 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: clippy
-        args: -- --Dwarnings
+        args: -- -Dwarnings
 
   miri:
     name: Miri
@@ -96,4 +96,5 @@ jobs:
         default: true
     - uses: actions-rs/cargo@v1
       with:
-        command: miri test
+        command: miri
+        args: test
