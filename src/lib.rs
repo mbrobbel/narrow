@@ -2,7 +2,10 @@
 //!
 //! A Rust implementation of [Apache Arrow](https://arrow.apache.org).
 
-use std::ops::{Add, AddAssign, Sub};
+use std::{
+    fmt::Debug,
+    ops::{Add, AddAssign, Sub},
+};
 
 mod buffer;
 pub use buffer::*;
@@ -15,6 +18,9 @@ pub use nullable::*;
 
 mod validity;
 pub use validity::*;
+
+mod offset;
+pub use offset::*;
 
 // Hidden re-exports of types used in the `narrow-derive` crate.
 #[doc(hidden)]
@@ -29,11 +35,13 @@ pub use narrow_derive::*;
 /// This exists to use as trait bound where one or more of the supertraits of
 /// this trait are required, and to restrict certain implementations to Arrow
 /// primitive types.
+///
+/// This trait is sealed to prevent downstream implementations.
 pub trait Primitive:
     Add<Output = Self>
     + AddAssign
     + Copy
-    + std::fmt::Debug
+    + Debug
     + Default
     + Sub<Output = Self>
     + sealed::SealedPrimitive
@@ -117,6 +125,14 @@ pub trait Data: Default + sealed::SealedData {
     }
 }
 
+/// Types storing offset values.
+///
+/// This trait is sealed to prevent downstream implementations.
+pub trait OffsetType: Primitive + crate::sealed::SealedOffsetType {}
+
+impl OffsetType for i32 {}
+impl OffsetType for i64 {}
+
 // Sealed traits.
 mod sealed {
     pub trait SealedPrimitive {}
@@ -124,4 +140,7 @@ mod sealed {
 
     pub trait SealedData {}
     impl<T> SealedData for T where T: crate::Data {}
+
+    pub trait SealedOffsetType {}
+    impl<T> SealedOffsetType for T where T: crate::OffsetType {}
 }

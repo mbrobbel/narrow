@@ -69,6 +69,11 @@ where
     pub fn data(&self) -> &T {
         &self.data
     }
+
+    /// Constructor for [Nullable]. Used in [Offset](crate::Offset).
+    pub(crate) fn new(validity: Bitmap, data: T) -> Self {
+        Self { validity, data }
+    }
 }
 
 impl<T> Data for Nullable<T>
