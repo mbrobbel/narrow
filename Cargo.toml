@@ -19,7 +19,8 @@ categories = ["data-structures"]
 default = []
 
 [dependencies]
-narrow-derive = { path = "narrow-derive", version = "0.1.0" }
+bitvec = { version= "0.22", default-features = false }
+narrow-derive = { version = "0.1.0", path = "narrow-derive" }
 
 [dev-dependencies]
 criterion = "0.3"

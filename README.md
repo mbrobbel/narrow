@@ -2,6 +2,35 @@
 
 A Rust implementation of [Apache Arrow](https://arrow.apache.org).
 
+## Progress
+
+- [x] Buffer
+- [x] Bitmap
+- [x] Nullable
+- [x] Validity
+- [ ] Offset
+- [ ] Array
+  - [ ] Fixed-size primitive
+  - [ ] Boolean
+  - [ ] Variable-size binary
+  - [ ] Variable-size list
+  - [ ] Fixed-size list
+  - [ ] Struct
+  - [ ] Union
+  - [ ] Null
+  - [ ] Dictionary
+- [ ] Logical types
+- [ ] Schema
+- [ ] RecordBatch
+- [ ] DictionaryBatch
+- [ ] Table
+- [ ] IPC
+  - [ ] Streaming
+  - [ ] File
+- [ ] Flight
+- [ ] Documentation
+- [ ] Benchmarks
+
 ## Docs
 
 - [Docs (main)](https://mbrobbel.github.io/narrow/narrow/index.html)
