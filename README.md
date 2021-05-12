@@ -8,10 +8,10 @@ A Rust implementation of [Apache Arrow](https://arrow.apache.org).
 - [x] Bitmap
 - [x] Nullable
 - [x] Validity
-- [ ] Offset
+- [x] Offset
 - [ ] Array
-  - [ ] Fixed-size primitive
-  - [ ] Boolean
+  - [x] Fixed-size primitive
+  - [x] Boolean
   - [ ] Variable-size binary
   - [ ] Variable-size list
   - [ ] Fixed-size list

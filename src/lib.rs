@@ -22,6 +22,9 @@ pub use validity::*;
 mod offset;
 pub use offset::*;
 
+mod array;
+pub use array::*;
+
 // Hidden re-exports of types used in the `narrow-derive` crate.
 #[doc(hidden)]
 pub mod re_exports {

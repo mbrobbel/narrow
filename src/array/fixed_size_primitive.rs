@@ -1,0 +1,147 @@
+use crate::{Array, Buffer, Nullable, Primitive, Validity, ALIGNMENT};
+use paste::paste;
+use std::{iter::FromIterator, ops::Deref};
+
+/// Array with primitive values.
+#[derive(Debug)]
+pub struct FixedSizePrimitiveArray<T, const N: bool>(Validity<Buffer<T, ALIGNMENT>, N>)
+where
+    T: Primitive;
+
+impl<T> Array for FixedSizePrimitiveArray<T, false>
+where
+    T: Primitive,
+{
+    type Data = Buffer<T, ALIGNMENT>;
+
+    fn data(&self) -> &Self::Data {
+        self
+    }
+}
+
+impl<T> Array for FixedSizePrimitiveArray<T, true>
+where
+    T: Primitive,
+{
+    type Data = Nullable<Buffer<T, ALIGNMENT>>;
+
+    fn data(&self) -> &Self::Data {
+        self
+    }
+}
+
+impl<T, const N: bool> Deref for FixedSizePrimitiveArray<T, N>
+where
+    T: Primitive,
+{
+    type Target = Validity<Buffer<T, ALIGNMENT>, N>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+macro_rules! impl_primitive {
+    ($ident:ident, $ty:ty) => {
+        paste! {
+                #[doc = "Array with [" $ty "] values."]
+                pub type $ident<const N: bool> = FixedSizePrimitiveArray<$ty, N>;
+        }
+    };
+}
+
+impl_primitive!(Int8Array, i8);
+impl_primitive!(Int16Array, i16);
+impl_primitive!(Int32Array, i32);
+impl_primitive!(Int64Array, i64);
+impl_primitive!(Uint8Array, u8);
+impl_primitive!(Uint16Array, u16);
+impl_primitive!(Uint32Array, u32);
+impl_primitive!(Uint64Array, u64);
+impl_primitive!(Float32Array, f32);
+impl_primitive!(Float64Array, f64);
+
+impl<T> FromIterator<T> for FixedSizePrimitiveArray<T, false>
+where
+    T: Primitive,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+    {
+        Self(iter.into_iter().collect())
+    }
+}
+
+impl<'a, T> FromIterator<&'a T> for FixedSizePrimitiveArray<T, false>
+where
+    T: Primitive + 'a,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = &'a T>,
+    {
+        Self(iter.into_iter().copied().collect())
+    }
+}
+
+impl<'a, T> FromIterator<Option<&'a T>> for FixedSizePrimitiveArray<T, true>
+where
+    T: Primitive,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = Option<&'a T>>,
+    {
+        Self(iter.into_iter().map(|opt| opt.copied()).collect())
+    }
+}
+
+impl<'a, T> FromIterator<&'a Option<T>> for FixedSizePrimitiveArray<T, true>
+where
+    T: Primitive + 'a,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = &'a Option<T>>,
+    {
+        Self(iter.into_iter().copied().collect())
+    }
+}
+
+impl<T> FromIterator<Option<T>> for FixedSizePrimitiveArray<T, true>
+where
+    T: Primitive,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = Option<T>>,
+    {
+        Self(iter.into_iter().collect())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_iter() {
+        let array = [1u8, 2, 3, 4].iter().collect::<Uint8Array<false>>();
+        assert_eq!(&array[..], &[1, 2, 3, 4]);
+        assert_eq!(array.len(), 4);
+        assert_eq!(array.valid_count(), 4);
+        assert_eq!(array.null_count(), 0);
+
+        let array = [Some(1u8), None, Some(3), Some(4)]
+            .iter()
+            .collect::<Uint8Array<true>>();
+        assert_eq!(
+            &array.into_iter().collect::<Vec<_>>()[..],
+            &[Some(1), None, Some(3), Some(4)]
+        );
+        assert_eq!(array.len(), 4);
+        assert_eq!(array.valid_count(), 3);
+        assert_eq!(array.null_count(), 1);
+    }
+}
