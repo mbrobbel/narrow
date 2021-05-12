@@ -73,7 +73,27 @@ jobs:
         toolchain: ${{ matrix.rust }}
         components: clippy
         override: true
-    - uses: actions-rs/clippy-check@v1
+    - uses: actions-rs/cargo@v1
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        args: -- -Dwarnings
+        command: clippy
+        args: -- --Dwarnings
+
+  miri:
+    name: Miri
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Miri nightly
+      id: miri_nightly
+      run: |
+        MIRI_NIGHTLY=nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/miri)
+        echo "::set-output name=rust::${MIRI_NIGHTLY}"
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: ${{ steps.miri_nightly.outputs.rust }}
+        components: miri
+        default: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: miri test
