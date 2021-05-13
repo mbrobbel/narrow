@@ -98,3 +98,31 @@ jobs:
       with:
         command: miri
         args: test
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: '-Zinstrument-coverage'
+      RUSTDOCFLAGS: '-Zinstrument-coverage'
+    steps:
+    - uses: actions/checkout@v2.3.4
+    - uses: actions-rs/toolchain@v1.0.7
+      with:
+        profile: minimal
+        toolchain: nightly
+        components: llvm-tools-preview
+        override: true
+    - uses: actions-rs/cargo@v1.0.3
+      with:
+        command: build
+    - uses: actions-rs/cargo@v1.0.3
+      env:
+        LLVM_PROFILE_FILE: 'narrow-%p-%m.profraw'
+      with:
+        command: test
+    - name: Install grcov
+      run: curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-linux-x86_64.tar.bz2 | tar jxf -
+    - name: grcov
+      run: ./grcov --branch --binary-path ./target/debug/ --source-dir . --output-type lcov --output-path lcov.info .
+    - uses: codecov/codecov-action@v1.5.0
