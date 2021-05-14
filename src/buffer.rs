@@ -273,15 +273,8 @@ impl<T, const A: usize> From<Vec<T>> for Buffer<T, A>
 where
     T: Primitive,
 {
-    fn from(mut vec: Vec<T>) -> Self {
-        // todo(mb): is this a safe assumption?
-        match Layout::array::<T>(vec.capacity()) {
-            Ok(vec_layout) if vec_layout == layout::<T, A>(vec.capacity()) => Self {
-                ptr: unsafe { NonNull::new_unchecked(vec.as_mut_ptr()) },
-                len: vec.len(),
-            },
-            _ => Self::from_slice(&vec),
-        }
+    fn from(vec: Vec<T>) -> Self {
+        Self::from_slice(&vec)
     }
 }
 
