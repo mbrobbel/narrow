@@ -37,7 +37,7 @@ A Rust implementation of [Apache Arrow](https://arrow.apache.org).
 
 ## Minimum supported Rust version
 
-The minimum supported Rust version is 1.51 due to the use of [const generics](https://rust-lang.github.io/rfcs/2000-const-generics.html).
+The minimum supported Rust version is 1.53.
 
 ## Example
 
