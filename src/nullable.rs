@@ -1,38 +1,21 @@
-use crate::{Bitmap, Data, Primitive};
+use crate::{ArrayData, Bitmap};
 use bitvec::{order::Lsb0, slice::BitValIter};
 use std::iter::{FromIterator, Map, Zip};
 
-/// Wrapper for nullable Arrow data.
-#[derive(Debug)]
-pub struct Nullable<T>
-where
-    T: Data,
-{
-    validity: Bitmap,
+/// Wrapper for nullables data.
+///
+/// Allocates a validity [Bitmap] that stores a single bit per value in `T`
+/// that indicates the nullness or non-nullness of that value.
+#[derive(Clone, Debug, Default)]
+pub struct Nullable<T> {
     data: T,
+    validity: Bitmap,
 }
 
-impl<T> Nullable<T>
-where
-    T: Data,
-{
-    /// Returns an empty [Nullable].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use narrow::{Buffer, Nullable};
-    ///
-    /// let empty = Nullable::<Buffer<u8, 0>>::empty();
-    ///
-    /// assert!(empty.validity().is_empty());
-    /// assert!(empty.data().is_empty());
-    /// ```
-    pub fn empty() -> Self {
-        Self {
-            validity: Bitmap::empty(),
-            data: T::default(),
-        }
+impl<T> Nullable<T> {
+    /// Constructor for [Nullable].
+    pub(crate) fn new(data: T, validity: Bitmap) -> Self {
+        Self { data, validity }
     }
 
     /// Returns a reference to the validity [Bitmap] of the [Nullable].
@@ -40,14 +23,14 @@ where
     /// # Examples
     ///
     /// ```
-    /// use narrow::{Bitmap, Buffer, Nullable, ALIGNMENT};
+    /// use narrow::{Bitmap, Buffer, Nullable};
     ///
-    /// let nullable: Nullable<Buffer<u32, ALIGNMENT>> =
-    ///     [Some(1u32), None, Some(3), Some(4)].into();
+    /// let nullable: Nullable<Buffer<u32, 6>> =
+    ///     [Some(1u32), None, Some(3), Some(4)].iter().copied().collect();
     ///
     /// assert_eq!(
     ///     nullable.validity(),
-    ///     &Bitmap::from([true, false, true, true])
+    ///     &[true, false, true, true].iter().copied().collect::<Bitmap>()
     /// );
     /// ```
     pub fn validity(&self) -> &Bitmap {
@@ -59,33 +42,33 @@ where
     /// # Examples
     ///
     /// ```
-    /// use narrow::{Bitmap, Buffer, Nullable, ALIGNMENT};
+    /// use narrow::{Bitmap, Buffer, Nullable};
     ///
-    /// let nullable: Nullable<Buffer<u32, ALIGNMENT>> =
-    ///     [Some(1u32), None, Some(3), Some(4)].into();
+    /// let nullable: Nullable<Buffer<u32, 6>> =
+    ///     [Some(1u32), None, Some(3), Some(4)].iter().copied().collect();
     ///
-    /// assert_eq!(nullable.data(), &Buffer::from([1u32, u32::default(), 3, 4]));
+    /// assert_eq!(nullable.data(), &[1u32, u32::default(), 3, 4].iter().copied().collect());
     /// ```
     pub fn data(&self) -> &T {
         &self.data
     }
-
-    /// Constructor for [Nullable]. Used in [Offset](crate::Offset).
-    pub(crate) fn new(validity: Bitmap, data: T) -> Self {
-        Self { validity, data }
-    }
 }
 
-impl<T> Data for Nullable<T>
-where
-    T: Data,
-{
+impl<T> ArrayData for Nullable<T> {
     fn len(&self) -> usize {
         self.validity.len()
     }
 
+    fn is_null(&self, index: usize) -> bool {
+        self.validity.is_null(index)
+    }
+
     fn null_count(&self) -> usize {
         self.validity.count_zeros()
+    }
+
+    fn is_valid(&self, index: usize) -> bool {
+        self.validity.is_valid(index)
     }
 
     fn valid_count(&self) -> usize {
@@ -93,60 +76,10 @@ where
     }
 }
 
-impl<T> Default for Nullable<T>
-where
-    T: Data,
-{
-    fn default() -> Self {
-        Self::empty()
-    }
-}
-
-impl<T, U, const N: usize> From<[Option<U>; N]> for Nullable<T>
-where
-    T: Data + From<Vec<U>>,
-    U: Primitive,
-{
-    fn from(array: [Option<U>; N]) -> Self {
-        array.iter().collect()
-    }
-}
-
-impl<T, U> From<Box<[Option<U>]>> for Nullable<T>
-where
-    T: Data + From<Vec<U>>,
-    U: Primitive,
-{
-    fn from(boxed_slice: Box<[Option<U>]>) -> Self {
-        boxed_slice.iter().collect()
-    }
-}
-
-impl<T, U> From<&[Option<U>]> for Nullable<T>
-where
-    T: Data + From<Vec<U>>,
-    U: Primitive,
-{
-    fn from(slice: &[Option<U>]) -> Self {
-        slice.iter().collect()
-    }
-}
-
-impl<T, U> From<Vec<Option<U>>> for Nullable<T>
-where
-    T: Data + From<Vec<U>>,
-    U: Primitive,
-{
-    fn from(vec: Vec<Option<U>>) -> Self {
-        vec.into_iter().collect()
-    }
-}
-
-// todo(mb): use unzip with https://github.com/rust-lang/rust/issues/72631
 impl<T, U> FromIterator<Option<U>> for Nullable<T>
 where
-    T: Data + From<Vec<U>>,
-    U: Copy + Default,
+    T: FromIterator<U>,
+    U: Default,
 {
     fn from_iter<I>(iter: I) -> Self
     where
@@ -156,30 +89,19 @@ where
         let (lower_bound, upper_bound) = iter.size_hint();
         let mut buffer = Vec::with_capacity(upper_bound.unwrap_or(lower_bound));
 
+        // todo(mb): use unzip with https://github.com/rust-lang/rust/issues/72631
         let validity = iter
-            .inspect(|opt| {
+            .map(|opt| {
+                let validity = opt.is_some();
                 buffer.push(opt.unwrap_or_default());
+                validity
             })
-            .map(|opt| opt.is_some())
-            .collect::<Bitmap>();
+            .collect();
 
         Self {
-            data: buffer.into(),
+            data: buffer.into_iter().collect(),
             validity,
         }
-    }
-}
-
-impl<'a, T, U> FromIterator<&'a Option<U>> for Nullable<T>
-where
-    T: Data + From<Vec<U>>,
-    U: Copy + Default + 'a,
-{
-    fn from_iter<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = &'a Option<U>>,
-    {
-        iter.into_iter().copied().collect()
     }
 }
 
@@ -190,7 +112,6 @@ type NullableIter<'a, T> = Map<
 
 impl<'a, T> IntoIterator for &'a Nullable<T>
 where
-    T: Data,
     &'a T: IntoIterator,
 {
     type Item = Option<<&'a T as IntoIterator>::Item>;
@@ -210,36 +131,30 @@ mod tests {
     use crate::Buffer;
 
     #[test]
-    fn empty() {
-        let nullable = Nullable::<Buffer<u8, 0>>::empty();
-        assert_eq!(nullable.validity(), &Bitmap::empty());
-        assert_eq!(nullable.data(), &Buffer::empty());
-        assert_eq!(nullable.len(), 0);
-        assert_eq!(nullable.null_count(), 0);
-        assert_eq!(nullable.valid_count(), 0);
-        assert!(nullable.is_empty());
-    }
-
-    #[test]
     fn from_iter() {
         let nullable = vec![Some(1u32), None, Some(3), Some(4)]
             .into_iter()
             .collect::<Nullable<Buffer<_, 3>>>();
         assert_eq!(
             nullable.validity(),
-            &Bitmap::from([true, false, true, true])
+            &[true, false, true, true]
+                .iter()
+                .copied()
+                .collect::<Bitmap>()
         );
-        assert_eq!(nullable.data(), &Buffer::from([1, u32::default(), 3, 4]));
+        assert_eq!(
+            nullable.data(),
+            &[1, u32::default(), 3, 4].iter().copied().collect()
+        );
         assert_eq!(nullable.len(), 4);
         assert_eq!(nullable.null_count(), 1);
         assert_eq!(nullable.valid_count(), 3);
-        assert!(!nullable.is_empty());
 
         let nullable = Vec::<Option<bool>>::new()
             .into_iter()
             .collect::<Nullable<Bitmap>>();
-        assert_eq!(nullable.validity(), &Bitmap::empty());
-        assert_eq!(nullable.data(), &Bitmap::empty());
+        assert_eq!(nullable.validity(), &Bitmap::default());
+        assert_eq!(nullable.data(), &Bitmap::default());
         assert_eq!(nullable.len(), 0);
 
         struct Foo {
@@ -270,7 +185,9 @@ mod tests {
 
     #[test]
     fn into_iter() {
-        let nullable = Nullable::<Buffer<u8, 1>>::from([Some(1u8), None, Some(3), Some(4)]);
+        let nullable = Nullable::<Buffer<u8, 1>>::from_iter(
+            [Some(1u8), None, Some(3), Some(4)].iter().copied(),
+        );
         let vec = nullable.into_iter().collect::<Vec<_>>();
         assert_eq!(vec, vec![Some(1u8), None, Some(3), Some(4)]);
     }

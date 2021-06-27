@@ -1,13 +1,13 @@
-use crate::{buffer, Buffer, Data, ALIGNMENT};
+use crate::{buffer, ArrayData, Buffer, ALIGNMENT};
 use bitvec::{
     order::Lsb0,
     slice::{BitSlice, BitValIter},
     view::BitView,
 };
-use std::{iter::FromIterator, mem, ops::Deref};
+use std::{iter::FromIterator, ops::Deref};
 
 /// An immutable collection of bits.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Bitmap {
     /// The number of bits stored in the bitmap.
     bits: usize,
@@ -15,42 +15,49 @@ pub struct Bitmap {
     buffer: Buffer<usize, ALIGNMENT>,
 }
 
-impl Bitmap {
-    /// Returns an empty [Bitmap].
-    ///
-    /// Because bitmaps are immutable the [Bitmap] will always be empty.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use narrow::Bitmap;
-    ///
-    /// let empty = Bitmap::empty();
-    ///
-    /// assert!(empty.is_empty());
-    /// assert!(empty.into_iter().next().is_none());
-    /// ```
-    pub fn empty() -> Self {
-        Self {
-            bits: 0,
-            buffer: Buffer::empty(),
-        }
-    }
-}
-
-impl Default for Bitmap {
-    fn default() -> Self {
-        Bitmap::empty()
-    }
-}
-
-impl Data for Bitmap {
+impl ArrayData for Bitmap {
     fn len(&self) -> usize {
         self.bits
     }
 
+    fn is_null(&self, index: usize) -> bool {
+        #[cold]
+        #[inline(never)]
+        fn assert_failed(index: usize, len: usize) -> ! {
+            panic!("is_null index (is {}) should be < len (is {})", index, len);
+        }
+
+        let len = self.len();
+        if index >= len {
+            assert_failed(index, len);
+        }
+
+        let slice: &BitSlice<_, _> = self.as_ref();
+        // Safety:
+        // - Bounds checked above
+        unsafe { !slice.get_unchecked(index) }
+    }
+
     fn null_count(&self) -> usize {
         0
+    }
+
+    fn is_valid(&self, index: usize) -> bool {
+        #[cold]
+        #[inline(never)]
+        fn assert_failed(index: usize, len: usize) -> ! {
+            panic!("is_valid index (is {}) should be < len (is {})", index, len);
+        }
+
+        let len = self.len();
+        if index >= len {
+            assert_failed(index, len);
+        }
+
+        let slice: &BitSlice<_, _> = self.as_ref();
+        // Safety:
+        // - Bounds checked above
+        unsafe { *slice.get_unchecked(index) }
     }
 
     fn valid_count(&self) -> usize {
@@ -92,30 +99,6 @@ impl Deref for Bitmap {
     }
 }
 
-impl<const N: usize> From<[bool; N]> for Bitmap {
-    fn from(array: [bool; N]) -> Self {
-        array.iter().collect()
-    }
-}
-
-impl From<Box<[bool]>> for Bitmap {
-    fn from(boxed_slice: Box<[bool]>) -> Self {
-        boxed_slice.iter().collect()
-    }
-}
-
-impl From<&[bool]> for Bitmap {
-    fn from(slice: &[bool]) -> Self {
-        slice.iter().collect()
-    }
-}
-
-impl From<Vec<bool>> for Bitmap {
-    fn from(vec: Vec<bool>) -> Self {
-        vec.into_iter().collect()
-    }
-}
-
 impl FromIterator<bool> for Bitmap {
     fn from_iter<I>(iter: I) -> Self
     where
@@ -135,7 +118,7 @@ impl FromIterator<bool> for Bitmap {
                 let bits = lower_bound + 1;
 
                 // Get the number of words required to store this many bits.
-                const WIDTH: usize = 8 * mem::size_of::<usize>();
+                const WIDTH: usize = usize::BITS as usize;
                 let mut len = bits / WIDTH + (bits % WIDTH != 0) as usize;
 
                 // Allocate memory for the storage of the words.
@@ -214,20 +197,16 @@ impl FromIterator<bool> for Bitmap {
                     buffer: unsafe { Buffer::new_unchecked(ptr, len) },
                 }
             }
-            None => Self::empty(),
+            None => Self::default(),
         }
     }
 }
 
-impl<'a> FromIterator<&'a bool> for Bitmap {
-    fn from_iter<I: IntoIterator<Item = &'a bool>>(iter: I) -> Self {
-        Bitmap::from_iter(iter.into_iter().copied())
-    }
-}
+pub type BitmapIter<'a> = BitValIter<'a, Lsb0, usize>;
 
 impl<'a> IntoIterator for &'a Bitmap {
     type Item = bool;
-    type IntoIter = BitValIter<'a, Lsb0, usize>;
+    type IntoIter = BitmapIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter().by_val()
@@ -237,36 +216,40 @@ impl<'a> IntoIterator for &'a Bitmap {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::mem;
 
     #[test]
     fn capacity() {
-        let vec = vec![true; 8 * mem::size_of::<usize>() - 1];
-        let bitmap: Bitmap = vec.into();
+        let vec = vec![true; usize::BITS as usize - 1];
+        let bitmap: Bitmap = vec.iter().copied().collect();
         let words: &[usize] = bitmap.as_ref();
         assert_eq!(words.len(), 1);
 
-        let vec = vec![true; 8 * mem::size_of::<usize>()];
-        let bitmap: Bitmap = vec.into();
+        let vec = vec![true; usize::BITS as usize];
+        let bitmap: Bitmap = vec.iter().copied().collect();
         let words: &[usize] = bitmap.as_ref();
         assert_eq!(words.len(), 1);
 
-        let vec = vec![true; 8 * mem::size_of::<usize>() + 1];
-        let bitmap: Bitmap = vec.into();
+        let vec = vec![true; usize::BITS as usize + 1];
+        let bitmap: Bitmap = vec.iter().copied().collect();
         let words: &[usize] = bitmap.as_ref();
         assert_eq!(words.len(), 2);
     }
 
     #[test]
     fn as_ref() {
-        let bitmap: Bitmap = [false, true, true, false, true].into();
+        let bitmap: Bitmap = [false, true, true, false, true].iter().copied().collect();
         let slice: &[u8] = bitmap.as_ref();
         assert_eq!(&slice[0], &22);
-        // assert_eq!(&bitmap, bitmap.as_ref());
+        assert_eq!(&bitmap, bitmap.as_ref());
     }
 
     #[test]
     fn as_ref_u8() {
-        let bitmap: Bitmap = vec![false, true, false, true, false, true].into();
+        let bitmap: Bitmap = vec![false, true, false, true, false, true]
+            .iter()
+            .copied()
+            .collect();
         let bytes: &[u8] = bitmap.as_ref();
         assert_eq!(bytes.len(), mem::size_of::<usize>());
         assert_eq!(bytes[0], 42);
@@ -276,14 +259,20 @@ mod tests {
     #[test]
     #[should_panic]
     fn as_ref_u8_out_of_bounds() {
-        let bitmap: Bitmap = vec![false, true, false, true, false, true].into();
+        let bitmap: Bitmap = vec![false, true, false, true, false, true]
+            .iter()
+            .copied()
+            .collect();
         let bits: &[u8] = bitmap.as_ref();
         bits[mem::size_of::<usize>()];
     }
 
     #[test]
     fn as_ref_usize() {
-        let bitmap: Bitmap = vec![false, true, false, true, false, true].into();
+        let bitmap: Bitmap = vec![false, true, false, true, false, true]
+            .iter()
+            .copied()
+            .collect();
         let words: &[usize] = bitmap.as_ref();
         assert_eq!(words.len(), 1);
         assert_eq!(words[0], 42);
@@ -291,7 +280,10 @@ mod tests {
 
     #[test]
     fn as_ref_bitslice() {
-        let bitmap: Bitmap = vec![false, true, false, true, false, true].into();
+        let bitmap: Bitmap = vec![false, true, false, true, false, true]
+            .iter()
+            .copied()
+            .collect();
         let bits: &BitSlice<_, _> = bitmap.as_ref();
         assert_eq!(bits.len(), 6);
         assert!(!bits[0]);
@@ -305,7 +297,10 @@ mod tests {
     #[test]
     #[should_panic]
     fn as_ref_bitslice_out_of_bounds() {
-        let bitmap: Bitmap = vec![false, true, false, true, false, true].into();
+        let bitmap: Bitmap = vec![false, true, false, true, false, true]
+            .iter()
+            .copied()
+            .collect();
         let bits: &BitSlice<_, _> = bitmap.as_ref();
         bits[bits.len()];
     }
@@ -313,7 +308,7 @@ mod tests {
     #[test]
     fn deref() {
         let vec = vec![false, true, false, true, false, true];
-        let bitmap: Bitmap = vec.clone().into();
+        let bitmap: Bitmap = vec.clone().iter().copied().collect();
         assert_eq!(bitmap.len(), 6);
         assert!(!bitmap.is_empty());
         assert_eq!(bitmap.count_ones(), 3);
@@ -325,46 +320,9 @@ mod tests {
     }
 
     #[test]
-    fn from_array() {
-        let array: [bool; 4] = [true, true, false, false];
-        let bitmap: Bitmap = array.into();
-        assert!(array
-            .iter()
-            .zip(bitmap.iter().by_val())
-            .all(|(&a, b)| a == b));
-    }
-
-    #[test]
-    fn from_boxed_slice() {
-        let boxed_slice = vec![true, true, false, false].into_boxed_slice();
-        let bitmap: Bitmap = boxed_slice.clone().into();
-        assert!(boxed_slice
-            .iter()
-            .zip(bitmap.iter().by_val())
-            .all(|(&a, b)| a == b));
-    }
-
-    #[test]
-    fn from_slice() {
-        let slice: &[bool] = &[true, true, false, false];
-        let bitmap: Bitmap = slice.into();
-        assert!(slice
-            .iter()
-            .zip(bitmap.iter().by_val())
-            .all(|(&a, b)| a == b));
-    }
-
-    #[test]
-    fn from_vec() {
-        let vec = vec![true, true, false, false];
-        let bitmap: Bitmap = vec.clone().into();
-        assert!(vec.iter().zip(bitmap.iter().by_val()).all(|(&a, b)| a == b));
-    }
-
-    #[test]
     fn from_iter() {
         let vec = vec![true, false, true, false];
-        let bitmap = vec.clone().into_iter().collect::<Bitmap>();
+        let bitmap = vec.iter().copied().collect::<Bitmap>();
         assert_eq!(bitmap.len(), vec.len());
         assert_eq!(vec, bitmap.into_iter().collect::<Vec<_>>());
 
@@ -397,7 +355,7 @@ mod tests {
     #[test]
     fn from_iter_ref() {
         let array = [true, false, true, false];
-        let bitmap = array.iter().collect::<Bitmap>();
+        let bitmap = array.iter().copied().collect::<Bitmap>();
         assert_eq!(bitmap.len(), array.len());
         assert_eq!(array.to_vec(), bitmap.into_iter().collect::<Vec<_>>());
     }
@@ -405,7 +363,7 @@ mod tests {
     #[test]
     fn into_iter() {
         let vec = vec![true, false, true, false];
-        let bitmap: Bitmap = vec.clone().into();
+        let bitmap: Bitmap = vec.iter().copied().collect();
         assert_eq!(bitmap.into_iter().collect::<Vec<_>>(), vec);
     }
 }

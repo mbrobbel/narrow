@@ -1,4 +1,4 @@
-use crate::{Array, Bitmap, Nullable, Validity};
+use crate::{Array, ArrayType, Bitmap, Nullable, Validity};
 use std::{iter::FromIterator, ops::Deref};
 
 /// Array with boolean values.
@@ -7,24 +7,33 @@ use std::{iter::FromIterator, ops::Deref};
 #[derive(Debug)]
 pub struct BooleanArray<const N: bool>(Validity<Bitmap, N>);
 
-impl Array for BooleanArray<false> {
-    type Data = Bitmap;
+impl<const N: bool> Array for BooleanArray<N> {
+    type Validity = Validity<Bitmap, N>;
+    // type Type = bool;
 
-    fn data(&self) -> &Self::Data {
-        self
+    fn validity(&self) -> &Self::Validity {
+        &self.0
     }
 }
 
-impl Array for BooleanArray<true> {
-    type Data = Nullable<Bitmap>;
+impl ArrayType for bool {
+    type Array = BooleanArray<false>;
+}
 
-    fn data(&self) -> &Self::Data {
-        self
+impl ArrayType for Option<bool> {
+    type Array = BooleanArray<true>;
+}
+
+impl Deref for BooleanArray<false> {
+    type Target = Bitmap;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
-impl<const N: bool> Deref for BooleanArray<N> {
-    type Target = Validity<Bitmap, N>;
+impl Deref for BooleanArray<true> {
+    type Target = Nullable<Bitmap>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -35,15 +44,6 @@ impl FromIterator<bool> for BooleanArray<false> {
     fn from_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = bool>,
-    {
-        Self(iter.into_iter().collect())
-    }
-}
-
-impl<'a> FromIterator<&'a bool> for BooleanArray<false> {
-    fn from_iter<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = &'a bool>,
     {
         Self(iter.into_iter().collect())
     }
@@ -67,6 +67,24 @@ impl<'a> FromIterator<&'a Option<bool>> for BooleanArray<true> {
     }
 }
 
+impl<'a> IntoIterator for &'a BooleanArray<false> {
+    type Item = bool;
+    type IntoIter = <&'a Bitmap as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a BooleanArray<true> {
+    type Item = Option<bool>;
+    type IntoIter = <&'a Nullable<Bitmap> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -74,7 +92,7 @@ mod tests {
     #[test]
     fn deref() {
         let vec = vec![true, false, true, false, true, true];
-        let boolean_array: BooleanArray<false> = vec.iter().collect();
+        let boolean_array: BooleanArray<false> = vec.iter().copied().collect();
         assert_eq!(boolean_array.len(), vec.len());
         assert!(&boolean_array[0]);
         assert!(!&boolean_array[1]);
@@ -84,7 +102,7 @@ mod tests {
     #[test]
     fn from_iter() {
         let vec = vec![false, true, false, true, false];
-        let boolean_array = vec.iter().collect::<BooleanArray<false>>();
+        let boolean_array = vec.iter().copied().collect::<BooleanArray<false>>();
         assert_eq!(vec, boolean_array.into_iter().collect::<Vec<bool>>());
 
         let vec = vec![Some(false), Some(true), None, Some(true), None];

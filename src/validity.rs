@@ -1,39 +1,120 @@
-use crate::{Data, Nullable};
+use crate::{ArrayData, Bitmap, Nullable};
 use std::{hint::unreachable_unchecked, iter::FromIterator, ops::Deref};
 
 /// Variants for nullable and non-nullable data.
-///
-/// Wraps data of either a [Buffer](crate::Buffer) or [Bitmap](crate::Bitmap)
-/// with validity information.
 ///
 /// The const generic `N` indicates the nullability of the wrapped data.
 /// `Validity<_, true>` allocates a validity bitmap that is used to store
 /// locations of non-valid (null) values in the buffer. `Validity<_ false>`
 /// skips allocation of the validity bitmap.
 ///
-/// The variants in this enum can only be constructed with the following
+/// The variants in this enum should only be constructed with the following
 /// configuration (the const generic N encodes the discriminant):
 ///
-/// - [Validity::Nullable] when `N`=[true]
-/// - [Validity::Valid] when `N`=[false]
-#[derive(Debug)]
-pub enum Validity<T, const N: bool>
-where
-    T: Data,
-{
+/// - [Validity::Nullable] when `N` is [true].
+/// - [Validity::Valid] when `N` is [false].
+#[derive(Clone, Debug)]
+enum RawValidity<T, const N: bool> {
     Nullable(Nullable<T>),
     Valid(T),
 }
 
-impl<T> Deref for Validity<T, false>
+/// Validity wrapper for nullable and non-nullable data.
+///
+/// Wraps `T` with validity information (in a [Nullable]) when `N` is [true].
+/// Wraps `T` directly when `N` is [false].
+///
+/// Validity implements [Deref] to get access to the wrapped data.
+///
+/// - When `N` is [true] (nullable data) the deref target is a Nullable.
+/// - When `N` is [false] (non-nullable data) the deref target is `T`.
+// Can't control enum variant visibility so wrapping RawValidity to prevent
+// users from breaking the const generic discriminant encoding contract.
+#[derive(Clone, Debug)]
+pub struct Validity<T, const N: bool>(RawValidity<T, N>);
+
+impl<T, const N: bool> Validity<T, N> {
+    /// Returns a reference to the data wrapped by this [Validity].
+    /// This uses the deref impl to either get the data from the [Nullable] or
+    /// directly in the case of non-nullable data.
+    pub(crate) fn data(&self) -> &T {
+        match (N, &self.0) {
+            (false, RawValidity::Valid(data)) => data,
+            (true, RawValidity::Nullable(nullable)) => nullable.data(),
+            // Safety:
+            // - The const generic `N` encodes the discriminant.
+            _ => unsafe { unreachable_unchecked() },
+        }
+    }
+}
+
+impl<T> Validity<T, true> {
+    /// Returns a new Validity with nullable data.
+    pub(crate) fn nullable(validity: Bitmap, data: T) -> Self {
+        // Safety:
+        // - Nullable: `N` is `true` so it doesn't break the const generic
+        //   discriminant encoding.
+        Self(RawValidity::Nullable(Nullable::new(data, validity)))
+    }
+}
+
+impl<T, const N: bool> ArrayData for Validity<T, N>
 where
-    T: Data,
+    T: ArrayData,
 {
+    fn len(&self) -> usize {
+        match (N, &self.0) {
+            (false, RawValidity::Valid(data)) => data.len(),
+            (true, RawValidity::Nullable(nullable)) => nullable.len(),
+            // Safety:
+            // - The const generic `N` encodes the discriminant.
+            _ => unsafe { unreachable_unchecked() },
+        }
+    }
+    fn is_null(&self, index: usize) -> bool {
+        match (N, &self.0) {
+            (false, _) => false,
+            (true, RawValidity::Nullable(nullable)) => nullable.is_null(index),
+            // Safety:
+            // - The const generic `N` encodes the discriminant.
+            _ => unsafe { unreachable_unchecked() },
+        }
+    }
+    fn null_count(&self) -> usize {
+        match (N, &self.0) {
+            (false, _) => 0,
+            (true, RawValidity::Nullable(nullable)) => nullable.null_count(),
+            // Safety:
+            // - The const generic `N` encodes the discriminant.
+            _ => unsafe { unreachable_unchecked() },
+        }
+    }
+    fn is_valid(&self, index: usize) -> bool {
+        match (N, &self.0) {
+            (false, _) => true,
+            (true, RawValidity::Nullable(nullable)) => nullable.is_valid(index),
+            // Safety:
+            // - The const generic `N` encodes the discriminant.
+            _ => unsafe { unreachable_unchecked() },
+        }
+    }
+    fn valid_count(&self) -> usize {
+        match (N, &self.0) {
+            (false, RawValidity::Valid(data)) => data.len(),
+            (true, RawValidity::Nullable(nullable)) => nullable.valid_count(),
+            // Safety:
+            // - The const generic `N` encodes the discriminant.
+            _ => unsafe { unreachable_unchecked() },
+        }
+    }
+}
+
+impl<T> Deref for Validity<T, false> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        match self {
-            Validity::Valid(data) => data,
+        match &self.0 {
+            RawValidity::Valid(data) => data,
             // Safety:
             // - The const generic `N` encodes the discriminant.
             _ => unsafe { unreachable_unchecked() },
@@ -41,178 +122,113 @@ where
     }
 }
 
-impl<T> Deref for Validity<T, true>
-where
-    T: Data,
-{
+impl<T> Deref for Validity<T, true> {
     type Target = Nullable<T>;
 
     fn deref(&self) -> &Self::Target {
-        match self {
-            Validity::Nullable(nullable) => nullable,
+        match &self.0 {
+            RawValidity::Nullable(nullable) => nullable,
             // Safety:
             // - The const generic `N` encodes the discriminant.
             _ => unsafe { unreachable_unchecked() },
         }
-    }
-}
-
-impl<T, U, const N: usize> From<[U; N]> for Validity<T, false>
-where
-    T: Data + From<[U; N]>,
-{
-    fn from(array: [U; N]) -> Self {
-        Self::Valid(array.into())
-    }
-}
-
-impl<T, U> From<Box<[U]>> for Validity<T, false>
-where
-    T: Data + From<Box<[U]>>,
-{
-    fn from(boxed_slice: Box<[U]>) -> Self {
-        Self::Valid(boxed_slice.into())
-    }
-}
-
-impl<T, U> From<&[U]> for Validity<T, false>
-where
-    T: Data,
-    for<'a> T: From<&'a [U]>,
-{
-    fn from(slice: &[U]) -> Self {
-        Self::Valid(slice.into())
-    }
-}
-
-impl<T, U> From<Vec<U>> for Validity<T, false>
-where
-    T: Data + From<Vec<U>>,
-{
-    fn from(vec: Vec<U>) -> Self {
-        Self::Valid(vec.into())
-    }
-}
-
-impl<T, U, const N: usize> From<[Option<U>; N]> for Validity<T, true>
-where
-    T: Data + From<Vec<U>>,
-    U: Copy + Default,
-{
-    fn from(array: [Option<U>; N]) -> Self {
-        Self::Nullable(array.iter().copied().collect())
-    }
-}
-
-impl<T, U> From<Box<[Option<U>]>> for Validity<T, true>
-where
-    T: Data + From<Vec<U>>,
-    U: Copy + Default,
-{
-    fn from(boxed_slice: Box<[Option<U>]>) -> Self {
-        Self::Nullable(boxed_slice.iter().copied().collect())
-    }
-}
-
-impl<T, U> From<Vec<Option<U>>> for Validity<T, true>
-where
-    T: Data + From<Vec<U>>,
-    U: Copy + Default,
-{
-    fn from(vec: Vec<Option<U>>) -> Self {
-        Self::Nullable(vec.into_iter().collect())
     }
 }
 
 impl<T, U> FromIterator<U> for Validity<T, false>
 where
-    T: Data + FromIterator<U>,
+    T: FromIterator<U>,
 {
     fn from_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = U>,
     {
-        Validity::Valid(iter.into_iter().collect())
+        // Safety:
+        // - Valid: `N` is `false` so it doesn't break the const generic
+        //   discriminant encoding.
+        Self(RawValidity::Valid(iter.into_iter().collect()))
     }
 }
 
 impl<T, U> FromIterator<Option<U>> for Validity<T, true>
 where
-    T: Data + From<Vec<U>>,
-    U: Copy + Default,
+    T: FromIterator<U>,
+    U: Default,
 {
     fn from_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = Option<U>>,
     {
-        Validity::Nullable(iter.into_iter().collect())
+        // Safety:
+        // - Nullable: `N` is `true` so it doesn't break the const generic
+        //   discriminant encoding.
+        Self(RawValidity::Nullable(iter.into_iter().collect()))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Bitmap, Buffer, Data, ALIGNMENT};
+    use crate::{Bitmap, Buffer, ALIGNMENT};
+
+    #[test]
+    fn data() {
+        let valid: Validity<Buffer<_, ALIGNMENT>, false> = vec![1u8, 2, 3, 4].into_iter().collect();
+        assert_eq!(valid.data().as_slice(), &[1, 2, 3, 4]);
+
+        let nullable: Validity<Buffer<_, ALIGNMENT>, true> =
+            vec![Some(1u8), None, Some(3), Some(4)]
+                .into_iter()
+                .collect();
+        assert_eq!(nullable.data().as_slice(), &[1, u8::default(), 3, 4]);
+    }
+
+    #[test]
+    fn array_data() {
+        let valid: Validity<Buffer<_, ALIGNMENT>, false> = vec![1u8, 2, 3, 4].into_iter().collect();
+        assert_eq!(valid.len(), 4);
+        assert!(!valid.is_null(1));
+        assert_eq!(valid.null_count(), 0);
+        assert!(valid.is_valid(1));
+        assert_eq!(valid.valid_count(), 4);
+
+        let nullable: Validity<Buffer<_, ALIGNMENT>, true> =
+            vec![Some(1u8), None, Some(3), Some(4)]
+                .into_iter()
+                .collect();
+        assert_eq!(nullable.len(), 4);
+        assert!(!nullable.is_null(0));
+        assert!(nullable.is_null(1));
+        assert_eq!(nullable.null_count(), 1);
+        assert!(nullable.is_valid(0));
+        assert!(!nullable.is_valid(1));
+        assert_eq!(nullable.valid_count(), 3);
+    }
 
     #[test]
     fn deref() {
-        let valid: Validity<Buffer<_, ALIGNMENT>, false> = vec![1u8, 2, 3, 4].into();
+        let valid: Validity<Buffer<_, ALIGNMENT>, false> = vec![1u8, 2, 3, 4].into_iter().collect();
         assert_eq!(valid.len(), 4);
 
-        let valid: Validity<Bitmap, false> = vec![true, false, true, true].into();
+        let valid: Validity<Bitmap, false> = vec![true, false, true, true].into_iter().collect();
         assert_eq!(valid.len(), 4);
 
         let nullable: Validity<Buffer<_, ALIGNMENT>, true> =
-            vec![Some(1u8), None, Some(3), Some(4)].into();
+            vec![Some(1u8), None, Some(3), Some(4)]
+                .into_iter()
+                .collect();
         assert_eq!(nullable.len(), 4);
+        assert_eq!(
+            nullable.validity(),
+            &[true, false, true, true]
+                .iter()
+                .copied()
+                .collect::<Bitmap>()
+        );
 
-        let valid: Validity<Bitmap, true> = vec![Some(true), Some(false), None, Some(true)].into();
+        let valid: Validity<Bitmap, true> = vec![Some(true), Some(false), None, Some(true)]
+            .into_iter()
+            .collect();
         assert_eq!(valid.len(), 4);
-    }
-
-    #[test]
-    fn from_array() {
-        let array = [1u8, 2, 3, 4];
-        let validity: Validity<Buffer<_, ALIGNMENT>, false> = array.into();
-        assert_eq!(&validity[..], &array[..]);
-        match validity {
-            Validity::Nullable(_) => panic!(),
-            Validity::Valid(_) => {}
-        }
-
-        let array = [Some(1u8), None, Some(3), Some(4)];
-        let validity: Validity<Buffer<_, ALIGNMENT>, true> = array.into();
-        assert_eq!(validity.into_iter().collect::<Vec<_>>(), array);
-        match validity {
-            Validity::Nullable(_) => {}
-            Validity::Valid(_) => panic!(),
-        }
-
-        let array = [true, false, true, false];
-        let validity: Validity<Bitmap, false> = array.into();
-        assert_eq!(validity.into_iter().collect::<Vec<_>>(), &array[..]);
-        match validity {
-            Validity::Nullable(_) => panic!(),
-            Validity::Valid(_) => {}
-        }
-
-        let array = [Some(false), None, Some(true), Some(true)];
-        let validity: Validity<Bitmap, true> = array.into();
-        assert_eq!(validity.into_iter().collect::<Vec<_>>(), array);
-        match validity {
-            Validity::Nullable(_) => {}
-            Validity::Valid(_) => panic!(),
-        }
-    }
-
-    #[test]
-    fn from_iter() {
-        let vec = vec![1u8, 2, 3, 4];
-        let validity: Validity<Buffer<_, ALIGNMENT>, false> = vec.clone().into_iter().collect();
-        assert_eq!(&validity[..], &vec[..]);
-
-        let vec = vec![Some(1u8), None, Some(3), Some(4)];
-        let validity: Validity<Buffer<_, ALIGNMENT>, true> = vec.clone().into_iter().collect();
-        assert_eq!(validity.into_iter().collect::<Vec<_>>(), vec);
     }
 }

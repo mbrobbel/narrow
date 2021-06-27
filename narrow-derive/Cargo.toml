@@ -10,6 +10,7 @@ proc-macro = true
 [features]
 
 [dependencies]
+proc-macro-crate = "1"
 proc-macro2 = "1"
 quote = "1"
-syn = { version = "1", features = ["derive", "full", "parsing", "extra-traits"] }
+syn = "1"

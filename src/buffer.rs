@@ -1,4 +1,4 @@
-use crate::{Data, Primitive};
+use crate::{ArrayData, Primitive};
 use std::{
     alloc::{self, Layout},
     any,
@@ -13,11 +13,12 @@ use std::{
 
 // todo(mb): replace with allocator api (https://github.com/rust-lang/rust/issues/32838)
 // todo(mb): add defaults for alignment const generic (https://github.com/rust-lang/rust/issues/44580)
-// todo(mb): implement partial eq and eq for buffer (layout aware?)
-// todo(mb): implement clone
 // todo(mb): implement hash
 
-/// A contiguous immutable memory buffer for Arrow data.
+/// Default exponent of power-of-two alignment for buffers.
+pub(crate) const ALIGNMENT: usize = 6; // 1 << 6 = 64;
+
+/// A contiguous immutable memory buffer for data.
 ///
 /// Generic over the element type `T` stored in this buffer and the alignment
 /// `A` of the buffer.
@@ -38,11 +39,10 @@ use std::{
 /// This is currently implemented using low-level unsafe code. When the
 /// [Allocator](std::alloc::Allocator) trait is stabilized a wrapper around a
 /// [Vec] with a custom allocator implementation (for the alignment and padding
-/// requirements) can replace all the code here.
+/// requirements) can replace most of the code here.
 pub struct Buffer<T, const A: usize>
 where
-    T: Copy, // This is not [Primitive] because [Buffer] is also used in
-             // [Bitmap] that stores [usize] elements.
+    T: Primitive,
 {
     /// The pointer to the memory location of the buffer.
     ptr: NonNull<T>,
@@ -50,37 +50,10 @@ where
     len: usize,
 }
 
-/// Buffer is [Send] because the buffer is immutable.
-unsafe impl<T, const A: usize> Send for Buffer<T, A> where T: Copy {}
-
-/// Buffer is [Sync] because the buffer is immutable.
-unsafe impl<T, const A: usize> Sync for Buffer<T, A> where T: Copy {}
-
 impl<T, const A: usize> Buffer<T, A>
 where
-    T: Copy,
+    T: Primitive,
 {
-    /// Returns an empty [Buffer].
-    ///
-    /// Because buffers are immutable the [Buffer] will always be empty.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use narrow::Buffer;
-    ///
-    /// let empty = Buffer::<u8, 0>::empty();
-    ///
-    /// assert!(empty.is_empty());
-    /// assert_eq!(&empty[..], &[]);
-    /// ```
-    pub fn empty() -> Self {
-        Self {
-            ptr: NonNull::dangling(),
-            len: 0,
-        }
-    }
-
     /// Extracts a slice containing the entire buffer.
     ///
     /// Equivalent to `&buffer[..]`.
@@ -90,7 +63,7 @@ where
     /// ```
     /// use narrow::Buffer;
     ///
-    /// let buffer: Buffer<_, 3> = [1u8, 2, 3, 4].into();
+    /// let buffer: Buffer<_, 3> = [1u8, 2, 3, 4].iter().copied().collect();
     ///
     /// assert_eq!(buffer.as_slice(), &buffer[..]);
     /// ```
@@ -137,9 +110,99 @@ where
     }
 }
 
+impl<T, const A: usize> ArrayData for Buffer<T, A>
+where
+    T: Primitive,
+{
+    fn len(&self) -> usize {
+        self.len
+    }
+
+    fn is_null(&self, index: usize) -> bool {
+        #[cold]
+        #[inline(never)]
+        fn assert_failed(index: usize, len: usize) -> ! {
+            panic!("is_null index (is {}) should be < len (is {})", index, len);
+        }
+
+        let len = self.len();
+        if index >= len {
+            assert_failed(index, len);
+        }
+
+        false
+    }
+
+    fn null_count(&self) -> usize {
+        0
+    }
+
+    fn is_valid(&self, index: usize) -> bool {
+        #[cold]
+        #[inline(never)]
+        fn assert_failed(index: usize, len: usize) -> ! {
+            panic!("is_valid index (is {}) should be < len (is {})", index, len);
+        }
+
+        let len = self.len();
+        if index >= len {
+            assert_failed(index, len);
+        }
+
+        true
+    }
+
+    fn valid_count(&self) -> usize {
+        self.len
+    }
+}
+
+impl<T, const A: usize> AsRef<Buffer<T, A>> for Buffer<T, A>
+where
+    T: Primitive,
+{
+    fn as_ref(&self) -> &Buffer<T, A> {
+        self
+    }
+}
+
+impl<T, const A: usize> AsRef<[u8]> for Buffer<T, A>
+where
+    T: Primitive,
+{
+    fn as_ref(&self) -> &[u8] {
+        // Safety:
+        // - Length (number of elements) is an invariant of an immutable buffer.
+        unsafe {
+            slice::from_raw_parts(
+                self.ptr.as_ptr() as *const u8,
+                self.len * mem::size_of::<T>(),
+            )
+        }
+    }
+}
+
+impl<T, const A: usize> Borrow<[T]> for Buffer<T, A>
+where
+    T: Primitive,
+{
+    fn borrow(&self) -> &[T] {
+        self
+    }
+}
+
+impl<T, const A: usize> Clone for Buffer<T, A>
+where
+    T: Primitive,
+{
+    fn clone(&self) -> Self {
+        Self::from_slice(self.as_slice())
+    }
+}
+
 impl<T, const A: usize> Debug for Buffer<T, A>
 where
-    T: Copy + Debug,
+    T: Primitive + Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         f.debug_struct(&format!("Buffer<{}, {}>", any::type_name::<T>(), A))
@@ -150,16 +213,33 @@ where
 
 impl<T, const A: usize> Default for Buffer<T, A>
 where
-    T: Copy,
+    T: Primitive,
 {
     fn default() -> Self {
-        Buffer::empty()
+        Self {
+            ptr: NonNull::dangling(),
+            len: 0,
+        }
+    }
+}
+
+impl<T, const A: usize> Deref for Buffer<T, A>
+where
+    T: Primitive,
+{
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        // Safety:
+        // - Conditions that would result in undefined behavior are met by the
+        //   invariants of the buffer (layout, allocation and length).
+        unsafe { slice::from_raw_parts(self.ptr.as_ptr() as *const T, self.len) }
     }
 }
 
 impl<T, const A: usize> Drop for Buffer<T, A>
 where
-    T: Copy,
+    T: Primitive,
 {
     fn drop(&mut self) {
         // Don't attempt to deallocate empty buffers.
@@ -177,105 +257,11 @@ where
     }
 }
 
-impl<T, const A: usize> Data for Buffer<T, A>
-where
-    T: Copy,
-{
-    fn len(&self) -> usize {
-        self.len
-    }
-
-    fn null_count(&self) -> usize {
-        0
-    }
-
-    fn valid_count(&self) -> usize {
-        self.len
-    }
-}
-
-impl<T, const A: usize> AsRef<Buffer<T, A>> for Buffer<T, A>
-where
-    T: Copy,
-{
-    fn as_ref(&self) -> &Buffer<T, A> {
-        self
-    }
-}
-
-impl<T, const A: usize> AsRef<[u8]> for Buffer<T, A>
-where
-    T: Copy,
-{
-    fn as_ref(&self) -> &[u8] {
-        // Safety:
-        // - Length (number of elements) is an invariant of an immutable buffer.
-        unsafe {
-            slice::from_raw_parts(
-                self.ptr.as_ptr() as *const u8,
-                self.len * mem::size_of::<T>(),
-            )
-        }
-    }
-}
-
-impl<T, const A: usize> Borrow<[T]> for Buffer<T, A>
-where
-    T: Copy,
-{
-    fn borrow(&self) -> &[T] {
-        self
-    }
-}
-
-impl<T, const A: usize> Deref for Buffer<T, A>
-where
-    T: Copy,
-{
-    type Target = [T];
-
-    fn deref(&self) -> &Self::Target {
-        // Safety:
-        // - Conditions that would result in undefined behavior are met by the
-        //   invariants of the buffer (layout, allocation and length).
-        unsafe { slice::from_raw_parts(self.ptr.as_ptr() as *const T, self.len) }
-    }
-}
-
-impl<T, const N: usize, const A: usize> From<[T; N]> for Buffer<T, A>
+impl<T, const A: usize> Eq for Buffer<T, A>
 where
     T: Primitive,
+    for<'a> &'a [T]: PartialEq,
 {
-    fn from(array: [T; N]) -> Self {
-        Self::from_slice(&array)
-    }
-}
-
-impl<T, const A: usize> From<Box<[T]>> for Buffer<T, A>
-where
-    T: Primitive,
-{
-    fn from(boxed_slice: Box<[T]>) -> Self {
-        Self::from_slice(&boxed_slice)
-    }
-}
-
-impl<T, const A: usize> From<&[T]> for Buffer<T, A>
-where
-    T: Primitive,
-{
-    fn from(slice: &[T]) -> Self {
-        Self::from_slice(slice)
-    }
-}
-
-impl<T, const A: usize> From<Vec<T>> for Buffer<T, A>
-where
-    T: Primitive,
-{
-    fn from(vec: Vec<T>) -> Self {
-        Self::from_slice(&vec)
-    }
 }
 
 impl<T, const A: usize> FromIterator<T> for Buffer<T, A>
@@ -322,40 +308,26 @@ where
                     len,
                 }
             }
-            None => Self::empty(),
+            None => Self::default(),
         }
-    }
-}
-
-impl<'a, T, const A: usize> FromIterator<&'a T> for Buffer<T, A>
-where
-    T: Primitive + 'a,
-{
-    fn from_iter<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = &'a T>,
-    {
-        iter.into_iter().copied().collect()
     }
 }
 
 impl<'a, T, const A: usize> IntoIterator for &'a Buffer<T, A>
 where
-    // Copy instead of Primitive because this is also used in BitMap with usize
-    // which does not impl Primitive.
-    T: Copy,
+    T: Primitive,
 {
     type Item = T;
     type IntoIter = Copied<Iter<'a, T>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.deref().iter().copied()
+        self.iter().copied()
     }
 }
 
 impl<T, const A: usize> PartialEq for Buffer<T, A>
 where
-    T: Copy,
+    T: Primitive,
     for<'a> &'a [T]: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
@@ -364,16 +336,18 @@ where
     }
 }
 
-impl<T, const A: usize> Eq for Buffer<T, A>
-where
-    T: Copy,
-    for<'a> &'a [T]: PartialEq,
-{
-}
+/// Buffer is [Send] because the buffer is immutable.
+unsafe impl<T, const A: usize> Send for Buffer<T, A> where T: Primitive {}
+
+/// Buffer is [Sync] because the buffer is immutable.
+unsafe impl<T, const A: usize> Sync for Buffer<T, A> where T: Primitive {}
 
 /// Returns the [Layout] for a [Buffer] with alignment `A` and provided length
 /// (number of elements).
-pub(crate) fn layout<T: Copy, const A: usize>(length: usize) -> Layout {
+pub(crate) fn layout<T, const A: usize>(length: usize) -> Layout
+where
+    T: Primitive,
+{
     assert!(length != 0, "Zero-sized layouts are not supported");
 
     // Power-of-two alignment.
@@ -411,7 +385,7 @@ pub(crate) fn layout<T: Copy, const A: usize>(length: usize) -> Layout {
 /// This method will likely be deprecated when Allocator APIs are stabilized.
 pub(crate) unsafe fn alloc<T, const A: usize>(layout: Layout) -> *mut T
 where
-    T: Copy,
+    T: Primitive,
 {
     // Safety
     // - Size condition is checked in `layout` function.
@@ -447,15 +421,15 @@ pub(crate) unsafe fn realloc<T, const A: usize, const B: usize>(
     new_length: usize,
 ) -> *mut T
 where
-    T: Copy,
+    T: Primitive,
 {
     let old_layout = layout::<T, A>(old_length);
     let new_layout = layout::<T, B>(new_length);
 
     // Check if the current allocation layout can hold the new length.
     if old_layout == new_layout {
-        // No need to reallocate. There is enough capacity to store the new
-        // length.
+        // No need to reallocate. There is enough capacity in the padding to
+        // store `new_length` elements.
         ptr
     } else {
         // Allocate new buffer and copy contents from source.
@@ -469,9 +443,6 @@ where
         new_ptr
     }
 }
-
-/// Default exponent of power-of-two alignment for buffers.
-pub const ALIGNMENT: usize = 6;
 
 #[cfg(test)]
 mod tests {
@@ -513,7 +484,7 @@ mod tests {
 
     #[test]
     fn as_ref() {
-        let buffer: Buffer<_, 7> = [1u32, 2, 3, 4].into();
+        let buffer: Buffer<_, 7> = [1u32, 2, 3, 4].iter().copied().collect();
         let x: &Buffer<_, 7> = buffer.as_ref();
         assert_eq!(x.len(), 4);
         let x: &[u8] = buffer.as_ref();
@@ -523,7 +494,7 @@ mod tests {
     #[test]
     fn as_ref_u8() {
         let vec = vec![42u32, u32::MAX, 0xc0fefe];
-        let buffer: Buffer<_, 7> = vec.into();
+        let buffer: Buffer<_, 7> = vec.into_iter().collect();
         assert_eq!(
             AsRef::<[u8]>::as_ref(&buffer),
             &[42u8, 0, 0, 0, 255, 255, 255, 255, 254, 254, 192, 0]
@@ -532,7 +503,7 @@ mod tests {
 
     #[test]
     fn borrow() {
-        let buffer: Buffer<_, 7> = [1u32, 2, 3, 4].into();
+        let buffer: Buffer<_, 7> = [1u32, 2, 3, 4].iter().copied().collect();
 
         fn borrow_u32<T: Borrow<[u32]>>(input: T) {
             assert_eq!(input.borrow(), &[1, 2, 3, 4]);
@@ -543,14 +514,14 @@ mod tests {
 
     #[test]
     fn deref() {
-        let buffer: Buffer<_, 3> = [1u32, 2, 3, 4].into();
+        let buffer: Buffer<_, 3> = [1u32, 2, 3, 4].iter().copied().collect();
         assert_eq!(buffer.len(), 4);
         assert_eq!(&buffer[2..], &[3, 4]);
     }
 
     #[test]
-    fn empty() {
-        let buffer: Buffer<u8, 6> = Buffer::empty();
+    fn default() {
+        let buffer: Buffer<u8, 6> = Buffer::default();
         assert!(buffer.is_empty());
         assert_eq!(buffer.len(), 0);
         assert!(buffer.first().is_none());
@@ -564,34 +535,6 @@ mod tests {
     }
 
     #[test]
-    fn from_array() {
-        let array = [1u64, 2, 3, 4];
-        let buffer: Buffer<_, 3> = array.into();
-        assert_eq!(array, &buffer[..]);
-    }
-
-    #[test]
-    fn from_boxed_slice() {
-        let boxed_slice = vec![1u8, 2, 3, 4].into_boxed_slice();
-        let buffer: Buffer<_, 1> = boxed_slice.clone().into();
-        assert_eq!(&boxed_slice[..], &buffer[..]);
-    }
-
-    #[test]
-    fn from_slice() {
-        let slice: &[u8] = &[1u8, 2, 3, 4];
-        let buffer: Buffer<_, 5> = slice.into();
-        assert_eq!(slice, &buffer[..]);
-    }
-
-    #[test]
-    fn from_vec() {
-        let vec = vec![1u8, 2, 3, 4];
-        let buffer: Buffer<_, 1> = vec.clone().into();
-        assert_eq!(vec, &buffer[..]);
-    }
-
-    #[test]
     fn from_iter() {
         let vec = vec![1u32, 2, 3, 4];
         let buffer = vec.clone().into_iter().collect::<Buffer<_, 6>>();
@@ -602,7 +545,7 @@ mod tests {
     #[test]
     fn from_iter_ref() {
         let vec = vec![1u32, 2, 3, 4];
-        let buffer = vec.iter().collect::<Buffer<_, 4>>();
+        let buffer = vec.iter().copied().collect::<Buffer<_, 4>>();
         assert_eq!(buffer.len(), 4);
         assert_eq!(&vec[..], &buffer[..]);
     }
@@ -612,6 +555,7 @@ mod tests {
         let vec = vec![1u32, 2, 3, 4];
         let other = vec
             .iter()
+            .copied()
             .collect::<Buffer<_, 5>>()
             .into_iter()
             .collect::<Vec<_>>();

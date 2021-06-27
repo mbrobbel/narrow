@@ -1,45 +1,49 @@
-use crate::{Array, Buffer, Data, Nullable, Offset, OffsetType, ALIGNMENT};
+use crate::{Array, ArrayType, Buffer, Offset, OffsetValue, ALIGNMENT};
 use std::{iter::FromIterator, ops::Index};
 
 /// Array with variable-sized binary data.
 #[derive(Debug)]
 pub struct VariableSizeBinaryArray<T, const N: bool>
 where
-    T: OffsetType,
+    T: OffsetValue,
 {
     data: Buffer<u8, ALIGNMENT>,
     offset: Offset<T, N>,
 }
 
-impl<T> Array for VariableSizeBinaryArray<T, false>
+impl<T, const N: bool> VariableSizeBinaryArray<T, N>
 where
-    T: OffsetType,
+    T: OffsetValue,
 {
-    type Data = Buffer<T, ALIGNMENT>;
-
-    fn data(&self) -> &Self::Data {
-        &self.offset
-    }
-
-    fn len(&self) -> usize {
-        self.data().len() - 1
+    pub fn data(&self) -> &Buffer<u8, ALIGNMENT> {
+        &self.data
     }
 }
 
-impl<T> Array for VariableSizeBinaryArray<T, true>
+impl<T, const N: bool> Array for VariableSizeBinaryArray<T, N>
 where
-    T: OffsetType,
+    T: OffsetValue,
 {
-    type Data = Nullable<Buffer<T, ALIGNMENT>>;
+    type Validity = Offset<T, N>;
 
-    fn data(&self) -> &Self::Data {
+    fn validity(&self) -> &Self::Validity {
         &self.offset
     }
+}
+
+impl ArrayType for &[u8] {
+    // todo(mb): how to control i32 vs i64
+    type Array = BinaryArray<false>;
+}
+
+impl ArrayType for Option<&[u8]> {
+    // todo(mb): how to control i32 vs i64
+    type Array = BinaryArray<true>;
 }
 
 impl<T, U> FromIterator<U> for VariableSizeBinaryArray<T, false>
 where
-    T: OffsetType,
+    T: OffsetValue,
     U: AsRef<[u8]>,
 {
     fn from_iter<I>(iter: I) -> Self
@@ -57,7 +61,7 @@ where
             .collect::<Offset<T, false>>();
 
         Self {
-            data: data.into(),
+            data: data.into_iter().collect(),
             offset,
         }
     }
@@ -65,7 +69,7 @@ where
 
 impl<T, U> FromIterator<Option<U>> for VariableSizeBinaryArray<T, true>
 where
-    T: OffsetType,
+    T: OffsetValue,
     U: AsRef<[u8]>,
 {
     fn from_iter<I>(iter: I) -> Self
@@ -85,7 +89,7 @@ where
             .collect();
 
         Self {
-            data: data.into(),
+            data: data.into_iter().collect(),
             offset,
         }
     }
@@ -93,7 +97,7 @@ where
 
 impl<T> Index<usize> for VariableSizeBinaryArray<T, false>
 where
-    T: OffsetType,
+    T: OffsetValue,
 {
     type Output = [u8];
 
@@ -114,7 +118,6 @@ pub type LargeBinaryArray<const N: bool> = VariableSizeBinaryArray<i64, N>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Array;
 
     #[test]
     fn from_iter() {
@@ -125,6 +128,7 @@ mod tests {
 
         let array = vec.iter().collect::<BinaryArray<false>>();
         assert_eq!(array.len(), 3);
+        assert_eq!(array.data().len(), 12);
         assert_eq!(&array[0], &x[..]);
         assert_eq!(&array[1], &y[..]);
         assert_eq!(&array[2], &z[..]);

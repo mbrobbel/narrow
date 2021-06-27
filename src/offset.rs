@@ -1,8 +1,34 @@
-use crate::{Bitmap, Buffer, Nullable, OffsetType, Validity, ALIGNMENT};
+use crate::{ArrayData, Bitmap, BitmapIter, Buffer, Primitive, Validity, ALIGNMENT};
+use bitvec::{order::Lsb0, slice::BitValIter};
 use std::{
-    iter::{self, FromIterator},
+    convert::{TryFrom, TryInto},
+    iter::{self, Copied, FromIterator, Zip},
+    num::TryFromIntError,
     ops::Deref,
+    slice::Iter,
 };
+
+/// Types representing offset values.
+///
+/// Values with these types can be used to represent offset values in an
+/// [Offset].
+///
+/// This trait is sealed to prevent downstream implementations.
+pub trait OffsetValue:
+    Primitive
+    + TryFrom<usize, Error = TryFromIntError>
+    + TryInto<usize, Error = TryFromIntError>
+    + sealed::Sealed
+{
+}
+
+mod sealed {
+    pub trait Sealed {}
+    impl<T> Sealed for T where T: super::OffsetValue {}
+}
+
+impl OffsetValue for i32 {}
+impl OffsetValue for i64 {}
 
 /// Wrapper for offset values of variable sized arrays.
 ///
@@ -10,97 +36,78 @@ use std::{
 /// different [FromIterator] implementation. In the offset buffer the previous
 /// offset is copied for null values, whereas the behavior of [Validity] adds a
 /// [Default::default] value.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Offset<T, const N: bool>(Validity<Buffer<T, ALIGNMENT>, N>)
 where
-    T: OffsetType;
+    T: OffsetValue;
 
-impl<T, const N: bool> Deref for Offset<T, N>
+// Non-nullable validity deref gives the offset buffer, which
+// always has one more value than the array.
+impl<T, const N: bool> ArrayData for Offset<T, N>
 where
-    T: OffsetType,
+    T: OffsetValue,
 {
-    type Target = Validity<Buffer<T, ALIGNMENT>, N>;
+    fn len(&self) -> usize {
+        match N {
+            false => self.0.len() - 1,
+            true => self.0.len(),
+        }
+    }
+
+    fn is_null(&self, index: usize) -> bool {
+        self.0.is_null(match N {
+            false => index + 1,
+            true => index,
+        })
+    }
+
+    fn null_count(&self) -> usize {
+        match N {
+            false => 0,
+            true => self.0.null_count(),
+        }
+    }
+
+    fn is_valid(&self, index: usize) -> bool {
+        self.0.is_valid(match N {
+            false => index + 1,
+            true => index,
+        })
+    }
+
+    fn valid_count(&self) -> usize {
+        match N {
+            false => self.0.len() - 1,
+            true => self.0.valid_count(),
+        }
+    }
+}
+
+impl<T> Deref for Offset<T, false>
+where
+    T: OffsetValue,
+{
+    type Target = <Validity<Buffer<T, ALIGNMENT>, false> as Deref>::Target;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<T, const N: usize> From<[T; N]> for Offset<T, false>
+impl<T> Deref for Offset<T, true>
 where
-    T: OffsetType,
+    T: OffsetValue,
 {
-    fn from(array: [T; N]) -> Self {
-        array.iter().copied().collect()
-    }
-}
+    type Target = <Validity<Buffer<T, ALIGNMENT>, true> as Deref>::Target;
 
-impl<T> From<Box<[T]>> for Offset<T, false>
-where
-    T: OffsetType,
-{
-    fn from(boxed_slice: Box<[T]>) -> Self {
-        boxed_slice.iter().copied().collect()
-    }
-}
-
-impl<T> From<&[T]> for Offset<T, false>
-where
-    T: OffsetType,
-{
-    fn from(slice: &[T]) -> Self {
-        slice.iter().copied().collect()
-    }
-}
-
-impl<T> From<Vec<T>> for Offset<T, false>
-where
-    T: OffsetType,
-{
-    fn from(vec: Vec<T>) -> Self {
-        vec.into_iter().collect()
-    }
-}
-
-impl<T, const N: usize> From<[Option<T>; N]> for Offset<T, true>
-where
-    T: OffsetType,
-{
-    fn from(array: [Option<T>; N]) -> Self {
-        array.iter().copied().collect()
-    }
-}
-
-impl<T> From<Box<[Option<T>]>> for Offset<T, true>
-where
-    T: OffsetType,
-{
-    fn from(boxed_slice: Box<[Option<T>]>) -> Self {
-        boxed_slice.iter().copied().collect()
-    }
-}
-
-impl<T> From<&[Option<T>]> for Offset<T, true>
-where
-    T: OffsetType,
-{
-    fn from(slice: &[Option<T>]) -> Self {
-        slice.iter().copied().collect()
-    }
-}
-
-impl<T> From<Vec<Option<T>>> for Offset<T, true>
-where
-    T: OffsetType,
-{
-    fn from(vec: Vec<Option<T>>) -> Self {
-        vec.into_iter().collect()
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
 impl<T> FromIterator<T> for Offset<T, false>
 where
-    T: OffsetType,
+    T: OffsetValue,
 {
     fn from_iter<I>(iter: I) -> Self
     where
@@ -119,7 +126,7 @@ where
 
 impl<T> FromIterator<Option<T>> for Offset<T, true>
 where
-    T: OffsetType,
+    T: OffsetValue,
 {
     fn from_iter<I>(iter: I) -> Self
     where
@@ -136,12 +143,97 @@ where
                 // Instead of T::default(), we push the previous offset.
                 *last += opt.unwrap_or_default();
                 buffer.push(*last);
-                Some(opt)
+                Some(opt.is_some())
             })
-            .map(|opt| opt.is_some())
             .collect::<Bitmap>();
 
-        Self(Validity::Nullable(Nullable::new(validity, buffer.into())))
+        Self(Validity::nullable(validity, buffer.into_iter().collect()))
+    }
+}
+
+/// Iterator over offsets values.
+pub struct OffsetIter<T, const N: bool> {
+    pos: Option<usize>,
+    iter: T,
+}
+
+impl<'a, T> Iterator for OffsetIter<Copied<Iter<'a, T>>, false>
+where
+    T: OffsetValue,
+{
+    type Item = (usize, usize);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Empty offset array?
+        self.pos.and(
+            self.iter
+                .next()
+                .map(|offset| offset.try_into().unwrap())
+                .map(|end| {
+                    let result = (self.pos.unwrap(), end);
+                    self.pos = Some(end);
+                    result
+                }),
+        )
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
+}
+
+impl<'a, T> Iterator for OffsetIter<Zip<BitValIter<'a, Lsb0, usize>, Copied<Iter<'a, T>>>, true>
+where
+    T: OffsetValue,
+{
+    type Item = Option<(usize, usize)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.pos.and(
+            self.iter
+                .next()
+                .map(|(validity, offset)| (validity, offset.try_into().unwrap()))
+                .map(|(validity, end)| {
+                    let result = (self.pos.unwrap(), end);
+                    self.pos = Some(end);
+                    match validity {
+                        true => Some(result),
+                        false => None,
+                    }
+                }),
+        )
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Offset<T, false>
+where
+    T: OffsetValue,
+{
+    type Item = (usize, usize);
+    type IntoIter = OffsetIter<Copied<Iter<'a, T>>, false>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let mut iter = self.0.into_iter();
+        OffsetIter {
+            pos: iter.next().map(|offset| offset.try_into().unwrap()),
+            iter,
+        }
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Offset<T, true>
+where
+    T: OffsetValue,
+{
+    type Item = Option<(usize, usize)>;
+    type IntoIter = OffsetIter<Zip<BitmapIter<'a>, Copied<Iter<'a, T>>>, true>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let validity = self.0.validity().into_iter();
+        let mut offsets = self.0.data().into_iter();
+        let pos = offsets.next().map(|offset| offset.try_into().unwrap());
+        let iter = validity.zip(offsets);
+        OffsetIter { pos, iter }
     }
 }
 
@@ -150,11 +242,47 @@ mod tests {
     use super::*;
 
     #[test]
+    fn array_data() {
+        let offset: Offset<i64, false> = [1, 2, 3, 4].iter().copied().collect();
+        assert_eq!(offset.len(), 4);
+        assert!(!offset.is_null(0));
+        assert_eq!(offset.null_count(), 0);
+        assert!(offset.is_valid(0));
+        assert_eq!(offset.valid_count(), 4);
+
+        let offset: Offset<i32, true> = [Some(3), None, Some(4), Some(0)].iter().copied().collect();
+        assert_eq!(offset.len(), 4);
+        assert!(!offset.is_null(0));
+        assert!(offset.is_null(1));
+        assert_eq!(offset.null_count(), 1);
+        assert!(offset.is_valid(0));
+        assert!(!offset.is_valid(1));
+        assert_eq!(offset.valid_count(), 3);
+    }
+
+    #[test]
     fn from_iter() {
-        let offset: Offset<i64, false> = [1, 2, 3, 4].into();
+        let offset: Offset<i64, false> = [1, 2, 3, 4].iter().copied().collect();
         assert_eq!(&offset[..], &[0, 1, 3, 6, 10]);
 
-        let offset: Offset<i32, true> = [Some(3), None, Some(4), Some(0)].into();
+        let offset: Offset<i32, true> = [Some(3), None, Some(4), Some(0)].iter().copied().collect();
         assert_eq!(offset.data().as_slice(), &[0, 3, 3, 7, 7]);
+    }
+
+    #[test]
+    fn into_iter() {
+        let offset: Offset<i64, false> = [1, 2, 3, 4].iter().copied().collect();
+        let offsets = offset.into_iter().collect::<Vec<_>>();
+        assert_eq!(offsets, vec![(0, 1), (1, 3), (3, 6), (6, 10)]);
+
+        let offset: Offset<i32, true> = [Some(3), None, Some(4), None, Some(0)]
+            .iter()
+            .copied()
+            .collect();
+        let offsets = offset.into_iter().collect::<Vec<_>>();
+        assert_eq!(
+            offsets,
+            vec![Some((0, 3)), None, Some((3, 7)), None, Some((7, 7))]
+        );
     }
 }
