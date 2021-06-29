@@ -71,6 +71,7 @@ where
             _ => unsafe { unreachable_unchecked() },
         }
     }
+
     fn is_null(&self, index: usize) -> bool {
         match (N, &self.0) {
             (false, _) => false,
@@ -174,13 +175,13 @@ mod tests {
     #[test]
     fn data() {
         let valid: Validity<Buffer<_, ALIGNMENT>, false> = vec![1u8, 2, 3, 4].into_iter().collect();
-        assert_eq!(valid.data().as_slice(), &[1, 2, 3, 4]);
+        assert_eq!(&valid.data()[..], &[1, 2, 3, 4]);
 
         let nullable: Validity<Buffer<_, ALIGNMENT>, true> =
             vec![Some(1u8), None, Some(3), Some(4)]
                 .into_iter()
                 .collect();
-        assert_eq!(nullable.data().as_slice(), &[1, u8::default(), 3, 4]);
+        assert_eq!(&nullable.data()[..], &[1, u8::default(), 3, 4]);
     }
 
     #[test]

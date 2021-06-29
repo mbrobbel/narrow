@@ -1,5 +1,5 @@
 use crate::{Array, ArrayType, NestedArray, Offset, OffsetValue, Uint8Array};
-use std::iter::FromIterator;
+use std::iter::{FromIterator, Skip, Take};
 
 /// Array with variable-sized lists of other array types.
 ///
@@ -143,6 +143,85 @@ where
     }
 }
 
+pub struct VariableSizeListArrayIter<'a, T, U, const N: bool>
+where
+    U: OffsetValue,
+    &'a Offset<U, N>: IntoIterator,
+{
+    data: &'a T,
+    offset: <&'a Offset<U, N> as IntoIterator>::IntoIter,
+}
+
+impl<'a, T, U> Iterator for VariableSizeListArrayIter<'a, T, U, false>
+where
+    &'a T: IntoIterator,
+    U: OffsetValue,
+{
+    type Item = Take<Skip<<&'a T as IntoIterator>::IntoIter>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.offset
+            .next()
+            .map(|(start, end)| self.data.into_iter().skip(start).take(end - start))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.offset.size_hint()
+    }
+}
+
+impl<'a, T, U> IntoIterator for &'a VariableSizeListArray<T, U, false>
+where
+    T: Array,
+    &'a T: IntoIterator,
+    U: OffsetValue,
+{
+    type Item = Take<Skip<<&'a T as IntoIterator>::IntoIter>>;
+    type IntoIter = VariableSizeListArrayIter<'a, T, U, false>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        VariableSizeListArrayIter {
+            data: &self.data,
+            offset: self.offset.into_iter(),
+        }
+    }
+}
+
+impl<'a, T, U> Iterator for VariableSizeListArrayIter<'a, T, U, true>
+where
+    &'a T: IntoIterator,
+    U: OffsetValue,
+{
+    type Item = Option<Take<Skip<<&'a T as IntoIterator>::IntoIter>>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.offset
+            .next()
+            .map(|opt| opt.map(|(start, end)| self.data.into_iter().skip(start).take(end - start)))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.offset.size_hint()
+    }
+}
+
+impl<'a, T, U> IntoIterator for &'a VariableSizeListArray<T, U, true>
+where
+    T: Array,
+    &'a T: IntoIterator,
+    U: OffsetValue,
+{
+    type Item = Option<Take<Skip<<&'a T as IntoIterator>::IntoIter>>>;
+    type IntoIter = VariableSizeListArrayIter<'a, T, U, true>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        VariableSizeListArrayIter {
+            data: &self.data,
+            offset: self.offset.into_iter(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,5 +280,35 @@ mod tests {
         assert_eq!(list.null_count(), 2);
         assert_eq!(list.child().len(), 6);
         assert_eq!(list.child().data().len(), 24);
+    }
+
+    #[test]
+    fn into_iter() {
+        let x = vec![1u32, 2, 3, 4];
+        let y = vec![1u32, 2, 3, 4, 5];
+        let vec = vec![x.clone(), y.clone()];
+        let list: ListArray<Uint32Array<false>, false> = vec.into_iter().collect();
+        let mut iter = list.into_iter();
+        assert_eq!(iter.size_hint(), (2, Some(2)));
+        assert_eq!(iter.next().unwrap().collect::<Vec<_>>(), x);
+        assert_eq!(iter.next().unwrap().collect::<Vec<_>>(), y);
+        assert!(iter.next().is_none());
+
+        let vec = vec![vec![x.clone(), y.clone()]];
+        let list: ListArray<ListArray<Uint32Array<false>, false>, false> =
+            vec.clone().into_iter().collect();
+        assert_eq!(
+            list.into_iter().flatten().flatten().collect::<Vec<_>>(),
+            vec[0].iter().flatten().copied().collect::<Vec<_>>()
+        );
+
+        let vec = vec![Some(x.clone()), None, Some(y.clone())];
+        let list: ListArray<Uint32Array<false>, true> = vec.into_iter().collect();
+        let mut iter = list.into_iter();
+        assert_eq!(iter.size_hint(), (3, Some(3)));
+        assert_eq!(iter.next().unwrap().unwrap().collect::<Vec<_>>(), x);
+        assert!(iter.next().unwrap().is_none());
+        assert_eq!(iter.next().unwrap().unwrap().collect::<Vec<_>>(), y);
+        assert!(iter.next().is_none());
     }
 }

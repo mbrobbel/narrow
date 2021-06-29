@@ -54,23 +54,6 @@ impl<T, const A: usize> Buffer<T, A>
 where
     T: Primitive,
 {
-    /// Extracts a slice containing the entire buffer.
-    ///
-    /// Equivalent to `&buffer[..]`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use narrow::Buffer;
-    ///
-    /// let buffer: Buffer<_, 3> = [1u8, 2, 3, 4].iter().copied().collect();
-    ///
-    /// assert_eq!(buffer.as_slice(), &buffer[..]);
-    /// ```
-    pub fn as_slice(&self) -> &[T] {
-        &self
-    }
-
     /// Returns an new Buffer.
     /// todo(mb): document safety issues
     pub(crate) unsafe fn new_unchecked(ptr: *mut T, len: usize) -> Self {
@@ -196,7 +179,7 @@ where
     T: Primitive,
 {
     fn clone(&self) -> Self {
-        Self::from_slice(self.as_slice())
+        Self::from_slice(self)
     }
 }
 

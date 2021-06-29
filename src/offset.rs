@@ -151,7 +151,7 @@ where
     }
 }
 
-/// Iterator over offsets values.
+/// Iterator over offsets values of variable sized arrays.
 pub struct OffsetIter<T, const N: bool> {
     pos: Option<usize>,
     iter: T,
@@ -202,6 +202,10 @@ where
                     }
                 }),
         )
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
     }
 }
 
@@ -266,7 +270,7 @@ mod tests {
         assert_eq!(&offset[..], &[0, 1, 3, 6, 10]);
 
         let offset: Offset<i32, true> = [Some(3), None, Some(4), Some(0)].iter().copied().collect();
-        assert_eq!(offset.data().as_slice(), &[0, 3, 3, 7, 7]);
+        assert_eq!(&offset.data()[..], &[0, 3, 3, 7, 7]);
     }
 
     #[test]

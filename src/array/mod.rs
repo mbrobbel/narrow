@@ -17,17 +17,14 @@ mod r#struct;
 pub use r#struct::*;
 
 /// Types for which sequences of values can be stored in arrays.
-pub trait ArrayType // where
-//     for<'a> &'a Self::Array: IntoIterator,
-{
+pub trait ArrayType {
     /// Array type used for this type.
     type Array: Array;
 }
 
 /// A sequence of values with known length all having the same type.
-pub trait Array // where
-//     for<'a> &'a Self: IntoIterator,
-{
+// todo(mb): https://github.com/rust-lang/rust/issues/20671
+pub trait Array {
     /// [Validity](crate::Validity) of the array.
     // todo(mb): GATs
     type Validity: ArrayData;

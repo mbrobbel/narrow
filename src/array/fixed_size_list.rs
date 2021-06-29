@@ -102,18 +102,6 @@ where
     }
 }
 
-impl<'a, T, const N: usize, const M: bool> IntoIterator for &'a FixedSizeListArray<T, N, M>
-where
-    T: Array,
-{
-    type Item = T; //[T; N];
-    type IntoIter = std::vec::IntoIter<T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        todo!()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

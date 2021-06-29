@@ -58,15 +58,6 @@ impl FromIterator<Option<bool>> for BooleanArray<true> {
     }
 }
 
-impl<'a> FromIterator<&'a Option<bool>> for BooleanArray<true> {
-    fn from_iter<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = &'a Option<bool>>,
-    {
-        Self(iter.into_iter().copied().collect())
-    }
-}
-
 impl<'a> IntoIterator for &'a BooleanArray<false> {
     type Item = bool;
     type IntoIter = <&'a Bitmap as IntoIterator>::IntoIter;
@@ -106,7 +97,7 @@ mod tests {
         assert_eq!(vec, boolean_array.into_iter().collect::<Vec<bool>>());
 
         let vec = vec![Some(false), Some(true), None, Some(true), None];
-        let boolean_array = vec.iter().collect::<BooleanArray<true>>();
+        let boolean_array = vec.iter().copied().collect::<BooleanArray<true>>();
         assert_eq!(
             vec,
             boolean_array.into_iter().collect::<Vec<Option<bool>>>()
