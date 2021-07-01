@@ -96,12 +96,15 @@ where
     }
 }
 
+type StringArrayIter<'a, T, U, V, const N: bool> =
+    Map<VariableSizeBinaryArrayIter<'a, T, N>, fn(U) -> V>;
+
 impl<'a, T> IntoIterator for &'a StringArray<T, false>
 where
     T: OffsetValue,
 {
     type Item = &'a str;
-    type IntoIter = Map<VariableSizeBinaryArrayIter<'a, T, false>, fn(&'a [u8]) -> &'a str>;
+    type IntoIter = StringArrayIter<'a, T, &'a [u8], &'a str, false>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter().map(|slice|
@@ -116,8 +119,7 @@ where
     T: OffsetValue,
 {
     type Item = Option<&'a str>;
-    type IntoIter =
-        Map<VariableSizeBinaryArrayIter<'a, T, true>, fn(Option<&'a [u8]>) -> Option<&'a str>>;
+    type IntoIter = StringArrayIter<'a, T, Option<&'a [u8]>, Option<&'a str>, true>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter().map(|opt| {
