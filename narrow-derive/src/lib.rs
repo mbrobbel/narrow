@@ -10,6 +10,7 @@ use syn::{
 // todo(mb): support generics
 // todo(mb): trait bounds in where clause when generic is type argument of other type e.g. Option<T>
 // https://github.com/serde-rs/serde/blob/master/serde_derive/src/bound.rs
+// todo(mb): convert iterators into original data structures e.g. Vec<String> from list array iterator (requires GATs)
 
 /// Derive macro for the Array trait.
 #[proc_macro_derive(Array, attributes(narrow))]
@@ -144,7 +145,7 @@ pub fn derive_array(input: TokenStream) -> TokenStream {
                             fn next(&mut self) -> Option<Self::Item> {
                                 Some(#ident {
                                     #(
-                                        #fields: self.#fields.next()?,
+                                        #fields: self.#fields.next()?.into(),
                                     )*
                                 })
                             }

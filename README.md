@@ -16,8 +16,9 @@ A Rust implementation of [Apache Arrow](https://arrow.apache.org).
 - [ ] Array
   - [x] Fixed-size primitive
   - [x] Boolean
-  - [ ] Variable-size binary
-  - [ ] Variable-size list
+  - [x] Variable-size binary
+    - [x] String array
+  - [x] Variable-size list
   - [ ] Fixed-size list
   - [ ] Struct
   - [ ] Union
@@ -46,6 +47,7 @@ use narrow::{Array, BooleanArray, Float32Array, StructArray, Uint8Array};
 
 #[derive(Array, Copy, Clone, Debug, PartialEq)]
 pub struct Person {
+    name: String,
     age: u8,
     happy: bool,
     distance: Option<f32>,
@@ -53,11 +55,13 @@ pub struct Person {
 
 let persons = vec![
     Person {
+        name: "A".to_string(),
         age: 20,
         happy: true,
         distance: Some(1.5),
     },
     Person {
+        name: "B".to_string(),
         age: 22,
         happy: true,
         distance: None,

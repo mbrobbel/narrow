@@ -202,6 +202,7 @@ impl FromIterator<bool> for Bitmap {
     }
 }
 
+/// Iterator over bits in a bitmap.
 pub type BitmapIter<'a> = BitValIter<'a, Lsb0, usize>;
 
 impl<'a> IntoIterator for &'a Bitmap {

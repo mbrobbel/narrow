@@ -110,6 +110,7 @@ where
 }
 
 /// Iterator over elements of an array with variable-sized binary data.
+// todo(mb): impl nth and advance_by
 pub struct VariableSizeBinaryArrayIter<'a, T, const N: bool>
 where
     T: OffsetValue,

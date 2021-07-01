@@ -1,7 +1,7 @@
-use crate::{Array, ArrayType, NestedArray, Offset, OffsetValue, Uint8Array};
+use crate::{Array, ArrayType, NestedArray, Offset, OffsetValue};
 use std::iter::{FromIterator, Skip, Take};
 
-/// Array with variable-sized lists of other array types.
+/// Array with variable-sized lists of other arrays.
 ///
 /// Uses `U` offset types.
 /// The const generic parameter `N` indicates nullability of the list items.
@@ -17,30 +17,11 @@ where
     offset: Offset<U, N>,
 }
 
-impl<T> ArrayType for Vec<T>
-where
-    T: ArrayType,
-    // for<'a> &'a <T as ArrayType>::Array: IntoIterator,
-{
-    // todo(mb): cfg?
-    type Array = ListArray<<T as ArrayType>::Array, false>;
-}
+/// Array with variable-sized lists of other array types. Uses [i32] offsets.
+pub type ListArray<T, const N: bool> = VariableSizeListArray<T, i32, N>;
 
-impl ArrayType for String {
-    type Array = ListArray<Uint8Array<false>, false>;
-}
-
-impl ArrayType for Option<String> {
-    type Array = ListArray<Uint8Array<false>, true>;
-}
-
-impl ArrayType for &str {
-    type Array = ListArray<Uint8Array<false>, false>;
-}
-
-impl ArrayType for Option<&str> {
-    type Array = ListArray<Uint8Array<false>, true>;
-}
+/// Array with variable-sized lists of other array types. Uses [i64] offsets.
+pub type LargeListArray<T, const N: bool> = VariableSizeListArray<T, i64, N>;
 
 impl<T, U, const N: bool> Array for VariableSizeListArray<T, U, N>
 where
@@ -54,6 +35,14 @@ where
     }
 }
 
+impl<T> ArrayType for Vec<T>
+where
+    T: ArrayType,
+{
+    // todo(mb): cfg?
+    type Array = ListArray<<T as ArrayType>::Array, false>;
+}
+
 impl<T, U, const N: bool> NestedArray for VariableSizeListArray<T, U, N>
 where
     T: Array,
@@ -61,16 +50,10 @@ where
 {
     type Child = T;
 
-    fn child(&self) -> &T {
+    fn child(&self) -> &Self::Child {
         &self.data
     }
 }
-
-/// Array with variable-sized lists of other array types. Uses [i32] offsets.
-pub type ListArray<T, const N: bool> = VariableSizeListArray<T, i32, N>;
-
-/// Array with variable-sized lists of other array types. Uses [i64] offsets.
-pub type LargeListArray<T, const N: bool> = VariableSizeListArray<T, i64, N>;
 
 impl<T, U, V> FromIterator<V> for VariableSizeListArray<T, U, false>
 where
@@ -143,6 +126,8 @@ where
     }
 }
 
+/// Iterator over elements of an array with variable-sized lists of other arrays.
+// todo(mb): impl nth and advance_by
 pub struct VariableSizeListArrayIter<'a, T, U, const N: bool>
 where
     U: OffsetValue,
