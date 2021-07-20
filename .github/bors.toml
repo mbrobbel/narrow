@@ -1,7 +1,7 @@
 status = [
     "Check (stable)",
     "Test (stable)",
-    "Rustfmt (stable)",
+    "Rustfmt",
     "Clippy (stable)",
     "Miri",
     "Coverage",
