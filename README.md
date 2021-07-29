@@ -13,7 +13,7 @@ A Rust implementation of [Apache Arrow](https://arrow.apache.org).
 - [x] Nullable
 - [x] Validity
 - [x] Offset
-- [ ] Array
+- [x] Array
   - [x] Fixed-size primitive
   - [x] Boolean
   - [x] Variable-size binary
@@ -25,7 +25,7 @@ A Rust implementation of [Apache Arrow](https://arrow.apache.org).
     - [x] Dense
     - [x] Sparse
   - [x] Null
-  - [ ] Dictionary
+  - [x] Dictionary
 - [ ] Logical types
 - [ ] Schema
 - [ ] RecordBatch
@@ -40,7 +40,7 @@ A Rust implementation of [Apache Arrow](https://arrow.apache.org).
 
 ## Minimum supported Rust version
 
-The minimum supported Rust version is 1.53.
+The minimum supported Rust version is 1.54.
 
 ## Example
 
