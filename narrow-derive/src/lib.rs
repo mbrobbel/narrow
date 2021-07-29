@@ -254,7 +254,7 @@ pub fn derive_array(input: TokenStream) -> TokenStream {
                 #[automatically_derived]
                 impl #narrow::UnionArrayType<false> for #ident {
                     type Child = #wrapper_ident<false>;
-                    type Array = #narrow::SparseUnionArray<#ident, #num_variants>;
+                    type Array = #narrow::SparseUnionArray<#ident>;
                 }
 
                 #[automatically_derived]

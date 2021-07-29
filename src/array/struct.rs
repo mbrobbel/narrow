@@ -3,7 +3,7 @@ use std::{fmt::Debug, iter::FromIterator, ops::Deref};
 
 // todo(mb): add partial eq with array of struct
 
-/// Struct types that can be stored as an array.
+/// Struct types that can be stored in arrays.
 ///
 /// Enables converting arrays of structs into structs of arrays.
 pub trait StructArrayType: Sized {

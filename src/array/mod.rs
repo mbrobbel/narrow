@@ -184,6 +184,7 @@ pub trait Array {
 }
 
 // Not part of Array trait because there are not GATs yet.
+/// Index trait to get owned values of an array.
 pub trait ArrayIndex<T> {
     type Output;
     fn index(&self, index: T) -> Self::Output;

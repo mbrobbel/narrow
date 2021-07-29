@@ -7,19 +7,18 @@ use std::{
 };
 
 // todo(mb): sort fields (child arrays) based on size, so that nulls (types i8::default() and default value of first field are small).
+// todo(mb): store variant arrays in array with sum type for all array types, then impl index<i8> for union array wrapper type to get arrays.
 
-// D is for dense
-// Union arrays can't be nullable because they don't have their own validity bitmap.
-// If you want to encode nulls you should add a variant to your enum with a unit type field.
-// derive macro will add impl for Option<your enum type> with an additional variant to encode nulls
-// todo(mb): figure out how to do ffi, check other implementations
+/// Union types that can be stored in arrays.
 pub trait UnionArrayType<const D: bool>: Sized {
     type Array: ArrayData;
     type Child: Array + UnionArrayIndex<Self> + FromIterator<Self>;
 }
 
-/// Union for type T where D indicates Dense union. D = false -> Sparse, D = true -> Dense.
-/// N indicates nullability.
+/// Array with an ordered sequence of variants of `T`.
+/// `D` encodes the union array type.
+/// - [DenseUnionArray] when `D` is [true].
+/// - [SparseUnionArray] when `D` is [false].
 pub struct UnionArray<T, const D: bool>(<T as UnionArrayType<D>>::Array)
 where
     T: UnionArrayType<D>;
@@ -82,18 +81,13 @@ where
     }
 }
 
+/// Index trait for union arrays.
 pub trait UnionArrayIndex<T> {
     fn index(&self, type_id: i8, index: i32) -> T;
 }
 
-pub trait SparseUnionArrayType: Sized
-where
-    i8: for<'a> From<&'a Self>,
-{
-    type Array: Array + UnionArrayIndex<Self> + FromIterator<Self>;
-}
-
-pub struct SparseUnionArray<T, const N: usize>
+/// Sparse union array for enum type `T`.
+pub struct SparseUnionArray<T>
 where
     T: UnionArrayType<false>,
     i8: for<'a> From<&'a T>,
@@ -102,7 +96,7 @@ where
     types: Int8Array<false>,
 }
 
-impl<T, const N: usize> Array for SparseUnionArray<T, N>
+impl<T> Array for SparseUnionArray<T>
 where
     T: UnionArrayType<false>,
     i8: for<'a> From<&'a T>,
@@ -137,7 +131,7 @@ where
     }
 }
 
-impl<T, const N: usize> NestedArray for SparseUnionArray<T, N>
+impl<T> NestedArray for SparseUnionArray<T>
 where
     T: UnionArrayType<false>,
     i8: for<'a> From<&'a T>,
@@ -149,7 +143,7 @@ where
     }
 }
 
-impl<T, const N: usize> Debug for SparseUnionArray<T, N>
+impl<T> Debug for SparseUnionArray<T>
 where
     T: UnionArrayType<false>,
     i8: for<'a> From<&'a T>,
@@ -163,7 +157,7 @@ where
     }
 }
 
-impl<T, const N: usize> FromIterator<T> for SparseUnionArray<T, N>
+impl<T> FromIterator<T> for SparseUnionArray<T>
 where
     T: UnionArrayType<false>,
     i8: for<'a> From<&'a T>,
@@ -192,7 +186,7 @@ where
     }
 }
 
-impl<'a, T, const N: usize> IntoIterator for &'a SparseUnionArray<T, N>
+impl<'a, T> IntoIterator for &'a SparseUnionArray<T>
 where
     T: UnionArrayType<false>,
     i8: for<'b> From<&'b T>,
@@ -208,6 +202,7 @@ where
     }
 }
 
+/// Iterator over elements of a sparse union array.
 pub struct SparseUnionIter<'a, T>
 where
     T: UnionArrayType<false>,
@@ -231,6 +226,7 @@ where
     }
 }
 
+/// Dense union array for enum type `T` with `N` variants.
 pub struct DenseUnionArray<T, const N: usize>
 where
     T: UnionArrayType<true>,
@@ -354,6 +350,7 @@ where
     }
 }
 
+/// Iterator over elements of a dense union array.
 pub struct DenseUnionIter<'a, T>
 where
     T: UnionArrayType<true>,
