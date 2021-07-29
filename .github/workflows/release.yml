@@ -23,11 +23,6 @@ jobs:
       with:
         profile: minimal
         toolchain: stable
-    - uses: actions-rs/cargo@v1.0.1
+    - uses: katyo/publish-crates@v1
       with:
-        command: publish
-        args: --token ${{ secrets.CRATES_IO_TOKEN }} --manifest-path narrow-derive/Cargo.toml
-    - uses: actions-rs/cargo@v1.0.1
-      with:
-        command: publish
-        args: --token ${{ secrets.CRATES_IO_TOKEN }}
+        registry-token: ${{ secrets.CRATES_IO_TOKEN }}
