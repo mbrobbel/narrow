@@ -37,7 +37,7 @@ where
     type Child = T;
 
     fn child(&self) -> &T {
-        &self.0.data()
+        self.0.data()
     }
 }
 
@@ -141,7 +141,7 @@ where
     fn into_iter(self) -> Self::IntoIter {
         FixedSizeListArrayIter {
             position: 0,
-            data: &self,
+            data: self,
         }
     }
 }
@@ -186,7 +186,7 @@ where
     fn into_iter(self) -> Self::IntoIter {
         FixedSizeListArrayIter {
             position: 0,
-            data: &self,
+            data: self,
         }
     }
 }
