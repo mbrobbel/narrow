@@ -24,10 +24,9 @@ jobs:
         profile: minimal
         toolchain: stable
     - uses: actions-rs/cargo@v1.0.1
-      working-directory: narrow-derive
       with:
         command: publish
-        args: --token ${{ secrets.CRATES_IO_TOKEN }}
+        args: --token ${{ secrets.CRATES_IO_TOKEN }} --manifest-path narrow-derive/Cargo.toml
     - uses: actions-rs/cargo@v1.0.1
       with:
         command: publish
