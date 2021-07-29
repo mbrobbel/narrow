@@ -26,7 +26,7 @@ where
     type Validity = Offset<T, N>;
 
     fn validity(&self) -> &Self::Validity {
-        &self.0.validity()
+        self.0.validity()
     }
 }
 
@@ -166,7 +166,7 @@ mod tests {
 
         let x = "hello";
         let y = "world!";
-        let vec = vec![Some(x), Some(&y), None, None, Some(&x), Some("")];
+        let vec = vec![Some(x), Some(y), None, None, Some(x), Some("")];
         let array = vec.iter().copied().collect::<LargeUtf8Array<true>>();
         assert_eq!(array.len(), 6);
         let out = array.into_iter().collect::<Vec<_>>();
@@ -189,7 +189,7 @@ mod tests {
 
         let x = "hello";
         let y = "world";
-        let vec = vec![Some(x), Some(&y), None, None, Some(&x), Some("")];
+        let vec = vec![Some(x), Some(y), None, None, Some(x), Some("")];
         let array = vec.into_iter().collect::<Utf8Array<true>>();
         let mut iter = array.into_iter();
         assert_eq!(iter.size_hint(), (6, Some(6)));

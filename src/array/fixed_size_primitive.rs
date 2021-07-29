@@ -1,9 +1,6 @@
 use crate::{Array, ArrayData, ArrayIndex, Buffer, Nullable, Primitive, Validity, ALIGNMENT};
 use paste::paste;
-use std::{
-    iter::FromIterator,
-    ops::{Deref, Index},
-};
+use std::{iter::FromIterator, ops::Deref};
 
 /// Array with primitive values.
 #[derive(Debug)]
@@ -16,7 +13,6 @@ where
     T: Primitive,
 {
     type Validity = Validity<Buffer<T, ALIGNMENT>, N>;
-    // type Type = T;
 
     fn validity(&self) -> &Self::Validity {
         &self.0
@@ -30,7 +26,7 @@ where
     type Output = T;
 
     fn index(&self, index: usize) -> Self::Output {
-        *self.0.index(index)
+        self.0[index]
     }
 }
 
@@ -42,7 +38,7 @@ where
 
     fn index(&self, index: usize) -> Self::Output {
         if self.0.is_valid(index) {
-            Some(*self.0.data().index(index))
+            Some(self.0.data()[index])
         } else {
             None
         }
