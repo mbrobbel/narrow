@@ -1,4 +1,4 @@
-use crate::{ArrayData, Bitmap, Nullable};
+use crate::{ArrayData, ArrayIndex, Bitmap, Nullable};
 use std::{hint::unreachable_unchecked, iter::FromIterator, ops::Deref};
 
 /// Variants for nullable and non-nullable data.
@@ -13,7 +13,7 @@ use std::{hint::unreachable_unchecked, iter::FromIterator, ops::Deref};
 ///
 /// - [Validity::Nullable] when `N` is [true].
 /// - [Validity::Valid] when `N` is [false].
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum RawValidity<T, const N: bool> {
     Nullable(Nullable<T>),
     Valid(T),
@@ -30,7 +30,7 @@ enum RawValidity<T, const N: bool> {
 /// - When `N` is [false] (non-nullable data) the deref target is `T`.
 // Can't control enum variant visibility so wrapping RawValidity to prevent
 // users from breaking the const generic discriminant encoding contract.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Validity<T, const N: bool>(RawValidity<T, N>);
 
 impl<T, const N: bool> Validity<T, N> {
@@ -55,6 +55,18 @@ impl<T> Validity<T, true> {
         // - Nullable: `N` is `true` so it doesn't break the const generic
         //   discriminant encoding.
         Self(RawValidity::Nullable(Nullable::new(data, validity)))
+    }
+}
+
+impl<T, const N: bool> ArrayIndex<usize> for Validity<T, N>
+where
+    T: Deref,
+    <T as Deref>::Target: ArrayIndex<usize>,
+{
+    type Output = <<T as Deref>::Target as ArrayIndex<usize>>::Output;
+
+    fn index(&self, index: usize) -> Self::Output {
+        self.deref().index(index)
     }
 }
 

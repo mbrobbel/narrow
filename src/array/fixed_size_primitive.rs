@@ -1,6 +1,9 @@
-use crate::{Array, Buffer, Nullable, Primitive, Validity, ALIGNMENT};
+use crate::{Array, ArrayData, ArrayIndex, Buffer, Nullable, Primitive, Validity, ALIGNMENT};
 use paste::paste;
-use std::{iter::FromIterator, ops::Deref};
+use std::{
+    iter::FromIterator,
+    ops::{Deref, Index},
+};
 
 /// Array with primitive values.
 #[derive(Debug)]
@@ -17,6 +20,32 @@ where
 
     fn validity(&self) -> &Self::Validity {
         &self.0
+    }
+}
+
+impl<T> ArrayIndex<usize> for FixedSizePrimitiveArray<T, false>
+where
+    T: Primitive,
+{
+    type Output = T;
+
+    fn index(&self, index: usize) -> Self::Output {
+        *self.0.index(index)
+    }
+}
+
+impl<T> ArrayIndex<usize> for FixedSizePrimitiveArray<T, true>
+where
+    T: Primitive,
+{
+    type Output = Option<T>;
+
+    fn index(&self, index: usize) -> Self::Output {
+        if self.0.is_valid(index) {
+            Some(*self.0.data().index(index))
+        } else {
+            None
+        }
     }
 }
 
@@ -185,9 +214,9 @@ mod tests {
     fn from_iter() {
         let array = [1u8, 2, 3, 4].iter().collect::<Uint8Array<false>>();
         assert_eq!(&array[..], &[1, 2, 3, 4]);
-        assert_eq!(array.len(), 4);
-        assert_eq!(array.valid_count(), 4);
-        assert_eq!(array.null_count(), 0);
+        assert_eq!(Array::len(&array), 4);
+        assert_eq!(Array::valid_count(&array), 4);
+        assert_eq!(Array::null_count(&array), 0);
 
         let array = [Some(1u8), None, Some(3), Some(4)]
             .iter()
@@ -196,8 +225,8 @@ mod tests {
             &array.into_iter().collect::<Vec<_>>()[..],
             &[Some(1), None, Some(3), Some(4)]
         );
-        assert_eq!(array.len(), 4);
-        assert_eq!(array.valid_count(), 3);
-        assert_eq!(array.null_count(), 1);
+        assert_eq!(Array::len(&array), 4);
+        assert_eq!(Array::valid_count(&array), 3);
+        assert_eq!(Array::null_count(&array), 1);
     }
 }

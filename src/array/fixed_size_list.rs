@@ -1,10 +1,11 @@
 use crate::{Array, ArrayType, Bitmap, NestedArray, Validity};
 use std::{
     array::{self, IntoIter},
-    iter::FromIterator,
+    iter::{FromIterator, Skip, Take},
 };
 
 /// Array with fixed-size lists of other array types.
+#[derive(Debug)]
 pub struct FixedSizeListArray<T, const N: usize, const M: bool>(Validity<T, M>)
 where
     T: Array;
@@ -102,6 +103,94 @@ where
     }
 }
 
+/// Iterator over elements of an array with fixed-sized lists of other arrays.
+pub struct FixedSizeListArrayIter<'a, T, const N: usize, const M: bool>
+where
+    T: Array,
+{
+    position: usize,
+    data: &'a FixedSizeListArray<T, N, M>,
+}
+
+impl<'a, T, const N: usize> Iterator for FixedSizeListArrayIter<'a, T, N, false>
+where
+    T: Array,
+    &'a T: IntoIterator,
+{
+    type Item = Take<Skip<<&'a T as IntoIterator>::IntoIter>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.position < self.data.len() {
+            let result = self.data.0.into_iter().skip(self.position * N).take(N);
+            self.position += 1;
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a, T, const N: usize> IntoIterator for &'a FixedSizeListArray<T, N, false>
+where
+    T: Array,
+    &'a T: IntoIterator,
+{
+    type Item = Take<Skip<<&'a T as IntoIterator>::IntoIter>>;
+    type IntoIter = FixedSizeListArrayIter<'a, T, N, false>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        FixedSizeListArrayIter {
+            position: 0,
+            data: &self,
+        }
+    }
+}
+
+impl<'a, T, const N: usize> Iterator for FixedSizeListArrayIter<'a, T, N, true>
+where
+    T: Array,
+    &'a T: IntoIterator,
+{
+    type Item = Option<Take<Skip<<&'a T as IntoIterator>::IntoIter>>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.position < self.data.len() {
+            let result = if self.data.is_valid(self.position) {
+                Some(
+                    self.data
+                        .0
+                        .data()
+                        .into_iter()
+                        .skip(self.position * N)
+                        .take(N),
+                )
+            } else {
+                None
+            };
+            self.position += 1;
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a, T, const N: usize> IntoIterator for &'a FixedSizeListArray<T, N, true>
+where
+    T: Array,
+    &'a T: IntoIterator,
+{
+    type Item = Option<Take<Skip<<&'a T as IntoIterator>::IntoIter>>>;
+    type IntoIter = FixedSizeListArrayIter<'a, T, N, true>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        FixedSizeListArrayIter {
+            position: 0,
+            data: &self,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -136,5 +225,67 @@ mod tests {
         assert_eq!(list.child().len(), 16);
         assert_eq!(list.child().null_count(), 10);
         assert_eq!(list.child().valid_count(), 6);
+    }
+
+    #[test]
+    fn into_iter() {
+        let vec = vec![[1u8, 2, 3, 4], [5, 6, 7, 8]];
+        let list: FixedSizeListArray<Uint8Array<false>, 4, false> = vec.iter().copied().collect();
+        assert_eq!(
+            list.into_iter()
+                .map(Iterator::collect)
+                .collect::<Vec<Vec<_>>>(),
+            vec
+        );
+
+        let vec = vec![Some([1, 2, 3, 4]), None, None, Some([5, 6, 7, 8]), None];
+        let list: FixedSizeListArray<Uint8Array<false>, 4, true> = vec.iter().copied().collect();
+        let mut iter = list.into_iter();
+        assert_eq!(
+            iter.next().unwrap().map(Iterator::collect),
+            Some(vec![1, 2, 3, 4])
+        );
+        assert!(iter.next().unwrap().is_none());
+        assert!(iter.next().unwrap().is_none());
+        assert_eq!(
+            iter.next().unwrap().map(Iterator::collect),
+            Some(vec![5, 6, 7, 8])
+        );
+        assert!(iter.next().unwrap().is_none());
+        assert!(iter.next().is_none());
+
+        let vec = vec![
+            Some([Some(1u8), None, Some(3), Some(4)]),
+            None,
+            None,
+            Some([Some(5), None, Some(7), Some(8)]),
+        ];
+        let list: FixedSizeListArray<Uint8Array<true>, 4, true> = vec.into_iter().collect();
+        let mut iter = list.into_iter();
+        assert_eq!(
+            iter.next().unwrap().map(Iterator::collect),
+            Some(vec![Some(1u8), None, Some(3), Some(4)]),
+        );
+        assert!(iter.next().unwrap().is_none());
+        assert!(iter.next().unwrap().is_none());
+        assert_eq!(
+            iter.next().unwrap().map(Iterator::collect),
+            Some(vec![Some(5), None, Some(7), Some(8)]),
+        );
+        assert!(iter.next().is_none());
+
+        let vec = vec![
+            [[1u8, 2, 3, 4], [5, 6, 7, 8]],
+            [[1u8, 2, 3, 4], [5, 6, 7, 8]],
+        ];
+        let list: FixedSizeListArray<FixedSizeListArray<Uint8Array<false>, 4, false>, 2, false> =
+            vec.iter().copied().collect();
+        assert_eq!(
+            list.into_iter()
+                .map(|iter| iter.map(Iterator::collect))
+                .map(Iterator::collect)
+                .collect::<Vec<Vec<Vec<_>>>>(),
+            vec
+        );
     }
 }

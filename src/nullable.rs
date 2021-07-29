@@ -1,4 +1,4 @@
-use crate::{ArrayData, Bitmap};
+use crate::{ArrayData, ArrayIndex, Bitmap};
 use bitvec::{order::Lsb0, slice::BitValIter};
 use std::iter::{FromIterator, Map, Zip};
 
@@ -6,7 +6,7 @@ use std::iter::{FromIterator, Map, Zip};
 ///
 /// Allocates a validity [Bitmap] that stores a single bit per value in `T`
 /// that indicates the nullness or non-nullness of that value.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Nullable<T> {
     data: T,
     validity: Bitmap,
@@ -51,6 +51,17 @@ impl<T> Nullable<T> {
     /// ```
     pub fn data(&self) -> &T {
         &self.data
+    }
+}
+
+impl<T> ArrayIndex<usize> for Nullable<T>
+where
+    T: ArrayIndex<usize>,
+{
+    type Output = Option<<T as ArrayIndex<usize>>::Output>;
+
+    fn index(&self, index: usize) -> Self::Output {
+        self.is_valid(index).then(|| self.data.index(index))
     }
 }
 
@@ -178,16 +189,17 @@ mod tests {
             }
         }
 
-        let foo = Foo { count: 1234 };
-        let bitmap = Nullable::<Bitmap>::from_iter(foo);
+        let x = Foo { count: 1234 };
+        let bitmap: Nullable<Bitmap> = x.into_iter().collect();
         assert_eq!(bitmap.len(), 1234);
     }
 
     #[test]
     fn into_iter() {
-        let nullable = Nullable::<Buffer<u8, 1>>::from_iter(
-            [Some(1u8), None, Some(3), Some(4)].iter().copied(),
-        );
+        let nullable: Nullable<Buffer<u8, 1>> = [Some(1u8), None, Some(3), Some(4)]
+            .iter()
+            .copied()
+            .collect();
         let vec = nullable.into_iter().collect::<Vec<_>>();
         assert_eq!(vec, vec![Some(1u8), None, Some(3), Some(4)]);
     }

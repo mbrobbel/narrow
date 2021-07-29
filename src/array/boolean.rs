@@ -1,15 +1,14 @@
-use crate::{Array, ArrayType, Bitmap, Nullable, Validity};
+use crate::{Array, ArrayIndex, ArrayType, Bitmap, Nullable, Validity};
 use std::{iter::FromIterator, ops::Deref};
 
 /// Array with boolean values.
 ///
 /// Values are stored using single bits in a [Bitmap].
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct BooleanArray<const N: bool>(Validity<Bitmap, N>);
 
 impl<const N: bool> Array for BooleanArray<N> {
     type Validity = Validity<Bitmap, N>;
-    // type Type = bool;
 
     fn validity(&self) -> &Self::Validity {
         &self.0
@@ -22,6 +21,22 @@ impl ArrayType for bool {
 
 impl ArrayType for Option<bool> {
     type Array = BooleanArray<true>;
+}
+
+impl ArrayIndex<usize> for BooleanArray<false> {
+    type Output = bool;
+
+    fn index(&self, index: usize) -> Self::Output {
+        self.0[index]
+    }
+}
+
+impl ArrayIndex<usize> for BooleanArray<true> {
+    type Output = Option<bool>;
+
+    fn index(&self, index: usize) -> Self::Output {
+        self.0.index(index)
+    }
 }
 
 impl Deref for BooleanArray<false> {

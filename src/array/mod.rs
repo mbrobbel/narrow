@@ -19,6 +19,12 @@ pub use fixed_size_list::*;
 mod r#struct;
 pub use r#struct::*;
 
+mod union;
+pub use union::*;
+
+mod null;
+pub use null::*;
+
 /// Types for which sequences of values can be stored in arrays.
 pub trait ArrayType {
     /// Array type used for this type.
@@ -175,6 +181,12 @@ pub trait Array {
     fn is_valid(&self, index: usize) -> bool {
         !self.is_null(index)
     }
+}
+
+// Not part of Array trait because there are not GATs yet.
+pub trait ArrayIndex<T> {
+    type Output;
+    fn index(&self, index: T) -> Self::Output;
 }
 
 /// Types storing nested sequences of values.
