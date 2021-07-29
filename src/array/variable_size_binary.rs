@@ -1,4 +1,4 @@
-use crate::{Array, ArrayType, Buffer, Offset, OffsetValue, ALIGNMENT};
+use crate::{Array, ArrayIndex, ArrayType, Buffer, Offset, OffsetValue, ALIGNMENT};
 use std::{iter::FromIterator, ops::Index};
 
 /// Array with variable-sized binary data.
@@ -28,6 +28,19 @@ where
 
     fn validity(&self) -> &Self::Validity {
         &self.offset
+    }
+}
+
+impl<T> ArrayIndex<usize> for VariableSizeBinaryArray<T, false>
+where
+    T: OffsetValue,
+{
+    type Output = Vec<u8>;
+
+    fn index(&self, index: usize) -> Self::Output {
+        let start = self.offset.index(index).try_into().unwrap();
+        let end = self.offset.index(index + 1).try_into().unwrap();
+        self.data[start..end].to_vec()
     }
 }
 

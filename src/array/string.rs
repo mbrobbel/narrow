@@ -1,5 +1,6 @@
 use crate::{
-    Array, ArrayType, Offset, OffsetValue, VariableSizeBinaryArray, VariableSizeBinaryArrayIter,
+    Array, ArrayIndex, ArrayType, Offset, OffsetValue, VariableSizeBinaryArray,
+    VariableSizeBinaryArrayIter,
 };
 use std::{
     iter::{FromIterator, Map},
@@ -25,7 +26,18 @@ where
     type Validity = Offset<T, N>;
 
     fn validity(&self) -> &Self::Validity {
-        &self.0.validity()
+        self.0.validity()
+    }
+}
+
+impl<T> ArrayIndex<usize> for StringArray<T, false>
+where
+    T: OffsetValue,
+{
+    type Output = String;
+
+    fn index(&self, index: usize) -> Self::Output {
+        unsafe { String::from_utf8_unchecked(ArrayIndex::index(&self.0, index)) }
     }
 }
 
@@ -92,7 +104,7 @@ where
         // todo(mb): bounds
         // Safety
         // - String data is always valid utf-8
-        unsafe { std::str::from_utf8_unchecked(self.0.index(index)) }
+        unsafe { std::str::from_utf8_unchecked(Index::index(&self.0, index)) }
     }
 }
 
@@ -154,7 +166,7 @@ mod tests {
 
         let x = "hello";
         let y = "world!";
-        let vec = vec![Some(&x[..]), Some(&y), None, None, Some(&x), Some("")];
+        let vec = vec![Some(x), Some(y), None, None, Some(x), Some("")];
         let array = vec.iter().copied().collect::<LargeUtf8Array<true>>();
         assert_eq!(array.len(), 6);
         let out = array.into_iter().collect::<Vec<_>>();
@@ -170,22 +182,22 @@ mod tests {
         let array = vec.iter().collect::<Utf8Array<false>>();
         let mut iter = array.into_iter();
         assert_eq!(iter.size_hint(), (3, Some(3)));
-        assert_eq!(iter.next(), Some(&x[..]));
-        assert_eq!(iter.next(), Some(&y[..]));
-        assert_eq!(iter.next(), Some(&z[..]));
+        assert_eq!(iter.next(), Some(x));
+        assert_eq!(iter.next(), Some(y));
+        assert_eq!(iter.next(), Some(z));
         assert_eq!(iter.next(), None);
 
         let x = "hello";
         let y = "world";
-        let vec = vec![Some(&x[..]), Some(&y), None, None, Some(&x), Some("")];
+        let vec = vec![Some(x), Some(y), None, None, Some(x), Some("")];
         let array = vec.into_iter().collect::<Utf8Array<true>>();
         let mut iter = array.into_iter();
         assert_eq!(iter.size_hint(), (6, Some(6)));
-        assert_eq!(iter.next(), Some(Some(&x[..])));
-        assert_eq!(iter.next(), Some(Some(&y[..])));
+        assert_eq!(iter.next(), Some(Some(x)));
+        assert_eq!(iter.next(), Some(Some(y)));
         assert_eq!(iter.next(), Some(None));
         assert_eq!(iter.next(), Some(None));
-        assert_eq!(iter.next(), Some(Some(&x[..])));
+        assert_eq!(iter.next(), Some(Some(x)));
         assert_eq!(iter.next(), Some(Some("")));
         assert_eq!(iter.next(), None);
     }

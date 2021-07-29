@@ -1,5 +1,8 @@
-use crate::{Array, ArrayType, NestedArray, Offset, OffsetValue};
-use std::iter::{FromIterator, Skip, Take};
+use crate::{Array, ArrayIndex, ArrayType, NestedArray, Offset, OffsetValue};
+use std::{
+    iter::{FromIterator, Skip, Take},
+    ops::{Index, Range},
+};
 
 /// Array with variable-sized lists of other arrays.
 ///
@@ -32,6 +35,24 @@ where
 
     fn validity(&self) -> &Self::Validity {
         &self.offset
+    }
+}
+
+impl<T, U> ArrayIndex<usize> for VariableSizeListArray<T, U, false>
+where
+    T: Array + ArrayIndex<usize>,
+    U: OffsetValue,
+    Range<U>: IntoIterator<Item = U>,
+{
+    type Output = Vec<<T as ArrayIndex<usize>>::Output>;
+
+    fn index(&self, index: usize) -> Self::Output {
+        let start = self.offset.index(index);
+        let end = self.offset.index(index + 1);
+        (*start..*end)
+            .into_iter()
+            .map(|idx| self.data.index(idx.try_into().unwrap()))
+            .collect()
     }
 }
 
@@ -213,6 +234,7 @@ mod tests {
     use crate::{BinaryArray, Uint32Array};
 
     #[test]
+    #[allow(clippy::many_single_char_names)] // todo(mb)
     fn from_iter() {
         let vec = vec![vec![1u32, 2, 3, 4], vec![1u32, 2, 3, 4, 5]];
         let list: ListArray<Uint32Array<false>, false> = vec.into_iter().collect();

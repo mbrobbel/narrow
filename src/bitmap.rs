@@ -1,4 +1,4 @@
-use crate::{buffer, ArrayData, Buffer, ALIGNMENT};
+use crate::{buffer, ArrayData, ArrayIndex, Buffer, ALIGNMENT};
 use bitvec::{
     order::Lsb0,
     slice::{BitSlice, BitValIter},
@@ -13,6 +13,14 @@ pub struct Bitmap {
     bits: usize,
     /// The bits are stored in the buffer.
     buffer: Buffer<usize, ALIGNMENT>,
+}
+
+impl ArrayIndex<usize> for Bitmap {
+    type Output = bool;
+
+    fn index(&self, index: usize) -> Self::Output {
+        self.is_valid(index)
+    }
 }
 
 impl ArrayData for Bitmap {
@@ -265,7 +273,7 @@ mod tests {
             .copied()
             .collect();
         let bits: &[u8] = bitmap.as_ref();
-        bits[mem::size_of::<usize>()];
+        let _ = bits[mem::size_of::<usize>()];
     }
 
     #[test]
@@ -303,13 +311,13 @@ mod tests {
             .copied()
             .collect();
         let bits: &BitSlice<_, _> = bitmap.as_ref();
-        bits[bits.len()];
+        let _ = bits[bits.len()];
     }
 
     #[test]
     fn deref() {
         let vec = vec![false, true, false, true, false, true];
-        let bitmap: Bitmap = vec.clone().iter().copied().collect();
+        let bitmap: Bitmap = vec.iter().copied().collect();
         assert_eq!(bitmap.len(), 6);
         assert!(!bitmap.is_empty());
         assert_eq!(bitmap.count_ones(), 3);
@@ -348,8 +356,8 @@ mod tests {
             }
         }
 
-        let foo = Foo { count: 1234 };
-        let bitmap = Bitmap::from_iter(foo);
+        let x = Foo { count: 1234 };
+        let bitmap: Bitmap = x.into_iter().collect();
         assert_eq!(bitmap.len(), 1234);
     }
 

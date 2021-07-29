@@ -13,17 +13,19 @@ A Rust implementation of [Apache Arrow](https://arrow.apache.org).
 - [x] Nullable
 - [x] Validity
 - [x] Offset
-- [ ] Array
+- [x] Array
   - [x] Fixed-size primitive
   - [x] Boolean
   - [x] Variable-size binary
     - [x] String array
   - [x] Variable-size list
-  - [ ] Fixed-size list
-  - [ ] Struct
-  - [ ] Union
-  - [ ] Null
-  - [ ] Dictionary
+  - [x] Fixed-size list
+  - [x] Struct
+  - [x] Union
+    - [x] Dense
+    - [x] Sparse
+  - [x] Null
+  - [x] Dictionary
 - [ ] Logical types
 - [ ] Schema
 - [ ] RecordBatch
@@ -38,9 +40,11 @@ A Rust implementation of [Apache Arrow](https://arrow.apache.org).
 
 ## Minimum supported Rust version
 
-The minimum supported Rust version is 1.53.
+The minimum supported Rust version is 1.54.
 
 ## Example
+
+### Struct array
 
 ```rust
 use narrow::{Array, BooleanArray, Float32Array, StructArray, Uint8Array};
@@ -89,6 +93,35 @@ assert_eq!(distance_array.null_count(), 1);
 assert_eq!(persons_array.into_iter().collect::<Vec<_>>(), persons);
 ```
 
+### Union array
+
+```rust
+use narrow::{Array, UnionArray};
+
+#[derive(Array, Copy, Clone, Debug, PartialEq)]
+pub enum Either {
+    This(bool),
+    That(Option<u32>)
+}
+
+let input = vec![
+    Either::This(false),
+    Either::This(true),
+    Either::That(Some(1234)),
+    Either::That(None),
+    Either::This(true)
+];
+
+let array: UnionArray<Either, true> = input.iter().copied().collect();
+
+assert_eq!(array.len(), 5);
+assert_eq!(array.child().This.len(), 3);
+assert_eq!(array.child().That.len(), 2);
+assert_eq!(array.child().That.null_count(), 1);
+
+assert_eq!(array.into_iter().collect::<Vec<Either>>(), input);
+```
+  
 ## License
 
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT) at your option.

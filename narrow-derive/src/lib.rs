@@ -3,7 +3,7 @@ use proc_macro_crate::FoundCrate;
 use quote::{format_ident, quote};
 use syn::{
     parse_macro_input, Data, DataEnum, DataStruct, DataUnion, DeriveInput, Fields, FieldsNamed,
-    FieldsUnnamed,
+    FieldsUnnamed, Ident, Type, Variant,
 };
 
 // todo(mb): https://docs.rs/frunk/0.3.2/frunk/labelled/trait.Transmogrifier.html with array wrappers
@@ -11,6 +11,12 @@ use syn::{
 // todo(mb): trait bounds in where clause when generic is type argument of other type e.g. Option<T>
 // https://github.com/serde-rs/serde/blob/master/serde_derive/src/bound.rs
 // todo(mb): convert iterators into original data structures e.g. Vec<String> from list array iterator (requires GATs)
+// todo(mb): support unnamed fields in iterator
+// todo(mb): enum support (unit variant, struct variants, multiple fields in one variant)
+// todo(mb): allow Option<enum type>
+// - by wrapping the variant with i8::default type_id in a nullable (if it wasn't already)
+// - or use an available nullable field and write that instead of i8::default for nulls
+// todo(mb): derive arrayindex for struct arrays
 
 /// Derive macro for the Array trait.
 #[proc_macro_derive(Array, attributes(narrow))]
@@ -32,7 +38,7 @@ pub fn derive_array(input: TokenStream) -> TokenStream {
         Data::Struct(DataStruct { fields, .. }) => {
             match fields {
                 Fields::Unit => {
-                    todo!()
+                    todo!("unit struct")
                 }
                 Fields::Named(FieldsNamed { named: fields, .. })
                 | Fields::Unnamed(FieldsUnnamed {
@@ -53,6 +59,10 @@ pub fn derive_array(input: TokenStream) -> TokenStream {
                         })
                         .unzip();
 
+                    assert!(
+                        !fields.is_empty(),
+                        "todo struct without fields are not yet supported"
+                    );
                     let first_field = fields.first().unwrap();
 
                     // Create the raw array struct.
@@ -174,11 +184,176 @@ pub fn derive_array(input: TokenStream) -> TokenStream {
                 }
             }
         }
-        Data::Enum(DataEnum { variants: _, .. }) => {
-            todo!()
+        Data::Enum(DataEnum { variants, .. }) => {
+            struct EnumVariant<'a> {
+                idx: usize,
+                idx_ident: Ident,
+                ident: &'a Ident,
+                field: Type,
+            }
+            let variants = variants
+                .iter()
+                .enumerate()
+                .map(|(idx, Variant { ident, fields, .. })| EnumVariant {
+                    idx,
+                    idx_ident: format_ident!("_{}", idx),
+                    ident,
+                    field: match fields {
+                        Fields::Unit => todo!("unit variant"),
+                        Fields::Named(FieldsNamed { named: _fields, .. }) => {
+                            todo!("struct variant")
+                        }
+                        Fields::Unnamed(FieldsUnnamed {
+                            unnamed: fields, ..
+                        }) if fields.len() == 1 => fields.first().unwrap().ty.clone(),
+                        Fields::Unnamed(_) => {
+                            todo!("tuple variants with more than one field")
+                        }
+                    },
+                })
+                .collect::<Vec<_>>();
+
+            let idx = variants
+                .iter()
+                .map(|EnumVariant { idx, .. }| *idx as i8)
+                .collect::<Vec<_>>();
+            let idx_ident = variants
+                .iter()
+                .map(|EnumVariant { idx_ident, .. }| idx_ident)
+                .collect::<Vec<_>>();
+            let idents = variants
+                .iter()
+                .map(|EnumVariant { ident, .. }| ident)
+                .collect::<Vec<_>>();
+            let ty = variants
+                .iter()
+                .map(|EnumVariant { field, .. }| field)
+                .collect::<Vec<_>>();
+            let num_variants = idents.len();
+
+            let wrapper_ident = format_ident!("{}ArrayWrapper", &ident);
+
+            (quote! {
+                #[automatically_derived]
+                impl From<&#ident> for i8 {
+                    fn from(ident: &#ident) -> Self {
+                        match ident {
+                            #(
+                                #ident::#idents(..) => #idx,
+                            )*
+                        }
+                    }
+                }
+
+                #[automatically_derived]
+                impl #narrow::UnionArrayType<true> for #ident {
+                    type Child = #wrapper_ident<true>;
+                    type Array = #narrow::DenseUnionArray<#ident, #num_variants>;
+                }
+
+                #[automatically_derived]
+                impl #narrow::UnionArrayType<false> for #ident {
+                    type Child = #wrapper_ident<false>;
+                    type Array = #narrow::SparseUnionArray<#ident>;
+                }
+
+                #[automatically_derived]
+                #[allow(non_snake_case)]
+                #[derive(Debug)]
+                #vis struct #wrapper_ident<const D: bool> {
+                    #(
+                        #idents: <#ty as #narrow::ArrayType>::Array,
+                    )*
+                }
+
+                #[automatically_derived]
+                impl<const D: bool> #narrow::Array for #wrapper_ident<D> {
+                    type Validity = Self;
+
+                    fn validity(&self) -> &Self::Validity {
+                        self
+                    }
+                }
+
+                #[automatically_derived]
+                impl<const D: bool> #narrow::UnionArrayIndex<#ident> for #wrapper_ident<D> {
+                        fn index(&self, type_id: i8, index: i32) -> #ident {
+                            match type_id {
+                                #(
+                                    #idx => #ident::#idents(#narrow::ArrayIndex::index(&self.#idents, index as usize)),
+                                )*
+                                _ => unreachable!(),
+                            }
+                        }
+                }
+
+                #[automatically_derived]
+                impl ::std::iter::FromIterator<#ident> for #wrapper_ident<false> {
+                    fn from_iter<I>(iter: I) -> Self
+                    where
+                        I: ::std::iter::IntoIterator<Item = #ident>,
+                    {
+                        let iter = iter.into_iter();
+                        let (lower_bound, upper_bound) = iter.size_hint();
+                        let capacity = upper_bound.unwrap_or(lower_bound);
+
+                        #(
+                            let mut #idx_ident = Vec::with_capacity(capacity);
+                        )*
+
+                        for item in iter {
+                            #(
+                                if let #ident::#idents(ref x) = item {
+                                    #idx_ident.push(x.clone());
+                                } else {
+                                    #idx_ident.push(Default::default());
+                                }
+                            )*
+                        }
+
+                        Self {
+                            #(
+                                #idents: #idx_ident.into_iter().collect(),
+                            )*
+                        }
+
+                    }
+                }
+
+                #[automatically_derived]
+                impl ::std::iter::FromIterator<#ident> for #wrapper_ident<true> {
+                    fn from_iter<I>(iter: I) -> Self
+                    where
+                        I: ::std::iter::IntoIterator<Item = #ident>,
+                    {
+                        let iter = iter.into_iter();
+
+                        #(
+                            let mut #idx_ident = Vec::new();
+                        )*
+
+                        for item in iter {
+                            match item {
+                                #(
+                                    #ident::#idents(x) => #idx_ident.push(x),
+                                )*
+                            }
+                        }
+
+                        Self {
+                            #(
+                                #idents: #idx_ident.into_iter().collect(),
+                            )*
+                        }
+
+                    }
+                }
+
+            })
+            .into()
         }
         Data::Union(DataUnion { fields: _, .. }) => {
-            todo!()
+            todo!("untagged unions")
         }
     }
 }
