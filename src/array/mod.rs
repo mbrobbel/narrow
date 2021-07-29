@@ -25,6 +25,9 @@ pub use union::*;
 mod null;
 pub use null::*;
 
+mod dictionary;
+pub use dictionary::*;
+
 /// Types for which sequences of values can be stored in arrays.
 pub trait ArrayType {
     /// Array type used for this type.
