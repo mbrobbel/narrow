@@ -1,6 +1,10 @@
 use std::{ffi::CStr, fmt, ptr};
 
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+#[allow(non_camel_case_types)]
+mod bindings {
+    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+}
+pub use bindings::*;
 
 impl ArrowSchema {
     pub fn null_mut() -> Self {
