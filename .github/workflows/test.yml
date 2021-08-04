@@ -13,6 +13,8 @@ jobs:
           - 1.54
     steps:
     - uses: actions/checkout@v2.3.4
+      with:
+        submodules: true
     - uses: actions-rs/toolchain@v1.0.7
       with:
         profile: minimal
@@ -32,6 +34,8 @@ jobs:
           - 1.54
     steps:
     - uses: actions/checkout@v2.3.4
+      with:
+        submodules: true
     - uses: actions-rs/toolchain@v1.0.7
       with:
         profile: minimal
@@ -46,6 +50,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2.3.4
+      with:
+        submodules: true
     - uses: actions-rs/toolchain@v1.0.7
       with:
         profile: minimal
@@ -67,6 +73,8 @@ jobs:
           - 1.54
     steps:
     - uses: actions/checkout@v2.3.4
+      with:
+        submodules: true
     - uses: actions-rs/toolchain@v1.0.7
       with:
         profile: minimal
@@ -83,6 +91,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2.3.4
+      with:
+        submodules: true
     - name: Miri nightly
       id: miri_nightly
       run: |
@@ -107,6 +117,8 @@ jobs:
       RUSTDOCFLAGS: '-Zinstrument-coverage'
     steps:
     - uses: actions/checkout@v2.3.4
+      with:
+        submodules: true
     - uses: actions-rs/toolchain@v1.0.7
       with:
         profile: minimal

@@ -110,7 +110,7 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(all(feature = "derive", test))]
 mod tests {
     use crate::BooleanArray;
 

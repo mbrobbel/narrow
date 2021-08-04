@@ -1,0 +1,27 @@
+[package]
+name = "narrow-ffi"
+version = "0.1.0"
+authors = ["Matthijs Brobbel <m1brobbel@gmail.com>"]
+edition = "2018"
+description = "FFI for Narrow: an implementation of Apache Arrow"
+readme = "README.md"
+repository = "https://github.com/mbrobbel/narrow"
+documentation = "http://docs.rs/narrow/"
+license = "Apache-2.0 OR MIT"
+keywords = ["Arrow"]
+categories = ["data-structures"]
+
+include = [
+  "/src",
+  "build.rs",
+  "../LICENSE-*",
+  "../README.md",
+  "../arrow/LICENSE.txt",
+  "../arrow/NOTICE.txt",
+  "../arrow/cpp/src/arrow/c/abi.h"
+]
+
+[dependencies]
+
+[build-dependencies]
+bindgen = "0.59.1"

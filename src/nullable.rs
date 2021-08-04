@@ -1,6 +1,6 @@
 use crate::{ArrayData, ArrayIndex, Bitmap};
-use bitvec::{order::Lsb0, slice::BitValIter};
-use std::iter::{FromIterator, Map, Zip};
+use bitvec::{order::Lsb0, slice::Iter}; //slice::BitValIter};
+use std::iter::{Copied, FromIterator, Map, Zip};
 
 /// Wrapper for nullables data.
 ///
@@ -117,7 +117,8 @@ where
 }
 
 type NullableIter<'a, T> = Map<
-    Zip<BitValIter<'a, Lsb0, usize>, <&'a T as IntoIterator>::IntoIter>,
+    // Zip<BitValIter<'a, Lsb0, usize>, <&'a T as IntoIterator>::IntoIter>,
+    Zip<Copied<Iter<'a, Lsb0, usize>>, <&'a T as IntoIterator>::IntoIter>,
     fn((bool, <&'a T as IntoIterator>::Item)) -> Option<<&'a T as IntoIterator>::Item>,
 >;
 

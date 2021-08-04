@@ -1,10 +1,13 @@
 use crate::{buffer, ArrayData, ArrayIndex, Buffer, ALIGNMENT};
 use bitvec::{
     order::Lsb0,
-    slice::{BitSlice, BitValIter},
+    slice::{BitSlice, Iter}, //, BitValIter},
     view::BitView,
 };
-use std::{iter::FromIterator, ops::Deref};
+use std::{
+    iter::{Copied, FromIterator},
+    ops::Deref,
+};
 
 /// An immutable collection of bits.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -211,14 +214,14 @@ impl FromIterator<bool> for Bitmap {
 }
 
 /// Iterator over bits in a bitmap.
-pub type BitmapIter<'a> = BitValIter<'a, Lsb0, usize>;
+pub type BitmapIter<'a> = Copied<Iter<'a, Lsb0, usize>>; //BitValIter<'a, Lsb0, usize>;
 
 impl<'a> IntoIterator for &'a Bitmap {
     type Item = bool;
     type IntoIter = BitmapIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.iter().by_val()
+        self.iter().copied() //by_val()
     }
 }
 
@@ -323,7 +326,8 @@ mod tests {
         assert_eq!(bitmap.count_ones(), 3);
         assert_eq!(bitmap.count_zeros(), 3);
         vec.iter()
-            .zip(bitmap.iter().by_val())
+            // .zip(bitmap.iter().by_val())
+            .zip(bitmap.iter().copied())
             .for_each(|(a, b)| assert_eq!(*a, b));
         assert_eq!(bitmap.buffer.as_ptr(), bitmap.as_raw_slice().as_ptr());
     }

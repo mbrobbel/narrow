@@ -1,5 +1,5 @@
 use crate::{ArrayData, Bitmap, BitmapIter, Buffer, Primitive, Validity, ALIGNMENT};
-use bitvec::{order::Lsb0, slice::BitValIter};
+use bitvec::{order::Lsb0, slice}; //slice::BitValIter};
 use std::{
     convert::{TryFrom, TryInto},
     iter::{self, Copied, FromIterator, Zip},
@@ -182,7 +182,9 @@ where
     }
 }
 
-impl<'a, T> Iterator for OffsetIter<Zip<BitValIter<'a, Lsb0, usize>, Copied<Iter<'a, T>>>, true>
+impl<'a, T> Iterator
+    for OffsetIter<Zip<Copied<slice::Iter<'a, Lsb0, usize>>, Copied<Iter<'a, T>>>, true>
+// impl<'a, T> Iterator for OffsetIter<Zip<BitValIter<'a, Lsb0, usize>, Copied<Iter<'a, T>>>, true>
 where
     T: OffsetValue,
 {

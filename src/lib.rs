@@ -23,6 +23,7 @@ pub use offset::*;
 mod array;
 pub use array::*;
 
+#[cfg(feature = "derive")]
 // Export derive macro(s).
 pub use narrow_derive::*;
 

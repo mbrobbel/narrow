@@ -3,7 +3,7 @@ name = "narrow"
 version = "0.1.0"
 authors = ["Matthijs Brobbel <m1brobbel@gmail.com>"]
 edition = "2018"
-description = "A Rust implementation of Apache Arrow"
+description = "An implementation of Apache Arrow"
 readme = "README.md"
 repository = "https://github.com/mbrobbel/narrow"
 documentation = "http://docs.rs/narrow/"
@@ -12,11 +12,16 @@ keywords = ["Arrow"]
 categories = ["data-structures"]
 
 [features]
-default = []
+default = ["derive", "ffi"]
+derive = ["narrow-derive"]
+ffi = ["narrow-ffi"]
 
 [dependencies]
-bitvec = { version= "0.22", default-features = false }
-narrow-derive = { version = "0.1.0", path = "narrow-derive" }
+# https://github.com/myrrlyn/funty/issues/3
+bitvec = { version= "=0.19", default-features = false }
+funty = "=1.1.0"
+narrow-derive = { version = "0.1.0", path = "narrow-derive", optional = true }
+narrow-ffi = { version = "0.1.0", path = "narrow-ffi", optional = true }
 paste = "1"
 
 [dev-dependencies]
@@ -36,5 +41,6 @@ harness = false
 
 [workspace]
 members = [
-  "narrow-derive"
+  "narrow-derive",
+  "narrow-ffi"
 ]
