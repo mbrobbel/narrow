@@ -125,4 +125,4 @@ jobs:
       run: curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-linux-x86_64.tar.bz2 | tar jxf -
     - name: grcov
       run: ./grcov --branch --binary-path ./target/debug/ --source-dir . --output-type lcov --output-path lcov.info .
-    - uses: codecov/codecov-action@v2.0.2
+    - uses: codecov/codecov-action@v2.0.3
