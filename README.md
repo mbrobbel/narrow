@@ -1,5 +1,7 @@
 # Narrow
 
+![Narrow logo](narrow.svg)
+
 [![crates.io](https://img.shields.io/crates/v/narrow.svg)](https://crates.io/crates/narrow)
 [![docs.rs](https://docs.rs/narrow/badge.svg)](https://docs.rs/narrow)
 
@@ -125,7 +127,7 @@ assert_eq!(array.child().That.null_count(), 1);
 
 assert_eq!(array.into_iter().collect::<Vec<Either>>(), input);
 ```
-  
+
 ## License
 
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT) at your option.
