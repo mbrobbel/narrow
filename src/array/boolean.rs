@@ -1,5 +1,5 @@
 use crate::{Array, ArrayIndex, ArrayType, Bitmap, Nullable, Validity};
-use std::{iter::FromIterator, ops::Deref};
+use std::ops::Deref;
 
 /// Array with boolean values.
 ///

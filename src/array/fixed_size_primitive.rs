@@ -1,6 +1,6 @@
 use crate::{Array, ArrayData, ArrayIndex, Buffer, Nullable, Primitive, Validity, ALIGNMENT};
 use paste::paste;
-use std::{iter::FromIterator, ops::Deref};
+use std::ops::Deref;
 
 /// Array with primitive values.
 #[derive(Debug)]

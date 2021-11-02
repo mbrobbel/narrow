@@ -3,7 +3,7 @@ use crate::{
     VariableSizeBinaryArrayIter,
 };
 use std::{
-    iter::{FromIterator, Map},
+    iter::Map,
     ops::{Deref, Index},
 };
 

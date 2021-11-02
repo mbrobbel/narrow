@@ -1,5 +1,5 @@
 use crate::{ArrayData, ArrayIndex, Bitmap, Nullable};
-use std::{hint::unreachable_unchecked, iter::FromIterator, ops::Deref};
+use std::{hint::unreachable_unchecked, ops::Deref};
 
 /// Variants for nullable and non-nullable data.
 ///

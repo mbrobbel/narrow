@@ -64,7 +64,7 @@ pub trait Array {
     ///
     /// ```
     /// use narrow::{Array, Uint32Array};
-    /// let empty: Uint32Array<false> = [].into_iter().collect();
+    /// let empty: Uint32Array<false> = [].iter().collect();
     /// assert!(empty.is_empty());
     /// ```
     fn is_empty(&self) -> bool {
@@ -103,7 +103,7 @@ pub trait Array {
     ///
     /// ```
     /// use narrow::{Array, Uint32Array};
-    /// let array: Uint32Array<true> = [None, None, None, None].into_iter().collect();
+    /// let array: Uint32Array<true> = [None, None, None, None].iter().collect();
     /// assert!(array.all_null());
     /// ```
     fn all_null(&self) -> bool {

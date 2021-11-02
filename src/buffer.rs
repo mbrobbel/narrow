@@ -4,7 +4,7 @@ use std::{
     any,
     borrow::Borrow,
     fmt::{Debug, Formatter, Result},
-    iter::{Copied, FromIterator},
+    iter::Copied,
     mem,
     ops::Deref,
     ptr::{self, NonNull},
@@ -467,7 +467,7 @@ mod tests {
 
     #[test]
     fn as_ref() {
-        let buffer: Buffer<_, 7> = [1u32, 2, 3, 4].iter().copied().collect();
+        let buffer: Buffer<_, 7> = [1u32, 2, 3, 4].into_iter().collect();
         let x: &Buffer<_, 7> = buffer.as_ref();
         assert_eq!(x.len(), 4);
         let x: &[u8] = buffer.as_ref();
@@ -486,7 +486,7 @@ mod tests {
 
     #[test]
     fn borrow() {
-        let buffer: Buffer<_, 7> = [1u32, 2, 3, 4].iter().copied().collect();
+        let buffer: Buffer<_, 7> = [1u32, 2, 3, 4].into_iter().collect();
 
         fn borrow_u32<T: Borrow<[u32]>>(input: T) {
             assert_eq!(input.borrow(), &[1, 2, 3, 4]);
@@ -497,7 +497,7 @@ mod tests {
 
     #[test]
     fn deref() {
-        let buffer: Buffer<_, 3> = [1u32, 2, 3, 4].iter().copied().collect();
+        let buffer: Buffer<_, 3> = [1u32, 2, 3, 4].into_iter().collect();
         assert_eq!(buffer.len(), 4);
         assert_eq!(&buffer[2..], &[3, 4]);
     }

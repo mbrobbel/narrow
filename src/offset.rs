@@ -1,8 +1,7 @@
 use crate::{ArrayData, Bitmap, BitmapIter, Buffer, Primitive, Validity, ALIGNMENT};
 use bitvec::{order::Lsb0, slice::BitValIter};
 use std::{
-    convert::{TryFrom, TryInto},
-    iter::{self, Copied, FromIterator, Zip},
+    iter::{self, Copied, Zip},
     num::TryFromIntError,
     ops::Deref,
     slice::Iter,
@@ -247,14 +246,14 @@ mod tests {
 
     #[test]
     fn array_data() {
-        let offset: Offset<i64, false> = [1, 2, 3, 4].iter().copied().collect();
+        let offset: Offset<i64, false> = [1, 2, 3, 4].into_iter().collect();
         assert_eq!(offset.len(), 4);
         assert!(!offset.is_null(0));
         assert_eq!(offset.null_count(), 0);
         assert!(offset.is_valid(0));
         assert_eq!(offset.valid_count(), 4);
 
-        let offset: Offset<i32, true> = [Some(3), None, Some(4), Some(0)].iter().copied().collect();
+        let offset: Offset<i32, true> = [Some(3), None, Some(4), Some(0)].into_iter().collect();
         assert_eq!(offset.len(), 4);
         assert!(!offset.is_null(0));
         assert!(offset.is_null(1));
@@ -266,22 +265,21 @@ mod tests {
 
     #[test]
     fn from_iter() {
-        let offset: Offset<i64, false> = [1, 2, 3, 4].iter().copied().collect();
+        let offset: Offset<i64, false> = [1, 2, 3, 4].into_iter().collect();
         assert_eq!(&offset[..], &[0, 1, 3, 6, 10]);
 
-        let offset: Offset<i32, true> = [Some(3), None, Some(4), Some(0)].iter().copied().collect();
+        let offset: Offset<i32, true> = [Some(3), None, Some(4), Some(0)].into_iter().collect();
         assert_eq!(&offset.data()[..], &[0, 3, 3, 7, 7]);
     }
 
     #[test]
     fn into_iter() {
-        let offset: Offset<i64, false> = [1, 2, 3, 4].iter().copied().collect();
+        let offset: Offset<i64, false> = [1, 2, 3, 4].into_iter().collect();
         let offsets = offset.into_iter().collect::<Vec<_>>();
         assert_eq!(offsets, vec![(0, 1), (1, 3), (3, 6), (6, 10)]);
 
         let offset: Offset<i32, true> = [Some(3), None, Some(4), None, Some(0)]
-            .iter()
-            .copied()
+            .into_iter()
             .collect();
         let offsets = offset.into_iter().collect::<Vec<_>>();
         assert_eq!(

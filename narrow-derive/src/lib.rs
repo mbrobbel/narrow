@@ -116,7 +116,7 @@ pub fn derive_array(input: TokenStream) -> TokenStream {
                         }
 
                         #[automatically_derived]
-                        impl ::std::iter::FromIterator<#ident> for #wrapper_ident
+                        impl FromIterator<#ident> for #wrapper_ident
                         {
                             fn from_iter<I>(iter: I) -> Self
                             where
@@ -288,7 +288,7 @@ pub fn derive_array(input: TokenStream) -> TokenStream {
                 }
 
                 #[automatically_derived]
-                impl ::std::iter::FromIterator<#ident> for #wrapper_ident<false> {
+                impl FromIterator<#ident> for #wrapper_ident<false> {
                     fn from_iter<I>(iter: I) -> Self
                     where
                         I: ::std::iter::IntoIterator<Item = #ident>,
@@ -321,7 +321,7 @@ pub fn derive_array(input: TokenStream) -> TokenStream {
                 }
 
                 #[automatically_derived]
-                impl ::std::iter::FromIterator<#ident> for #wrapper_ident<true> {
+                impl FromIterator<#ident> for #wrapper_ident<true> {
                     fn from_iter<I>(iter: I) -> Self
                     where
                         I: ::std::iter::IntoIterator<Item = #ident>,

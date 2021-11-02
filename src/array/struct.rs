@@ -1,5 +1,5 @@
 use crate::{Array, ArrayData, ArrayType, Nullable, Validity};
-use std::{fmt::Debug, iter::FromIterator, ops::Deref};
+use std::{fmt::Debug, ops::Deref};
 
 // todo(mb): add partial eq with array of struct
 

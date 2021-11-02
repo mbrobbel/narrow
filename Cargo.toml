@@ -2,7 +2,8 @@
 name = "narrow"
 version = "0.1.0"
 authors = ["Matthijs Brobbel <m1brobbel@gmail.com>"]
-edition = "2018"
+edition = "2021"
+rust-version = "1.56.1"
 description = "A Rust implementation of Apache Arrow"
 readme = "README.md"
 repository = "https://github.com/mbrobbel/narrow"
