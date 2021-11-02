@@ -31,6 +31,11 @@ impl<T> NullArray<T> {
     pub fn len(&self) -> usize {
         self.len
     }
+
+    /// Returns `true` if the array contains no elements.
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
 }
 
 impl Array for NullArray {
