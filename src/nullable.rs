@@ -1,6 +1,6 @@
 use crate::{ArrayData, ArrayIndex, Bitmap};
 use bitvec::{order::Lsb0, slice::BitValIter};
-use std::iter::{FromIterator, Map, Zip};
+use std::iter::{Map, Zip};
 
 /// Wrapper for nullables data.
 ///
@@ -26,11 +26,11 @@ impl<T> Nullable<T> {
     /// use narrow::{Bitmap, Buffer, Nullable};
     ///
     /// let nullable: Nullable<Buffer<u32, 6>> =
-    ///     [Some(1u32), None, Some(3), Some(4)].iter().copied().collect();
+    ///     [Some(1u32), None, Some(3), Some(4)].into_iter().collect();
     ///
     /// assert_eq!(
     ///     nullable.validity(),
-    ///     &[true, false, true, true].iter().copied().collect::<Bitmap>()
+    ///     &[true, false, true, true].into_iter().collect::<Bitmap>()
     /// );
     /// ```
     pub fn validity(&self) -> &Bitmap {
@@ -45,9 +45,9 @@ impl<T> Nullable<T> {
     /// use narrow::{Bitmap, Buffer, Nullable};
     ///
     /// let nullable: Nullable<Buffer<u32, 6>> =
-    ///     [Some(1u32), None, Some(3), Some(4)].iter().copied().collect();
+    ///     [Some(1u32), None, Some(3), Some(4)].into_iter().collect();
     ///
-    /// assert_eq!(nullable.data(), &[1u32, u32::default(), 3, 4].iter().copied().collect());
+    /// assert_eq!(nullable.data(), &[1u32, u32::default(), 3, 4].into_iter().collect());
     /// ```
     pub fn data(&self) -> &T {
         &self.data
@@ -148,14 +148,11 @@ mod tests {
             .collect::<Nullable<Buffer<_, 3>>>();
         assert_eq!(
             nullable.validity(),
-            &[true, false, true, true]
-                .iter()
-                .copied()
-                .collect::<Bitmap>()
+            &[true, false, true, true].into_iter().collect::<Bitmap>()
         );
         assert_eq!(
             nullable.data(),
-            &[1, u32::default(), 3, 4].iter().copied().collect()
+            &[1, u32::default(), 3, 4].into_iter().collect()
         );
         assert_eq!(nullable.len(), 4);
         assert_eq!(nullable.null_count(), 1);
@@ -196,10 +193,8 @@ mod tests {
 
     #[test]
     fn into_iter() {
-        let nullable: Nullable<Buffer<u8, 1>> = [Some(1u8), None, Some(3), Some(4)]
-            .iter()
-            .copied()
-            .collect();
+        let nullable: Nullable<Buffer<u8, 1>> =
+            [Some(1u8), None, Some(3), Some(4)].into_iter().collect();
         let vec = nullable.into_iter().collect::<Vec<_>>();
         assert_eq!(vec, vec![Some(1u8), None, Some(3), Some(4)]);
     }

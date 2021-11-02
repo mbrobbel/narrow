@@ -1,10 +1,8 @@
 use crate::{Array, ArrayIndex, FixedSizePrimitiveArray, NestedArray, Primitive};
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
-    convert::{TryFrom, TryInto},
     fmt::Debug,
     hash::{Hash, Hasher},
-    iter::FromIterator,
 };
 
 /// Types representing dictionary index values.

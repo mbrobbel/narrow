@@ -1,7 +1,7 @@
 use crate::{Array, ArrayData, Int32Array, Int8Array, NestedArray};
 use std::{
     fmt::Debug,
-    iter::{Copied, Enumerate, FromIterator, Zip},
+    iter::{Copied, Enumerate, Zip},
     ops::Deref,
     slice,
 };

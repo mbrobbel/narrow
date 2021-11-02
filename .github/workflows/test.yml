@@ -10,17 +10,17 @@ jobs:
       matrix:
         rust:
           - stable
-          - 1.54
+          - 1.56.1
     steps:
-    - uses: actions/checkout@v2.3.5
-    - uses: actions-rs/toolchain@v1.0.7
-      with:
-        profile: minimal
-        toolchain: ${{ matrix.rust }}
-        override: true
-    - uses: actions-rs/cargo@v1.0.3
-      with:
-        command: check
+      - uses: actions/checkout@v2.3.5
+      - uses: actions-rs/toolchain@v1.0.7
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - uses: actions-rs/cargo@v1.0.3
+        with:
+          command: check
 
   test:
     name: Test
@@ -29,33 +29,33 @@ jobs:
       matrix:
         rust:
           - stable
-          - 1.54
+          - 1.56.1
     steps:
-    - uses: actions/checkout@v2.3.5
-    - uses: actions-rs/toolchain@v1.0.7
-      with:
-        profile: minimal
-        toolchain: ${{ matrix.rust }}
-        override: true
-    - uses: actions-rs/cargo@v1.0.3
-      with:
-        command: test
+      - uses: actions/checkout@v2.3.5
+      - uses: actions-rs/toolchain@v1.0.7
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - uses: actions-rs/cargo@v1.0.3
+        with:
+          command: test
 
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2.3.5
-    - uses: actions-rs/toolchain@v1.0.7
-      with:
-        profile: minimal
-        toolchain: stable
-        components: rustfmt
-        override: true
-    - uses: actions-rs/cargo@v1.0.3
-      with:
-        command: fmt
-        args: --all -- --check
+      - uses: actions/checkout@v2.3.5
+      - uses: actions-rs/toolchain@v1.0.7
+        with:
+          profile: minimal
+          toolchain: stable
+          components: rustfmt
+          override: true
+      - uses: actions-rs/cargo@v1.0.3
+        with:
+          command: fmt
+          args: --all -- --check
 
   clippy:
     name: Clippy
@@ -64,65 +64,65 @@ jobs:
       matrix:
         rust:
           - stable
-          - 1.54
+          - 1.56.1
     steps:
-    - uses: actions/checkout@v2.3.5
-    - uses: actions-rs/toolchain@v1.0.7
-      with:
-        profile: minimal
-        toolchain: ${{ matrix.rust }}
-        components: clippy
-        override: true
-    - uses: actions-rs/cargo@v1.0.3
-      with:
-        command: clippy
-        args: -- -Dwarnings
+      - uses: actions/checkout@v2.3.5
+      - uses: actions-rs/toolchain@v1.0.7
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          components: clippy
+          override: true
+      - uses: actions-rs/cargo@v1.0.3
+        with:
+          command: clippy
+          args: -- -Dwarnings
 
   miri:
     name: Miri
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2.3.5
-    - name: Miri nightly
-      id: miri_nightly
-      run: |
-        MIRI_NIGHTLY=nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/miri)
-        echo "::set-output name=rust::${MIRI_NIGHTLY}"
-    - uses: actions-rs/toolchain@v1.0.7
-      with:
-        profile: minimal
-        toolchain: ${{ steps.miri_nightly.outputs.rust }}
-        components: miri
-        default: true
-    - uses: actions-rs/cargo@v1.0.3
-      with:
-        command: miri
-        args: test
+      - uses: actions/checkout@v2.3.5
+      - name: Miri nightly
+        id: miri_nightly
+        run: |
+          MIRI_NIGHTLY=nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/miri)
+          echo "::set-output name=rust::${MIRI_NIGHTLY}"
+      - uses: actions-rs/toolchain@v1.0.7
+        with:
+          profile: minimal
+          toolchain: ${{ steps.miri_nightly.outputs.rust }}
+          components: miri
+          default: true
+      - uses: actions-rs/cargo@v1.0.3
+        with:
+          command: miri
+          args: test
 
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
     env:
-      RUSTFLAGS: '-Zinstrument-coverage'
-      RUSTDOCFLAGS: '-Zinstrument-coverage'
+      RUSTFLAGS: "-Zinstrument-coverage"
+      RUSTDOCFLAGS: "-Zinstrument-coverage"
     steps:
-    - uses: actions/checkout@v2.3.5
-    - uses: actions-rs/toolchain@v1.0.7
-      with:
-        profile: minimal
-        toolchain: nightly
-        components: llvm-tools-preview
-        override: true
-    - uses: actions-rs/cargo@v1.0.3
-      with:
-        command: build
-    - uses: actions-rs/cargo@v1.0.3
-      env:
-        LLVM_PROFILE_FILE: 'narrow-%p-%m.profraw'
-      with:
-        command: test
-    - name: Install grcov
-      run: curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-linux-x86_64.tar.bz2 | tar jxf -
-    - name: grcov
-      run: ./grcov --branch --binary-path ./target/debug/ --source-dir . --output-type lcov --output-path lcov.info .
-    - uses: codecov/codecov-action@v2.1.0
+      - uses: actions/checkout@v2.3.5
+      - uses: actions-rs/toolchain@v1.0.7
+        with:
+          profile: minimal
+          toolchain: nightly
+          components: llvm-tools-preview
+          override: true
+      - uses: actions-rs/cargo@v1.0.3
+        with:
+          command: build
+      - uses: actions-rs/cargo@v1.0.3
+        env:
+          LLVM_PROFILE_FILE: "narrow-%p-%m.profraw"
+        with:
+          command: test
+      - name: Install grcov
+        run: curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-linux-x86_64.tar.bz2 | tar jxf -
+      - name: grcov
+        run: ./grcov --branch --binary-path ./target/debug/ --source-dir . --output-type lcov --output-path lcov.info .
+      - uses: codecov/codecov-action@v2.1.0

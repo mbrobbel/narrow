@@ -1,6 +1,6 @@
 use crate::{Array, ArrayIndex, ArrayType, NestedArray, Offset, OffsetValue};
 use std::{
-    iter::{FromIterator, Skip, Take},
+    iter::{Skip, Take},
     ops::{Index, Range},
 };
 

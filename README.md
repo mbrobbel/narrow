@@ -46,7 +46,7 @@ A Rust implementation of [Apache Arrow](https://arrow.apache.org).
 
 ## Minimum supported Rust version
 
-The minimum supported Rust version is 1.54.
+The minimum supported Rust version is 1.56.1.
 
 ## Example
 

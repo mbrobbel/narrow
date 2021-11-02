@@ -4,7 +4,7 @@ use bitvec::{
     slice::{BitSlice, BitValIter},
     view::BitView,
 };
-use std::{iter::FromIterator, ops::Deref};
+use std::ops::Deref;
 
 /// An immutable collection of bits.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

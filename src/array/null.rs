@@ -1,5 +1,5 @@
 use crate::{Array, ArrayIndex, ArrayType};
-use std::iter::{self, FromIterator, Repeat, Take};
+use std::iter::{self, Repeat, Take};
 
 /// A sequence of nulls.
 #[derive(Debug)]

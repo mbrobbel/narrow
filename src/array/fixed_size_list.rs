@@ -1,7 +1,7 @@
 use crate::{Array, ArrayType, Bitmap, NestedArray, Validity};
 use std::{
     array::{self, IntoIter},
-    iter::{FromIterator, Skip, Take},
+    iter::{Skip, Take},
 };
 
 /// Array with fixed-size lists of other array types.
