@@ -1,8 +1,5 @@
 use crate::{Array, ArrayIndex, ArrayType};
-use std::{
-    iter::{self, Repeat, Take},
-    marker::PhantomData,
-};
+use std::{iter::Map, marker::PhantomData, ops::Range};
 
 /// A sequence of nulls.
 ///
@@ -144,13 +141,13 @@ impl<T> FromIterator<T> for NullArray<T> {
 
 impl<'a, T> IntoIterator for &'a NullArray<T>
 where
-    T: Clone + Default,
+    T: Default,
 {
     type Item = T;
-    type IntoIter = Take<Repeat<T>>;
+    type IntoIter = Map<Range<usize>, fn(usize) -> T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        iter::repeat(T::default()).take(self.len)
+        (0..self.len).into_iter().map(|_| T::default())
     }
 }
 
