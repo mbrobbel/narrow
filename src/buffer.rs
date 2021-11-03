@@ -434,7 +434,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Zero-sized layouts are not supported")]
     fn layout_zero_sized() {
-        layout::<u8, 0>(0).size();
+        layout::<u8, 0>(0);
     }
 
     #[test]
