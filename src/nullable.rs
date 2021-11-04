@@ -117,7 +117,7 @@ where
 }
 
 type NullableIter<'a, T> = Map<
-    Zip<BitValIter<'a, Lsb0, usize>, <&'a T as IntoIterator>::IntoIter>,
+    Zip<BitValIter<'a, Lsb0, u8>, <&'a T as IntoIterator>::IntoIter>,
     fn((bool, <&'a T as IntoIterator>::Item)) -> Option<<&'a T as IntoIterator>::Item>,
 >;
 

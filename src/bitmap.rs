@@ -12,7 +12,7 @@ pub struct Bitmap {
     /// The number of bits stored in the bitmap.
     bits: usize,
     /// The bits are stored in the buffer.
-    buffer: Buffer<usize, ALIGNMENT>,
+    buffer: Buffer<u8, ALIGNMENT>,
 }
 
 impl ArrayIndex<usize> for Bitmap {
@@ -40,7 +40,7 @@ impl ArrayData for Bitmap {
             assert_failed(index, len);
         }
 
-        let slice: &BitSlice<_, _> = self.as_ref();
+        let slice: &BitSlice<_, u8> = self.as_ref();
         // Safety:
         // - Bounds checked above
         unsafe { !slice.get_unchecked(index) }
@@ -79,26 +79,14 @@ impl AsRef<[u8]> for Bitmap {
     }
 }
 
-impl AsRef<[usize]> for Bitmap {
-    fn as_ref(&self) -> &[usize] {
-        &self.buffer[..]
-    }
-}
-
-impl AsRef<Bitmap> for Bitmap {
-    fn as_ref(&self) -> &Bitmap {
-        self
-    }
-}
-
-impl AsRef<BitSlice<Lsb0, usize>> for Bitmap {
-    fn as_ref(&self) -> &BitSlice<Lsb0, usize> {
+impl AsRef<BitSlice<Lsb0, u8>> for Bitmap {
+    fn as_ref(&self) -> &BitSlice<Lsb0, u8> {
         self
     }
 }
 
 impl Deref for Bitmap {
-    type Target = BitSlice<Lsb0, usize>;
+    type Target = BitSlice<Lsb0, u8>;
 
     fn deref(&self) -> &Self::Target {
         // Safety
@@ -125,79 +113,77 @@ impl FromIterator<bool> for Bitmap {
                 // expected number of bits.
                 let bits = lower_bound + 1;
 
-                // Get the number of words required to store this many bits.
-                const WIDTH: usize = usize::BITS as usize;
-                let mut len = bits / WIDTH + (bits % WIDTH != 0) as usize;
+                // Get the number of bytes required to store this many bits.
+                let mut len = bits / 8 + (bits % 8 != 0) as usize;
 
-                // Allocate memory for the storage of the words.
-                let mut ptr = unsafe {
-                    buffer::alloc::<usize, ALIGNMENT>(buffer::layout::<usize, ALIGNMENT>(len))
-                };
+                // Allocate memory for the storage of the bytes.
+                let mut ptr =
+                    unsafe { buffer::alloc::<u8, ALIGNMENT>(buffer::layout::<u8, ALIGNMENT>(len)) };
 
-                // Single word that is written to the buffer when its bits are
+                // Single byte that is written to the buffer when its bits are
                 // set according to the input.
-                let mut word = if value { 1 } else { 0 };
+                let mut byte = if value { 1 } else { 0 };
 
-                // Word index counter. To track the current position
-                let mut word_index = 0;
+                // Byte index counter. To track the current position
+                let mut byte_index = 0;
 
                 // Bit mask to set the bit. This starts at 2 because the first
                 // bit is already set in the word according to the first value
                 // returned by the iterator.
-                let mut mask = 2usize;
+                let mut mask = 2u8;
 
                 // Count the total number of bits.
                 let mut bits = 1;
 
                 for bit in iter {
                     if bit {
-                        // Set bit in word using mask as position.
-                        word |= mask;
+                        // Set bit in byte using mask as position.
+                        byte |= mask;
                     }
 
                     // Update mask for next bit.
                     mask = mask.rotate_left(1);
 
-                    // When the mask wraps the next item goes to the next word.
-                    // The current word is written to the current word index.
+                    // When the mask wraps the next item goes to the next byte.
+                    // The current byte is written to the current byte index.
                     if mask == 1 {
                         // Check capacity.
-                        if word_index == len {
-                            // Make sure an additional word can be written to the
+                        if byte_index == len {
+                            // Make sure an additional byte can be written to the
                             // buffer.
                             ptr = unsafe {
-                                buffer::realloc::<usize, ALIGNMENT, ALIGNMENT>(ptr, len, len + 1)
+                                buffer::realloc::<u8, ALIGNMENT, ALIGNMENT>(ptr, len, len + 1)
                             };
                             len += 1;
                         }
 
-                        // Write the word.
-                        unsafe { ptr.add(word_index).write(word) };
+                        // Write the byte.
+                        unsafe { ptr.add(byte_index).write(byte) };
 
-                        // Reset word
-                        word = 0;
+                        // Reset byte.
+                        byte = 0;
 
-                        // Point to next word in buffer.
-                        word_index += 1;
+                        // Point to next byte in buffer.
+                        byte_index += 1;
                     }
 
                     // Count number of bits.
                     bits += 1;
                 }
 
-                // Write last word (when required).
+                // Write last byte (when required).
                 if mask != 1 {
                     // Check capacity
-                    if word_index == len {
-                        // Make sure an additional word can be written to the
+                    if byte_index == len {
+                        // Make sure an additional byte can be written to the
                         // buffer.
                         ptr = unsafe {
-                            buffer::realloc::<usize, ALIGNMENT, ALIGNMENT>(ptr, len, len + 1)
+                            buffer::realloc::<u8, ALIGNMENT, ALIGNMENT>(ptr, len, len + 1)
                         };
                         len += 1;
                     }
 
-                    unsafe { ptr.add(word_index).write(word) };
+                    unsafe { ptr.add(byte_index).write(byte) };
                 }
 
                 Self {
@@ -211,7 +197,7 @@ impl FromIterator<bool> for Bitmap {
 }
 
 /// Iterator over bits in a bitmap.
-pub type BitmapIter<'a> = BitValIter<'a, Lsb0, usize>;
+pub type BitmapIter<'a> = BitValIter<'a, Lsb0, u8>;
 
 impl<'a> IntoIterator for &'a Bitmap {
     type Item = bool;
@@ -229,20 +215,20 @@ mod tests {
 
     #[test]
     fn capacity() {
-        let vec = vec![true; usize::BITS as usize - 1];
+        let vec = vec![true; u8::BITS as usize - 1];
         let bitmap: Bitmap = vec.iter().copied().collect();
-        let words: &[usize] = bitmap.as_ref();
-        assert_eq!(words.len(), 1);
+        let bytes: &[u8] = bitmap.as_ref();
+        assert_eq!(bytes.len(), 1);
 
-        let vec = vec![true; usize::BITS as usize];
+        let vec = vec![true; u8::BITS as usize];
         let bitmap: Bitmap = vec.iter().copied().collect();
-        let words: &[usize] = bitmap.as_ref();
-        assert_eq!(words.len(), 1);
+        let bytes: &[u8] = bitmap.as_ref();
+        assert_eq!(bytes.len(), 1);
 
-        let vec = vec![true; usize::BITS as usize + 1];
+        let vec = vec![true; u8::BITS as usize + 1];
         let bitmap: Bitmap = vec.iter().copied().collect();
-        let words: &[usize] = bitmap.as_ref();
-        assert_eq!(words.len(), 2);
+        let bytes: &[u8] = bitmap.as_ref();
+        assert_eq!(bytes.len(), 2);
     }
 
     #[test]
@@ -250,7 +236,6 @@ mod tests {
         let bitmap: Bitmap = [false, true, true, false, true].iter().copied().collect();
         let slice: &[u8] = bitmap.as_ref();
         assert_eq!(&slice[0], &22);
-        assert_eq!(&bitmap, bitmap.as_ref());
     }
 
     #[test]
@@ -260,9 +245,9 @@ mod tests {
             .copied()
             .collect();
         let bytes: &[u8] = bitmap.as_ref();
-        assert_eq!(bytes.len(), mem::size_of::<usize>());
+        assert_eq!(bytes.len(), mem::size_of::<u8>());
         assert_eq!(bytes[0], 42);
-        assert_eq!(bytes[1..], [0; mem::size_of::<usize>() - 1]);
+        assert_eq!(bytes[1..], [0; mem::size_of::<u8>() - 1]);
     }
 
     #[test]
@@ -282,25 +267,30 @@ mod tests {
             .iter()
             .copied()
             .collect();
-        let words: &[usize] = bitmap.as_ref();
-        assert_eq!(words.len(), 1);
-        assert_eq!(words[0], 42);
+        let bytes: &[u8] = bitmap.as_ref();
+        assert_eq!(bytes.len(), 1);
+        assert_eq!(bytes[0], 42);
     }
 
     #[test]
     fn as_ref_bitslice() {
-        let bitmap: Bitmap = vec![false, true, false, true, false, true]
-            .iter()
-            .copied()
-            .collect();
+        let bitmap: Bitmap = [
+            false, true, false, true, false, true, false, false, false, true,
+        ]
+        .into_iter()
+        .collect();
         let bits: &BitSlice<_, _> = bitmap.as_ref();
-        assert_eq!(bits.len(), 6);
+        assert_eq!(bits.len(), 10);
         assert!(!bits[0]);
         assert!(bits[1]);
         assert!(!bits[2]);
         assert!(bits[3]);
         assert!(!bits[4]);
         assert!(bits[5]);
+        assert!(!bits[6]);
+        assert!(!bits[7]);
+        assert!(!bits[8]);
+        assert!(bits[9]);
     }
 
     #[test]

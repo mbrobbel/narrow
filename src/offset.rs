@@ -181,7 +181,7 @@ where
     }
 }
 
-impl<'a, T> Iterator for OffsetIter<Zip<BitValIter<'a, Lsb0, usize>, Copied<Iter<'a, T>>>, true>
+impl<'a, T> Iterator for OffsetIter<Zip<BitValIter<'a, Lsb0, u8>, Copied<Iter<'a, T>>>, true>
 where
     T: OffsetValue,
 {

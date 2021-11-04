@@ -85,8 +85,19 @@ where
     }
 
     fn is_null(&self, index: usize) -> bool {
+        #[cold]
+        #[inline(never)]
+        fn assert_failed(index: usize, len: usize) -> ! {
+            panic!("is_null index (is {}) should be < len (is {})", index, len);
+        }
         match (N, &self.0) {
-            (false, _) => false,
+            (false, _) => {
+                let len = self.len();
+                if index >= len {
+                    assert_failed(index, len);
+                }
+                false
+            }
             (true, RawValidity::Nullable(nullable)) => nullable.is_null(index),
             // Safety:
             // - The const generic `N` encodes the discriminant.
@@ -103,8 +114,19 @@ where
         }
     }
     fn is_valid(&self, index: usize) -> bool {
+        #[cold]
+        #[inline(never)]
+        fn assert_failed(index: usize, len: usize) -> ! {
+            panic!("is_valid index (is {}) should be < len (is {})", index, len);
+        }
         match (N, &self.0) {
-            (false, _) => true,
+            (false, _) => {
+                let len = self.len();
+                if index >= len {
+                    assert_failed(index, len);
+                }
+                true
+            }
             (true, RawValidity::Nullable(nullable)) => nullable.is_valid(index),
             // Safety:
             // - The const generic `N` encodes the discriminant.
