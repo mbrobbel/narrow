@@ -16,6 +16,7 @@ use std::{
 // todo(mb): implement hash
 
 /// Default exponent of power-of-two alignment for buffers.
+// todo(mb): make this dependent on target arch
 pub(crate) const ALIGNMENT: usize = 6; // 1 << 6 = 64;
 
 /// A contiguous immutable memory buffer for data.

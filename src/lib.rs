@@ -1,6 +1,6 @@
 //! # narrow
 //!
-//! A Rust implementation of [Apache Arrow](https://arrow.apache.org).
+//! An implementation of [Apache Arrow](https://arrow.apache.org).
 
 mod primitive;
 pub use primitive::*;

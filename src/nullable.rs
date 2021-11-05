@@ -1,8 +1,7 @@
-use crate::{ArrayData, ArrayIndex, Bitmap};
-use bitvec::{order::Lsb0, slice::BitValIter};
+use crate::{ArrayData, ArrayIndex, Bitmap, BitmapIter};
 use std::iter::{Map, Zip};
 
-/// Wrapper for nullables data.
+/// Wrapper for nullable data.
 ///
 /// Allocates a validity [Bitmap] that stores a single bit per value in `T`
 /// that indicates the nullness or non-nullness of that value.
@@ -117,7 +116,7 @@ where
 }
 
 type NullableIter<'a, T> = Map<
-    Zip<BitValIter<'a, Lsb0, u8>, <&'a T as IntoIterator>::IntoIter>,
+    Zip<BitmapIter<'a>, <&'a T as IntoIterator>::IntoIter>,
     fn((bool, <&'a T as IntoIterator>::Item)) -> Option<<&'a T as IntoIterator>::Item>,
 >;
 
