@@ -4,9 +4,9 @@ version = "0.1.0"
 authors = ["Matthijs Brobbel <m1brobbel@gmail.com>"]
 edition = "2021"
 rust-version = "1.56.1"
-description = "A Rust implementation of Apache Arrow"
+description = "An implementation of Apache Arrow"
 readme = "README.md"
-repository = "https://github.com/mbrobbel/narrow"
+repository = "https://github.com/teratide/narrow"
 documentation = "http://docs.rs/narrow/"
 license = "Apache-2.0 OR MIT"
 keywords = ["Arrow"]
@@ -16,7 +16,6 @@ categories = ["data-structures"]
 default = []
 
 [dependencies]
-bitvec = { version= "0.22", default-features = false }
 narrow-derive = { version = "0.1.0", path = "narrow-derive" }
 paste = "1"
 

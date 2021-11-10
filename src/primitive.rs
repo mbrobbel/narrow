@@ -1,5 +1,3 @@
-use std::ops::AddAssign;
-
 /// Subtrait for primitive types.
 ///
 /// This exists to use as trait bound where one or more of the supertraits of
@@ -7,7 +5,7 @@ use std::ops::AddAssign;
 /// primitive types.
 ///
 /// This trait is sealed to prevent downstream implementations.
-pub trait Primitive: AddAssign + Copy + Default + sealed::Sealed {}
+pub trait Primitive: Copy + Default + sealed::Sealed {}
 
 impl Primitive for i8 {}
 impl Primitive for i16 {}

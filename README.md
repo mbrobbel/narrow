@@ -5,7 +5,7 @@
 [![crates.io](https://img.shields.io/crates/v/narrow.svg)](https://crates.io/crates/narrow)
 [![docs.rs](https://docs.rs/narrow/badge.svg)](https://docs.rs/narrow)
 
-A Rust implementation of [Apache Arrow](https://arrow.apache.org).
+An implementation of [Apache Arrow](https://arrow.apache.org).
 
 ## Docs
 

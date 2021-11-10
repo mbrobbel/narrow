@@ -1,9 +1,8 @@
 use crate::{ArrayData, Bitmap, BitmapIter, Buffer, Primitive, Validity, ALIGNMENT};
-use bitvec::{order::Lsb0, slice::BitValIter};
 use std::{
     iter::{self, Copied, Zip},
     num::TryFromIntError,
-    ops::Deref,
+    ops::{AddAssign, Deref},
     slice::Iter,
 };
 
@@ -15,6 +14,7 @@ use std::{
 /// This trait is sealed to prevent downstream implementations.
 pub trait OffsetValue:
     Primitive
+    + AddAssign
     + TryFrom<usize, Error = TryFromIntError>
     + TryInto<usize, Error = TryFromIntError>
     + sealed::Sealed
@@ -181,7 +181,7 @@ where
     }
 }
 
-impl<'a, T> Iterator for OffsetIter<Zip<BitValIter<'a, Lsb0, u8>, Copied<Iter<'a, T>>>, true>
+impl<'a, T> Iterator for OffsetIter<Zip<BitmapIter<'a>, Copied<Iter<'a, T>>>, true>
 where
     T: OffsetValue,
 {
