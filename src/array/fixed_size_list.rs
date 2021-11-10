@@ -43,16 +43,16 @@ where
 
 impl<T, const N: usize> ArrayType for [T; N]
 where
-    T: Array,
+    T: ArrayType,
 {
-    type Array = FixedSizeListArray<T, N, false>;
+    type Array = FixedSizeListArray<<T as ArrayType>::Array, N, false>;
 }
 
 impl<T, const N: usize> ArrayType for Option<[T; N]>
 where
-    T: Array,
+    T: ArrayType,
 {
-    type Array = FixedSizeListArray<T, N, true>;
+    type Array = FixedSizeListArray<<T as ArrayType>::Array, N, true>;
 }
 
 impl<T, U, const N: usize> FromIterator<[U; N]> for FixedSizeListArray<T, N, false>
