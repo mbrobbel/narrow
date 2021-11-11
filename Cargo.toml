@@ -1,6 +1,6 @@
 [package]
 name = "narrow"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Matthijs Brobbel <m1brobbel@gmail.com>"]
 edition = "2021"
 rust-version = "1.56.1"
@@ -16,7 +16,7 @@ categories = ["data-structures"]
 default = []
 
 [dependencies]
-narrow-derive = { version = "0.1.0", path = "narrow-derive" }
+# narrow-derive = { version = "0.1.0", path = "narrow-derive" }
 paste = "1"
 
 [dev-dependencies]
@@ -36,5 +36,5 @@ harness = false
 
 [workspace]
 members = [
-  "narrow-derive"
+  # "narrow-derive"
 ]

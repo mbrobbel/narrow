@@ -1,22 +1,26 @@
-use crate::{ArrayData, ArrayIndex, Bitmap, BitmapIter};
-use std::iter::{Map, Zip};
+use crate::{Bitmap, BitmapIter, Buffer, Length, Null};
+use std::{
+    iter::{Copied, Map, Zip},
+    ops::{Index, Not},
+    slice::Iter,
+};
 
 /// Wrapper for nullable data.
 ///
 /// Allocates a validity [Bitmap] that stores a single bit per value in `T`
 /// that indicates the nullness or non-nullness of that value.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Nullable<T> {
     data: T,
     validity: Bitmap,
 }
 
 impl<T> Nullable<T> {
-    /// Constructor for [Nullable].
-    pub(crate) fn new(data: T, validity: Bitmap) -> Self {
+    /// # Safety
+    /// Caller must ensure: todo(mb)
+    pub unsafe fn from_raw_parts(data: T, validity: Bitmap) -> Self {
         Self { data, validity }
     }
-
     /// Returns a reference to the validity [Bitmap] of the [Nullable].
     ///
     /// # Examples
@@ -51,38 +55,89 @@ impl<T> Nullable<T> {
     pub fn data(&self) -> &T {
         &self.data
     }
-}
 
-impl<T> ArrayIndex<usize> for Nullable<T>
-where
-    T: ArrayIndex<usize>,
-{
-    type Output = Option<<T as ArrayIndex<usize>>::Output>;
-
-    fn index(&self, index: usize) -> Self::Output {
-        self.is_valid(index).then(|| self.data.index(index))
+    pub fn iter_validity(&self) -> BitmapIter<'_> {
+        self.validity.into_iter()
     }
 }
 
-impl<T> ArrayData for Nullable<T> {
-    fn len(&self) -> usize {
-        self.validity.len()
+impl<T> Null for Nullable<T> {
+    /// Returns `true` if the element at position `index` is null.
+    fn is_null(&self, index: usize) -> Option<bool> {
+        self.validity.get(index).map(Not::not)
     }
 
-    fn is_null(&self, index: usize) -> bool {
-        self.validity.is_null(index)
+    /// # Safety
+    /// todo(mb)
+    unsafe fn is_null_unchecked(&self, index: usize) -> bool {
+        !self.validity.get_unchecked(index)
     }
 
+    /// Returns the number of null elements.
     fn null_count(&self) -> usize {
         self.validity.count_zeros()
     }
 
-    fn is_valid(&self, index: usize) -> bool {
-        self.validity.is_valid(index)
+    /// Returns `true` if the element at position `index` is valid.
+    fn is_valid(&self, index: usize) -> Option<bool> {
+        self.validity.get(index)
     }
 
+    /// # Safety
+    /// todo(mb)
+    unsafe fn is_valid_unchecked(&self, index: usize) -> bool {
+        self.validity.get_unchecked(index)
+    }
+
+    /// Returns the number of valid elements.
     fn valid_count(&self) -> usize {
         self.validity.count_ones()
+    }
+}
+
+impl Nullable<Bitmap> {
+    pub fn iter_data(&self) -> BitmapIter<'_> {
+        self.data.into_iter()
+    }
+}
+
+impl<T, const A: usize> Nullable<Buffer<T, A>>
+where
+    T: Copy,
+{
+    pub fn iter_data(&self) -> Copied<Iter<'_, T>> {
+        self.data.into_iter()
+    }
+}
+
+impl Index<usize> for Nullable<Bitmap> {
+    type Output = bool;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.data.index(index)
+    }
+}
+
+impl<T, const A: usize> Index<usize> for Nullable<Buffer<T, A>> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.data.index(index)
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Nullable<T>
+where
+    &'a T: IntoIterator,
+{
+    type Item = Option<<&'a T as IntoIterator>::Item>;
+    type IntoIter = NullableIter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.validity
+            .into_iter()
+            .zip(self.data.into_iter())
+            .map(|(validity, value)| validity.then(|| value))
     }
 }
 
@@ -115,25 +170,16 @@ where
     }
 }
 
+impl<T> Length for Nullable<T> {
+    fn len(&self) -> usize {
+        self.validity.len()
+    }
+}
+
 type NullableIter<'a, T> = Map<
     Zip<BitmapIter<'a>, <&'a T as IntoIterator>::IntoIter>,
     fn((bool, <&'a T as IntoIterator>::Item)) -> Option<<&'a T as IntoIterator>::Item>,
 >;
-
-impl<'a, T> IntoIterator for &'a Nullable<T>
-where
-    &'a T: IntoIterator,
-{
-    type Item = Option<<&'a T as IntoIterator>::Item>;
-    type IntoIter = NullableIter<'a, T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.validity
-            .into_iter()
-            .zip(self.data.into_iter())
-            .map(|(validity, value)| validity.then(|| value))
-    }
-}
 
 #[cfg(test)]
 mod tests {

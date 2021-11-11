@@ -1,135 +1,79 @@
-use crate::{buffer, ArrayData, ArrayIndex, Buffer, ALIGNMENT};
-use std::{iter::Copied, ops::Index, slice::Iter};
+use crate::{Buffer, Length, ALIGN};
+use std::{
+    iter::Copied,
+    ops::{Deref, Index},
+    slice::Iter,
+};
 
 /// An immutable collection of bits.
 ///
 /// The validity bits are stored LSB-first in the bytes of a [Buffer].
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Bitmap {
     /// The number of bits stored in the bitmap.
     bits: usize,
     /// The bits are stored in this buffer.
-    buffer: Buffer<u8, ALIGNMENT>,
+    buffer: Buffer<u8, ALIGN>,
 }
 
 impl Bitmap {
-    /// Returns the number of padding bits in the buffer.
-    fn padding(&self) -> usize {
-        let padding = self.bits % 8;
-        if padding != 0 {
-            8 - padding
-        } else {
-            0
-        }
-    }
-
-    /// Returns the number of unset bits in the bitmap.
-    pub(crate) fn count_zeros(&self) -> usize {
-        // Count all zeros and subtract the zero bits in the padding.
-        // > Bitmaps are to be initialized to be all unset at allocation time
-        // > (this includes padding).
-        self.buffer.into_iter().map(u8::count_zeros).sum::<u32>() as usize - self.padding()
-    }
-
-    /// Returns the number of set bits in the bitmap.
-    pub(crate) fn count_ones(&self) -> usize {
+    /// Returns the number of set bits in this bitmap.
+    pub fn count_ones(&self) -> usize {
         // Count all ones (there can't be ones in the padding bits).
         // > Bitmaps are to be initialized to be all unset at allocation time
         // > (this includes padding).
         self.buffer.into_iter().map(u8::count_ones).sum::<u32>() as usize
     }
 
-    /// Returns bit at index. Skips bounds checks. Caller must ensure `index <= len`.
-    unsafe fn get_unchecked(&self, index: usize) -> bool {
+    /// Returns the number of unset bits in this bitmap.
+    pub fn count_zeros(&self) -> usize {
+        // Count all zeros and subtract the trailing zero bits in the padding.
+        // > Bitmaps are to be initialized to be all unset at allocation time
+        // > (this includes padding).
+        self.buffer.into_iter().map(u8::count_zeros).sum::<u32>() as usize - self.trailing_bits()
+    }
+
+    /// Returns bit a given index. Returns `None` when the given index is out of
+    /// bounds.
+    pub fn get(&self, index: usize) -> Option<bool> {
+        (index < self.bits).then(|| unsafe { self.get_unchecked(index) })
+    }
+
+    /// Returns bit at given index, without doing bounds checking. Caller must
+    /// ensure `index <= len`.
+    ///
+    /// # Safety
+    ///
+    /// Caller must ensure index is within bounds to prevent undefined behavior.
+    pub unsafe fn get_unchecked(&self, index: usize) -> bool {
         let byte_index = index / 8;
         let bit_index = index % 8;
         self.buffer.get_unchecked(byte_index) & (1 << bit_index) != 0
     }
-}
 
-impl Index<usize> for Bitmap {
-    type Output = bool;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        #[cold]
-        #[inline(never)]
-        fn assert_failed(index: usize, len: usize) -> ! {
-            panic!("index (is {}) should be < len (is {})", index, len);
+    /// Returns the number of trailing padding bits in the last byte of the
+    /// buffer.
+    pub fn trailing_bits(&self) -> usize {
+        let trailing_bits = self.bits % 8;
+        if trailing_bits != 0 {
+            8 - trailing_bits
+        } else {
+            0
         }
-
-        let len = self.len();
-        if index >= len {
-            assert_failed(index, len);
-        }
-
-        // Safety:
-        // - Bounds checked above.
-        match unsafe { self.get_unchecked(index) } {
-            true => &true,
-            false => &false,
-        }
-    }
-}
-
-impl ArrayIndex<usize> for Bitmap {
-    type Output = bool;
-
-    fn index(&self, index: usize) -> Self::Output {
-        self.is_valid(index)
-    }
-}
-
-impl ArrayData for Bitmap {
-    fn len(&self) -> usize {
-        self.bits
-    }
-
-    fn is_null(&self, index: usize) -> bool {
-        #[cold]
-        #[inline(never)]
-        fn assert_failed(index: usize, len: usize) -> ! {
-            panic!("is_null index (is {}) should be < len (is {})", index, len);
-        }
-
-        let len = self.len();
-        if index >= len {
-            assert_failed(index, len);
-        }
-
-        // Safety:
-        // - Bounds checked above.
-        unsafe { !self.get_unchecked(index) }
-    }
-
-    fn null_count(&self) -> usize {
-        0
-    }
-
-    fn is_valid(&self, index: usize) -> bool {
-        #[cold]
-        #[inline(never)]
-        fn assert_failed(index: usize, len: usize) -> ! {
-            panic!("is_valid index (is {}) should be < len (is {})", index, len);
-        }
-
-        let len = self.len();
-        if index >= len {
-            assert_failed(index, len);
-        }
-
-        // Safety:
-        // - Bounds checked above.
-        unsafe { self.get_unchecked(index) }
-    }
-
-    fn valid_count(&self) -> usize {
-        self.bits
     }
 }
 
 impl AsRef<[u8]> for Bitmap {
     fn as_ref(&self) -> &[u8] {
         self.buffer.as_ref()
+    }
+}
+
+impl Deref for Bitmap {
+    type Target = Buffer<u8, ALIGN>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.buffer
     }
 }
 
@@ -155,8 +99,7 @@ impl FromIterator<bool> for Bitmap {
                 let mut len = bits / 8 + (bits % 8 != 0) as usize;
 
                 // Allocate memory for the storage of the bytes.
-                let mut ptr =
-                    unsafe { buffer::alloc::<u8, ALIGNMENT>(buffer::layout::<u8, ALIGNMENT>(len)) };
+                let mut ptr = unsafe { Buffer::<u8, ALIGN>::alloc(len) };
 
                 // Single byte that is written to the buffer when its bits are
                 // set according to the input.
@@ -189,9 +132,7 @@ impl FromIterator<bool> for Bitmap {
                         if byte_index == len {
                             // Make sure an additional byte can be written to the
                             // buffer.
-                            ptr = unsafe {
-                                buffer::realloc::<u8, ALIGNMENT, ALIGNMENT>(ptr, len, len + 1)
-                            };
+                            ptr = unsafe { Buffer::<u8, ALIGN>::realloc(ptr, len, len + 1) };
                             len += 1;
                         }
 
@@ -215,9 +156,7 @@ impl FromIterator<bool> for Bitmap {
                     if byte_index == len {
                         // Make sure an additional byte can be written to the
                         // buffer.
-                        ptr = unsafe {
-                            buffer::realloc::<u8, ALIGNMENT, ALIGNMENT>(ptr, len, len + 1)
-                        };
+                        ptr = unsafe { Buffer::<u8, ALIGN>::realloc(ptr, len, len + 1) };
                         len += 1;
                     }
 
@@ -234,10 +173,61 @@ impl FromIterator<bool> for Bitmap {
     }
 }
 
+impl Index<usize> for Bitmap {
+    type Output = bool;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        #[cold]
+        #[inline(never)]
+        fn assert_failed(index: usize, len: usize) -> ! {
+            panic!("index (is {}) should be < len (is {})", index, len);
+        }
+
+        let len = self.bits;
+        if index >= len {
+            assert_failed(index, len);
+        }
+
+        // Safety:
+        // - Bounds checked above.
+        match unsafe { self.get_unchecked(index) } {
+            true => &true,
+            false => &false,
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a Bitmap {
+    type Item = bool;
+    type IntoIter = BitmapIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BitmapIter {
+            inner: self.buffer.into_iter(),
+            byte: None,
+            // mask rotates left at start of iteration and selects first bit at
+            // first iteration.
+            mask: 1 << 7,
+            remaining: self.bits,
+        }
+    }
+}
+
+impl Length for Bitmap {
+    fn len(&self) -> usize {
+        self.bits
+    }
+}
+
+/// Iterator over the bits of a Bitmap.
 pub struct BitmapIter<'a> {
+    // Iterator over the bytes stored in the buffer of the bitmap.
     inner: Copied<Iter<'a, u8>>,
+    // Last byte popped from inner iterator.
     byte: Option<u8>,
+    // Mask to select bits from the byte.
     mask: u8,
+    // Keeps track of the number of bits that this iterator should produce.
     remaining: usize,
 }
 
@@ -269,20 +259,6 @@ impl<'a> Iterator for BitmapIter<'a> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.remaining, Some(self.remaining))
-    }
-}
-
-impl<'a> IntoIterator for &'a Bitmap {
-    type Item = bool;
-    type IntoIter = BitmapIter<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        BitmapIter {
-            inner: self.buffer.into_iter(),
-            byte: None,
-            mask: 1 << 7,
-            remaining: self.bits,
-        }
     }
 }
 
@@ -377,7 +353,7 @@ mod tests {
             .iter()
             .copied()
             .collect();
-        let _ = bitmap[bitmap.len()];
+        let _ = bitmap[bitmap.bits];
     }
 
     #[test]

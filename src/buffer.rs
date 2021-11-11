@@ -1,9 +1,9 @@
-use crate::{ArrayData, Primitive};
+use crate::{Length, Primitive};
 use std::{
     alloc::{self, Layout},
     any,
-    borrow::Borrow,
     fmt::{Debug, Formatter, Result},
+    hash::{Hash, Hasher},
     iter::Copied,
     mem,
     ops::Deref,
@@ -13,38 +13,31 @@ use std::{
 
 // todo(mb): replace with allocator api (https://github.com/rust-lang/rust/issues/32838)
 // todo(mb): add defaults for alignment const generic (https://github.com/rust-lang/rust/issues/44580)
-// todo(mb): implement hash
 
-/// Default exponent of power-of-two alignment for buffers.
-// todo(mb): make this dependent on target arch
-pub(crate) const ALIGNMENT: usize = 6; // 1 << 6 = 64;
+/// Default exponent of power-of-two alignment for buffers. (64 bytes)
+pub(crate) const ALIGN: usize = 6;
 
 /// A contiguous immutable memory buffer for data.
 ///
-/// Generic over the element type `T` stored in this buffer and the alignment
-/// `A` of the buffer.
+/// Generic over the element type `T` stored in this buffer and the power-of-two
+/// alignment `A` of the buffer.
 ///
-/// - `T` must implement [Copy]. The elements of the buffer
-/// [can't have destructors](https://doc.rust-lang.org/std/ops/trait.Drop.html#copy-and-drop-are-exclusive).
+/// - `T` must implement [Copy]. The elements of the buffer [can't have
+///   destructors](https://doc.rust-lang.org/std/ops/trait.Drop.html#copy-and-drop-are-exclusive).
 /// - `A` is the exponent of a power-of-two alignment.
 ///
 /// An important invariant of a [Buffer] is its memory [Layout].
 /// - The layout's size is always the length (invariant because buffer is
-///   immutable) multiplied with the element size.
-/// - The layout's alignment is `A`.
-/// - The layout is based on the size and alignment as described above, with
-///   trailing padding to round up to the alignment.
-/// Because of this invariant this struct stores just a [ptr] and a length, and
-/// can be used as a slice via a [Deref] implementation.
+///   immutable) multiplied with the element size, with trailing padded added to
+///   round up to a multiple of the alignment.
+/// - The layout's alignment is `1 << A`.
 ///
 /// This is currently implemented using low-level unsafe code. When the
 /// [Allocator](std::alloc::Allocator) trait is stabilized a wrapper around a
 /// [Vec] with a custom allocator implementation (for the alignment and padding
 /// requirements) can replace most of the code here.
-pub struct Buffer<T, const A: usize>
-where
-    T: Primitive,
-{
+// todo(mb): const A: NonZeroUsize
+pub struct Buffer<T, const A: usize> {
     /// The pointer to the memory location of the buffer.
     ptr: NonNull<T>,
     /// The length of this buffer i.e. the number of elements.
@@ -53,10 +46,58 @@ where
 
 impl<T, const A: usize> Buffer<T, A>
 where
-    T: Primitive,
+    T: Primitive, // This bound for all methods that can construct Buffers
 {
+    pub fn as_bytes(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    pub fn as_ptr(&self) -> *const T {
+        self.ptr.as_ptr() as *const T
+    }
+
+    pub fn as_slice(&self) -> &[T] {
+        self
+    }
+
+    pub fn get(&self, index: usize) -> Option<T> {
+        self.deref().get(index).copied()
+    }
+
+    pub fn iter(&self) -> Copied<Iter<'_, T>> {
+        self.into_iter()
+    }
+
+    /// Returns the number of bytes in this buffer.
+    pub fn size(&self) -> usize {
+        // The number of bytes allocated by a buffer is not the number of
+        // elements multiplied by the size of each element. It includes the
+        // additional trailing bytes that were allocated to make the allocation
+        // size a multiple of the alignment.
+        self.layout().size()
+    }
+
+    /// Returns the alignment (in bytes) of this buffer.
+    pub fn align(&self) -> usize {
+        // Power-of-two alignment of the buffer is set by the const generic A on
+        // the buffer.
+        1 << A
+    }
+
+    /// Returns the number of padding bytes in this memory block.
+    pub fn padding(&self) -> usize {
+        // The number of padding bits in a buffer are the size of allocation
+        // subtracted by the part used by the current number of elements in the
+        // buffer.
+        self.size() - self.len * mem::size_of::<T>()
+    }
+
     /// Returns an new Buffer.
-    /// todo(mb): document safety issues
+    /// Safety:
+    /// - ptr must be non-null
+    /// - ptr must be allocated using the Layout for the given layout and
+    ///   alignment.
+    /// - len must be non-zero
     pub(crate) unsafe fn new_unchecked(ptr: *mut T, len: usize) -> Self {
         Self {
             ptr: NonNull::new_unchecked(ptr),
@@ -64,15 +105,10 @@ where
         }
     }
 
-    /// Returns the [Layout] of the [Buffer].
-    fn layout(&self) -> Layout {
-        layout::<T, A>(self.len())
-    }
-
     /// Constructs a [Buffer] from a [slice].
     fn from_slice(slice: &[T]) -> Self {
         // Allocate buffer that holds `N` elements.
-        let ptr = unsafe { alloc::<T, A>(layout::<T, A>(slice.len())) };
+        let ptr = unsafe { Self::alloc(slice.len()) };
 
         // Copy the elements from the array into the new buffer.
         // Safety
@@ -92,68 +128,103 @@ where
             len: slice.len(),
         }
     }
+
+    /// Allocates the memory for a [Buffer] with alignment `A` and provided length
+    /// (number of elements).
+    ///
+    /// This method will likely be deprecated when Allocator APIs are stabilized.
+    pub(crate) unsafe fn alloc(len: usize) -> *mut T {
+        // Safety
+        // - Size condition is checked in `layout_len` function.
+        // - Alignment condition is checked in `layout_len` function.
+        let ptr = alloc::alloc(Self::layout_len(len)) as *mut T;
+
+        // Make sure the allocation did not fail.
+        assert!(!ptr.is_null(), "Allocation failed");
+
+        // Return the pointer.
+        ptr
+    }
+
+    /// Attempt to reallocate the memory for a [Buffer] so that it can hold the
+    /// new length (number of elements).
+    ///
+    /// When the layout for the new length matches the layout of the old length,
+    /// this does not allocate and simply returns the given ptr, because the
+    /// padding from the previous allocation can hold the required new length.
+    ///
+    /// When the current allocation can't hold the new length, a new allocation
+    /// is attempted with the new layout. The values from the previous
+    /// allocation are copied from the source, and the source location is
+    /// deallocated.
+    ///
+    /// # Safety
+    /// This method is unsafe and its behavior is undefined unless the following
+    /// conditions are met:
+    /// - ptr must be non-null and allocated with layout based on current length
+    /// - ptr can't be used after invoking this function because it might be
+    ///   deallocated
+    pub(crate) unsafe fn realloc(ptr: *mut T, current_len: usize, new_len: usize) -> *mut T {
+        let current_layout = Self::layout_len(current_len);
+        let new_layout = Self::layout_len(new_len);
+
+        // Check if the current allocation layout can hold the new length.
+        if current_layout == new_layout {
+            // No need to reallocate. There is enough capacity in the padding to
+            // store `new_len` elements.
+            ptr
+        } else {
+            // Allocate new buffer and copy contents from source.
+            let new_ptr = Self::alloc(new_len);
+            ptr::copy_nonoverlapping(ptr as *const T, new_ptr, current_len);
+
+            // Deallocate previous allocation.
+            alloc::dealloc(ptr as *mut u8, current_layout);
+
+            // Return the new pointer.
+            new_ptr
+        }
+    }
 }
 
-impl<T, const A: usize> ArrayData for Buffer<T, A>
-where
-    T: Primitive,
-{
-    fn len(&self) -> usize {
-        self.len
+impl<T, const A: usize> Buffer<T, A> {
+    /// Returns the [Layout] for a [Buffer] with alignment `A` and provided length
+    /// (number of elements `T`).
+    pub(crate) fn layout_len(len: usize) -> Layout {
+        assert!(len != 0, "Zero-sized layouts are not supported");
+
+        // Power-of-two alignment.
+        let align = 1 << A;
+
+        // todo(mb): replace const generic with NonZeroUsize
+        assert!(align != 0, "Align can't be zero");
+
+        // Make sure the alignment is correct.
+        assert!(
+            align % mem::align_of::<T>() == 0,
+            "Alignment `A` must be a multiple of the ABI-required minimum alignment of type `T`"
+        );
+
+        // No additional padding between elements.
+        let size = len * mem::size_of::<T>();
+
+        // Construct the Layout based on size and align and pad to multiple of alignment.
+        Layout::from_size_align(size, align)
+            .map(|layout| layout.pad_to_align())
+            .expect("Allocation size overflow")
     }
 
-    fn is_null(&self, index: usize) -> bool {
-        #[cold]
-        #[inline(never)]
-        fn assert_failed(index: usize, len: usize) -> ! {
-            panic!("is_null index (is {}) should be < len (is {})", index, len);
-        }
-
-        let len = self.len();
-        if index >= len {
-            assert_failed(index, len);
-        }
-
-        false
-    }
-
-    fn null_count(&self) -> usize {
-        0
-    }
-
-    fn is_valid(&self, index: usize) -> bool {
-        #[cold]
-        #[inline(never)]
-        fn assert_failed(index: usize, len: usize) -> ! {
-            panic!("is_valid index (is {}) should be < len (is {})", index, len);
-        }
-
-        let len = self.len();
-        if index >= len {
-            assert_failed(index, len);
-        }
-
-        true
-    }
-
-    fn valid_count(&self) -> usize {
-        self.len
+    /// Returns the [Layout] of the [Buffer].
+    fn layout(&self) -> Layout {
+        let size = self.len * mem::size_of::<T>();
+        let align = 1 << A;
+        // Safety:
+        // - This can only be called if this Buffer was successfully constructed.
+        unsafe { Layout::from_size_align_unchecked(size, align).pad_to_align() }
     }
 }
 
-impl<T, const A: usize> AsRef<Buffer<T, A>> for Buffer<T, A>
-where
-    T: Primitive,
-{
-    fn as_ref(&self) -> &Buffer<T, A> {
-        self
-    }
-}
-
-impl<T, const A: usize> AsRef<[u8]> for Buffer<T, A>
-where
-    T: Primitive,
-{
+impl<T, const A: usize> AsRef<[u8]> for Buffer<T, A> {
     fn as_ref(&self) -> &[u8] {
         // Safety:
         // - Length (number of elements) is an invariant of an immutable buffer.
@@ -163,15 +234,6 @@ where
                 self.len * mem::size_of::<T>(),
             )
         }
-    }
-}
-
-impl<T, const A: usize> Borrow<[T]> for Buffer<T, A>
-where
-    T: Primitive,
-{
-    fn borrow(&self) -> &[T] {
-        self
     }
 }
 
@@ -186,7 +248,7 @@ where
 
 impl<T, const A: usize> Debug for Buffer<T, A>
 where
-    T: Primitive + Debug,
+    T: Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         f.debug_struct(&format!("Buffer<{}, {}>", any::type_name::<T>(), A))
@@ -207,10 +269,7 @@ where
     }
 }
 
-impl<T, const A: usize> Deref for Buffer<T, A>
-where
-    T: Primitive,
-{
+impl<T, const A: usize> Deref for Buffer<T, A> {
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
@@ -221,10 +280,7 @@ where
     }
 }
 
-impl<T, const A: usize> Drop for Buffer<T, A>
-where
-    T: Primitive,
-{
+impl<T, const A: usize> Drop for Buffer<T, A> {
     fn drop(&mut self) {
         // Don't attempt to deallocate empty buffers.
         if self.len != 0 {
@@ -241,12 +297,7 @@ where
     }
 }
 
-impl<T, const A: usize> Eq for Buffer<T, A>
-where
-    T: Primitive,
-    for<'a> &'a [T]: PartialEq,
-{
-}
+impl<T, const A: usize> Eq for Buffer<T, A> where for<'a> &'a [T]: PartialEq {}
 
 impl<T, const A: usize> FromIterator<T> for Buffer<T, A>
 where
@@ -262,7 +313,7 @@ where
             Some(value) => {
                 // Allocate some memory based on the size hint.
                 let (lower_bound, _) = iter.size_hint();
-                let mut ptr = unsafe { alloc::<T, A>(layout::<T, A>(lower_bound + 1)) };
+                let mut ptr = unsafe { Self::alloc(lower_bound + 1) };
 
                 // Write first value.
                 unsafe { ptr.write(value) };
@@ -282,7 +333,7 @@ where
                 // Add the remaining items, while making sure the allocated
                 // layout can hold the number of elements.
                 for value in iter {
-                    ptr = unsafe { realloc::<T, A, A>(ptr, len, len + 1) };
+                    ptr = unsafe { Self::realloc(ptr, len, len + 1) };
                     unsafe { ptr.add(len).write(value) };
                     len += 1;
                 }
@@ -297,9 +348,23 @@ where
     }
 }
 
+// todo(mb): test
+impl<T, const A: usize> Hash for Buffer<T, A>
+where
+    T: Hash,
+{
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        Hash::hash_slice(&self[..], state);
+        self.len.hash(state);
+    }
+}
+
 impl<'a, T, const A: usize> IntoIterator for &'a Buffer<T, A>
 where
-    T: Primitive,
+    T: Copy,
 {
     type Item = T;
     type IntoIter = Copied<Iter<'a, T>>;
@@ -309,124 +374,26 @@ where
     }
 }
 
+impl<T, const A: usize> Length for Buffer<T, A> {
+    fn len(&self) -> usize {
+        self.len
+    }
+}
+
 impl<T, const A: usize> PartialEq for Buffer<T, A>
 where
-    T: Primitive,
     for<'a> &'a [T]: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.len == other.len
-            && (self.len == 0 || (self.layout() == other.layout() && &self[..] == &other[..]))
+        self.len == other.len && (self.len == 0 || &self[..] == &other[..])
     }
 }
 
 /// Buffer is [Send] because the buffer is immutable.
-unsafe impl<T, const A: usize> Send for Buffer<T, A> where T: Primitive {}
+unsafe impl<T, const A: usize> Send for Buffer<T, A> {}
 
 /// Buffer is [Sync] because the buffer is immutable.
-unsafe impl<T, const A: usize> Sync for Buffer<T, A> where T: Primitive {}
-
-/// Returns the [Layout] for a [Buffer] with alignment `A` and provided length
-/// (number of elements).
-pub(crate) fn layout<T, const A: usize>(length: usize) -> Layout
-where
-    T: Primitive,
-{
-    assert!(length != 0, "Zero-sized layouts are not supported");
-
-    // Power-of-two alignment.
-    let align = 1 << A;
-
-    // Make sure the alignment is correct.
-    assert!(
-        align % mem::align_of::<T>() == 0,
-        "Alignment `A` must be a multiple of the ABI-required minimum alignment of type `T`"
-    );
-
-    // No additional padding between elements. Buffer types are compatible with
-    // the power-of-two alignment.
-    let size = length * mem::size_of::<T>();
-
-    // Taken from `padding_needed_for` (requires `const_alloc_layout`).
-    let padding =
-        (size.wrapping_add(align).wrapping_sub(1) & !align.wrapping_sub(1)).wrapping_sub(size);
-
-    // Rounded up length is the size with padding.
-    let (rounded_up_len, overflow) = size.overflowing_add(padding);
-
-    // The rounded up length should not overflow.
-    assert!(!overflow, "Allocation size overflow");
-
-    // Safety
-    // - Align is non-zero because `A` is the exponent of the power-of-two.
-    // - Rounded up length does not overflow, checked above.
-    unsafe { Layout::from_size_align_unchecked(rounded_up_len, align) }
-}
-
-/// Allocates the memory for a [Buffer] with alignment `A` and provided length
-/// (number of elements).
-///
-/// This method will likely be deprecated when Allocator APIs are stabilized.
-pub(crate) unsafe fn alloc<T, const A: usize>(layout: Layout) -> *mut T
-where
-    T: Primitive,
-{
-    // Safety
-    // - Size condition is checked in `layout` function.
-    // - Alignment condition is checked in `layout` function.
-    let ptr = alloc::alloc(layout) as *mut T;
-
-    // Make sure the allocation did not fail.
-    assert!(!ptr.is_null(), "Allocation failed");
-
-    // Return the pointer.
-    ptr
-}
-
-/// Attempt to reallocate the memory for a [Buffer] with alignment `A` so that
-/// it can hold the new length (number of elements) in a buffer with alignment
-/// `B`.
-///
-/// When the layout for the new length matches the layout of the old length,
-/// this does not allocate and simply returns the given ptr, because the
-/// padding from the previous allocation can hold the required new length.
-///
-/// When the current allocation can't hold the new length, a new allocation
-/// is attempted with the new layout. The values from the previous allocation
-/// are copied from the source, and the source location is deallocated.
-///
-/// # Safety
-/// This method is unsafe and its behavior is undefined unless the following
-/// conditions are met:
-/// todo(mb)
-pub(crate) unsafe fn realloc<T, const A: usize, const B: usize>(
-    ptr: *mut T,
-    old_length: usize,
-    new_length: usize,
-) -> *mut T
-where
-    T: Primitive,
-{
-    let old_layout = layout::<T, A>(old_length);
-    let new_layout = layout::<T, B>(new_length);
-
-    // Check if the current allocation layout can hold the new length.
-    if old_layout == new_layout {
-        // No need to reallocate. There is enough capacity in the padding to
-        // store `new_length` elements.
-        ptr
-    } else {
-        // Allocate new buffer and copy contents from source.
-        let new_ptr = alloc::<T, B>(new_layout);
-        ptr::copy_nonoverlapping(ptr as *const T, new_ptr, old_length);
-
-        // Deallocate previous allocation.
-        alloc::dealloc(ptr as *mut u8, old_layout);
-
-        // Return the new pointer.
-        new_ptr
-    }
-}
+unsafe impl<T, const A: usize> Sync for Buffer<T, A> {}
 
 #[cfg(test)]
 mod tests {
@@ -435,13 +402,13 @@ mod tests {
     #[test]
     #[should_panic(expected = "Zero-sized layouts are not supported")]
     fn layout_zero_sized() {
-        layout::<u8, 0>(0);
+        Buffer::<u8, 0>::layout_len(0);
     }
 
     #[test]
     #[should_panic(expected = "Allocation size overflow")]
     fn layout_overflow() {
-        layout::<u8, 6>(usize::MAX - 62);
+        Buffer::<u8, 6>::layout_len(usize::MAX - 62);
     }
 
     #[test]
@@ -449,30 +416,32 @@ mod tests {
         expected = "Alignment `A` must be a multiple of the ABI-required minimum alignment of type `T`"
     )]
     fn layout_bad_align() {
-        layout::<u64, 0>(1234);
+        // Should fail because align_of::<u64>() is 8 (1 << 3).
+        Buffer::<u64, 2>::layout_len(1234);
     }
 
     #[test]
     fn layout_size() {
-        assert_eq!(layout::<u8, 0>(1).size(), 1);
-        assert_eq!(layout::<u8, 5>(1).size(), 32);
-        assert_eq!(layout::<u8, 5>(32).size(), 32);
-        assert_eq!(layout::<u8, 5>(33).size(), 64);
-        assert_eq!(layout::<u8, 6>(1).size(), 64);
-        assert_eq!(layout::<u8, 6>(64).size(), 64);
-        assert_eq!(layout::<u8, 6>(65).size(), 128);
-        assert_eq!(layout::<u32, 6>(5).size(), 64);
-        assert_eq!(layout::<f64, 6>(8).size(), 64);
-        assert_eq!(layout::<f64, 6>(9).size(), 128);
+        assert_eq!(Buffer::<u8, 0>::layout_len(1).size(), 1);
+        assert_eq!(Buffer::<u8, 5>::layout_len(1).size(), 32);
+        assert_eq!(Buffer::<u8, 5>::layout_len(32).size(), 32);
+        assert_eq!(Buffer::<u8, 5>::layout_len(33).size(), 64);
+        assert_eq!(Buffer::<u8, 6>::layout_len(1).size(), 64);
+        assert_eq!(Buffer::<u8, 6>::layout_len(64).size(), 64);
+        assert_eq!(Buffer::<u8, 6>::layout_len(65).size(), 128);
+        assert_eq!(Buffer::<u32, 6>::layout_len(5).size(), 64);
+        assert_eq!(Buffer::<f64, 6>::layout_len(8).size(), 64);
+        assert_eq!(Buffer::<f64, 6>::layout_len(9).size(), 128);
     }
 
     #[test]
-    fn as_ref() {
-        let buffer: Buffer<_, 7> = [1u32, 2, 3, 4].into_iter().collect();
-        let x: &Buffer<_, 7> = buffer.as_ref();
-        assert_eq!(x.len(), 4);
-        let x: &[u8] = buffer.as_ref();
-        assert_eq!(x.len(), 4 * 4);
+    fn memory() {
+        let buffer = [1, 2, 3, 4].into_iter().collect::<Buffer<u8, 6>>();
+        assert_eq!(buffer.len(), 4);
+        assert!(!buffer.is_empty());
+        assert_eq!(buffer.size(), 64);
+        assert_eq!(buffer.align(), 64);
+        assert_eq!(buffer.padding(), 60);
     }
 
     #[test]
@@ -483,17 +452,6 @@ mod tests {
             AsRef::<[u8]>::as_ref(&buffer),
             &[42u8, 0, 0, 0, 255, 255, 255, 255, 254, 254, 192, 0]
         );
-    }
-
-    #[test]
-    fn borrow() {
-        let buffer: Buffer<_, 7> = [1u32, 2, 3, 4].into_iter().collect();
-
-        fn borrow_u32<T: Borrow<[u32]>>(input: T) {
-            assert_eq!(input.borrow(), &[1, 2, 3, 4]);
-        }
-
-        borrow_u32(buffer);
     }
 
     #[test]

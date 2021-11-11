@@ -1,4 +1,4 @@
-use crate::{ArrayData, Bitmap, BitmapIter, Buffer, Primitive, Validity, ALIGNMENT};
+use crate::{Bitmap, BitmapIter, Buffer, Length, Null, Nullable, Primitive, Validity, ALIGN};
 use std::{
     iter::{self, Copied, Zip},
     num::TryFromIntError,
@@ -35,72 +35,63 @@ impl OffsetValue for i64 {}
 /// different [FromIterator] implementation. In the offset buffer the previous
 /// offset is copied for null values, whereas the behavior of [Validity] adds a
 /// [Default::default] value.
-#[derive(Clone, Debug)]
-pub struct Offset<T, const N: bool>(Validity<Buffer<T, ALIGNMENT>, N>)
-where
-    T: OffsetValue;
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct Offset<T, const N: bool>(Validity<Buffer<T, ALIGN>, N>);
 
-// Non-nullable validity deref gives the offset buffer, which
-// always has one more value than the array.
-impl<T, const N: bool> ArrayData for Offset<T, N>
+impl<T, const N: bool> Clone for Offset<T, N>
 where
-    T: OffsetValue,
+    T: Primitive, // todo(mb): trait bound on Clone of Buffer
 {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<T> Deref for Offset<T, false> {
+    // Deref to Validity instead of Buffer directly to get Null impl of Validity
+    // for valid data.
+    type Target = Validity<Buffer<T, ALIGN>, false>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> Deref for Offset<T, true> {
+    // Deref to Buffer with data instead of validity bitmap. This makes sure the
+    // length information is correct.
+    // The Null impl for Offset<T, true> handles index offsets.
+    type Target = Buffer<T, ALIGN>;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.data()
+    }
+}
+
+impl<T> Length for Offset<T, true> {
     fn len(&self) -> usize {
-        match N {
-            false => self.0.len() - 1,
-            true => self.0.len(),
-        }
+        // Deref to buffer with values to get correct length (+1).
+        self.deref().len()
+    }
+}
+
+// Deref of Offset targets the Buffer with values so this impl makes sure we use
+// the information from the Nullable for the Null functions.
+impl<T> Null for Offset<T, true> {
+    fn is_valid(&self, index: usize) -> Option<bool> {
+        self.0.deref().is_valid(index)
     }
 
-    fn is_null(&self, index: usize) -> bool {
-        self.0.is_null(match N {
-            false => index + 1,
-            true => index,
-        })
-    }
-
-    fn null_count(&self) -> usize {
-        match N {
-            false => 0,
-            true => self.0.null_count(),
-        }
-    }
-
-    fn is_valid(&self, index: usize) -> bool {
-        self.0.is_valid(match N {
-            false => index + 1,
-            true => index,
-        })
+    unsafe fn is_valid_unchecked(&self, index: usize) -> bool {
+        self.0.deref().is_valid_unchecked(index)
     }
 
     fn valid_count(&self) -> usize {
-        match N {
-            false => self.0.len() - 1,
-            true => self.0.valid_count(),
-        }
+        self.0.deref().valid_count()
     }
-}
 
-impl<T> Deref for Offset<T, false>
-where
-    T: OffsetValue,
-{
-    type Target = <Validity<Buffer<T, ALIGNMENT>, false> as Deref>::Target;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<T> Deref for Offset<T, true>
-where
-    T: OffsetValue,
-{
-    type Target = <Validity<Buffer<T, ALIGNMENT>, true> as Deref>::Target;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+    fn null_count(&self) -> usize {
+        self.0.deref().null_count()
     }
 }
 
@@ -146,7 +137,7 @@ where
             })
             .collect::<Bitmap>();
 
-        Self(Validity::nullable(validity, buffer.into_iter().collect()))
+        Self(unsafe { Nullable::from_raw_parts(buffer.into_iter().collect(), validity) }.into())
     }
 }
 
@@ -243,23 +234,27 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Null;
 
     #[test]
     fn array_data() {
         let offset: Offset<i64, false> = [1, 2, 3, 4].into_iter().collect();
-        assert_eq!(offset.len(), 4);
-        assert!(!offset.is_null(0));
+        assert_eq!(offset.len(), 5); // 5 is correct here because the offset stores an additional value
+        assert_eq!(offset.is_null(0), Some(false));
         assert_eq!(offset.null_count(), 0);
-        assert!(offset.is_valid(0));
-        assert_eq!(offset.valid_count(), 4);
+        assert_eq!(offset.is_valid(0), Some(true));
+        assert_eq!(offset.valid_count(), 5);
 
         let offset: Offset<i32, true> = [Some(3), None, Some(4), Some(0)].into_iter().collect();
-        assert_eq!(offset.len(), 4);
-        assert!(!offset.is_null(0));
-        assert!(offset.is_null(1));
+        assert_eq!(offset.len(), 5);
+        assert_eq!(offset.is_null(0), Some(false));
+        assert_eq!(offset.is_null(1), Some(true));
+        assert_eq!(offset.is_null(2), Some(false));
+        assert_eq!(offset.is_null(3), Some(false));
+        assert_eq!(offset.is_null(4), None);
         assert_eq!(offset.null_count(), 1);
-        assert!(offset.is_valid(0));
-        assert!(!offset.is_valid(1));
+        assert_eq!(offset.is_valid(0), Some(true));
+        assert_eq!(offset.is_valid(1), Some(false));
         assert_eq!(offset.valid_count(), 3);
     }
 
@@ -269,7 +264,7 @@ mod tests {
         assert_eq!(&offset[..], &[0, 1, 3, 6, 10]);
 
         let offset: Offset<i32, true> = [Some(3), None, Some(4), Some(0)].into_iter().collect();
-        assert_eq!(&offset.data()[..], &[0, 3, 3, 7, 7]);
+        assert_eq!(&offset[..], &[0, 3, 3, 7, 7]);
     }
 
     #[test]

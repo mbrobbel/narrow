@@ -1,12 +1,12 @@
 [package]
 name = "narrow-derive"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Matthijs Brobbel <m1brobbel@gmail.com>"]
 edition = "2021"
 rust-version = "1.56.1"
-description = "Derive macros for Narrow: A Rust implementation of Apache Arrow"
+description = "Derive macros for Narrow: an implementation of Apache Arrow"
 readme = "../README.md"
-repository = "https://github.com/mbrobbel/narrow"
+repository = "https://github.com/teratide/narrow"
 documentation = "http://docs.rs/narrow-derive/"
 license = "Apache-2.0 OR MIT"
 keywords = ["Arrow"]
