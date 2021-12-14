@@ -1,58 +1,42 @@
-use crate::{Buffer, Length, ALIGN};
-use std::{
-    iter::Copied,
-    ops::{Deref, Index},
-    slice::Iter,
-};
+use crate::{Buffer, Length, Null, DEFAULT_ALIGNMENT};
+use std::{ops::Index, slice::Iter};
 
 /// An immutable collection of bits.
 ///
 /// The validity bits are stored LSB-first in the bytes of a [Buffer].
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-pub struct Bitmap {
+pub struct Bitmap<const A: usize = DEFAULT_ALIGNMENT> {
     /// The number of bits stored in the bitmap.
     bits: usize,
     /// The bits are stored in this buffer.
-    buffer: Buffer<u8, ALIGN>,
+    buffer: Buffer<u8, A>,
 }
 
-impl Bitmap {
-    /// Returns the number of set bits in this bitmap.
-    pub fn count_ones(&self) -> usize {
-        // Count all ones (there can't be ones in the padding bits).
-        // > Bitmaps are to be initialized to be all unset at allocation time
-        // > (this includes padding).
-        self.buffer.into_iter().map(u8::count_ones).sum::<u32>() as usize
-    }
-
-    /// Returns the number of unset bits in this bitmap.
-    pub fn count_zeros(&self) -> usize {
-        // Count all zeros and subtract the trailing zero bits in the padding.
-        // > Bitmaps are to be initialized to be all unset at allocation time
-        // > (this includes padding).
-        self.buffer.into_iter().map(u8::count_zeros).sum::<u32>() as usize - self.trailing_bits()
-    }
-
-    /// Returns bit a given index. Returns `None` when the given index is out of
-    /// bounds.
-    pub fn get(&self, index: usize) -> Option<bool> {
-        (index < self.bits).then(|| unsafe { self.get_unchecked(index) })
-    }
-
-    /// Returns bit at given index, without doing bounds checking. Caller must
-    /// ensure `index <= len`.
-    ///
-    /// # Safety
-    ///
-    /// Caller must ensure index is within bounds to prevent undefined behavior.
-    pub unsafe fn get_unchecked(&self, index: usize) -> bool {
+impl<const A: usize> Null for Bitmap<A> {
+    unsafe fn is_valid_unchecked(&self, index: usize) -> bool {
         let byte_index = index / 8;
         let bit_index = index % 8;
         self.buffer.get_unchecked(byte_index) & (1 << bit_index) != 0
     }
 
+    fn valid_count(&self) -> usize {
+        // Count all ones (there can't be ones in the padding bits).
+        // > Bitmaps are to be initialized to be all unset at allocation time
+        // > (this includes padding).
+        self.buffer.iter().map(|x| x.count_ones()).sum::<u32>() as usize
+    }
+
+    fn null_count(&self) -> usize {
+        // Count all zeros and subtract the trailing zero bits in the padding.
+        // > Bitmaps are to be initialized to be all unset at allocation time
+        // > (this includes padding).
+        self.buffer.iter().map(|x| x.count_zeros()).sum::<u32>() as usize - self.trailing_bits()
+    }
+}
+
+impl<const A: usize> Bitmap<A> {
     /// Returns the number of trailing padding bits in the last byte of the
-    /// buffer.
+    /// buffer that contains meaningful bits.
     pub fn trailing_bits(&self) -> usize {
         let trailing_bits = self.bits % 8;
         if trailing_bits != 0 {
@@ -63,21 +47,14 @@ impl Bitmap {
     }
 }
 
-impl AsRef<[u8]> for Bitmap {
-    fn as_ref(&self) -> &[u8] {
-        self.buffer.as_ref()
-    }
-}
+// todo(mb): use buffer traits here?
+// impl<const A: usize> AsRef<[u8]> for Bitmap<A> {
+//     fn as_ref(&self) -> &[u8] {
+//         self.buffer.as_ref()
+//     }
+// }
 
-impl Deref for Bitmap {
-    type Target = Buffer<u8, ALIGN>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.buffer
-    }
-}
-
-impl FromIterator<bool> for Bitmap {
+impl<const A: usize> FromIterator<bool> for Bitmap<A> {
     fn from_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = bool>,
@@ -99,7 +76,7 @@ impl FromIterator<bool> for Bitmap {
                 let mut len = bits / 8 + (bits % 8 != 0) as usize;
 
                 // Allocate memory for the storage of the bytes.
-                let mut ptr = unsafe { Buffer::<u8, ALIGN>::alloc(len) };
+                let mut ptr = unsafe { Buffer::<u8, A>::alloc(len) };
 
                 // Single byte that is written to the buffer when its bits are
                 // set according to the input.
@@ -132,7 +109,7 @@ impl FromIterator<bool> for Bitmap {
                         if byte_index == len {
                             // Make sure an additional byte can be written to the
                             // buffer.
-                            ptr = unsafe { Buffer::<u8, ALIGN>::realloc(ptr, len, len + 1) };
+                            ptr = unsafe { Buffer::<u8, A>::realloc(ptr, len, len + 1) };
                             len += 1;
                         }
 
@@ -156,7 +133,7 @@ impl FromIterator<bool> for Bitmap {
                     if byte_index == len {
                         // Make sure an additional byte can be written to the
                         // buffer.
-                        ptr = unsafe { Buffer::<u8, ALIGN>::realloc(ptr, len, len + 1) };
+                        ptr = unsafe { Buffer::<u8, A>::realloc(ptr, len, len + 1) };
                         len += 1;
                     }
 
@@ -173,7 +150,7 @@ impl FromIterator<bool> for Bitmap {
     }
 }
 
-impl Index<usize> for Bitmap {
+impl<const A: usize> Index<usize> for Bitmap<A> {
     type Output = bool;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -190,20 +167,20 @@ impl Index<usize> for Bitmap {
 
         // Safety:
         // - Bounds checked above.
-        match unsafe { self.get_unchecked(index) } {
+        match unsafe { self.is_valid_unchecked(index) } {
             true => &true,
             false => &false,
         }
     }
 }
 
-impl<'a> IntoIterator for &'a Bitmap {
+impl<'a, const A: usize> IntoIterator for &'a Bitmap<A> {
     type Item = bool;
     type IntoIter = BitmapIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         BitmapIter {
-            inner: self.buffer.into_iter(),
+            inner: self.buffer.iter(),
             byte: None,
             // mask rotates left at start of iteration and selects first bit at
             // first iteration.
@@ -213,7 +190,7 @@ impl<'a> IntoIterator for &'a Bitmap {
     }
 }
 
-impl Length for Bitmap {
+impl<const A: usize> Length for Bitmap<A> {
     fn len(&self) -> usize {
         self.bits
     }
@@ -222,9 +199,9 @@ impl Length for Bitmap {
 /// Iterator over the bits of a Bitmap.
 pub struct BitmapIter<'a> {
     // Iterator over the bytes stored in the buffer of the bitmap.
-    inner: Copied<Iter<'a, u8>>,
+    inner: Iter<'a, u8>,
     // Last byte popped from inner iterator.
-    byte: Option<u8>,
+    byte: Option<&'a u8>,
     // Mask to select bits from the byte.
     mask: u8,
     // Keeps track of the number of bits that this iterator should produce.
@@ -265,66 +242,54 @@ impl<'a> Iterator for BitmapIter<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::mem;
 
-    #[test]
-    fn capacity() {
-        let vec = vec![true; u8::BITS as usize - 1];
-        let bitmap: Bitmap = vec.iter().copied().collect();
-        let bytes: &[u8] = bitmap.as_ref();
-        assert_eq!(bytes.len(), 1);
+    // #[test]
+    // fn capacity() {
+    //     let vec = vec![true; u8::BITS as usize - 1];
+    //     let bitmap: Bitmap = vec.iter().copied().collect();
+    //     let bytes: &[u8] = bitmap.as_ref();
+    //     assert_eq!(bytes.len(), 1);
 
-        let vec = vec![true; u8::BITS as usize];
-        let bitmap: Bitmap = vec.iter().copied().collect();
-        let bytes: &[u8] = bitmap.as_ref();
-        assert_eq!(bytes.len(), 1);
+    //     let vec = vec![true; u8::BITS as usize];
+    //     let bitmap: Bitmap = vec.iter().copied().collect();
+    //     let bytes: &[u8] = bitmap.as_ref();
+    //     assert_eq!(bytes.len(), 1);
 
-        let vec = vec![true; u8::BITS as usize + 1];
-        let bitmap: Bitmap = vec.iter().copied().collect();
-        let bytes: &[u8] = bitmap.as_ref();
-        assert_eq!(bytes.len(), 2);
-    }
+    //     let vec = vec![true; u8::BITS as usize + 1];
+    //     let bitmap: Bitmap = vec.iter().copied().collect();
+    //     let bytes: &[u8] = bitmap.as_ref();
+    //     assert_eq!(bytes.len(), 2);
+    // }
 
-    #[test]
-    fn as_ref() {
-        let bitmap: Bitmap = [false, true, true, false, true].iter().copied().collect();
-        let slice: &[u8] = bitmap.as_ref();
-        assert_eq!(&slice[0], &22);
-    }
+    // #[test]
+    // fn as_ref() {
+    //     let bitmap: Bitmap = [false, true, true, false, true].iter().copied().collect();
+    //     let slice: &[u8] = bitmap.as_ref();
+    //     assert_eq!(&slice[0], &22);
+    // }
 
-    #[test]
-    fn as_ref_u8() {
-        let bitmap: Bitmap = vec![false, true, false, true, false, true]
-            .iter()
-            .copied()
-            .collect();
-        let bytes: &[u8] = bitmap.as_ref();
-        assert_eq!(bytes.len(), mem::size_of::<u8>());
-        assert_eq!(bytes[0], 42);
-        assert_eq!(bytes[1..], [0; mem::size_of::<u8>() - 1]);
-    }
+    // #[test]
+    // fn as_ref_u8() {
+    //     let bitmap: Bitmap = vec![false, true, false, true, false, true]
+    //         .iter()
+    //         .copied()
+    //         .collect();
+    //     let bytes: &[u8] = bitmap.as_ref();
+    //     assert_eq!(bytes.len(), mem::size_of::<u8>());
+    //     assert_eq!(bytes[0], 42);
+    //     assert_eq!(bytes[1..], [0; mem::size_of::<u8>() - 1]);
+    // }
 
-    #[test]
-    #[should_panic]
-    fn as_ref_u8_out_of_bounds() {
-        let bitmap: Bitmap = vec![false, true, false, true, false, true]
-            .iter()
-            .copied()
-            .collect();
-        let bits: &[u8] = bitmap.as_ref();
-        let _ = bits[mem::size_of::<usize>()];
-    }
-
-    #[test]
-    fn as_ref_usize() {
-        let bitmap: Bitmap = vec![false, true, false, true, false, true]
-            .iter()
-            .copied()
-            .collect();
-        let bytes: &[u8] = bitmap.as_ref();
-        assert_eq!(bytes.len(), 1);
-        assert_eq!(bytes[0], 42);
-    }
+    // #[test]
+    // #[should_panic]
+    // fn as_ref_u8_out_of_bounds() {
+    //     let bitmap: Bitmap = vec![false, true, false, true, false, true]
+    //         .iter()
+    //         .copied()
+    //         .collect();
+    //     let bits: &[u8] = bitmap.as_ref();
+    //     let _ = bits[mem::size_of::<usize>()];
+    // }
 
     #[test]
     fn as_ref_bitslice() {
@@ -362,8 +327,8 @@ mod tests {
         let bitmap: Bitmap = vec.iter().copied().collect();
         assert_eq!(bitmap.len(), 6);
         assert!(!bitmap.is_empty());
-        assert_eq!(bitmap.count_ones(), 3);
-        assert_eq!(bitmap.count_zeros(), 3);
+        assert_eq!(bitmap.valid_count(), 3);
+        assert_eq!(bitmap.null_count(), 3);
         vec.iter()
             .zip(bitmap.into_iter())
             .for_each(|(a, b)| assert_eq!(*a, b));

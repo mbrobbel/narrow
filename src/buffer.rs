@@ -4,7 +4,6 @@ use std::{
     any,
     fmt::{Debug, Formatter, Result},
     hash::{Hash, Hasher},
-    iter::Copied,
     mem,
     ops::Deref,
     ptr::{self, NonNull},
@@ -14,8 +13,7 @@ use std::{
 // todo(mb): replace with allocator api (https://github.com/rust-lang/rust/issues/32838)
 // todo(mb): add defaults for alignment const generic (https://github.com/rust-lang/rust/issues/44580)
 
-/// Default exponent of power-of-two alignment for buffers. (64 bytes)
-pub(crate) const ALIGN: usize = 6;
+pub(crate) const DEFAULT_ALIGNMENT: usize = 6;
 
 /// A contiguous immutable memory buffer for data.
 ///
@@ -37,7 +35,7 @@ pub(crate) const ALIGN: usize = 6;
 /// [Vec] with a custom allocator implementation (for the alignment and padding
 /// requirements) can replace most of the code here.
 // todo(mb): const A: NonZeroUsize
-pub struct Buffer<T, const A: usize> {
+pub struct Buffer<T, const A: usize = DEFAULT_ALIGNMENT> {
     /// The pointer to the memory location of the buffer.
     ptr: NonNull<T>,
     /// The length of this buffer i.e. the number of elements.
@@ -48,26 +46,6 @@ impl<T, const A: usize> Buffer<T, A>
 where
     T: Primitive, // This bound for all methods that can construct Buffers
 {
-    pub fn as_bytes(&self) -> &[u8] {
-        self.as_ref()
-    }
-
-    pub fn as_ptr(&self) -> *const T {
-        self.ptr.as_ptr() as *const T
-    }
-
-    pub fn as_slice(&self) -> &[T] {
-        self
-    }
-
-    pub fn get(&self, index: usize) -> Option<T> {
-        self.deref().get(index).copied()
-    }
-
-    pub fn iter(&self) -> Copied<Iter<'_, T>> {
-        self.into_iter()
-    }
-
     /// Returns the number of bytes in this buffer.
     pub fn size(&self) -> usize {
         // The number of bytes allocated by a buffer is not the number of
@@ -102,30 +80,6 @@ where
         Self {
             ptr: NonNull::new_unchecked(ptr),
             len,
-        }
-    }
-
-    /// Constructs a [Buffer] from a [slice].
-    fn from_slice(slice: &[T]) -> Self {
-        // Allocate buffer that holds `N` elements.
-        let ptr = unsafe { Self::alloc(slice.len()) };
-
-        // Copy the elements from the array into the new buffer.
-        // Safety
-        // - Conditions to prevent undefined behavior are met:
-        //  - source is assumed to have its invariants maintained.
-        //  - Checked allocation for destination above.
-        //  - source is assumed to be properly aligned.
-        //  - Regions don't overlap because destination was allocated above.
-        unsafe { ptr::copy_nonoverlapping(slice.as_ptr(), ptr, slice.len()) }
-
-        Self {
-            ptr:
-            // Safety:
-            // - Pointer is non-null as this is checked in the `alloc`
-            //   function.
-            unsafe { NonNull::new_unchecked(ptr) },
-            len: slice.len(),
         }
     }
 
@@ -242,7 +196,7 @@ where
     T: Primitive,
 {
     fn clone(&self) -> Self {
-        Self::from_slice(self)
+        self.deref().into()
     }
 }
 
@@ -298,6 +252,34 @@ impl<T, const A: usize> Drop for Buffer<T, A> {
 }
 
 impl<T, const A: usize> Eq for Buffer<T, A> where for<'a> &'a [T]: PartialEq {}
+
+impl<T, const A: usize> From<&[T]> for Buffer<T, A>
+where
+    T: Primitive,
+{
+    fn from(slice: &[T]) -> Self {
+        // Allocate buffer that holds `N` elements.
+        let ptr = unsafe { Self::alloc(slice.len()) };
+
+        // Copy the elements from the array into the new buffer.
+        // Safety
+        // - Conditions to prevent undefined behavior are met:
+        //  - source is assumed to have its invariants maintained.
+        //  - Checked allocation for destination above.
+        //  - source is assumed to be properly aligned.
+        //  - Regions don't overlap because destination was allocated above.
+        unsafe { ptr::copy_nonoverlapping(slice.as_ptr(), ptr, slice.len()) }
+
+        Self {
+            ptr:
+            // Safety:
+            // - Pointer is non-null as this is checked in the `alloc`
+            //   function.
+            unsafe { NonNull::new_unchecked(ptr) },
+            len: slice.len(),
+        }
+    }
+}
 
 impl<T, const A: usize> FromIterator<T> for Buffer<T, A>
 where
@@ -362,15 +344,14 @@ where
     }
 }
 
-impl<'a, T, const A: usize> IntoIterator for &'a Buffer<T, A>
-where
-    T: Copy,
-{
-    type Item = T;
-    type IntoIter = Copied<Iter<'a, T>>;
+// This is needed to make the IntoIterator impl of Nullable work without going
+// through a deref.
+impl<'a, T, const A: usize> IntoIterator for &'a Buffer<T, A> {
+    type Item = &'a T;
+    type IntoIter = Iter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.iter().copied()
+        self.iter()
     }
 }
 
@@ -479,7 +460,7 @@ mod tests {
     #[test]
     fn from_iter() {
         let vec = vec![1u32, 2, 3, 4];
-        let buffer = vec.clone().into_iter().collect::<Buffer<_, 6>>();
+        let buffer = vec.iter().copied().collect::<Buffer<_, 6>>();
         assert_eq!(buffer.len(), 4);
         assert_eq!(&vec[..], &buffer[..]);
     }
@@ -499,7 +480,8 @@ mod tests {
             .iter()
             .copied()
             .collect::<Buffer<_, 5>>()
-            .into_iter()
+            .iter()
+            .copied()
             .collect::<Vec<_>>();
         assert_eq!(vec, other);
     }

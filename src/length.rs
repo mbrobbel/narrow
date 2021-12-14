@@ -8,3 +8,30 @@ pub trait Length {
         self.len() == 0
     }
 }
+
+impl<T, const N: usize> Length for [T; N] {
+    fn len(&self) -> usize {
+        N
+    }
+}
+
+impl<T> Length for &[T] {
+    fn len(&self) -> usize {
+        <[T]>::len(self)
+    }
+}
+
+impl<T> Length for Vec<T> {
+    fn len(&self) -> usize {
+        Vec::len(self)
+    }
+}
+
+impl<'a, T> Length for &'a T
+where
+    T: Length,
+{
+    fn len(&self) -> usize {
+        T::len(self)
+    }
+}

@@ -1,4 +1,4 @@
-use crate::{Length, Null, Nullable};
+use crate::{Length, Null, Nullable, DEFAULT_ALIGNMENT};
 use std::{hint::unreachable_unchecked, ops::Deref};
 
 /// Variants for nullable and non-nullable data.
@@ -14,8 +14,8 @@ use std::{hint::unreachable_unchecked, ops::Deref};
 /// - [Validity::Nullable] when `N` is [true].
 /// - [Validity::Valid] when `N` is [false].
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-enum RawValidity<T, const N: bool> {
-    Nullable(Nullable<T>),
+enum RawValidity<T, const N: bool, const A: usize = DEFAULT_ALIGNMENT> {
+    Nullable(Nullable<T, A>),
     Valid(T),
 }
 
@@ -31,9 +31,9 @@ enum RawValidity<T, const N: bool> {
 // Can't control enum variant visibility so wrapping RawValidity to prevent
 // users from breaking the const generic discriminant encoding contract.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Validity<T, const N: bool>(RawValidity<T, N>);
+pub struct Validity<T, const N: bool, const A: usize = DEFAULT_ALIGNMENT>(RawValidity<T, N, A>);
 
-impl<T> Deref for Validity<T, false> {
+impl<T, const A: usize> Deref for Validity<T, false, A> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -46,8 +46,8 @@ impl<T> Deref for Validity<T, false> {
     }
 }
 
-impl<T> Deref for Validity<T, true> {
-    type Target = Nullable<T>;
+impl<T, const A: usize> Deref for Validity<T, true, A> {
+    type Target = Nullable<T, A>;
 
     fn deref(&self) -> &Self::Target {
         match &self.0 {
@@ -59,13 +59,13 @@ impl<T> Deref for Validity<T, true> {
     }
 }
 
-impl<T> From<Nullable<T>> for Validity<T, true> {
-    fn from(nullable: Nullable<T>) -> Self {
+impl<T, const A: usize> From<Nullable<T, A>> for Validity<T, true, A> {
+    fn from(nullable: Nullable<T, A>) -> Self {
         Self(RawValidity::Nullable(nullable))
     }
 }
 
-impl<T> Length for Validity<T, false>
+impl<T, const A: usize> Length for Validity<T, false, A>
 where
     T: Length,
 {
@@ -74,11 +74,7 @@ where
     }
 }
 
-impl<T: Length> Null for Validity<T, false> {
-    fn is_valid(&self, index: usize) -> Option<bool> {
-        (index < self.len()).then(|| true)
-    }
-
+impl<T: Length, const A: usize> Null for Validity<T, false, A> {
     unsafe fn is_valid_unchecked(&self, _index: usize) -> bool {
         true
     }
@@ -86,9 +82,11 @@ impl<T: Length> Null for Validity<T, false> {
     fn valid_count(&self) -> usize {
         self.len()
     }
+
+    // todo(mb): make sure compiler optimizes other fns
 }
 
-impl<T, U> FromIterator<U> for Validity<T, false>
+impl<T, U, const A: usize> FromIterator<U> for Validity<T, false, A>
 where
     T: FromIterator<U>,
 {
@@ -103,7 +101,7 @@ where
     }
 }
 
-impl<T, U> FromIterator<Option<U>> for Validity<T, true>
+impl<T, U, const A: usize> FromIterator<Option<U>> for Validity<T, true, A>
 where
     T: FromIterator<U>,
     U: Default,
@@ -119,32 +117,41 @@ where
     }
 }
 
+// impl<T, const A: usize> ValidityBitmap<A> for Validity<T, true, A> {
+//     fn validity_bitmap(&self) -> &Bitmap<A> {
+//         self.deref().validity_bitmap()
+//     }
+// }
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Bitmap, Buffer, ALIGN};
+    use crate::{Bitmap, Buffer};
 
     #[test]
     fn data() {
-        let valid: Validity<Buffer<_, ALIGN>, false> = vec![1u8, 2, 3, 4].into_iter().collect();
+        let valid: Validity<Buffer<_>, false> = vec![1u8, 2, 3, 4].into_iter().collect();
         assert_eq!(&valid[..], &[1, 2, 3, 4]);
 
-        let nullable: Validity<Buffer<_, ALIGN>, true> = vec![Some(1u8), None, Some(3), Some(4)]
+        let nullable: Validity<Buffer<_>, true> = vec![Some(1u8), None, Some(3), Some(4)]
             .into_iter()
             .collect();
-        assert_eq!(&nullable.data()[..], &[1, u8::default(), 3, 4]);
+        assert_eq!(
+            nullable.into_iter().collect::<Vec<_>>(),
+            [Some(&1), None, Some(&3), Some(&4)]
+        );
     }
 
     #[test]
     fn array_data() {
-        let valid: Validity<Buffer<_, ALIGN>, false> = vec![1u8, 2, 3, 4].into_iter().collect();
+        let valid: Validity<Buffer<_>, false> = vec![1u8, 2, 3, 4].into_iter().collect();
         assert_eq!(valid.len(), 4);
         assert_eq!(valid.is_null(1), Some(false));
         assert_eq!(valid.null_count(), 0);
         assert_eq!(valid.is_valid(1), Some(true));
         assert_eq!(valid.valid_count(), 4);
 
-        let nullable: Validity<Buffer<_, ALIGN>, true> = vec![Some(1u8), None, Some(3), Some(4)]
+        let nullable: Validity<Buffer<_>, true> = vec![Some(1u8), None, Some(3), Some(4)]
             .into_iter()
             .collect();
         assert_eq!(nullable.len(), 4);
@@ -164,27 +171,59 @@ mod tests {
 
     #[test]
     fn deref() {
-        let valid: Validity<Buffer<_, ALIGN>, false> = vec![1u8, 2, 3, 4].into_iter().collect();
+        let valid: Validity<Buffer<_>, false> = vec![1u8, 2, 3, 4].into_iter().collect();
         assert_eq!(valid.len(), 4);
+        assert_eq!(valid.valid_count(), 4);
+        assert_eq!(valid.null_count(), 0);
 
         let valid: Validity<Bitmap, false> = vec![true, false, true, true].into_iter().collect();
         assert_eq!(valid.len(), 4);
+        assert_eq!(valid.valid_count(), 4);
+        assert_eq!(valid.null_count(), 0);
+        assert_eq!(valid.is_valid(0), Some(true));
+        assert_eq!(valid.is_valid(1), Some(true));
+        assert_eq!(valid.is_valid(2), Some(true));
+        assert_eq!(valid.is_valid(3), Some(true));
 
-        let nullable: Validity<Buffer<_, ALIGN>, true> = vec![Some(1u8), None, Some(3), Some(4)]
+        let nullable: Validity<Buffer<_>, true> = vec![Some(1u8), None, Some(3), Some(4)]
             .into_iter()
             .collect();
         assert_eq!(nullable.len(), 4);
+        assert_eq!(nullable.valid_count(), 3);
+        assert_eq!(nullable.null_count(), 1);
         assert_eq!(
-            nullable.validity(),
-            &[true, false, true, true]
-                .iter()
-                .copied()
-                .collect::<Bitmap>()
+            nullable
+                .into_iter()
+                .map(|opt| opt.is_some())
+                .collect::<Vec<_>>(),
+            [true, false, true, true]
         );
 
-        let valid: Validity<Bitmap, true> = vec![Some(true), Some(false), None, Some(true)]
+        let nullable: Validity<Bitmap, true> = vec![Some(true), Some(false), None, Some(true)]
             .into_iter()
             .collect();
-        assert_eq!(valid.len(), 4);
+        assert_eq!(nullable.len(), 4);
+        assert_eq!(nullable.valid_count(), 3);
+        assert_eq!(nullable.null_count(), 1);
+        assert_eq!(nullable.is_valid(0), Some(true));
+        assert_eq!(nullable.is_valid(1), Some(true));
+        // This should select the null impl from the validity bitmap of the
+        // validity, not from the data validity.
+        assert_eq!(nullable.is_null(2), Some(true));
+        assert_eq!(nullable.is_valid(3), Some(true));
+    }
+
+    #[test]
+    fn into_iter() {
+        let valid: Validity<Buffer<_>, false> = vec![1u8, 2, 3, 4].into_iter().collect();
+        assert_eq!(valid.into_iter().collect::<Vec<_>>(), vec![&1, &2, &3, &4]);
+
+        let nullable: Validity<Buffer<_>, true> = vec![Some(1u8), None, Some(3), Some(4)]
+            .into_iter()
+            .collect();
+        assert_eq!(
+            nullable.into_iter().collect::<Vec<_>>(),
+            vec![Some(&1u8), None, Some(&3), Some(&4)]
+        );
     }
 }

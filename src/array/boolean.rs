@@ -1,46 +1,23 @@
-use crate::{Array, ArrayIndex, ArrayType, Bitmap, Nullable, Validity};
+use crate::{Array, ArrayType, Bitmap, Nullable, Validity, DEFAULT_ALIGNMENT};
 use std::ops::Deref;
 
 /// Array with boolean values.
 ///
 /// Values are stored using single bits in a [Bitmap].
 #[derive(Debug, PartialEq, Eq)]
-pub struct BooleanArray<const N: bool>(Validity<Bitmap, N>);
+pub struct BooleanArray<const N: bool, const A: usize = DEFAULT_ALIGNMENT>(Validity<Bitmap<A>, N>);
 
-impl<const N: bool> Array for BooleanArray<N> {
-    type Validity = Validity<Bitmap, N>;
-
-    fn validity(&self) -> &Self::Validity {
-        &self.0
-    }
+impl<const N: bool, const A: usize> Array for BooleanArray<N, A> {
+    type Item<'a> = bool;
 }
 
 impl ArrayType for bool {
-    type Array = BooleanArray<false>;
-}
-
-impl ArrayType for Option<bool> {
-    type Array = BooleanArray<true>;
-}
-
-impl ArrayIndex<usize> for BooleanArray<false> {
-    type Output = bool;
-
-    fn index(&self, index: usize) -> Self::Output {
-        self.0[index]
-    }
-}
-
-impl ArrayIndex<usize> for BooleanArray<true> {
-    type Output = Option<bool>;
-
-    fn index(&self, index: usize) -> Self::Output {
-        self.0.index(index)
-    }
+    type Item<'a> = bool;
+    type Array<T, const N: bool, const A: usize> = BooleanArray<false, A>;
 }
 
 impl Deref for BooleanArray<false> {
-    type Target = Bitmap;
+    type Target = Validity<Bitmap, false>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -55,45 +32,22 @@ impl Deref for BooleanArray<true> {
     }
 }
 
-impl FromIterator<bool> for BooleanArray<false> {
+impl<T, const N: bool, const A: usize> FromIterator<T> for BooleanArray<N, A>
+where
+    Validity<Bitmap<A>, N>: FromIterator<T>,
+{
     fn from_iter<I>(iter: I) -> Self
     where
-        I: IntoIterator<Item = bool>,
+        I: IntoIterator<Item = T>,
     {
         Self(iter.into_iter().collect())
-    }
-}
-
-impl FromIterator<Option<bool>> for BooleanArray<true> {
-    fn from_iter<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = Option<bool>>,
-    {
-        Self(iter.into_iter().collect())
-    }
-}
-
-impl<'a> IntoIterator for &'a BooleanArray<false> {
-    type Item = bool;
-    type IntoIter = <&'a Bitmap as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
-impl<'a> IntoIterator for &'a BooleanArray<true> {
-    type Item = Option<bool>;
-    type IntoIter = <&'a Nullable<Bitmap> as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Length;
 
     #[test]
     fn deref() {

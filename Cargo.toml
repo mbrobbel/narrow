@@ -3,7 +3,7 @@ name = "narrow"
 version = "0.2.0"
 authors = ["Matthijs Brobbel <m1brobbel@gmail.com>"]
 edition = "2021"
-rust-version = "1.56.1"
+# rust-version = "1.56.1" - nightly
 description = "An implementation of Apache Arrow"
 readme = "README.md"
 repository = "https://github.com/teratide/narrow"
@@ -17,7 +17,6 @@ default = []
 
 [dependencies]
 # narrow-derive = { version = "0.1.0", path = "narrow-derive" }
-paste = "1"
 
 [dev-dependencies]
 criterion = "0.3"

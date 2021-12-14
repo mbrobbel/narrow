@@ -8,9 +8,21 @@ use std::{
 
 // todo(mb): sort fields (child arrays) based on size, so that nulls (types i8::default() and default value of first field are small).
 // todo(mb): store variant arrays in array with sum type for all array types, then impl index<i8> for union array wrapper type to get arrays.
+// todo(mb): impl UnionArrayType for std::Result and std::Option
+
+/// The number of variants or types of union arrays.
+pub trait UnionArrayVariants {
+    /// The number of variants in this union.
+    const VARIANTS: usize;
+}
 
 /// Union types that can be stored in arrays.
-pub trait UnionArrayType<const D: bool>: Sized {
+///
+/// `D` encodes the union array type.
+/// - [DenseUnionArray] when `D` is [true].
+/// - [SparseUnionArray] when `D` is [false].
+// todo(mb): GATs
+pub trait UnionArrayType<const D: bool>: UnionArrayVariants + Sized {
     type Array: ArrayData;
     type Child: Array + UnionArrayIndex<Self> + FromIterator<Self>;
 }
@@ -68,18 +80,18 @@ where
     }
 }
 
-impl<'a, T, const D: bool> IntoIterator for &'a UnionArray<T, D>
-where
-    T: UnionArrayType<D>,
-    &'a <T as UnionArrayType<D>>::Array: IntoIterator<Item = T>,
-{
-    type Item = T;
-    type IntoIter = <&'a <T as UnionArrayType<D>>::Array as IntoIterator>::IntoIter;
+// impl<'a, T, const D: bool> IntoIterator for &'a UnionArray<T, D>
+// where
+//     T: UnionArrayType<D>,
+//     &'a <T as UnionArrayType<D>>::Array: IntoIterator<Item = T>,
+// {
+//     type Item = T;
+//     type IntoIter = <&'a <T as UnionArrayType<D>>::Array as IntoIterator>::IntoIter;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
+//     fn into_iter(self) -> Self::IntoIter {
+//         self.0.into_iter()
+//     }
+// }
 
 /// Index trait for union arrays.
 pub trait UnionArrayIndex<T> {
@@ -227,6 +239,9 @@ where
 }
 
 /// Dense union array for enum type `T` with `N` variants.
+// todo(mb): remove const N (https://github.com/rust-lang/rust/issues/43408)
+//           when we can use <T as UnionArrayType<true>>::VARIANTS in from_iter
+//           `constant expression depends on a generic parameter`
 pub struct DenseUnionArray<T, const N: usize>
 where
     T: UnionArrayType<true>,
@@ -379,53 +394,81 @@ mod tests {
     use super::*;
 
     #[test]
-    fn from_iter() {
-        #[derive(Array, Debug, Clone, PartialEq)]
-        enum Union {
-            Int(i8),
-            Uint(u16),
-            Bool(bool),
-            OptBool(Option<bool>),
-            List(Vec<u8>),
-            String(String),
-            None(()),
+    fn one_variant_field_less() {
+        #[derive(Array, Copy, Clone, Debug, PartialEq)]
+        enum Foo {
+            Bar,
         }
 
-        let vec = vec![
-            Union::Int(1),
-            Union::Int(2),
-            Union::Int(3),
-            Union::Int(4),
-            Union::Uint(2),
-            Union::Bool(false),
-            Union::OptBool(Some(true)),
-            Union::OptBool(None),
-            Union::List(vec![1, 2, 3, 4]),
-            Union::String("Hello world!".to_string()),
-            Union::None(()),
-        ];
-
-        let dense_array = vec.clone().into_iter().collect::<UnionArray<Union, true>>();
-        assert_eq!(Array::len(&dense_array.child().Int), 4);
-        assert_eq!(Array::len(&dense_array.child().Uint), 1);
-        assert_eq!(Array::len(&dense_array.child().Bool), 1);
-        assert_eq!(Array::len(&dense_array.child().OptBool), 2);
-        assert_eq!(Array::len(&dense_array.child().List), 1);
-        assert_eq!(Array::len(&dense_array.child().String), 1);
-        assert_eq!(Array::len(&dense_array.child().None), 1);
-        assert_eq!(&dense_array.into_iter().collect::<Vec<_>>(), &vec);
-
-        let sparse_array = vec
-            .clone()
-            .into_iter()
-            .collect::<UnionArray<Union, false>>();
-        assert_eq!(Array::len(&sparse_array.child().Int), 11);
-        assert_eq!(Array::len(&sparse_array.child().Uint), 11);
-        assert_eq!(Array::len(&sparse_array.child().Bool), 11);
-        assert_eq!(Array::len(&sparse_array.child().OptBool), 11);
-        assert_eq!(Array::len(&sparse_array.child().List), 11);
-        assert_eq!(Array::len(&sparse_array.child().String), 11);
-        assert_eq!(Array::len(&sparse_array.child().None), 11);
+        let vec = vec![Foo::Bar; 10];
+        let sparse_array = vec.iter().copied().collect::<UnionArray<Foo, false>>();
         assert_eq!(sparse_array.into_iter().collect::<Vec<_>>(), vec);
+        let dense_array = vec.iter().copied().collect::<UnionArray<Foo, true>>();
+        assert_eq!(dense_array.into_iter().collect::<Vec<_>>(), vec);
     }
+
+    #[test]
+    fn one_variant_with_fields() {
+        #[derive(Array, Copy, Clone, Debug, PartialEq)]
+        enum Foo<'a, T> {
+            Bar(&'a T),
+        }
+
+        let vec = vec![Foo::Bar(&1); 10];
+        // let sparse_array = vec.iter().copied().collect::<UnionArray<Foo, false>>();
+        // assert_eq!(sparse_array.into_iter().collect::<Vec<_>>(), vec);
+        // let dense_array = vec.iter().copied().collect::<UnionArray<Foo, true>>();
+        // assert_eq!(dense_array.into_iter().collect::<Vec<_>>(), vec);
+    }
+
+    // #[test]
+    // fn from_iter() {
+    //     #[derive(Array, Debug, Clone, PartialEq)]
+    //     enum Union {
+    //         Int(i8),
+    //         Uint(u16),
+    //         Bool(bool),
+    //         OptBool(Option<bool>),
+    //         List(Vec<u8>),
+    //         String(String),
+    //         None(()),
+    //     }
+
+    //     let vec = vec![
+    //         Union::Int(1),
+    //         Union::Int(2),
+    //         Union::Int(3),
+    //         Union::Int(4),
+    //         Union::Uint(2),
+    //         Union::Bool(false),
+    //         Union::OptBool(Some(true)),
+    //         Union::OptBool(None),
+    //         Union::List(vec![1, 2, 3, 4]),
+    //         Union::String("Hello world!".to_string()),
+    //         Union::None(()),
+    //     ];
+
+    //     let dense_array = vec.clone().into_iter().collect::<UnionArray<Union, true>>();
+    //     assert_eq!(Array::len(&dense_array.child().Int), 4);
+    //     assert_eq!(Array::len(&dense_array.child().Uint), 1);
+    //     assert_eq!(Array::len(&dense_array.child().Bool), 1);
+    //     assert_eq!(Array::len(&dense_array.child().OptBool), 2);
+    //     assert_eq!(Array::len(&dense_array.child().List), 1);
+    //     assert_eq!(Array::len(&dense_array.child().String), 1);
+    //     assert_eq!(Array::len(&dense_array.child().None), 1);
+    //     assert_eq!(&dense_array.into_iter().collect::<Vec<_>>(), &vec);
+
+    //     let sparse_array = vec
+    //         .clone()
+    //         .into_iter()
+    //         .collect::<UnionArray<Union, false>>();
+    //     assert_eq!(Array::len(&sparse_array.child().Int), 11);
+    //     assert_eq!(Array::len(&sparse_array.child().Uint), 11);
+    //     assert_eq!(Array::len(&sparse_array.child().Bool), 11);
+    //     assert_eq!(Array::len(&sparse_array.child().OptBool), 11);
+    //     assert_eq!(Array::len(&sparse_array.child().List), 11);
+    //     assert_eq!(Array::len(&sparse_array.child().String), 11);
+    //     assert_eq!(Array::len(&sparse_array.child().None), 11);
+    //     assert_eq!(sparse_array.into_iter().collect::<Vec<_>>(), vec);
+    // }
 }

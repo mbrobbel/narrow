@@ -2,6 +2,8 @@
 //!
 //! An implementation of [Apache Arrow](https://arrow.apache.org).
 
+#![feature(generic_associated_types)]
+
 mod primitive;
 pub use primitive::*;
 
@@ -13,6 +15,9 @@ pub use buffer::*;
 
 mod bitmap;
 pub use bitmap::*;
+
+mod buffers;
+pub use buffers::*;
 
 mod null;
 pub use null::*;

@@ -20,14 +20,24 @@ pub trait Null: Length {
     }
 
     /// Returns `true` if the element at position `index` is valid.
-    fn is_valid(&self, index: usize) -> Option<bool>;
+    fn is_valid(&self, index: usize) -> Option<bool> {
+        (index < self.len()).then(|| unsafe { self.is_valid_unchecked(index)})
+    }
 
     /// # Safety
     /// todo(mb)
     unsafe fn is_valid_unchecked(&self, index: usize) -> bool;
 
     /// Returns the number of valid elements.
-    fn valid_count(&self) -> usize;
+    fn valid_count(&self) -> usize {
+        (0..self.len())
+            .filter(|&index| 
+                // Safety
+                // - The index is always in range by iterating over the range
+                //   with length upper bound.
+                unsafe { self.is_valid_unchecked(index) })
+            .count()
+    }
 
     /// Returns `true` if the array contains at least one null element.
     fn any_null(&self) -> bool {
