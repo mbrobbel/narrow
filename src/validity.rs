@@ -1,4 +1,4 @@
-use crate::{Length, Null, Nullable, DEFAULT_ALIGNMENT};
+use crate::{Buffer, DataBuffer, Length, Null, Nullable, DEFAULT_ALIGNMENT};
 use std::{hint::unreachable_unchecked, ops::Deref};
 
 /// Variants for nullable and non-nullable data.
@@ -33,6 +33,17 @@ enum RawValidity<T, const N: bool, const A: usize = DEFAULT_ALIGNMENT> {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Validity<T, const N: bool, const A: usize = DEFAULT_ALIGNMENT>(RawValidity<T, N, A>);
 
+impl<T, const N: bool, const A: usize, const B: usize> DataBuffer<T, B>
+    for Validity<Buffer<T, B>, N, A>
+{
+    fn data_buffer(&self) -> &Buffer<T, B> {
+        match &self.0 {
+            RawValidity::Valid(data) => data,
+            RawValidity::Nullable(nullable) => nullable.data_buffer(),
+        }
+    }
+}
+
 impl<T, const A: usize> Deref for Validity<T, false, A> {
     type Target = T;
 
@@ -65,12 +76,27 @@ impl<T, const A: usize> From<Nullable<T, A>> for Validity<T, true, A> {
     }
 }
 
-impl<T, const A: usize> Length for Validity<T, false, A>
+impl<T, const N: bool, const A: usize> Length for Validity<T, N, A>
 where
-    T: Length,
+    Self: Deref,
+    <Self as Deref>::Target: Length,
 {
     fn len(&self) -> usize {
         self.deref().len()
+    }
+}
+
+impl<T: Length, const A: usize> Null for Validity<T, true, A> {
+    unsafe fn is_valid_unchecked(&self, index: usize) -> bool {
+        self.deref().is_valid_unchecked(index)
+    }
+
+    fn valid_count(&self) -> usize {
+        self.deref().valid_count()
+    }
+
+    fn null_count(&self) -> usize {
+        self.deref().null_count()
     }
 }
 
@@ -116,12 +142,6 @@ where
         Self(RawValidity::Nullable(iter.into_iter().collect()))
     }
 }
-
-// impl<T, const A: usize> ValidityBitmap<A> for Validity<T, true, A> {
-//     fn validity_bitmap(&self) -> &Bitmap<A> {
-//         self.deref().validity_bitmap()
-//     }
-// }
 
 #[cfg(test)]
 mod tests {

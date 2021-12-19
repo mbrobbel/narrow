@@ -5,7 +5,9 @@ use std::ops::Deref;
 ///
 /// Values are stored using single bits in a [Bitmap].
 #[derive(Debug, PartialEq, Eq)]
-pub struct BooleanArray<const N: bool, const A: usize = DEFAULT_ALIGNMENT>(Validity<Bitmap<A>, N>);
+pub struct BooleanArray<const N: bool = true, const A: usize = DEFAULT_ALIGNMENT>(
+    Validity<Bitmap<A>, N>,
+);
 
 impl<const N: bool, const A: usize> Array for BooleanArray<N, A> {
     type Item<'a> = bool;
@@ -66,7 +68,7 @@ mod tests {
         assert_eq!(vec, boolean_array.into_iter().collect::<Vec<bool>>());
 
         let vec = vec![Some(false), Some(true), None, Some(true), None];
-        let boolean_array = vec.iter().copied().collect::<BooleanArray<true>>();
+        let boolean_array = vec.iter().copied().collect::<BooleanArray>();
         assert_eq!(
             vec,
             boolean_array.into_iter().collect::<Vec<Option<bool>>>()

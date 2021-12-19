@@ -27,11 +27,17 @@ impl<T> Length for Vec<T> {
     }
 }
 
-impl<'a, T> Length for &'a T
+impl<T> Length for &T
 where
     T: Length,
 {
     fn len(&self) -> usize {
         T::len(self)
+    }
+}
+
+impl Length for &str {
+    fn len(&self) -> usize {
+        str::len(self)
     }
 }

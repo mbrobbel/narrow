@@ -1,9 +1,11 @@
-use crate::{Array, ArrayType, Buffer, Nullable, Primitive, Validity, DEFAULT_ALIGNMENT};
+use crate::{
+    Array, ArrayType, Buffer, DataBuffer, Nullable, Primitive, Validity, DEFAULT_ALIGNMENT,
+};
 use std::ops::Deref;
 
 /// Array with primitive values.
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub struct FixedSizePrimitiveArray<T, const N: bool, const A: usize = DEFAULT_ALIGNMENT>(
+pub struct FixedSizePrimitiveArray<T, const N: bool = true, const A: usize = DEFAULT_ALIGNMENT>(
     Validity<Buffer<T, A>, N>,
 );
 
@@ -20,6 +22,13 @@ where
     }
 }
 
+impl<T, const N: bool, const A: usize> DataBuffer<T, A> for FixedSizePrimitiveArray<T, N, A> {
+    fn data_buffer(&self) -> &Buffer<T, A> {
+        self.0.data_buffer()
+    }
+}
+
+// todo(mb): remove
 impl<T, const A: usize> Deref for FixedSizePrimitiveArray<T, false, A> {
     type Target = Validity<Buffer<T, A>, false>;
 
@@ -41,7 +50,7 @@ macro_rules! impl_primitive {
         #[doc = "Array with ["]
         #[doc = stringify!($ty)]
         #[doc = "] values."]
-        pub type $ident<const N: bool, const A: usize = DEFAULT_ALIGNMENT> =
+        pub type $ident<const N: bool = true, const A: usize = DEFAULT_ALIGNMENT> =
             FixedSizePrimitiveArray<$ty, N, A>;
 
         impl ArrayType for $ty {
@@ -111,7 +120,7 @@ mod tests {
 
         let array = [Some(1u8), None, Some(3), Some(4)]
             .into_iter()
-            .collect::<Uint8Array<true>>();
+            .collect::<Uint8Array>();
         assert_eq!(
             array.into_iter().collect::<Vec<_>>(),
             &[Some(&1), None, Some(&3), Some(&4)]

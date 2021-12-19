@@ -1,17 +1,17 @@
 mod fixed_size_primitive;
 pub use fixed_size_primitive::*;
 
-// mod boolean;
-// pub use boolean::*;
+mod boolean;
+pub use boolean::*;
 
-// mod variable_size_binary;
-// pub use variable_size_binary::*;
+mod variable_size_binary;
+pub use variable_size_binary::*;
 
-// mod string;
-// pub use string::*;
+mod string;
+pub use string::*;
 
-// mod variable_size_list;
-// pub use variable_size_list::*;
+mod variable_size_list;
+pub use variable_size_list::*;
 
 // mod fixed_size_list;
 // pub use fixed_size_list::*;

@@ -1,11 +1,11 @@
 use crate::{
-    BitmapIter, Buffer, DataBuffer, Length, Null, Nullable, Primitive, Validity, ValidityBitmap,
-    DEFAULT_ALIGNMENT,
+    BitmapIter, Buffer, DataBuffer, Length, Null, Nullable, OffsetBuffer, Primitive, Validity,
+    ValidityBitmap, DEFAULT_ALIGNMENT,
 };
 use std::{
     iter::{Map, Skip, Zip},
     num::TryFromIntError,
-    ops::{AddAssign, Deref},
+    ops::AddAssign,
     slice::Iter,
 };
 
@@ -44,6 +44,19 @@ pub struct Offset<T, U, const N: bool, const A: usize = DEFAULT_ALIGNMENT> {
     offset: Validity<Buffer<U, A>, N>,
 }
 
+impl<'a, T, U, const N: bool, const A: usize, const B: usize> Offset<Buffer<T, B>, U, N, A>
+where
+    U: OffsetValue,
+    &'a Self: IntoIterator + 'a,
+{
+    pub fn iter_slice(&'a self) -> OffsetSliceIter<'a, T, <&'a Self as IntoIterator>::IntoIter, N> {
+        OffsetSliceIter {
+            data: &self.inner,
+            offset: self.into_iter(),
+        }
+    }
+}
+
 impl<T, U, const N: bool, const A: usize> Clone for Offset<T, U, N, A>
 where
     T: Clone,
@@ -57,14 +70,22 @@ where
     }
 }
 
-// Deref for Null impl of Validity (for valid data)
-impl<T, U, const A: usize> Deref for Offset<T, U, false, A> {
-    type Target = Validity<Buffer<U, A>, false>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.offset
+impl<T, U, const N: bool, const A: usize, const B: usize> DataBuffer<T, B>
+    for Offset<Buffer<T, B>, U, N, A>
+{
+    fn data_buffer(&self) -> &Buffer<T, B> {
+        &self.inner
     }
 }
+
+// // Deref for Null impl of Validity (for valid data)
+// impl<T, U, const A: usize> Deref for Offset<T, U, false, A> {
+//     type Target = Validity<Buffer<U, A>, false>;
+
+//     fn deref(&self) -> &Self::Target {
+//         &self.offset
+//     }
+// }
 
 impl<T, U, V, const A: usize> FromIterator<V> for Offset<T, U, false, A>
 where
@@ -153,23 +174,39 @@ impl<T, U, const A: usize> Length for Offset<T, U, true, A> {
     }
 }
 
-// deref is blocked because into_iter is weird when bitmap and buffer are
-// different lengths.
-impl<T, U, const A: usize> Null for Offset<T, U, true, A> {
+impl<T, U, const N: bool, const A: usize> Null for Offset<T, U, N, A>
+where
+    Self: Length,
+    Validity<Buffer<U, A>, N>: Null,
+{
     unsafe fn is_valid_unchecked(&self, index: usize) -> bool {
         self.offset.is_valid_unchecked(index)
     }
+}
 
-    fn valid_count(&self) -> usize {
-        self.offset.valid_count()
-    }
+// // deref is blocked because into_iter is weird when bitmap and buffer are
+// // different lengths.
+// impl<T, U, const A: usize> Null for Offset<T, U, true, A> {
+//     unsafe fn is_valid_unchecked(&self, index: usize) -> bool {
+//         self.offset.is_valid_unchecked(index)
+//     }
 
-    fn null_count(&self) -> usize {
-        self.offset.null_count()
+//     fn valid_count(&self) -> usize {
+//         self.offset.valid_count()
+//     }
+
+//     fn null_count(&self) -> usize {
+//         self.offset.null_count()
+//     }
+// }
+
+impl<T, U, const N: bool, const A: usize> OffsetBuffer<U, A> for Offset<T, U, N, A> {
+    fn offset_buffer(&self) -> &Buffer<U, A> {
+        self.offset.data_buffer()
     }
 }
 
-type OffsetIter<'a, T> =
+pub type OffsetIter<'a, T> =
     Map<Zip<Iter<'a, T>, Skip<Iter<'a, T>>>, fn((&'a T, &'a T)) -> (usize, usize)>;
 
 impl<'a, T, U, const A: usize> IntoIterator for &'a Offset<T, U, false, A>
@@ -187,7 +224,7 @@ where
     }
 }
 
-type NullableOffsetIter<'a, T> = Map<
+pub type NullableOffsetIter<'a, T> = Map<
     Zip<Zip<Iter<'a, T>, Skip<Iter<'a, T>>>, BitmapIter<'a>>,
     fn(((&'a T, &'a T), bool)) -> Option<(usize, usize)>,
 >;
@@ -211,213 +248,49 @@ where
     }
 }
 
-// pub struct OffsetsIter<'a, T> {
-//     pos: usize,
-//     offsets: T,
-// }
+pub struct OffsetSliceIter<'a, T, U, const N: bool> {
+    data: &'a [T],
+    offset: U,
+}
 
-// impl<'a, T> Iterator for OffsetsIter<'a, Iter<'a, T>>
-// where
-//     T: OffsetValue<'a>,
-// {
-//     type Item = (usize, usize);
+impl<'a, T, U> Iterator for OffsetSliceIter<'a, T, U, false>
+where
+    U: Iterator<Item = (usize, usize)>,
+{
+    type Item = &'a [T];
 
-//     fn next(&mut self) -> Option<Self::Item> {
-//         self.offsets
-//             .next()
-//             .map(|offset| offset.try_into().unwrap())
-//             .map(|end| {
-//                 let result = (self.pos, end);
-//                 self.pos = end;
-//                 result
-//             })
-//     }
-// }
+    fn next(&mut self) -> Option<Self::Item> {
+        self.offset
+            .next()
+            .map(|(start, end)| &self.data[start..end])
+    }
 
-// impl<'a, T> Iterator for OffsetsIter<'a, NullableIter<'a, T>>
-// where
-//     T: OffsetValue<'a>,
-// {
-//     type Item = Option<(usize, usize)>;
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.offset.size_hint()
+    }
+}
 
-//     fn next(&mut self) -> Option<Self::Item> {
-//         self.offsets
-//             .next()
-//             .map(|(validity, offset)| (validity, offset.try_into().unwrap()))
-//             .map(|(validity, end)| {
-//                 let result = (self.pos, end);
-//                 self.pos = end;
-//                 validity.then(|| result)
-//             })
-//     }
-// }
+impl<'a, T, U> Iterator for OffsetSliceIter<'a, T, U, true>
+where
+    U: Iterator<Item = Option<(usize, usize)>>,
+{
+    type Item = Option<&'a [T]>;
 
-// pub struct OffsetSliceIter<'a, T, U> {
-//     data: &'a [T],
-//     offsets: U,
-// }
+    fn next(&mut self) -> Option<Self::Item> {
+        self.offset
+            .next()
+            .map(|opt| opt.map(|(start, end)| &self.data[start..end]))
+    }
 
-// impl<'a, T, U> Iterator for OffsetSliceIter<'a, T, U>
-// where
-//     U: Iterator<Item = (usize, usize)>,
-// {
-//     type Item = &'a [T];
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         self.offsets
-//             .next()
-//             .map(|(start, end)| &self.data[start..end])
-//     }
-// }
-
-// impl<'a, T, U, const A: usize, const B: usize> IntoIterator
-//     for &'a Offset<Buffer<T, A>, U, false, B>
-// {
-//     type Item = &'a [T];
-//     type IntoIter;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         todo!()
-//     }
-// }
-
-// two types of iterator for offsets:
-// - over slices, used for flat variable size binary and utf8 arrays
-// - over iterators, used for nested lists?
-
-// fn a<'a, T, U>(offset: &'a Offset<T, U, false>) {
-//     let offsets: std::slice::Iter<'a, U> = offset.into_iter();
-// }
-
-// pub struct OffsetSliceIter<T, U, V, const N: bool>
-// where
-//     T: AsRef<[U]>,
-// {
-//     inner: T,
-//     offsets: V,
-// }
-
-// pub struct OffsetIter<T, U, const N: bool> {
-//     inner: T,
-//     offsets:
-// }
-
-// /// Iterator over offsets values of variable sized arrays.
-// pub struct OffsetIter<T, const N: bool> {
-//     pos: Option<usize>,
-//     iter: T,
-// }
-
-// impl<'a, T> Iterator for OffsetIter<Copied<Iter<'a, T>>, false>
-// where
-//     T: OffsetValue,
-// {
-//     type Item = (usize, usize);
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         // Empty offset array?
-//         self.pos.and(
-//             self.iter
-//                 .next()
-//                 .map(|offset| offset.try_into().unwrap())
-//                 .map(|end| {
-//                     let result = (self.pos.unwrap(), end);
-//                     self.pos = Some(end);
-//                     result
-//                 }),
-//         )
-//     }
-
-//     fn size_hint(&self) -> (usize, Option<usize>) {
-//         self.iter.size_hint()
-//     }
-// }
-
-// impl<'a, T> Iterator for OffsetIter<Zip<BitmapIter<'a>, Copied<Iter<'a, T>>>, true>
-// where
-//     T: OffsetValue,
-// {
-//     type Item = Option<(usize, usize)>;
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         self.pos.and(
-//             self.iter
-//                 .next()
-//                 .map(|(validity, offset)| (validity, offset.try_into().unwrap()))
-//                 .map(|(validity, end)| {
-//                     let result = (self.pos.unwrap(), end);
-//                     self.pos = Some(end);
-//                     match validity {
-//                         true => Some(result),
-//                         false => None,
-//                     }
-//                 }),
-//         )
-//     }
-
-//     fn size_hint(&self) -> (usize, Option<usize>) {
-//         self.iter.size_hint()
-//     }
-// }
-
-// impl<'a, T> IntoIterator for &'a Offset<T, false>
-// where
-//     T: OffsetValue,
-// {
-//     type Item = (usize, usize);
-//     type IntoIter = OffsetIter<Copied<Iter<'a, T>>, false>;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         let mut iter = self.0.into_iter();
-//         OffsetIter {
-//             pos: iter.next().map(|offset| offset.try_into().unwrap()),
-//             iter,
-//         }
-//     }
-// }
-
-// impl<'a, T> IntoIterator for &'a Offset<T, true>
-// where
-//     T: OffsetValue,
-// {
-//     type Item = Option<(usize, usize)>;
-//     type IntoIter = OffsetIter<Zip<BitmapIter<'a>, Copied<Iter<'a, T>>>, true>;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         let validity = self.0.validity().into_iter();
-//         let mut offsets = self.0.data().into_iter();
-//         let pos = offsets.next().map(|offset| offset.try_into().unwrap());
-//         let iter = validity.zip(offsets);
-//         OffsetIter { pos, iter }
-//     }
-// }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.offset.size_hint()
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{Null, Uint8Array};
-
-    // #[test]
-    // fn array_data() {
-    //     let offset: Offset<i64, false> = [1, 2, 3, 4].into_iter().collect();
-    //     assert_eq!(offset.len(), 5); // 5 is correct here because the offset stores an additional value
-    //     assert_eq!(offset.is_null(0), Some(false));
-    //     assert_eq!(offset.null_count(), 0);
-    //     assert_eq!(offset.is_valid(0), Some(true));
-    //     assert_eq!(offset.valid_count(), 5);
-
-    //     let offset: Offset<i32, true> = [Some(3), None, Some(4), Some(0)].into_iter().collect();
-    //     assert_eq!(offset.len(), 5);
-    //     assert_eq!(offset.is_null(0), Some(false));
-    //     assert_eq!(offset.is_null(1), Some(true));
-    //     assert_eq!(offset.is_null(2), Some(false));
-    //     assert_eq!(offset.is_null(3), Some(false));
-    //     assert_eq!(offset.is_null(4), None);
-    //     assert_eq!(offset.null_count(), 1);
-    //     assert_eq!(offset.is_valid(0), Some(true));
-    //     assert_eq!(offset.is_valid(1), Some(false));
-    //     assert_eq!(offset.valid_count(), 3);
-    // }
 
     #[test]
     fn from_iter() {
@@ -450,31 +323,11 @@ mod tests {
         ]
         .into_iter()
         .collect();
-        // todo(mb): this is not what we want, we want to override the iterator impl in offset
-        // we need to prevent the into iterator impl from the deref target (by default)
-        // this is the motivation to make those apis private.
-        // or maybe remove the deref impl for nullable variable width?
-        // assert_eq!(
-        //     &offset.offset.into_iter().collect::<Vec<_>>(),
-        //     &[
-        //         Some(&0),
-        //         Some(&1),
-        //         Some(&1),
-        //         Some(&1),
-        //         Some(&3),
-        //         Some(&6),
-        //         Some(&10)
-        //     ]
-        // );
-        // but this can't be used because offset is private field and I removed the deref impl.
         assert_eq!(offset.is_valid(0), Some(true));
         assert_eq!(offset.is_null(1), Some(true));
         assert_eq!(offset.is_null(2), Some(true));
         assert_eq!(offset.is_valid(3), Some(true));
         assert_eq!(offset.len(), 6);
-
-        // let offset: Offset<i32, true> = [Some(3), None, Some(4), Some(0)].into_iter().collect();
-        // assert_eq!(&offset.offset[..], &[0, 3, 3, 7, 7]);
     }
 
     #[test]
@@ -499,6 +352,43 @@ mod tests {
         assert_eq!(
             offsets,
             vec![Some((0, 3)), None, Some((3, 7)), None, Some((7, 7))]
+        );
+    }
+
+    #[test]
+    fn iter_slice() {
+        let offset: Offset<Buffer<u8>, i64, false> =
+            [vec![1], vec![2, 3], vec![3, 4, 5], vec![4, 5, 6, 7]]
+                .into_iter()
+                .collect();
+        let mut iter = offset.iter_slice();
+        assert_eq!(iter.next(), Some([1u8].as_slice()));
+        assert_eq!(iter.next(), Some([2u8, 3].as_slice()));
+        assert_eq!(iter.next(), Some([3u8, 4, 5].as_slice()));
+        assert_eq!(iter.next(), Some([4u8, 5, 6, 7].as_slice()));
+        assert_eq!(iter.next(), None);
+
+        let offset: Offset<Buffer<u8>, i32, true> = [
+            Some(vec![1, 2, 3]),
+            None,
+            Some(vec![1, 2, 3, 4]),
+            None,
+            Some(vec![]),
+        ]
+        .into_iter()
+        .collect();
+        let mut iter = offset.iter_slice();
+        assert_eq!(iter.next(), Some(Some([1u8, 2, 3].as_slice())));
+        assert_eq!(iter.next(), Some(None));
+        assert_eq!(iter.next(), Some(Some([1u8, 2, 3, 4].as_slice())));
+        assert_eq!(iter.next(), Some(None));
+        assert_eq!(iter.next(), Some(Some([].as_slice())));
+        assert_eq!(iter.next(), None);
+        assert_eq!(
+            offset
+                .iter_slice()
+                .collect::<Offset<Buffer<u8>, i32, true>>(),
+            offset
         );
     }
 }

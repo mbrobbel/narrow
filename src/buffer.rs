@@ -281,6 +281,18 @@ where
     }
 }
 
+impl<'a, T, const A: usize> FromIterator<&'a T> for Buffer<T, A>
+where
+    T: Primitive + 'a,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = &'a T>,
+    {
+        iter.into_iter().copied().collect()
+    }
+}
+
 impl<T, const A: usize> FromIterator<T> for Buffer<T, A>
 where
     T: Primitive,
