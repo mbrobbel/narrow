@@ -1,27 +1,40 @@
-use crate::{
-    Bitmap, BitmapIter, Buffer, DataBuffer, Length, Null, ValidityBitmap, DEFAULT_ALIGNMENT,
+use crate::{Bitmap, BitmapIter, Buffer, DataBuffer, Length, Null, Primitive, ValidityBitmap};
+use std::{
+    iter::{Map, Zip},
+    ops::{Deref, Index},
 };
-use std::iter::{Map, Zip};
 
 /// Wrapper for nullable data.
 ///
 /// Allocates a validity [Bitmap] that stores a single bit per value in `T`
 /// that indicates the nullness or non-nullness of that value.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-pub struct Nullable<T, const A: usize = DEFAULT_ALIGNMENT> {
+pub struct Nullable<T> {
     data: T,
-    validity: Bitmap<A>,
+    validity: Bitmap,
 }
 
-impl<T, const A: usize> Nullable<T, A> {
+impl<T> Nullable<T>
+where
+    T: Deref,
+    T::Target: Index<usize>,
+    <<T as Deref>::Target as Index<usize>>::Output: Copy,
+{
+    pub fn get(&self, index: usize) -> Option<<<T as Deref>::Target as Index<usize>>::Output> {
+        self.is_valid(index)
+            .and_then(|valid| valid.then(|| self.data[index]))
+    }
+}
+
+impl<T> Nullable<T> {
     /// # Safety
     /// Caller must ensure: todo(mb)
-    pub unsafe fn from_raw_parts(data: T, validity: Bitmap<A>) -> Self {
+    pub unsafe fn from_raw_parts(data: T, validity: Bitmap) -> Self {
         Self { data, validity }
     }
 }
 
-impl<T, const A: usize> Null for Nullable<T, A> {
+impl<T> Null for Nullable<T> {
     unsafe fn is_valid_unchecked(&self, index: usize) -> bool {
         self.validity.is_valid_unchecked(index)
     }
@@ -73,7 +86,7 @@ pub type NullableIter<'a, T> = Map<
     fn((bool, <&'a T as IntoIterator>::Item)) -> Option<<&'a T as IntoIterator>::Item>,
 >;
 
-impl<'a, T, const A: usize> IntoIterator for &'a Nullable<T, A>
+impl<'a, T> IntoIterator for &'a Nullable<T>
 where
     &'a T: IntoIterator,
 {
@@ -88,7 +101,7 @@ where
     }
 }
 
-impl<T, U, const A: usize> FromIterator<Option<U>> for Nullable<T, A>
+impl<T, U> FromIterator<Option<U>> for Nullable<T>
 where
     T: FromIterator<U>,
     U: Default,
@@ -117,22 +130,29 @@ where
     }
 }
 
-impl<T, const A: usize> Length for Nullable<T, A> {
+impl<T> Length for Nullable<T> {
     fn len(&self) -> usize {
         self.validity.len()
     }
 }
 
-impl<T, const A: usize, const B: usize> DataBuffer<T, A> for Nullable<Buffer<T, A>, B> {
-    fn data_buffer(&self) -> &Buffer<T, A> {
+impl<T> DataBuffer<T> for Nullable<Buffer<T>>
+where
+    T: Primitive,
+{
+    fn data_buffer(&self) -> &Buffer<T> {
         &self.data
     }
 }
 
-// todo for bitmap? data?
+impl DataBuffer<u8> for Nullable<Bitmap> {
+    fn data_buffer(&self) -> &Buffer<u8> {
+        &self.data.data_buffer()
+    }
+}
 
-impl<T, const A: usize> ValidityBitmap<A> for Nullable<T, A> {
-    fn validity_bitmap(&self) -> &Bitmap<A> {
+impl<T> ValidityBitmap for Nullable<T> {
+    fn validity_bitmap(&self) -> &Bitmap {
         &self.validity
     }
 }

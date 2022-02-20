@@ -1,13 +1,32 @@
-use crate::{Bitmap, Buffer};
+use crate::{Bitmap, Buffer, BufferMut, Primitive};
 
-pub trait ValidityBitmap<const A: usize> {
-    fn validity_bitmap(&self) -> &Bitmap<A>;
+pub trait ValidityBitmap<T>
+where
+    T: Buffer<u8>,
+{
+    fn validity_bitmap(&self) -> &Bitmap<T>;
 }
 
-pub trait DataBuffer<T, const A: usize> {
-    fn data_buffer(&self) -> &Buffer<T, A>;
+pub trait DataBuffer<T>
+where
+    T: Primitive,
+{
+    type Buffer: Buffer<T>;
+    fn data_buffer(&self) -> &Self::Buffer;
 }
 
-pub trait OffsetBuffer<T, const A: usize> {
-    fn offset_buffer(&self) -> &Buffer<T, A>;
+pub trait DataBufferMut<T>
+where
+    T: Primitive,
+{
+    type Buffer: BufferMut<T>;
+    fn data_buffer_mut(&mut self) -> &mut Self::Buffer;
+}
+
+pub trait OffsetBuffer<T>
+where
+    T: Primitive,
+{
+    type Buffer: Buffer<T>;
+    fn offset_buffer(&self) -> &Self::Buffer;
 }

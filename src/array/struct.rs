@@ -36,7 +36,9 @@ where
     Validity<<T as StructArrayType>::Array, N>: Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("StructArray").field(&self.0).finish()
+        f.debug_tuple(&format!("StructArray<{}>", any::type_name::<T>()))
+            .field(&self.0)
+            .finish()
     }
 }
 

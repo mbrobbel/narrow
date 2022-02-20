@@ -86,7 +86,10 @@ where
     }
 }
 
-impl<T: Length, const A: usize> Null for Validity<T, true, A> {
+impl<T, const A: usize> Null for Validity<T, true, A>
+where
+    T: Length,
+{
     unsafe fn is_valid_unchecked(&self, index: usize) -> bool {
         self.deref().is_valid_unchecked(index)
     }
@@ -100,7 +103,10 @@ impl<T: Length, const A: usize> Null for Validity<T, true, A> {
     }
 }
 
-impl<T: Length, const A: usize> Null for Validity<T, false, A> {
+impl<T, const A: usize> Null for Validity<T, false, A>
+where
+    T: Length,
+{
     unsafe fn is_valid_unchecked(&self, _index: usize) -> bool {
         true
     }

@@ -8,8 +8,12 @@ pub trait Null: Length {
         self.is_valid(index).map(Not::not)
     }
 
+    /// Returns `true` if the element at position `index` is null, without performing any bounds checking.
+    ///
     /// # Safety
-    /// todo(mb)
+    /// - The `index` must be in bounds.
+    /// 
+    /// Calling this method with an out-of-bounds index is undefined behavior.
     unsafe fn is_null_unchecked(&self, index: usize) -> bool {
         !self.is_valid_unchecked(index)
     }
@@ -24,8 +28,12 @@ pub trait Null: Length {
         (index < self.len()).then(|| unsafe { self.is_valid_unchecked(index)})
     }
 
+    /// Returns `true` if the element at position `index` is valid, without performing any bounds checking.
+    ///
     /// # Safety
-    /// todo(mb)
+    /// - The `index` must be in bounds.
+    /// 
+    /// Calling this method with an out-of-bounds index is undefined behavior.
     unsafe fn is_valid_unchecked(&self, index: usize) -> bool;
 
     /// Returns the number of valid elements.

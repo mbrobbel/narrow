@@ -1,17 +1,17 @@
-mod fixed_size_primitive;
-pub use fixed_size_primitive::*;
+// mod fixed_size_primitive;
+// pub use fixed_size_primitive::*;
 
-mod boolean;
-pub use boolean::*;
+// mod boolean;
+// pub use boolean::*;
 
-mod variable_size_binary;
-pub use variable_size_binary::*;
+// mod variable_size_binary;
+// pub use variable_size_binary::*;
 
-mod string;
-pub use string::*;
+// mod string;
+// pub use string::*;
 
-mod variable_size_list;
-pub use variable_size_list::*;
+// mod variable_size_list;
+// pub use variable_size_list::*;
 
 // mod fixed_size_list;
 // pub use fixed_size_list::*;
@@ -22,27 +22,40 @@ pub use variable_size_list::*;
 // mod union;
 // pub use union::*;
 
-// mod null;
-// pub use null::*;
+mod null;
+pub use null::*;
+
+use crate::{Length, Null};
 
 // mod dictionary;
 // pub use dictionary::*;
 
-pub trait Array {
-    type Item<'a>;
+/// A sequence of values with known length all having the same type.
+pub trait Array
+where
+    Self: Length + Null,
+{
+    type Item<'a>: ArrayType
+    where
+        Self: 'a;
+
+    // fn get(&self, index: usize) -> Option<<Self::Item<'_> as ArrayType>::RefItem<'_>>;
 }
 
+/// A type that can be stored in an [Array].
 pub trait ArrayType {
-    type Item<'a>;
-    type Array<T, const N: bool, const A: usize>;
+    // type Item<'a>; = Self;
+    type RefItem<'a>;
+    type Array<T, const N: bool>;
 }
 
 impl<T> ArrayType for Option<T>
 where
     T: ArrayType,
 {
-    type Item<'a> = Option<T::Item<'a>>;
-    type Array<U, const N: bool, const A: usize> = T::Array<U, true, A>;
+    // type Item<'a> = Option<T::Item<'a>>;
+    type RefItem<'a> = Option<T::RefItem<'a>>;
+    type Array<U, const N: bool> = T::Array<U, true>;
 }
 
 // pub struct BooleanArray<const N: bool> {}

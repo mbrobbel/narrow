@@ -5,9 +5,9 @@ use std::ops::Deref;
 
 /// Array with primitive values.
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub struct FixedSizePrimitiveArray<T, const N: bool = true, const A: usize = DEFAULT_ALIGNMENT>(
-    Validity<Buffer<T, A>, N>,
-);
+pub struct FixedSizePrimitiveArray<T, U, const N: bool = true>(Validity<U, N>)
+where
+    U: Buffer<T>;
 
 impl<T, const N: bool, const A: usize> Array for FixedSizePrimitiveArray<T, N, A> {
     type Item<'a> = T;

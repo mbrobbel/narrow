@@ -215,3 +215,38 @@ where:
     Bar: <(T) as narrow::ArrayType>::Array,
 }
 ```
+
+### Brain dump for ItemRef
+
+```rust
+struct Foo {
+    a: String,
+    b: u64,
+}
+
+pub struct FooArray {
+    a: <String as ArrayType>::Array,
+    b: <u64 as ArrayType>::Array,
+}
+
+impl ArrayType for Foo {
+    type Item<'a> = Foo;  // FromIterator<Foo>
+    type ItemRef<'a> = FooRef<'a>; // How to iterate over this: IntoIterator<FooRef<'a>> for &'a FooArray
+    type Array<T, const N: bool> = StructArray<Foo, N>; // does this work?
+}
+
+struct Bar {
+    x: Option<Foo>
+}
+
+// We need some additional Ref types for zero-copy iteration over these structures stored in arrow arrays
+
+struct FooRef<'a> {
+    a: <String as ArrayType>::ItemRef<'a>, // this should be: &'a str,
+    b: <u64 as ArrayType>::ItemRef<'a>, // this should be: &'a u64,
+}
+
+struct Bar<'a> {
+    x: <Option<Foo> as ArrayType>::ItemRef<'a>, // this should be: Option<FooRef<'a>>
+}
+```

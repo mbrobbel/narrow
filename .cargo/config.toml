@@ -1,0 +1,3 @@
+[build]
+# rustflags = ["-C", "llvm-args=--pass-remarks=.*vector.* --pass-remarks-analysis=.*vector.*"]
+# rustflags = "-C target-cpu=native"

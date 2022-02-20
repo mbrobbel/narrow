@@ -1,4 +1,4 @@
-use crate::{Array, ArrayType, Length, Offset, OffsetValue, DEFAULT_ALIGNMENT};
+use crate::{Array, ArrayType, Length, Offset, DEFAULT_ALIGNMENT};
 
 /// Array with variable-sized lists of other arrays.
 ///
@@ -54,7 +54,6 @@ where
 
 impl<T, U, V, const N: bool, const A: usize> FromIterator<V> for VariableSizeListArray<T, U, N, A>
 where
-    U: OffsetValue,
     Offset<T, U, N, A>: FromIterator<V>,
 {
     fn from_iter<I>(iter: I) -> Self

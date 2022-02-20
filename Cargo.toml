@@ -6,20 +6,24 @@ edition = "2021"
 # rust-version = "1.56.1" - nightly
 description = "An implementation of Apache Arrow"
 readme = "README.md"
-repository = "https://github.com/teratide/narrow"
+repository = "https://github.com/mbrobbel/narrow"
 documentation = "http://docs.rs/narrow/"
 license = "Apache-2.0 OR MIT"
 keywords = ["Arrow"]
 categories = ["data-structures"]
 
 [features]
-default = []
+default = ["trusted_len"]
+trusted_len = []
 
 [dependencies]
 # narrow-derive = { version = "0.1.0", path = "narrow-derive" }
 
 [dev-dependencies]
+arrow2 = "0.9"
+bitvec = "1"
 criterion = "0.3"
+rand = "0.8"
 
 [profile.release]
 lto = true
