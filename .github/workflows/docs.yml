@@ -11,7 +11,7 @@ jobs:
       - uses: actions-rs/toolchain@v1.0.7
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: nightly
           override: true
       - uses: actions-rs/cargo@v1.0.3
         with:
@@ -29,11 +29,11 @@ jobs:
     needs: [rustdoc]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-    - uses: actions/download-artifact@v2
-      with:
-        name: rustdoc
-        path: public
-    - uses: peaceiris/actions-gh-pages@v3.8.0
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        force_orphan: true
+      - uses: actions/download-artifact@v2
+        with:
+          name: rustdoc
+          path: public
+      - uses: peaceiris/actions-gh-pages@v3.8.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          force_orphan: true

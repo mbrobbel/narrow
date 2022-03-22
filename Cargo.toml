@@ -1,26 +1,29 @@
 [package]
 name = "narrow"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Matthijs Brobbel <m1brobbel@gmail.com>"]
 edition = "2021"
-rust-version = "1.56.1"
+# rust-version = "nightly"
 description = "An implementation of Apache Arrow"
 readme = "README.md"
-repository = "https://github.com/teratide/narrow"
+repository = "https://github.com/mbrobbel/narrow"
 documentation = "http://docs.rs/narrow/"
 license = "Apache-2.0 OR MIT"
 keywords = ["Arrow"]
 categories = ["data-structures"]
 
 [features]
-default = []
+default = ["nightly"]
+nightly = ["extend_one", "simd"]
+extend_one = []
+simd = []
 
 [dependencies]
-narrow-derive = { version = "0.1.0", path = "narrow-derive" }
-paste = "1"
+# narrow-derive = { version = "0.2.0", path = "narrow-derive" }
 
 [dev-dependencies]
 criterion = "0.3"
+rand = "0.8"
 
 [profile.release]
 lto = true

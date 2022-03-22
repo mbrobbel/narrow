@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-    - '**'
+      - "**"
 
 jobs:
   github:
@@ -12,17 +12,17 @@ jobs:
     permissions:
       contents: write
     steps:
-    - uses: softprops/action-gh-release@v0.1.7
+      - uses: softprops/action-gh-release@v0.1.7
 
   crates:
     name: Crates.io
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2.4.0
-    - uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-    - uses: katyo/publish-crates@v1
-      with:
-        registry-token: ${{ secrets.CRATES_IO_TOKEN }}
+      - uses: actions/checkout@v2.4.0
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+      - uses: katyo/publish-crates@v1
+        with:
+          registry-token: ${{ secrets.CRATES_IO_TOKEN }}

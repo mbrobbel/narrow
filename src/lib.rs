@@ -2,29 +2,24 @@
 //!
 //! An implementation of [Apache Arrow](https://arrow.apache.org).
 
+#![deny(warnings)]
+#![feature(generic_associated_types)]
+#![cfg_attr(feature = "extend_one", feature(extend_one))]
+#![cfg_attr(feature = "simd", feature(portable_simd))]
+
 mod primitive;
-pub use primitive::*;
+pub use primitive::Primitive;
 
-mod buffer;
-pub use buffer::*;
+mod length;
+pub use length::Length;
 
-mod bitmap;
-pub use bitmap::*;
+mod null;
+pub use null::Null;
 
-mod nullable;
-pub use nullable::*;
+mod buffers;
+pub use buffers::*;
 
-mod validity;
-pub use validity::*;
-
-mod offset;
-pub use offset::*;
-
-mod array;
-pub use array::*;
-
-// Export derive macro(s).
-pub use narrow_derive::*;
-
-// Allow writing derive macro tests in this crate.
-extern crate self as narrow;
+pub mod bitmap;
+pub mod buffer;
+pub mod nullable;
+pub mod offset;
