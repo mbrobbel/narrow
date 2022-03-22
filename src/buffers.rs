@@ -1,4 +1,11 @@
-use crate::{Bitmap, Buffer, BufferMut, Primitive};
+//! Traits for Arrow memory buffers.
+
+use crate::{
+    bitmap::Bitmap,
+    buffer::{Buffer, BufferMut},
+    offset::OffsetValue,
+    Primitive,
+};
 
 pub trait ValidityBitmap<T>
 where
@@ -25,7 +32,7 @@ where
 
 pub trait OffsetBuffer<T>
 where
-    T: Primitive,
+    T: OffsetValue,
 {
     type Buffer: Buffer<T>;
     fn offset_buffer(&self) -> &Self::Buffer;

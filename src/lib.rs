@@ -3,45 +3,39 @@
 //! An implementation of [Apache Arrow](https://arrow.apache.org).
 
 #![feature(generic_associated_types)]
-#![feature(new_uninit)]
-#![cfg(feature = "trusted_len")]
-#![feature(trusted_len)]
+#![cfg_attr(feature = "extend_one", feature(extend_one))]
+#![cfg_attr(feature = "simd", feature(portable_simd))]
 
 mod primitive;
-pub use primitive::*;
+pub use primitive::Primitive;
 
 mod length;
-pub use length::*;
+pub use length::Length;
 
-mod buffer;
-pub use buffer::*;
-
-mod fmt;
-pub(crate) use fmt::*;
-
-mod iter;
-pub use iter::*;
-
-mod bitmap;
-pub use bitmap::*;
+mod null;
+pub use null::Null;
 
 mod buffers;
 pub use buffers::*;
 
-mod null;
-pub use null::*;
+// pub mod array;
+pub mod bitmap;
+pub mod buffer;
+pub mod nullable;
+pub mod offset;
 
-// mod nullable;
-// pub use nullable::*;
+// sorted<T> - just a wrapper
+// impl min/max etc
+// impl reverse for sorted
+
+// nullinfo<T> - wrapper + some data i.e. counts
+// impl null for nullinfo (e.g. short-circuit counts)
 
 // mod validity;
 // pub use validity::*;
 
-// mod offset;
-// pub use offset::*;
-
-mod array;
-pub use array::*;
+// mod array;
+// pub use array::*;
 
 // mod compute;
 // pub use compute::*;

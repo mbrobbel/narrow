@@ -1,3 +1,5 @@
+//! Validity of array data.
+
 use crate::{Buffer, DataBuffer, Length, Null, Nullable, DEFAULT_ALIGNMENT};
 use std::{hint::unreachable_unchecked, ops::Deref};
 

@@ -13,14 +13,17 @@ keywords = ["Arrow"]
 categories = ["data-structures"]
 
 [features]
-default = ["trusted_len"]
-trusted_len = []
+default = ["nightly"]
+nightly = ["extend_one", "simd"]
+
+extend_one = []
+simd = []
 
 [dependencies]
 # narrow-derive = { version = "0.1.0", path = "narrow-derive" }
 
 [dev-dependencies]
-arrow2 = "0.9"
+arrow2 = { version = "0.10", features = ["simd"] }
 bitvec = "1"
 criterion = "0.3"
 rand = "0.8"

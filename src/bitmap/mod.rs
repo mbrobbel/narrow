@@ -1,17 +1,23 @@
+//! A collection of bits.
+
+use self::{
+    fmt::BitsDisplayExt,
+    iter::{BitPackedExt, BitUnpackedExt, BitmapIter},
+};
 use crate::{
-    iter::{BitUnpacked, BitUnpackedExt},
-    BitPackedExt, BitsDisplayExt, Buffer, BufferAlloc, BufferMut, DataBuffer, DataBufferMut,
-    Length, Null,
+    buffer::{Buffer, BufferAlloc, BufferExtend, BufferMut},
+    DataBuffer, DataBufferMut, Length, Null,
 };
 use std::{
     any,
     fmt::{Debug, Formatter, Result},
-    iter::Take,
     ops::Index,
-    slice,
 };
 
-/// An immutable collection of bits.
+pub mod fmt;
+pub mod iter;
+
+/// A collection of bits.
 ///
 /// The validity bits are stored LSB-first in the bytes of a [Buffer].
 #[derive(Clone, Default, PartialEq, Eq)]
@@ -96,6 +102,7 @@ impl<T> Null for Bitmap<T>
 where
     T: Buffer<u8>,
 {
+    #[inline]
     unsafe fn is_valid_unchecked(&self, index: usize) -> bool {
         let byte_index = index / 8;
         let bit_index = index % 8;
@@ -126,6 +133,28 @@ where
     }
 }
 
+impl<T> Extend<bool> for Bitmap<T>
+where
+    T: BufferExtend<u8>,
+{
+    fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = bool>,
+    {
+        todo!()
+    }
+
+    #[cfg(feature = "extend_one")]
+    fn extend_one(&mut self, item: bool) {
+        self.extend(Some(item));
+    }
+
+    #[cfg(feature = "extend_one")]
+    fn extend_reserve(&mut self, additional: usize) {
+        self.buffer.extend_reserve(additional / 8)
+    }
+}
+
 impl<T> FromIterator<bool> for Bitmap<T>
 where
     T: BufferAlloc<u8>,
@@ -135,7 +164,7 @@ where
         I: IntoIterator<Item = bool>,
     {
         let mut bits = 0;
-        let buffer = iter
+        let buffer: T = iter
             .into_iter()
             .inspect(|_| {
                 // Track the number of bits.
@@ -194,12 +223,6 @@ where
         }
     }
 }
-
-/// An iterator over the bits in a Bitmap.
-///
-/// This iterator returns boolean values that represent the bits stored in a
-/// Bitmap.
-pub type BitmapIter<'a> = Take<BitUnpacked<slice::Iter<'a, u8>, &'a u8>>;
 
 impl<'a, T> IntoIterator for &'a Bitmap<T>
 where

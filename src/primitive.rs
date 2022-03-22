@@ -19,8 +19,8 @@ impl Primitive for u32 {}
 impl Primitive for u64 {}
 impl Primitive for f32 {}
 impl Primitive for f64 {}
-impl Primitive for isize {}
-impl Primitive for usize {}
+// impl Primitive for isize {}
+// impl Primitive for usize {}
 
 // Sealed traits.
 mod sealed {

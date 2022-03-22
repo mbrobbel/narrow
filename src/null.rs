@@ -1,7 +1,7 @@
 use crate::Length;
 use std::ops::Not;
 
-/// Null-ness of elements in collections.
+/// Null-ness of elements in a collection.
 pub trait Null: Length {
     /// Returns `true` if the element at position `index` is null.
     fn is_null(&self, index: usize) -> Option<bool> {

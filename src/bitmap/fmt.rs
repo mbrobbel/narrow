@@ -1,7 +1,7 @@
-use crate::Buffer;
+use crate::buffer::Buffer;
 use std::fmt::{Display, Formatter, Result};
 
-/// A slice wrapper with a [Binary] implementation to format bytes as bits.
+/// A slice wrapper with a [Display] implementation to format bytes as bits.
 pub(crate) struct BitsDisplay<'a>(&'a [u8]);
 
 impl Display for BitsDisplay<'_> {

@@ -1,4 +1,4 @@
-/// The length of collections.
+/// The length of a collection.
 pub trait Length {
     /// Returns the number of elements in the collection, also referred to as its length.
     fn len(&self) -> usize;
