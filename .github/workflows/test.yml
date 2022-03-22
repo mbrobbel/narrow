@@ -99,8 +99,8 @@ jobs:
     name: Coverage
     runs-on: ubuntu-latest
     env:
-      RUSTFLAGS: "-Zinstrument-coverage"
-      RUSTDOCFLAGS: "-Zinstrument-coverage"
+      RUSTFLAGS: "-C instrument-coverage"
+      RUSTDOCFLAGS: "-C instrument-coverage"
     steps:
       - uses: actions/checkout@v2.4.0
       - uses: actions-rs/toolchain@v1.0.7
