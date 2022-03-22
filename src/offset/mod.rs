@@ -5,8 +5,7 @@ use std::{num::TryFromIntError, ops::AddAssign};
 
 /// Types representing offset values.
 ///
-/// Values with these types can be used to represent offset values in an
-/// [Offset].
+/// Values with these types can be used to represent offset values.
 ///
 /// This trait is sealed to prevent downstream implementations.
 pub trait OffsetValue:
