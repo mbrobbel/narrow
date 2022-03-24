@@ -22,31 +22,9 @@ jobs:
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: narrow
-          tool: "cargo"
+          tool: cargo
           output-file-path: output.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          comment-on-alert: true
-      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v2
-        with:
-          name: bench
-          path: output.txt
-
-  deploy:
-    name: Deploy
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [run]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v2
-        with:
-          name: bench
-      - uses: benchmark-action/github-action-benchmark@v1
-        with:
-          name: narrow
-          tool: "cargo"
-          output-file-path: output.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
+          auto-push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           comment-on-alert: true
           alert-comment-cc-users: "@mbrobbel"
