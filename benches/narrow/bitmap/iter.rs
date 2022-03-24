@@ -8,7 +8,7 @@ pub(super) fn bench(c: &mut Criterion) {
         let mut rng = StdRng::seed_from_u64(1234);
 
         for size in [12345] {
-            for null_fraction in [0., 0.1, 0.5, 0.9, 1.] {
+            for null_fraction in [0., 0.5, 1.] {
                 let input = (0..size)
                     .into_iter()
                     .map(|_| rng.gen_bool(1. - null_fraction))
@@ -28,7 +28,7 @@ pub(super) fn bench(c: &mut Criterion) {
         let mut rng = StdRng::seed_from_u64(1234);
 
         for size in [12345] {
-            for null_fraction in [0., 0.1, 0.5, 0.9, 1.] {
+            for null_fraction in [0., 0.5, 1.] {
                 let input = (0..size)
                     .into_iter()
                     .map(|_| rng.gen_bool(1. - null_fraction))
