@@ -18,8 +18,7 @@ jobs:
           toolchain: nightly
           override: true
       - run: cargo bench --bench narrow -- --output-format=bencher | tee output.txt
-      - if: github.event_name == 'pull_request'
-        uses: benchmark-action/github-action-benchmark@v1
+      - uses: benchmark-action/github-action-benchmark@v1
         with:
           name: narrow
           tool: cargo
