@@ -1,3 +1,3 @@
 var N = null;var sourcesIndex = {};
-sourcesIndex["narrow"] = {"name":"","dirs":[{"name":"array","files":["boolean.rs","dictionary.rs","fixed_size_list.rs","fixed_size_primitive.rs","mod.rs","null.rs","string.rs","struct.rs","union.rs","variable_size_binary.rs","variable_size_list.rs"]}],"files":["bitmap.rs","buffer.rs","lib.rs","nullable.rs","offset.rs","primitive.rs","validity.rs"]};
+sourcesIndex["narrow"] = {"name":"","dirs":[{"name":"bitmap","files":["fmt.rs","iter.rs","mod.rs"]},{"name":"nullable","files":["mod.rs"]},{"name":"offset","files":["mod.rs"]}],"files":["buffer.rs","buffers.rs","length.rs","lib.rs","null.rs","primitive.rs"]};
 createSourceSidebar();

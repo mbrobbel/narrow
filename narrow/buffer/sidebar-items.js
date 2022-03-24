@@ -1,0 +1,1 @@
+initSidebarItems({"trait":[["Buffer","A contiguous immutable memory buffer for data."],["BufferAlloc","An allocatable contiguous memory buffer for data."],["BufferExtend","An extendable contiguous memory buffer for data."],["BufferMut","A contiguous mutable memory buffer for data."]]});

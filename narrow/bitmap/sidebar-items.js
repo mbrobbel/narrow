@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["fmt",""],["iter",""]],"struct":[["Bitmap","A collection of bits."]]});

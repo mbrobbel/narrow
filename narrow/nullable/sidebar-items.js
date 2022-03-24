@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Nullable","Wrapper for nullable data."]]});
