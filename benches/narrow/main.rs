@@ -1,11 +1,11 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 
-mod array;
+mod bitmap;
 
 criterion_group! {
   name = narrow;
   config = Criterion::default();
   targets =
-    array::bench
+    bitmap::bench
 }
 criterion_main!(narrow);
