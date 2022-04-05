@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1649190743104,
+  "lastUpdate": 1649191782481,
   "repoUrl": "https://github.com/mbrobbel/narrow",
   "entries": {
     "narrow": [
@@ -59,6 +59,66 @@ window.BENCHMARK_DATA = {
             "name": "Bitmap::into_iter/narrow/12345/1",
             "value": 15481,
             "range": "± 341",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "26634292+bors[bot]@users.noreply.github.com",
+            "name": "bors[bot]",
+            "username": "bors[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "17060f6863cbabbaa3871288218306cc1d087a08",
+          "message": "Merge #31\n\n31: Keep benchmark data when deploying docs r=mbrobbel a=mbrobbel\n\nCurrently the doc deploy [removes the bench data](https://github.com/mbrobbel/narrow/commit/271063ad76ba1ec888c8cd3c43554c9b44ce5fb3#diff-3089b146cea15f1c76bbdc5e356539ecf051e7e052c03083da42ff2c7151a718). By setting `keep_files: true` this should no longer happen. An uninteded side-effect is that outdated doc output is not removed, but we can always add a workaround when that becomes a problem.\n\nCo-authored-by: Matthijs Brobbel <m1brobbel@gmail.com>",
+          "timestamp": "2022-04-05T20:43:14Z",
+          "tree_id": "0aceeaf4c20cd035958006013e1dd3bd7e25798b",
+          "url": "https://github.com/mbrobbel/narrow/commit/17060f6863cbabbaa3871288218306cc1d087a08"
+        },
+        "date": 1649191781483,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "Bitmap::from_iter/narrow/12345/0",
+            "value": 7802,
+            "range": "± 423",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::from_iter/narrow/12345/0.5",
+            "value": 7581,
+            "range": "± 448",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::from_iter/narrow/12345/1",
+            "value": 7971,
+            "range": "± 490",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::into_iter/narrow/12345/0",
+            "value": 14399,
+            "range": "± 741",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::into_iter/narrow/12345/0.5",
+            "value": 13612,
+            "range": "± 783",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::into_iter/narrow/12345/1",
+            "value": 13916,
+            "range": "± 729",
             "unit": "ns/iter"
           }
         ]
