@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1649191782481,
+  "lastUpdate": 1649436915100,
   "repoUrl": "https://github.com/mbrobbel/narrow",
   "entries": {
     "narrow": [
@@ -119,6 +119,66 @@ window.BENCHMARK_DATA = {
             "name": "Bitmap::into_iter/narrow/12345/1",
             "value": 13916,
             "range": "± 729",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "26634292+bors[bot]@users.noreply.github.com",
+            "name": "bors[bot]",
+            "username": "bors[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b04acf8833466a2edd16dd2a82dfd15881591944",
+          "message": "Merge #33\n\n33: Bump actions/download-artifact from 2 to 3 r=mbrobbel a=dependabot[bot]\n\nBumps [actions/download-artifact](https://github.com/actions/download-artifact) from 2 to 3.\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a href=\"https://github.com/actions/download-artifact/releases\">actions/download-artifact's releases</a>.</em></p>\n<blockquote>\n<h2>v3.0.0</h2>\n<h2>What's Changed</h2>\n<ul>\n<li>Update default runtime to node16 (<a href=\"https://github-redirect.dependabot.com/actions/download-artifact/pull/134\">actions/download-artifact#134</a>)</li>\n<li>Update package-lock.json file version to 2 (<a href=\"https://github-redirect.dependabot.com/actions/download-artifact/pull/136\">actions/download-artifact#136</a>)</li>\n</ul>\n<h3>Breaking Changes</h3>\n<p>With the update to Node 16, all scripts will now be run with Node 16 rather than Node 12.</p>\n<h2>v2.1.0 Download Artifact</h2>\n<ul>\n<li>Improved output &amp; logging</li>\n<li>Fixed issue where downloading all artifacts could cause display percentages to be over 100%</li>\n<li>Various small bug fixes &amp; improvements</li>\n</ul>\n<h2>v2.0.10</h2>\n<ul>\n<li>Retry on HTTP 500 responses from the service</li>\n</ul>\n<h2>v2.0.9</h2>\n<ul>\n<li>Fixes to proxy related issues</li>\n</ul>\n<h2>v2.0.8</h2>\n<ul>\n<li>Improvements to retryability if an error is encountered during artifact download</li>\n</ul>\n<h2>v2.0.7 download-artifact</h2>\n<ul>\n<li>Improved download retry-ability if a partial download is encountered</li>\n</ul>\n<h2>v2.0.6</h2>\n<p>Update actions/core NPM package that is used internally</p>\n<h2>v2.0.5</h2>\n<ul>\n<li>Add Third Party License Information</li>\n</ul>\n<h2>v2.0.4</h2>\n<ul>\n<li>Use the latest version of the <code>`@actions/artifact</code>` NPM package</li>\n</ul>\n<h2>v2.0.3</h2>\n<ul>\n<li>Misc improvements</li>\n</ul>\n<h2>v2.0.2</h2>\n<ul>\n<li>Support for tilde expansion</li>\n</ul>\n<h2>v2.0.1</h2>\n<ul>\n<li>Download path output</li>\n<li>Improved logging</li>\n</ul>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/actions/download-artifact/commit/fb598a63ae348fa914e94cd0ff38f362e927b741\"><code>fb598a6</code></a> Merge pull request <a href=\"https://github-redirect.dependabot.com/actions/download-artifact/issues/136\">#136</a> from actions/jtamsut/update-lockfile-version</li>\n<li><a href=\"https://github.com/actions/download-artifact/commit/a4a09c5d7eb5932e0e6c4e77a434738189a24f1b\"><code>a4a09c5</code></a> regenerate index.js</li>\n<li><a href=\"https://github.com/actions/download-artifact/commit/9acf51df7946118a04918663acc5d955f49de177\"><code>9acf51d</code></a> regenerate package lock</li>\n<li><a href=\"https://github.com/actions/download-artifact/commit/882107232564f8bc8c5083706e009246f11aa871\"><code>8821072</code></a> upgrade artifact version</li>\n<li><a href=\"https://github.com/actions/download-artifact/commit/b8bbd3b64f298f12cfabf7d85ee4e716714eae3b\"><code>b8bbd3b</code></a> regenerate lockfile</li>\n<li><a href=\"https://github.com/actions/download-artifact/commit/6ee3d963e5a7ed7dac02925e126c37e459c36aa6\"><code>6ee3d96</code></a> revert artifact version</li>\n<li><a href=\"https://github.com/actions/download-artifact/commit/d4793f4e27ec52069836c96d310f815ffa48176c\"><code>d4793f4</code></a> update docs for v3</li>\n<li><a href=\"https://github.com/actions/download-artifact/commit/2d338d2145c33c497f1f4f574ca1eb88e1061a8e\"><code>2d338d2</code></a> upgrade package to v3</li>\n<li><a href=\"https://github.com/actions/download-artifact/commit/360d0830b5796c983178d8073e39063e8d32bc46\"><code>360d083</code></a> update dependency on artifact lib</li>\n<li><a href=\"https://github.com/actions/download-artifact/commit/d9b73cccacd09ac21cc34b82578e6cbb1b4e2539\"><code>d9b73cc</code></a> update lock file</li>\n<li>Additional commits viewable in <a href=\"https://github.com/actions/download-artifact/compare/v2...v3\">compare view</a></li>\n</ul>\n</details>\n<br />\n\n\n[![Dependabot compatibility score](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=actions/download-artifact&package-manager=github_actions&previous-version=2&new-version=3)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)\n\nDependabot will resolve any conflicts with this PR as long as you don't alter it yourself. You can also trigger a rebase manually by commenting ``@dependabot` rebase`.\n\n[//]: # (dependabot-automerge-start)\n[//]: # (dependabot-automerge-end)\n\n---\n\n<details>\n<summary>Dependabot commands and options</summary>\n<br />\n\nYou can trigger Dependabot actions by commenting on this PR:\n- ``@dependabot` rebase` will rebase this PR\n- ``@dependabot` recreate` will recreate this PR, overwriting any edits that have been made to it\n- ``@dependabot` merge` will merge this PR after your CI passes on it\n- ``@dependabot` squash and merge` will squash and merge this PR after your CI passes on it\n- ``@dependabot` cancel merge` will cancel a previously requested merge and block automerging\n- ``@dependabot` reopen` will reopen this PR if it is closed\n- ``@dependabot` close` will close this PR and stop Dependabot recreating it. You can achieve the same result by closing it manually\n- ``@dependabot` ignore this major version` will close this PR and stop Dependabot creating any more for this major version (unless you reopen the PR or upgrade to it yourself)\n- ``@dependabot` ignore this minor version` will close this PR and stop Dependabot creating any more for this minor version (unless you reopen the PR or upgrade to it yourself)\n- ``@dependabot` ignore this dependency` will close this PR and stop Dependabot creating any more for this dependency (unless you reopen the PR or upgrade to it yourself)\n\n\n</details>\n\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-04-08T16:49:16Z",
+          "tree_id": "c6410589ff58932b606faa583e6faf1654c8ee64",
+          "url": "https://github.com/mbrobbel/narrow/commit/b04acf8833466a2edd16dd2a82dfd15881591944"
+        },
+        "date": 1649436914531,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "Bitmap::from_iter/narrow/12345/0",
+            "value": 7304,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::from_iter/narrow/12345/0.5",
+            "value": 6454,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::from_iter/narrow/12345/1",
+            "value": 6463,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::into_iter/narrow/12345/0",
+            "value": 11561,
+            "range": "± 239",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::into_iter/narrow/12345/0.5",
+            "value": 11541,
+            "range": "± 62",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::into_iter/narrow/12345/1",
+            "value": 11550,
+            "range": "± 55",
             "unit": "ns/iter"
           }
         ]
