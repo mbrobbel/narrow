@@ -18,7 +18,7 @@ jobs:
           command: doc
           args: --no-deps
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: rustdoc
           path: target/doc
