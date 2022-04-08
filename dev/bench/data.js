@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1649436915100,
+  "lastUpdate": 1649437083099,
   "repoUrl": "https://github.com/mbrobbel/narrow",
   "entries": {
     "narrow": [
@@ -179,6 +179,66 @@ window.BENCHMARK_DATA = {
             "name": "Bitmap::into_iter/narrow/12345/1",
             "value": 11550,
             "range": "± 55",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "26634292+bors[bot]@users.noreply.github.com",
+            "name": "bors[bot]",
+            "username": "bors[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d6a432aa1fd521a9e173265be14104aaa32f84b7",
+          "message": "Merge #32\n\n32: Bump actions/upload-artifact from 2 to 3 r=mbrobbel a=dependabot[bot]\n\nBumps [actions/upload-artifact](https://github.com/actions/upload-artifact) from 2 to 3.\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a href=\"https://github.com/actions/upload-artifact/releases\">actions/upload-artifact's releases</a>.</em></p>\n<blockquote>\n<h2>v3.0.0</h2>\n<h2>What's Changed</h2>\n<ul>\n<li>Update default runtime to node16 (<a href=\"https://github-redirect.dependabot.com/actions/upload-artifact/issues/293\">#293</a>)</li>\n<li>Update package-lock.json file version to 2 (<a href=\"https://github-redirect.dependabot.com/actions/upload-artifact/issues/302\">#302</a>)</li>\n</ul>\n<h3>Breaking Changes</h3>\n<p>With the update to Node 16, all scripts will now be run with Node 16 rather than Node 12.</p>\n<h2>v2.3.1</h2>\n<p>Fix for empty fails on Windows failing on upload <a href=\"https://github-redirect.dependabot.com/actions/upload-artifact/issues/281\">#281</a></p>\n<h2>v2.3.0 Upload Artifact</h2>\n<ul>\n<li>Optimizations for faster uploads of larger files that are already compressed</li>\n<li>Significantly improved logging when there are chunked uploads</li>\n<li>Clarifications in logs around the upload size and prohibited characters that aren't allowed in the artifact name or any uploaded files</li>\n<li>Various other small bugfixes &amp; optimizations</li>\n</ul>\n<h2>v2.2.4</h2>\n<ul>\n<li>Retry on HTTP 500 responses from the service</li>\n</ul>\n<h2>v2.2.3</h2>\n<ul>\n<li>Fixes for proxy related issues</li>\n</ul>\n<h2>v2.2.2</h2>\n<ul>\n<li>Improved retryability and error handling</li>\n</ul>\n<h2>v2.2.1</h2>\n<ul>\n<li>Update used actions/core package to the latest version</li>\n</ul>\n<h2>v2.2.0</h2>\n<ul>\n<li>Support for artifact retention</li>\n</ul>\n<h2>v2.1.4</h2>\n<ul>\n<li>Add Third Party License Information</li>\n</ul>\n<h2>v2.1.3</h2>\n<ul>\n<li>Use updated version of the <code>`@action/artifact</code>` NPM package</li>\n</ul>\n<h2>v2.1.2</h2>\n<ul>\n<li>Increase upload chunk size from 4MB to 8MB</li>\n<li>Detect case insensitive file uploads</li>\n</ul>\n<h2>v2.1.1</h2>\n<ul>\n<li>Fix for certain symlinks not correctly being identified as directories before starting uploads</li>\n</ul>\n<h2>v2.1.0</h2>\n<ul>\n<li>Support for uploading artifacts with multiple paths</li>\n<li>Support for using exclude paths</li>\n<li>Updates to dependencies</li>\n</ul>\n<!-- raw HTML omitted -->\n</blockquote>\n<p>... (truncated)</p>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/actions/upload-artifact/commit/6673cd052c4cd6fcf4b4e6e60ea986c889389535\"><code>6673cd0</code></a> Update <code>lockfileVersion</code> in <code>package-lock.json</code> (<a href=\"https://github-redirect.dependabot.com/actions/upload-artifact/issues/302\">#302</a>)</li>\n<li><a href=\"https://github.com/actions/upload-artifact/commit/2244c8200304ec9588bf9399eac622d9fadc28c4\"><code>2244c82</code></a> Update to node16 (<a href=\"https://github-redirect.dependabot.com/actions/upload-artifact/issues/293\">#293</a>)</li>\n<li><a href=\"https://github.com/actions/upload-artifact/commit/87348cee5fefa95e42e9b4804b4d68e130304158\"><code>87348ce</code></a> Add 503 warning when uploading to the same artifact</li>\n<li>See full diff in <a href=\"https://github.com/actions/upload-artifact/compare/v2...v3\">compare view</a></li>\n</ul>\n</details>\n<br />\n\n\n[![Dependabot compatibility score](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=actions/upload-artifact&package-manager=github_actions&previous-version=2&new-version=3)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)\n\nDependabot will resolve any conflicts with this PR as long as you don't alter it yourself. You can also trigger a rebase manually by commenting ``@dependabot` rebase`.\n\n[//]: # (dependabot-automerge-start)\n[//]: # (dependabot-automerge-end)\n\n---\n\n<details>\n<summary>Dependabot commands and options</summary>\n<br />\n\nYou can trigger Dependabot actions by commenting on this PR:\n- ``@dependabot` rebase` will rebase this PR\n- ``@dependabot` recreate` will recreate this PR, overwriting any edits that have been made to it\n- ``@dependabot` merge` will merge this PR after your CI passes on it\n- ``@dependabot` squash and merge` will squash and merge this PR after your CI passes on it\n- ``@dependabot` cancel merge` will cancel a previously requested merge and block automerging\n- ``@dependabot` reopen` will reopen this PR if it is closed\n- ``@dependabot` close` will close this PR and stop Dependabot recreating it. You can achieve the same result by closing it manually\n- ``@dependabot` ignore this major version` will close this PR and stop Dependabot creating any more for this major version (unless you reopen the PR or upgrade to it yourself)\n- ``@dependabot` ignore this minor version` will close this PR and stop Dependabot creating any more for this minor version (unless you reopen the PR or upgrade to it yourself)\n- ``@dependabot` ignore this dependency` will close this PR and stop Dependabot creating any more for this dependency (unless you reopen the PR or upgrade to it yourself)\n\n\n</details>\n\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-04-08T16:51:50Z",
+          "tree_id": "d300470801c8534e01184f488064728f090a7b04",
+          "url": "https://github.com/mbrobbel/narrow/commit/d6a432aa1fd521a9e173265be14104aaa32f84b7"
+        },
+        "date": 1649437081599,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "Bitmap::from_iter/narrow/12345/0",
+            "value": 5993,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::from_iter/narrow/12345/0.5",
+            "value": 6002,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::from_iter/narrow/12345/1",
+            "value": 6042,
+            "range": "± 52",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::into_iter/narrow/12345/0",
+            "value": 15568,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::into_iter/narrow/12345/0.5",
+            "value": 15569,
+            "range": "± 76",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::into_iter/narrow/12345/1",
+            "value": 15568,
+            "range": "± 39",
             "unit": "ns/iter"
           }
         ]
