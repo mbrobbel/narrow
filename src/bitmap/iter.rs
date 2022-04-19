@@ -1,10 +1,14 @@
-use std::{borrow::Borrow, iter::Take, slice};
+use std::{
+    borrow::Borrow,
+    iter::{Skip, Take},
+    slice,
+};
 
 /// An iterator over the bits in a Bitmap.
 ///
 /// This iterator returns boolean values that represent the bits stored in a
 /// Bitmap.
-pub type BitmapIter<'a> = Take<BitUnpacked<slice::Iter<'a, u8>, &'a u8>>;
+pub type BitmapIter<'a> = Take<Skip<BitUnpacked<slice::Iter<'a, u8>, &'a u8>>>;
 
 /// An iterator that packs boolean values as bits in bytes using
 /// least-significant bit (LSB) numbering.
@@ -57,6 +61,8 @@ where
         // One item is returned per 8 items in the inner iterator.
         (bytes_for_bits(lower), upper.map(bytes_for_bits))
     }
+
+    // todo(mb): advance_by, nth
 }
 
 // If the inner iterator is ExactSizeIterator, the bounds reported by
@@ -137,8 +143,11 @@ where
             upper.and_then(|upper| upper.checked_mul(8)),
         )
     }
+
+    // todo(mb): advance_by, nth
 }
 
+/// An [Iterator] extension trait for [BitUnpacked].
 pub trait BitUnpackedExt<T>
 where
     Self: Iterator<Item = T>,

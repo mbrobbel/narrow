@@ -1,5 +1,6 @@
-use crate::buffer::Buffer;
 use std::fmt::{Display, Formatter, Result};
+
+use crate::buffer::Buffer;
 
 /// A slice wrapper with a [Display] implementation to format bytes as bits.
 pub(crate) struct BitsDisplay<'a>(&'a [u8]);

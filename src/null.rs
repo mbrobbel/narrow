@@ -1,5 +1,6 @@
-use crate::Length;
 use std::ops::Not;
+
+use crate::Length;
 
 /// Null-ness of elements in a collection.
 pub trait Null: Length {
@@ -8,7 +9,8 @@ pub trait Null: Length {
         self.is_valid(index).map(Not::not)
     }
 
-    /// Returns `true` if the element at position `index` is null, without performing any bounds checking.
+    /// Returns `true` if the element at position `index` is null, without
+    /// performing any bounds checking.
     ///
     /// # Safety
     /// - The `index` must be in bounds.
@@ -28,7 +30,8 @@ pub trait Null: Length {
         (index < self.len()).then(|| unsafe { self.is_valid_unchecked(index) })
     }
 
-    /// Returns `true` if the element at position `index` is valid, without performing any bounds checking.
+    /// Returns `true` if the element at position `index` is valid, without
+    /// performing any bounds checking.
     ///
     /// # Safety
     /// - The `index` must be in bounds.
