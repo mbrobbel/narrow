@@ -6,12 +6,16 @@ jobs:
   rustdoc:
     name: Rustdoc
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - nightly
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1.0.7
         with:
           profile: minimal
-          toolchain: nightly
+          toolchain: ${{ matrix.rust }}
           override: true
       - uses: actions-rs/cargo@v1.0.3
         with:

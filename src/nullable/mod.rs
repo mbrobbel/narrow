@@ -70,12 +70,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
+    use super::*;
 
     #[test]
     fn from_iter() {
-        // let input = [Some(1u32), Some(2), Some(3), Some(4), None, Some(42)];
-        // let nullable = input.into_iter().collect::<Nullable<Vec<_>, Vec<_>>>();
-        // assert_eq!(nullable.data_buffer(), &[1, 2, 3, 4, u32::default(), 42]);
+        let input = [Some(1u32), Some(2), Some(3), Some(4), None, Some(42)];
+        let nullable = input.into_iter().collect::<Nullable<Vec<_>, Vec<_>>>();
+        assert_eq!(nullable.data_buffer(), &[1, 2, 3, 4, u32::default(), 42]);
+        assert_eq!(nullable.validity.data_buffer(), &[0b00101111u8]);
     }
 }

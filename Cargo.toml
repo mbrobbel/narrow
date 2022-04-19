@@ -14,9 +14,10 @@ categories = ["data-structures"]
 
 [features]
 default = ["nightly"]
-nightly = ["extend_one", "simd"]
+nightly = ["extend_one", "portable_simd", "trusted_len"]
 extend_one = []
-simd = []
+portable_simd = []
+trusted_len = []
 
 [dependencies]
 # narrow-derive = { version = "0.2.0", path = "narrow-derive" }

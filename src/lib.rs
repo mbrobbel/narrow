@@ -5,7 +5,8 @@
 #![deny(warnings)]
 #![feature(generic_associated_types)]
 #![cfg_attr(feature = "extend_one", feature(extend_one))]
-#![cfg_attr(feature = "simd", feature(portable_simd))]
+#![cfg_attr(feature = "portable_simd", feature(portable_simd))]
+#![cfg_attr(feature = "trusted_len", feature(trusted_len))]
 
 mod primitive;
 pub use primitive::Primitive;

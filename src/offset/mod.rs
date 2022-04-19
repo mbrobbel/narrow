@@ -1,7 +1,8 @@
 //! Offsets for variable sized arrays.
 
-use crate::Primitive;
 use std::{num::TryFromIntError, ops::AddAssign};
+
+use crate::Primitive;
 
 /// Types representing offset values.
 ///

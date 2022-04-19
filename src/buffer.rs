@@ -1,10 +1,11 @@
 //! Traits for memory buffers.
 
-use crate::Primitive;
 use std::{
     borrow::{Borrow, BorrowMut},
     mem, slice,
 };
+
+use crate::Primitive;
 
 /// A contiguous immutable memory buffer for data.
 ///
@@ -20,9 +21,9 @@ where
 {
     fn as_bytes(&self) -> &[u8] {
         // Safety:
-        // - The pointer returned by slice::as_ptr (via Borrow) points to
-        //   slice::len() consecutive properly initialized values of type T,
-        //   with size_of::<T> bytes per element.
+        // - The pointer returned by slice::as_ptr (via Borrow) points to slice::len()
+        //   consecutive properly initialized values of type T, with size_of::<T> bytes
+        //   per element.
         unsafe {
             slice::from_raw_parts(
                 self.borrow().as_ptr() as *const u8,
@@ -66,10 +67,6 @@ where
     Self: Buffer<T>,
     Self: FromIterator<T>,
 {
-    // type Uninit<U>;
-
-    // fn new_uninit(len: usize) -> &mut [MaybeUninit<T>]; //Self::Container<'_, MaybeUninit<T>>;
-    // think about pre-allocating for specific nr of elements with MaybeUninit
 }
 
 impl<T> BufferAlloc<T> for Vec<T> where T: Primitive {}
@@ -81,13 +78,13 @@ impl<T> BufferAlloc<T> for Box<[T]> where T: Primitive {}
 pub trait BufferExtend<T>
 where
     T: Primitive,
-    Self: Buffer<T> + Extend<T>,
+    Self: BufferMut<T> + Extend<T>,
 {
 }
 
 impl<T, U> BufferExtend<T> for U
 where
     T: Primitive,
-    U: Buffer<T> + Extend<T>,
+    U: BufferMut<T> + Extend<T>,
 {
 }
