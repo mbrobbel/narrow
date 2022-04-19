@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1649437083099,
+  "lastUpdate": 1650401745771,
   "repoUrl": "https://github.com/mbrobbel/narrow",
   "entries": {
     "narrow": [
@@ -239,6 +239,66 @@ window.BENCHMARK_DATA = {
             "name": "Bitmap::into_iter/narrow/12345/1",
             "value": 15568,
             "range": "± 39",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "26634292+bors[bot]@users.noreply.github.com",
+            "name": "bors[bot]",
+            "username": "bors[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "95826183b8ac32dfb41a864b53637388a0399a34",
+          "message": "Merge #34\n\n34: Add offset to Bitmap for zero-copy slicing on non-byte boundaries r=mbrobbel a=mbrobbel\n\nIn addition to the offset field on a Bitmap:\r\n- add a `rustfmt.toml` with some nightly features enabled\r\n- modify some workflows to run with a nightly compiler\r\n- implement Extend for Bitmap.\n\nCo-authored-by: Matthijs Brobbel <m1brobbel@gmail.com>",
+          "timestamp": "2022-04-19T20:49:04Z",
+          "tree_id": "e2db3dfdbbda1ff6b717ba81042e9e23762cdd5c",
+          "url": "https://github.com/mbrobbel/narrow/commit/95826183b8ac32dfb41a864b53637388a0399a34"
+        },
+        "date": 1650401745174,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "Bitmap::from_iter/narrow/12345/0",
+            "value": 8278,
+            "range": "± 551",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::from_iter/narrow/12345/0.5",
+            "value": 7939,
+            "range": "± 372",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::from_iter/narrow/12345/1",
+            "value": 8137,
+            "range": "± 593",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::into_iter/narrow/12345/0",
+            "value": 14250,
+            "range": "± 869",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::into_iter/narrow/12345/0.5",
+            "value": 14604,
+            "range": "± 522",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Bitmap::into_iter/narrow/12345/1",
+            "value": 14857,
+            "range": "± 395",
             "unit": "ns/iter"
           }
         ]
