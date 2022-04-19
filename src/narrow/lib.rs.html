@@ -28,6 +28,7 @@
 <span id="23">23</span>
 <span id="24">24</span>
 <span id="25">25</span>
+<span id="26">26</span>
 </pre><pre class="rust"><code><span class="doccomment">//! # narrow</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! An implementation of [Apache Arrow](https://arrow.apache.org).</span>
@@ -35,7 +36,8 @@
 <span class="attribute">#![<span class="ident">deny</span>(<span class="ident">warnings</span>)]</span>
 <span class="attribute">#![<span class="ident">feature</span>(<span class="ident">generic_associated_types</span>)]</span>
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extend_one&quot;</span>, <span class="ident">feature</span>(<span class="ident">extend_one</span>))]</span>
-<span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;simd&quot;</span>, <span class="ident">feature</span>(<span class="ident">portable_simd</span>))]</span>
+<span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;portable_simd&quot;</span>, <span class="ident">feature</span>(<span class="ident">portable_simd</span>))]</span>
+<span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;trusted_len&quot;</span>, <span class="ident">feature</span>(<span class="ident">trusted_len</span>))]</span>
 
 <span class="kw">mod</span> <span class="ident">primitive</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">primitive::Primitive</span>;
@@ -54,5 +56,5 @@
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">nullable</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">offset</span>;
 </code></pre></div>
-</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narrow" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (e745b4ddb 2022-04-07)" ></div>
+</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narrow" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (311e2683e 2022-04-18)" ></div>
 </body></html>

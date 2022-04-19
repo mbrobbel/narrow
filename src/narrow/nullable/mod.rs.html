@@ -84,6 +84,7 @@
 <span id="79">79</span>
 <span id="80">80</span>
 <span id="81">81</span>
+<span id="82">82</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Nullable data.</span>
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -156,15 +157,16 @@
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="comment">// use super::*;</span>
+    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">from_iter</span>() {
-        <span class="comment">// let input = [Some(1u32), Some(2), Some(3), Some(4), None, Some(42)];</span>
-        <span class="comment">// let nullable = input.into_iter().collect::&lt;Nullable&lt;Vec&lt;_&gt;, Vec&lt;_&gt;&gt;&gt;();</span>
-        <span class="comment">// assert_eq!(nullable.data_buffer(), &amp;[1, 2, 3, 4, u32::default(), 42]);</span>
+        <span class="kw">let</span> <span class="ident">input</span> <span class="op">=</span> [<span class="prelude-val">Some</span>(<span class="number">1u32</span>), <span class="prelude-val">Some</span>(<span class="number">2</span>), <span class="prelude-val">Some</span>(<span class="number">3</span>), <span class="prelude-val">Some</span>(<span class="number">4</span>), <span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(<span class="number">42</span>)];
+        <span class="kw">let</span> <span class="ident">nullable</span> <span class="op">=</span> <span class="ident">input</span>.<span class="ident">into_iter</span>().<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Nullable</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>();
+        <span class="macro">assert_eq!</span>(<span class="ident">nullable</span>.<span class="ident">data_buffer</span>(), <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="ident">u32::default</span>(), <span class="number">42</span>]);
+        <span class="macro">assert_eq!</span>(<span class="ident">nullable</span>.<span class="ident">validity</span>.<span class="ident">data_buffer</span>(), <span class="kw-2">&amp;</span>[<span class="number">0b00101111u8</span>]);
     }
 }
 </code></pre></div>
-</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="narrow" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (e745b4ddb 2022-04-07)" ></div>
+</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="narrow" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (311e2683e 2022-04-18)" ></div>
 </body></html>

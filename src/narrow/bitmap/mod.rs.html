@@ -375,7 +375,80 @@
 <span id="370">370</span>
 <span id="371">371</span>
 <span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
 </pre><pre class="rust"><code><span class="doccomment">//! A collection of bits.</span>
+
+<span class="kw">use</span> <span class="ident">std</span>::{
+    <span class="ident">any</span>,
+    <span class="ident">borrow::Borrow</span>,
+    <span class="ident">fmt</span>::{<span class="ident">Debug</span>, <span class="ident">Formatter</span>, <span class="prelude-ty">Result</span>},
+    <span class="ident">ops::Index</span>,
+};
 
 <span class="kw">use</span> <span class="self">self</span>::{
     <span class="ident">fmt::BitsDisplayExt</span>,
@@ -385,11 +458,6 @@
     <span class="ident">buffer</span>::{<span class="ident">Buffer</span>, <span class="ident">BufferAlloc</span>, <span class="ident">BufferExtend</span>, <span class="ident">BufferMut</span>},
     <span class="ident">DataBuffer</span>, <span class="ident">DataBufferMut</span>, <span class="ident">Length</span>, <span class="ident">Null</span>,
 };
-<span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">any</span>,
-    <span class="ident">fmt</span>::{<span class="ident">Debug</span>, <span class="ident">Formatter</span>, <span class="prelude-ty">Result</span>},
-    <span class="ident">ops::Index</span>,
-};
 
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">fmt</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">iter</span>;
@@ -398,39 +466,98 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// The validity bits are stored LSB-first in the bytes of a [Buffer].</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Default</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Bitmap</span><span class="op">&lt;</span><span class="ident">T</span> <span class="op">=</span> <span class="ident">Box</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span><span class="op">&gt;</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Bitmap</span><span class="op">&lt;</span><span class="ident">T</span> <span class="op">=</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">T</span>: <span class="ident">Buffer</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 {
-    <span class="doccomment">/// The number of bits stored in the bitmap.</span>
-    <span class="ident">bits</span>: <span class="ident">usize</span>,
-    <span class="comment">// todo(mb): offset - to slice bits without allocating</span>
     <span class="doccomment">/// The bits are stored in this buffer.</span>
     <span class="ident">buffer</span>: <span class="ident">T</span>,
+    <span class="doccomment">/// The number of bits stored in the bitmap.</span>
+    <span class="ident">bits</span>: <span class="ident">usize</span>,
+    <span class="doccomment">/// An offset (in number of bits) in the buffer. This enables zero-copy</span>
+    <span class="doccomment">/// slicing of the bitmap on non-byte boundaries.</span>
+    <span class="ident">offset</span>: <span class="ident">usize</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Bitmap</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">T</span>: <span class="ident">Buffer</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 {
-    <span class="doccomment">/// Forms a Bitmap from a [Buffer&lt;u8&gt;] and a number of bits.</span>
+    <span class="doccomment">/// Forms a Bitmap from a [Buffer&lt;u8&gt;], a number of bits and an offset (in</span>
+    <span class="doccomment">/// bits).</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Safety</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// Caller must ensure that the buffer contains at least the specified number of bits.</span>
-    <span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">from_raw_parts</span>(<span class="ident">buffer</span>: <span class="ident">T</span>, <span class="ident">bits</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">Bitmap</span> { <span class="ident">bits</span>, <span class="ident">buffer</span> }
+    <span class="doccomment">/// Caller must ensure that the buffer contains enough bytes for the</span>
+    <span class="doccomment">/// specified number of bits including the offset.</span>
+    <span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">from_raw_parts</span>(<span class="ident">buffer</span>: <span class="ident">T</span>, <span class="ident">bits</span>: <span class="ident">usize</span>, <span class="ident">offset</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
+        <span class="ident">Bitmap</span> {
+            <span class="ident">bits</span>,
+            <span class="ident">buffer</span>,
+            <span class="ident">offset</span>,
+        }
+    }
+
+    <span class="doccomment">/// Returns the number of leading padding bits in the first byte(s) of the</span>
+    <span class="doccomment">/// buffer that contain no meaningful bits. These bits should be ignored</span>
+    <span class="doccomment">/// when inspecting the raw byte buffer.</span>
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">leading_bits</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
+        <span class="self">self</span>.<span class="ident">offset</span>
     }
 
     <span class="doccomment">/// Returns the number of trailing padding bits in the last byte of the</span>
-    <span class="doccomment">/// buffer that contain meaningful bits.</span>
+    <span class="doccomment">/// buffer that contain no meaningful bits. This bits should be ignored when</span>
+    <span class="doccomment">/// inspecting the raw byte buffer.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">trailing_bits</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
-        <span class="kw">let</span> <span class="ident">trailing_bits</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">bits</span> <span class="op">%</span> <span class="number">8</span>;
+        <span class="kw">let</span> <span class="ident">trailing_bits</span> <span class="op">=</span> (<span class="self">self</span>.<span class="ident">offset</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">bits</span>) <span class="op">%</span> <span class="number">8</span>;
         <span class="kw">if</span> <span class="ident">trailing_bits</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
             <span class="number">8</span> <span class="op">-</span> <span class="ident">trailing_bits</span>
         } <span class="kw">else</span> {
             <span class="number">0</span>
         }
+    }
+
+    <span class="doccomment">/// Returns the bit at given bit index. Returns `None` when the index is out</span>
+    <span class="doccomment">/// of bounds.</span>
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">index</span>: <span class="ident">usize</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
+        (<span class="ident">index</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">len</span>()).<span class="ident">then</span>(<span class="op">|</span><span class="op">|</span>
+            <span class="comment">// Safety</span>
+            <span class="comment">// - Bound checked</span>
+            <span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">get_unchecked</span>(<span class="ident">index</span>) })
+    }
+
+    <span class="doccomment">/// Returns the bit at given bit index. Skips bound checking.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Safety</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Caller must ensure index is within bounds.</span>
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">get_unchecked</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">index</span>: <span class="ident">usize</span>) -&gt; <span class="ident">bool</span> {
+        <span class="kw">let</span> (<span class="ident">byte_index</span>, <span class="ident">bit_index</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">index_pair</span>(<span class="ident">index</span>);
+        <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">borrow</span>().<span class="ident">get_unchecked</span>(<span class="ident">byte_index</span>) <span class="op">&amp;</span> <span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">bit_index</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span>
+    }
+
+    <span class="doccomment">/// Returns the bit index for the element at the provided index.</span>
+    <span class="doccomment">/// See [Bitmap::byte_index].</span>
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">bit_index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">index</span>: <span class="ident">usize</span>) -&gt; <span class="ident">usize</span> {
+        (<span class="self">self</span>.<span class="ident">offset</span> <span class="op">+</span> <span class="ident">index</span>) <span class="op">%</span> <span class="number">8</span>
+    }
+
+    <span class="doccomment">/// Returns the byte index for the element at the provided index.</span>
+    <span class="doccomment">/// See [Bitmap::bit_index].</span>
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">byte_index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">index</span>: <span class="ident">usize</span>) -&gt; <span class="ident">usize</span> {
+        (<span class="self">self</span>.<span class="ident">offset</span> <span class="op">+</span> <span class="ident">index</span>) <span class="op">/</span> <span class="number">8</span>
+    }
+
+    <span class="doccomment">/// Returns the byte and bit index in the raw data buffer for the element at</span>
+    <span class="doccomment">/// the provided index.</span>
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">index_pair</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">index</span>: <span class="ident">usize</span>) -&gt; (<span class="ident">usize</span>, <span class="ident">usize</span>) {
+        (<span class="self">self</span>.<span class="ident">byte_index</span>(<span class="ident">index</span>), <span class="self">self</span>.<span class="ident">bit_index</span>(<span class="ident">index</span>))
     }
 }
 
@@ -439,6 +566,7 @@
     <span class="ident">T</span>: <span class="ident">Buffer</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 {
     <span class="kw">type</span> <span class="ident">Buffer</span> <span class="op">=</span> <span class="ident">T</span>;
+
     <span class="kw">fn</span> <span class="ident">data_buffer</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Buffer</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">buffer</span>
     }
@@ -463,6 +591,7 @@
         <span class="ident">f</span>.<span class="ident">debug_struct</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;Bitmap&lt;{}&gt;&quot;</span>, <span class="ident">any::type_name</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>()))
             .<span class="ident">field</span>(<span class="string">&quot;bits&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">bits</span>)
             .<span class="ident">field</span>(<span class="string">&quot;buffer&quot;</span>, <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">bits_display</span>()))
+            .<span class="ident">field</span>(<span class="string">&quot;offset&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">offset</span>)
             .<span class="ident">finish</span>()
     }
 }
@@ -471,6 +600,7 @@
 <span class="kw">where</span>
     <span class="ident">T</span>: <span class="ident">Buffer</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 {
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">bits</span>
     }
@@ -482,98 +612,80 @@
 {
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">is_valid_unchecked</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">index</span>: <span class="ident">usize</span>) -&gt; <span class="ident">bool</span> {
-        <span class="kw">let</span> <span class="ident">byte_index</span> <span class="op">=</span> <span class="ident">index</span> <span class="op">/</span> <span class="number">8</span>;
-        <span class="kw">let</span> <span class="ident">bit_index</span> <span class="op">=</span> <span class="ident">index</span> <span class="op">%</span> <span class="number">8</span>;
-        <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">borrow</span>().<span class="ident">get_unchecked</span>(<span class="ident">byte_index</span>) <span class="op">&amp;</span> (<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">bit_index</span>) <span class="op">!</span><span class="op">=</span> <span class="number">0</span>
+        <span class="self">self</span>.<span class="ident">get_unchecked</span>(<span class="ident">index</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">valid_count</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
-        <span class="comment">// Count all ones (there can&#39;t be ones in the padding bits).</span>
-        <span class="comment">// &gt; Bitmaps are to be initialized to be all unset at allocation time</span>
-        <span class="comment">// &gt; (this includes padding).</span>
-        <span class="self">self</span>.<span class="ident">buffer</span>
-            .<span class="ident">borrow</span>()
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">count_ones</span>())
-            .<span class="ident">sum</span>::<span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>() <span class="kw">as</span> <span class="ident">usize</span>
-    }
-
-    <span class="kw">fn</span> <span class="ident">null_count</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
-        <span class="comment">// Count all zeros and subtract the trailing zero bits in the padding.</span>
-        <span class="comment">// &gt; Bitmaps are to be initialized to be all unset at allocation time</span>
-        <span class="comment">// &gt; (this includes padding).</span>
-        <span class="self">self</span>.<span class="ident">buffer</span>
-            .<span class="ident">borrow</span>()
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">count_zeros</span>())
-            .<span class="ident">sum</span>::<span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>() <span class="kw">as</span> <span class="ident">usize</span>
-            <span class="op">-</span> <span class="self">self</span>.<span class="ident">trailing_bits</span>()
-    }
+    <span class="comment">// todo(mb): add optimized impls for other methods</span>
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Extend</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Bitmap</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span> <span class="ident">Extend</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Bitmap</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">T</span>: <span class="ident">BufferExtend</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
+    <span class="ident">U</span>: <span class="ident">Borrow</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span>,
 {
-    <span class="kw">fn</span> <span class="ident">extend</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">_iter</span>: <span class="ident">I</span>)
+    <span class="kw">fn</span> <span class="ident">extend</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">iter</span>: <span class="ident">I</span>)
     <span class="kw">where</span>
-        <span class="ident">I</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">bool</span><span class="op">&gt;</span>,
+        <span class="ident">I</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">U</span><span class="op">&gt;</span>,
     {
-        <span class="comment">// check current bit count mod 8. fill last byte then add new bytes.</span>
-        <span class="macro">todo!</span>()
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">additional_bits</span> <span class="op">=</span> <span class="number">0</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">iter</span> <span class="op">=</span> <span class="ident">iter</span>.<span class="ident">into_iter</span>().<span class="ident">inspect</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
+            <span class="ident">additional_bits</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+        });
+
+        <span class="kw">let</span> <span class="ident">trailing_bits</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">trailing_bits</span>();
+        <span class="kw">if</span> <span class="ident">trailing_bits</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
+            <span class="kw">let</span> <span class="ident">last_byte_index</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">byte_index</span>(<span class="self">self</span>.<span class="ident">bits</span>);
+            <span class="kw">let</span> <span class="ident">last_byte</span> <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">borrow_mut</span>()[<span class="ident">last_byte_index</span>];
+            <span class="kw">for</span> <span class="ident">bit_position</span> <span class="kw">in</span> <span class="number">8</span> <span class="op">-</span> <span class="ident">trailing_bits</span>..<span class="number">8</span> {
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">x</span>) <span class="op">=</span> <span class="ident">iter</span>.<span class="ident">next</span>() {
+                    <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">x</span>.<span class="ident">borrow</span>() {
+                        <span class="kw-2">*</span><span class="ident">last_byte</span> <span class="op">|</span><span class="op">=</span> <span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">bit_position</span>;
+                    }
+                }
+            }
+        }
+
+        <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">extend</span>(<span class="ident">iter</span>.<span class="ident">bit_packed</span>());
+        <span class="self">self</span>.<span class="ident">bits</span> <span class="op">+</span><span class="op">=</span> <span class="ident">additional_bits</span>;
     }
 
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extend_one&quot;</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">extend_one</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">item</span>: <span class="ident">bool</span>) {
+    <span class="kw">fn</span> <span class="ident">extend_one</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">item</span>: <span class="ident">U</span>) {
         <span class="self">self</span>.<span class="ident">extend</span>(<span class="prelude-val">Some</span>(<span class="ident">item</span>));
     }
 
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extend_one&quot;</span>)]</span>
     <span class="kw">fn</span> <span class="ident">extend_reserve</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">additional</span>: <span class="ident">usize</span>) {
-        <span class="comment">// todo(mb): check trailing bits</span>
-        <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">extend_reserve</span>(<span class="ident">additional</span> <span class="op">/</span> <span class="number">8</span>)
+        <span class="comment">// Only reserve when the additional bits do not fit in the trailing bits.</span>
+        <span class="kw">if</span> <span class="ident">additional</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">trailing_bits</span>() {
+            <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">extend_reserve</span>(<span class="ident">additional</span> <span class="op">/</span> <span class="number">8</span>)
+        }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">FromIterator</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Bitmap</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span> <span class="ident">FromIterator</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Bitmap</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">T</span>: <span class="ident">BufferAlloc</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
+    <span class="ident">U</span>: <span class="ident">Borrow</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span>,
 {
     <span class="kw">fn</span> <span class="ident">from_iter</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;</span>(<span class="ident">iter</span>: <span class="ident">I</span>) -&gt; <span class="self">Self</span>
     <span class="kw">where</span>
-        <span class="ident">I</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">bool</span><span class="op">&gt;</span>,
-    {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bits</span> <span class="op">=</span> <span class="number">0</span>;
-        <span class="kw">let</span> <span class="ident">buffer</span>: <span class="ident">T</span> <span class="op">=</span> <span class="ident">iter</span>
-            .<span class="ident">into_iter</span>()
-            .<span class="ident">inspect</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
-                <span class="comment">// Track the number of bits.</span>
-                <span class="ident">bits</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-            })
-            .<span class="ident">bit_packed</span>()
-            .<span class="ident">collect</span>();
-        <span class="ident">Bitmap</span> { <span class="ident">bits</span>, <span class="ident">buffer</span> }
-    }
-}
-
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">FromIterator</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">bool</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Bitmap</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">T</span>: <span class="ident">BufferAlloc</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
-{
-    <span class="kw">fn</span> <span class="ident">from_iter</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;</span>(<span class="ident">iter</span>: <span class="ident">I</span>) -&gt; <span class="self">Self</span>
-    <span class="kw">where</span>
-        <span class="ident">I</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">bool</span><span class="op">&gt;</span>,
+        <span class="ident">I</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">U</span><span class="op">&gt;</span>,
     {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bits</span> <span class="op">=</span> <span class="number">0</span>;
         <span class="kw">let</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="ident">iter</span>
             .<span class="ident">into_iter</span>()
             .<span class="ident">inspect</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
-                <span class="comment">// Track the number of bits.</span>
                 <span class="ident">bits</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
             })
             .<span class="ident">bit_packed</span>()
             .<span class="ident">collect</span>();
-        <span class="ident">Bitmap</span> { <span class="ident">bits</span>, <span class="ident">buffer</span> }
+
+        <span class="ident">Bitmap</span> {
+            <span class="ident">bits</span>,
+            <span class="ident">buffer</span>,
+            <span class="ident">offset</span>: <span class="number">0</span>,
+        }
     }
 }
 
@@ -597,7 +709,7 @@
 
         <span class="comment">// Safety:</span>
         <span class="comment">// - Bounds checked above.</span>
-        <span class="kw">match</span> <span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">is_valid_unchecked</span>(<span class="ident">index</span>) } {
+        <span class="kw">match</span> <span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">get_unchecked</span>(<span class="ident">index</span>) } {
             <span class="bool-val">true</span> =&gt; <span class="kw-2">&amp;</span><span class="bool-val">true</span>,
             <span class="bool-val">false</span> =&gt; <span class="kw-2">&amp;</span><span class="bool-val">false</span>,
         }
@@ -608,11 +720,16 @@
 <span class="kw">where</span>
     <span class="ident">T</span>: <span class="ident">Buffer</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 {
-    <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="ident">bool</span>;
     <span class="kw">type</span> <span class="ident">IntoIter</span> <span class="op">=</span> <span class="ident">BitmapIter</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>;
+    <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="ident">bool</span>;
 
     <span class="kw">fn</span> <span class="ident">into_iter</span>(<span class="self">self</span>) -&gt; <span class="ident"><span class="self">Self</span>::IntoIter</span> {
-        <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">borrow</span>().<span class="ident">iter</span>().<span class="ident">bit_unpacked</span>().<span class="ident">take</span>(<span class="self">self</span>.<span class="ident">bits</span>)
+        <span class="self">self</span>.<span class="ident">buffer</span>
+            .<span class="ident">borrow</span>()
+            .<span class="ident">iter</span>()
+            .<span class="ident">bit_unpacked</span>()
+            .<span class="ident">skip</span>(<span class="self">self</span>.<span class="ident">offset</span>)
+            .<span class="ident">take</span>(<span class="self">self</span>.<span class="ident">bits</span>)
     }
 }
 
@@ -636,8 +753,22 @@
         <span class="kw">let</span> <span class="ident">slice</span> <span class="op">=</span> <span class="ident">bitmap</span>.<span class="ident">data_buffer_mut</span>();
         <span class="ident">slice</span>[<span class="number">0</span>] <span class="op">=</span> <span class="number">0</span>;
         <span class="comment">// &quot;construct&quot; new bitmap with last byte sliced off</span>
-        <span class="kw">let</span> <span class="ident">bitmap_slice</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">Bitmap::from_raw_parts</span>(<span class="kw-2">&amp;</span><span class="ident">slice</span>[..<span class="number">3</span>], <span class="number">24</span>) };
+        <span class="kw">let</span> <span class="ident">bitmap_slice</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">Bitmap::from_raw_parts</span>(<span class="kw-2">&amp;</span><span class="ident">slice</span>[..<span class="number">3</span>], <span class="number">24</span>, <span class="number">0</span>) };
         <span class="macro">assert!</span>(<span class="op">!</span><span class="ident">bitmap_slice</span>.<span class="ident">all_valid</span>());
+    }
+
+    <span class="attribute">#[<span class="ident">test</span>]</span>
+    <span class="kw">fn</span> <span class="ident">offset_bit_slice</span>() {
+        <span class="kw">let</span> <span class="ident">bitmap</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">Bitmap::from_raw_parts</span>([<span class="number">0b10100000u8</span>], <span class="number">3</span>, <span class="number">4</span>) };
+        <span class="macro">assert_eq!</span>(<span class="ident">bitmap</span>.<span class="ident">len</span>(), <span class="number">3</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">bitmap</span>.<span class="ident">leading_bits</span>(), <span class="number">4</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">bitmap</span>.<span class="ident">trailing_bits</span>(), <span class="number">1</span>);
+        <span class="macro">assert!</span>(<span class="ident">bitmap</span>.<span class="ident">is_null</span>(<span class="number">0</span>).<span class="ident">unwrap</span>());
+        <span class="macro">assert!</span>(<span class="ident">bitmap</span>.<span class="ident">is_valid</span>(<span class="number">1</span>).<span class="ident">unwrap</span>());
+        <span class="macro">assert!</span>(<span class="ident">bitmap</span>.<span class="ident">is_null</span>(<span class="number">2</span>).<span class="ident">unwrap</span>());
+        <span class="macro">assert_eq!</span>(<span class="ident">bitmap</span>.<span class="ident">null_count</span>(), <span class="number">2</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">bitmap</span>.<span class="ident">valid_count</span>(), <span class="number">1</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">bitmap</span>.<span class="ident">into_iter</span>().<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>(), [<span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>]);
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
@@ -647,7 +778,7 @@
         <span class="kw">let</span> <span class="ident">vec</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">bitmap</span>.<span class="ident">data_buffer_mut</span>();
         <span class="ident">vec</span>[<span class="number">0</span>] <span class="op">=</span> <span class="number">0</span>;
         <span class="comment">// &quot;construct&quot; new bitmap with last byte sliced off</span>
-        <span class="kw">let</span> <span class="ident">bitmap_sliced</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">Bitmap::from_raw_parts</span>(<span class="kw-2">&amp;</span><span class="ident">vec</span>[..<span class="number">3</span>], <span class="number">24</span>) };
+        <span class="kw">let</span> <span class="ident">bitmap_sliced</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">Bitmap::from_raw_parts</span>(<span class="kw-2">&amp;</span><span class="ident">vec</span>[..<span class="number">3</span>], <span class="number">24</span>, <span class="number">0</span>) };
         <span class="macro">assert!</span>(<span class="op">!</span><span class="ident">bitmap_sliced</span>.<span class="ident">all_valid</span>());
     }
 
@@ -656,6 +787,7 @@
         <span class="kw">let</span> <span class="ident">bitmap</span> <span class="op">=</span> <span class="ident">Bitmap</span> {
             <span class="ident">bits</span>: <span class="number">5</span>,
             <span class="ident">buffer</span>: [<span class="number">22u8</span>].<span class="ident">as_slice</span>(),
+            <span class="ident">offset</span>: <span class="number">0</span>,
         };
         <span class="kw">let</span> <span class="ident">slice</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="ident">bitmap</span>.<span class="ident">data_buffer</span>().<span class="ident">as_ref</span>();
         <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span><span class="ident">slice</span>[<span class="number">0</span>], <span class="kw-2">&amp;</span><span class="number">22</span>);
@@ -748,5 +880,5 @@
     }
 }
 </code></pre></div>
-</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="narrow" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (e745b4ddb 2022-04-07)" ></div>
+</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="narrow" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (311e2683e 2022-04-18)" ></div>
 </body></html>

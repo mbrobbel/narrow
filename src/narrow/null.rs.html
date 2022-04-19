@@ -72,8 +72,12 @@
 <span id="67">67</span>
 <span id="68">68</span>
 <span id="69">69</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::Length</span>;
-<span class="kw">use</span> <span class="ident">std::ops::Not</span>;
+<span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::ops::Not</span>;
+
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::Length</span>;
 
 <span class="doccomment">/// Null-ness of elements in a collection.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Null</span>: <span class="ident">Length</span> {
@@ -82,7 +86,8 @@
         <span class="self">self</span>.<span class="ident">is_valid</span>(<span class="ident">index</span>).<span class="ident">map</span>(<span class="ident">Not::not</span>)
     }
 
-    <span class="doccomment">/// Returns `true` if the element at position `index` is null, without performing any bounds checking.</span>
+    <span class="doccomment">/// Returns `true` if the element at position `index` is null, without</span>
+    <span class="doccomment">/// performing any bounds checking.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Safety</span>
     <span class="doccomment">/// - The `index` must be in bounds.</span>
@@ -102,7 +107,8 @@
         (<span class="ident">index</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">len</span>()).<span class="ident">then</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">is_valid_unchecked</span>(<span class="ident">index</span>) })
     }
 
-    <span class="doccomment">/// Returns `true` if the element at position `index` is valid, without performing any bounds checking.</span>
+    <span class="doccomment">/// Returns `true` if the element at position `index` is valid, without</span>
+    <span class="doccomment">/// performing any bounds checking.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Safety</span>
     <span class="doccomment">/// - The `index` must be in bounds.</span>
@@ -142,5 +148,5 @@
     }
 }
 </code></pre></div>
-</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narrow" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (e745b4ddb 2022-04-07)" ></div>
+</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narrow" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (311e2683e 2022-04-18)" ></div>
 </body></html>

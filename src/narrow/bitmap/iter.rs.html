@@ -252,13 +252,26 @@
 <span id="247">247</span>
 <span id="248">248</span>
 <span id="249">249</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">borrow::Borrow</span>, <span class="ident">iter::Take</span>, <span class="ident">slice</span>};
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{
+    <span class="ident">borrow::Borrow</span>,
+    <span class="ident">iter</span>::{<span class="ident">Skip</span>, <span class="ident">Take</span>},
+    <span class="ident">slice</span>,
+};
 
 <span class="doccomment">/// An iterator over the bits in a Bitmap.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// This iterator returns boolean values that represent the bits stored in a</span>
 <span class="doccomment">/// Bitmap.</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">BitmapIter</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Take</span><span class="op">&lt;</span><span class="ident">BitUnpacked</span><span class="op">&lt;</span><span class="ident">slice::Iter</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">u8</span><span class="op">&gt;</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">BitmapIter</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Take</span><span class="op">&lt;</span><span class="ident">Skip</span><span class="op">&lt;</span><span class="ident">BitUnpacked</span><span class="op">&lt;</span><span class="ident">slice::Iter</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">u8</span><span class="op">&gt;</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 <span class="doccomment">/// An iterator that packs boolean values as bits in bytes using</span>
 <span class="doccomment">/// least-significant bit (LSB) numbering.</span>
@@ -311,6 +324,8 @@
         <span class="comment">// One item is returned per 8 items in the inner iterator.</span>
         (<span class="ident">bytes_for_bits</span>(<span class="ident">lower</span>), <span class="ident">upper</span>.<span class="ident">map</span>(<span class="ident">bytes_for_bits</span>))
     }
+
+    <span class="comment">// todo(mb): advance_by, nth</span>
 }
 
 <span class="comment">// If the inner iterator is ExactSizeIterator, the bounds reported by</span>
@@ -391,8 +406,11 @@
             <span class="ident">upper</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">upper</span><span class="op">|</span> <span class="ident">upper</span>.<span class="ident">checked_mul</span>(<span class="number">8</span>)),
         )
     }
+
+    <span class="comment">// todo(mb): advance_by, nth</span>
 }
 
+<span class="doccomment">/// An [Iterator] extension trait for [BitUnpacked].</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">BitUnpackedExt</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="self">Self</span>: <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">T</span><span class="op">&gt;</span>,
@@ -502,5 +520,5 @@
     }
 }
 </code></pre></div>
-</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="narrow" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (e745b4ddb 2022-04-07)" ></div>
+</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="narrow" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (311e2683e 2022-04-18)" ></div>
 </body></html>
