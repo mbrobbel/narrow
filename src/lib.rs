@@ -24,3 +24,4 @@ pub mod bitmap;
 pub mod buffer;
 pub mod nullable;
 pub mod offset;
+pub mod validity;

@@ -1,3 +1,5 @@
+//! Bitmap formatting.
+
 use std::fmt::{Display, Formatter, Result};
 
 use crate::buffer::Buffer;

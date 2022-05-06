@@ -1,3 +1,5 @@
+//! Bitmap iteration.
+
 use std::{
     borrow::Borrow,
     iter::{Skip, Take},
@@ -9,6 +11,9 @@ use std::{
 /// This iterator returns boolean values that represent the bits stored in a
 /// Bitmap.
 pub type BitmapIter<'a> = Take<Skip<BitUnpacked<slice::Iter<'a, u8>, &'a u8>>>;
+
+/// An iterator over the bits in a Bitmap. Consumes the Bitmap.
+pub type BitmapIntoIter<I> = Take<Skip<BitUnpacked<I, u8>>>;
 
 /// An iterator that packs boolean values as bits in bytes using
 /// least-significant bit (LSB) numbering.

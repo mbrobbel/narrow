@@ -9,10 +9,10 @@ use std::{
 
 use self::{
     fmt::BitsDisplayExt,
-    iter::{BitPackedExt, BitUnpackedExt, BitmapIter},
+    iter::{BitPackedExt, BitUnpackedExt, BitmapIntoIter, BitmapIter},
 };
 use crate::{
-    buffer::{Buffer, BufferAlloc, BufferExtend, BufferMut},
+    buffer::{Buffer, BufferAlloc, BufferExtend, BufferMut, BufferTake},
     DataBuffer, DataBufferMut, Length, Null,
 };
 
@@ -24,6 +24,7 @@ pub mod iter;
 /// The validity bits are stored LSB-first in the bytes of a [Buffer].
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct Bitmap<T = Vec<u8>>
+// Trait bound added here to avoid confusion about Debug impl.
 where
     T: Buffer<u8>,
 {
@@ -66,6 +67,7 @@ where
     /// Returns the number of trailing padding bits in the last byte of the
     /// buffer that contain no meaningful bits. This bits should be ignored when
     /// inspecting the raw byte buffer.
+    #[inline]
     pub fn trailing_bits(&self) -> usize {
         let trailing_bits = (self.offset + self.bits) % 8;
         if trailing_bits != 0 {
@@ -273,6 +275,22 @@ where
     }
 }
 
+impl<T> IntoIterator for Bitmap<T>
+where
+    T: BufferTake<u8>,
+{
+    type IntoIter = BitmapIntoIter<T::IntoIter>;
+    type Item = bool;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.buffer
+            .into_iter()
+            .bit_unpacked()
+            .skip(self.offset)
+            .take(self.bits)
+    }
+}
+
 impl<'a, T> IntoIterator for &'a Bitmap<T>
 where
     T: Buffer<u8>,
@@ -305,7 +323,7 @@ mod tests {
 
     #[test]
     fn offset_byte_slice() {
-        let mut bitmap: Bitmap = [true; 32].iter().collect();
+        let mut bitmap = [true; 32].iter().collect::<Bitmap>();
         // "unset" first byte
         let slice = bitmap.data_buffer_mut();
         slice[0] = 0;
@@ -330,7 +348,7 @@ mod tests {
 
     #[test]
     fn offset_byte_vec() {
-        let mut bitmap: Bitmap<Vec<u8>> = [true; 32].iter().collect();
+        let mut bitmap = [true; 32].iter().collect::<Bitmap<Vec<u8>>>();
         // "unset" first byte
         let vec: &mut Vec<u8> = bitmap.data_buffer_mut();
         vec[0] = 0;
@@ -352,14 +370,16 @@ mod tests {
 
     #[test]
     fn as_ref() {
-        let bitmap: Bitmap = [false, true, true, false, true].iter().collect();
+        let bitmap = [false, true, true, false, true].iter().collect::<Bitmap>();
         let slice: &[u8] = bitmap.data_buffer().as_ref();
         assert_eq!(&slice[0], &22);
     }
 
     #[test]
     fn as_ref_u8() {
-        let bitmap: Bitmap = [false, true, false, true, false, true].iter().collect();
+        let bitmap = [false, true, false, true, false, true]
+            .iter()
+            .collect::<Bitmap>();
         let bytes = bitmap.data_buffer().as_bytes();
         assert_eq!(bytes.len(), 1);
         assert_eq!(bytes[0], 42);
@@ -368,18 +388,20 @@ mod tests {
     #[test]
     #[should_panic]
     fn as_ref_u8_out_of_bounds() {
-        let bitmap: Bitmap = [false, true, false, true, false, true].iter().collect();
+        let bitmap = [false, true, false, true, false, true]
+            .iter()
+            .collect::<Bitmap>();
         let bits: &[u8] = bitmap.data_buffer().as_ref();
         let _ = bits[std::mem::size_of::<usize>()];
     }
 
     #[test]
     fn as_ref_bitslice() {
-        let bits: Bitmap = [
+        let bits = [
             false, true, false, true, false, true, false, false, false, true,
         ]
         .iter()
-        .collect();
+        .collect::<Bitmap>();
         assert_eq!(bits.len(), 10);
         assert!(!bits[0]);
         assert!(bits[1]);
@@ -396,14 +418,16 @@ mod tests {
     #[test]
     #[should_panic]
     fn as_ref_bitslice_out_of_bounds() {
-        let bitmap: Bitmap = vec![false, true, false, true, false, true].iter().collect();
+        let bitmap = vec![false, true, false, true, false, true]
+            .iter()
+            .collect::<Bitmap>();
         let _ = bitmap[bitmap.bits];
     }
 
     #[test]
     fn count() {
         let vec = vec![false, true, false, true, false, true];
-        let bitmap: Bitmap = vec.iter().collect();
+        let bitmap = vec.iter().collect::<Bitmap>();
         assert_eq!(bitmap.len(), 6);
         assert!(!bitmap.is_empty());
         assert_eq!(bitmap.valid_count(), 3);
@@ -432,7 +456,7 @@ mod tests {
     #[test]
     fn into_iter() {
         let vec = vec![true, false, true, false];
-        let bitmap: Bitmap = vec.iter().collect();
+        let bitmap = vec.iter().collect::<Bitmap>();
         assert_eq!(bitmap.into_iter().collect::<Vec<_>>(), vec);
     }
 }
