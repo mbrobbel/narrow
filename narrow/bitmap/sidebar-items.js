@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["fmt",""],["iter",""]],"struct":[["Bitmap","A collection of bits."]]});
+initSidebarItems({"mod":[["fmt","Bitmap formatting."],["iter","Bitmap iteration."]],"struct":[["Bitmap","A collection of bits."]]});

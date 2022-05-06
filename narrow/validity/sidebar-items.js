@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Validity","Validity wrapper for nullable and non-nullable data."]]});

@@ -441,6 +441,30 @@
 <span id="436">436</span>
 <span id="437">437</span>
 <span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
 </pre><pre class="rust"><code><span class="doccomment">//! A collection of bits.</span>
 
 <span class="kw">use</span> <span class="ident">std</span>::{
@@ -452,10 +476,10 @@
 
 <span class="kw">use</span> <span class="self">self</span>::{
     <span class="ident">fmt::BitsDisplayExt</span>,
-    <span class="ident">iter</span>::{<span class="ident">BitPackedExt</span>, <span class="ident">BitUnpackedExt</span>, <span class="ident">BitmapIter</span>},
+    <span class="ident">iter</span>::{<span class="ident">BitPackedExt</span>, <span class="ident">BitUnpackedExt</span>, <span class="ident">BitmapIntoIter</span>, <span class="ident">BitmapIter</span>},
 };
 <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">buffer</span>::{<span class="ident">Buffer</span>, <span class="ident">BufferAlloc</span>, <span class="ident">BufferExtend</span>, <span class="ident">BufferMut</span>},
+    <span class="ident">buffer</span>::{<span class="ident">Buffer</span>, <span class="ident">BufferAlloc</span>, <span class="ident">BufferExtend</span>, <span class="ident">BufferMut</span>, <span class="ident">BufferTake</span>},
     <span class="ident">DataBuffer</span>, <span class="ident">DataBufferMut</span>, <span class="ident">Length</span>, <span class="ident">Null</span>,
 };
 
@@ -467,6 +491,7 @@
 <span class="doccomment">/// The validity bits are stored LSB-first in the bytes of a [Buffer].</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Default</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Bitmap</span><span class="op">&lt;</span><span class="ident">T</span> <span class="op">=</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>
+<span class="comment">// Trait bound added here to avoid confusion about Debug impl.</span>
 <span class="kw">where</span>
     <span class="ident">T</span>: <span class="ident">Buffer</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 {
@@ -509,6 +534,7 @@
     <span class="doccomment">/// Returns the number of trailing padding bits in the last byte of the</span>
     <span class="doccomment">/// buffer that contain no meaningful bits. This bits should be ignored when</span>
     <span class="doccomment">/// inspecting the raw byte buffer.</span>
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">trailing_bits</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
         <span class="kw">let</span> <span class="ident">trailing_bits</span> <span class="op">=</span> (<span class="self">self</span>.<span class="ident">offset</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">bits</span>) <span class="op">%</span> <span class="number">8</span>;
         <span class="kw">if</span> <span class="ident">trailing_bits</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
@@ -716,6 +742,22 @@
     }
 }
 
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">IntoIterator</span> <span class="kw">for</span> <span class="ident">Bitmap</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">T</span>: <span class="ident">BufferTake</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
+{
+    <span class="kw">type</span> <span class="ident">IntoIter</span> <span class="op">=</span> <span class="ident">BitmapIntoIter</span><span class="op">&lt;</span><span class="ident">T::IntoIter</span><span class="op">&gt;</span>;
+    <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="ident">bool</span>;
+
+    <span class="kw">fn</span> <span class="ident">into_iter</span>(<span class="self">self</span>) -&gt; <span class="ident"><span class="self">Self</span>::IntoIter</span> {
+        <span class="self">self</span>.<span class="ident">buffer</span>
+            .<span class="ident">into_iter</span>()
+            .<span class="ident">bit_unpacked</span>()
+            .<span class="ident">skip</span>(<span class="self">self</span>.<span class="ident">offset</span>)
+            .<span class="ident">take</span>(<span class="self">self</span>.<span class="ident">bits</span>)
+    }
+}
+
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">IntoIterator</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Bitmap</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">T</span>: <span class="ident">Buffer</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
@@ -748,7 +790,7 @@
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">offset_byte_slice</span>() {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bitmap</span>: <span class="ident">Bitmap</span> <span class="op">=</span> [<span class="bool-val">true</span>; <span class="number">32</span>].<span class="ident">iter</span>().<span class="ident">collect</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bitmap</span> <span class="op">=</span> [<span class="bool-val">true</span>; <span class="number">32</span>].<span class="ident">iter</span>().<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Bitmap</span><span class="op">&gt;</span>();
         <span class="comment">// &quot;unset&quot; first byte</span>
         <span class="kw">let</span> <span class="ident">slice</span> <span class="op">=</span> <span class="ident">bitmap</span>.<span class="ident">data_buffer_mut</span>();
         <span class="ident">slice</span>[<span class="number">0</span>] <span class="op">=</span> <span class="number">0</span>;
@@ -773,7 +815,7 @@
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">offset_byte_vec</span>() {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bitmap</span>: <span class="ident">Bitmap</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> [<span class="bool-val">true</span>; <span class="number">32</span>].<span class="ident">iter</span>().<span class="ident">collect</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bitmap</span> <span class="op">=</span> [<span class="bool-val">true</span>; <span class="number">32</span>].<span class="ident">iter</span>().<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Bitmap</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>();
         <span class="comment">// &quot;unset&quot; first byte</span>
         <span class="kw">let</span> <span class="ident">vec</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">bitmap</span>.<span class="ident">data_buffer_mut</span>();
         <span class="ident">vec</span>[<span class="number">0</span>] <span class="op">=</span> <span class="number">0</span>;
@@ -795,14 +837,16 @@
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">as_ref</span>() {
-        <span class="kw">let</span> <span class="ident">bitmap</span>: <span class="ident">Bitmap</span> <span class="op">=</span> [<span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>].<span class="ident">iter</span>().<span class="ident">collect</span>();
+        <span class="kw">let</span> <span class="ident">bitmap</span> <span class="op">=</span> [<span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>].<span class="ident">iter</span>().<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Bitmap</span><span class="op">&gt;</span>();
         <span class="kw">let</span> <span class="ident">slice</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="ident">bitmap</span>.<span class="ident">data_buffer</span>().<span class="ident">as_ref</span>();
         <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span><span class="ident">slice</span>[<span class="number">0</span>], <span class="kw-2">&amp;</span><span class="number">22</span>);
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">as_ref_u8</span>() {
-        <span class="kw">let</span> <span class="ident">bitmap</span>: <span class="ident">Bitmap</span> <span class="op">=</span> [<span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>].<span class="ident">iter</span>().<span class="ident">collect</span>();
+        <span class="kw">let</span> <span class="ident">bitmap</span> <span class="op">=</span> [<span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>]
+            .<span class="ident">iter</span>()
+            .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Bitmap</span><span class="op">&gt;</span>();
         <span class="kw">let</span> <span class="ident">bytes</span> <span class="op">=</span> <span class="ident">bitmap</span>.<span class="ident">data_buffer</span>().<span class="ident">as_bytes</span>();
         <span class="macro">assert_eq!</span>(<span class="ident">bytes</span>.<span class="ident">len</span>(), <span class="number">1</span>);
         <span class="macro">assert_eq!</span>(<span class="ident">bytes</span>[<span class="number">0</span>], <span class="number">42</span>);
@@ -811,18 +855,20 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="attribute">#[<span class="ident">should_panic</span>]</span>
     <span class="kw">fn</span> <span class="ident">as_ref_u8_out_of_bounds</span>() {
-        <span class="kw">let</span> <span class="ident">bitmap</span>: <span class="ident">Bitmap</span> <span class="op">=</span> [<span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>].<span class="ident">iter</span>().<span class="ident">collect</span>();
+        <span class="kw">let</span> <span class="ident">bitmap</span> <span class="op">=</span> [<span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>]
+            .<span class="ident">iter</span>()
+            .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Bitmap</span><span class="op">&gt;</span>();
         <span class="kw">let</span> <span class="ident">bits</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="ident">bitmap</span>.<span class="ident">data_buffer</span>().<span class="ident">as_ref</span>();
         <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">bits</span>[<span class="ident">std::mem::size_of</span>::<span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>()];
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">as_ref_bitslice</span>() {
-        <span class="kw">let</span> <span class="ident">bits</span>: <span class="ident">Bitmap</span> <span class="op">=</span> [
+        <span class="kw">let</span> <span class="ident">bits</span> <span class="op">=</span> [
             <span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>,
         ]
         .<span class="ident">iter</span>()
-        .<span class="ident">collect</span>();
+        .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Bitmap</span><span class="op">&gt;</span>();
         <span class="macro">assert_eq!</span>(<span class="ident">bits</span>.<span class="ident">len</span>(), <span class="number">10</span>);
         <span class="macro">assert!</span>(<span class="op">!</span><span class="ident">bits</span>[<span class="number">0</span>]);
         <span class="macro">assert!</span>(<span class="ident">bits</span>[<span class="number">1</span>]);
@@ -839,14 +885,16 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="attribute">#[<span class="ident">should_panic</span>]</span>
     <span class="kw">fn</span> <span class="ident">as_ref_bitslice_out_of_bounds</span>() {
-        <span class="kw">let</span> <span class="ident">bitmap</span>: <span class="ident">Bitmap</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>].<span class="ident">iter</span>().<span class="ident">collect</span>();
+        <span class="kw">let</span> <span class="ident">bitmap</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>]
+            .<span class="ident">iter</span>()
+            .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Bitmap</span><span class="op">&gt;</span>();
         <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">bitmap</span>[<span class="ident">bitmap</span>.<span class="ident">bits</span>];
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">count</span>() {
         <span class="kw">let</span> <span class="ident">vec</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>];
-        <span class="kw">let</span> <span class="ident">bitmap</span>: <span class="ident">Bitmap</span> <span class="op">=</span> <span class="ident">vec</span>.<span class="ident">iter</span>().<span class="ident">collect</span>();
+        <span class="kw">let</span> <span class="ident">bitmap</span> <span class="op">=</span> <span class="ident">vec</span>.<span class="ident">iter</span>().<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Bitmap</span><span class="op">&gt;</span>();
         <span class="macro">assert_eq!</span>(<span class="ident">bitmap</span>.<span class="ident">len</span>(), <span class="number">6</span>);
         <span class="macro">assert!</span>(<span class="op">!</span><span class="ident">bitmap</span>.<span class="ident">is_empty</span>());
         <span class="macro">assert_eq!</span>(<span class="ident">bitmap</span>.<span class="ident">valid_count</span>(), <span class="number">3</span>);
@@ -875,10 +923,10 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">into_iter</span>() {
         <span class="kw">let</span> <span class="ident">vec</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>];
-        <span class="kw">let</span> <span class="ident">bitmap</span>: <span class="ident">Bitmap</span> <span class="op">=</span> <span class="ident">vec</span>.<span class="ident">iter</span>().<span class="ident">collect</span>();
+        <span class="kw">let</span> <span class="ident">bitmap</span> <span class="op">=</span> <span class="ident">vec</span>.<span class="ident">iter</span>().<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Bitmap</span><span class="op">&gt;</span>();
         <span class="macro">assert_eq!</span>(<span class="ident">bitmap</span>.<span class="ident">into_iter</span>().<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>(), <span class="ident">vec</span>);
     }
 }
 </code></pre></div>
-</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="narrow" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (311e2683e 2022-04-18)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="narrow" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (30f386087 2022-05-05)" ></div>
 </body></html>

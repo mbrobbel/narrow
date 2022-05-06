@@ -261,7 +261,14 @@
 <span id="256">256</span>
 <span id="257">257</span>
 <span id="258">258</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Bitmap iteration.</span>
+
+<span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">borrow::Borrow</span>,
     <span class="ident">iter</span>::{<span class="ident">Skip</span>, <span class="ident">Take</span>},
     <span class="ident">slice</span>,
@@ -272,6 +279,9 @@
 <span class="doccomment">/// This iterator returns boolean values that represent the bits stored in a</span>
 <span class="doccomment">/// Bitmap.</span>
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">BitmapIter</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Take</span><span class="op">&lt;</span><span class="ident">Skip</span><span class="op">&lt;</span><span class="ident">BitUnpacked</span><span class="op">&lt;</span><span class="ident">slice::Iter</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">u8</span><span class="op">&gt;</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+
+<span class="doccomment">/// An iterator over the bits in a Bitmap. Consumes the Bitmap.</span>
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">BitmapIntoIter</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Take</span><span class="op">&lt;</span><span class="ident">Skip</span><span class="op">&lt;</span><span class="ident">BitUnpacked</span><span class="op">&lt;</span><span class="ident">I</span>, <span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 <span class="doccomment">/// An iterator that packs boolean values as bits in bytes using</span>
 <span class="doccomment">/// least-significant bit (LSB) numbering.</span>
@@ -520,5 +530,5 @@
     }
 }
 </code></pre></div>
-</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="narrow" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (311e2683e 2022-04-18)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="narrow" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (30f386087 2022-05-05)" ></div>
 </body></html>
