@@ -88,3 +88,18 @@ where
     U: BufferMut<T> + Extend<T>,
 {
 }
+
+/// A buffer that can be consumed via [IntoIterator].
+pub trait BufferTake<T>
+where
+    T: Primitive,
+    Self: Buffer<T> + IntoIterator<Item = T>,
+{
+}
+
+impl<T, U> BufferTake<T> for U
+where
+    T: Primitive,
+    U: Buffer<T> + IntoIterator<Item = T>,
+{
+}
