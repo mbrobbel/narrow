@@ -23,7 +23,7 @@ trusted_len = []
 # narrow-derive = { version = "0.2.0", path = "narrow-derive" }
 
 [dev-dependencies]
-criterion = "0.3"
+criterion = "0.4"
 rand = "0.8"
 
 [profile.bench]
