@@ -40,7 +40,7 @@ where
         // iterator is finished.
         self.iter.next().map(|next| {
             // Set the least significant bit based on the first boolean value.
-            let mut byte = if *next.borrow() { 1 } else { 0 };
+            let mut byte = u8::from(*next.borrow());
             for bit_position in 1u8..8 {
                 // If the inner iterator has more boolean values and they are set
                 // (`true`), set the corresponding bit in the output byte.

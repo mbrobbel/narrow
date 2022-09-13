@@ -61,7 +61,7 @@ where
         self.validity
             .into_iter()
             .zip(self.data.into_iter())
-            .map(|(validity, value)| validity.then(|| value))
+            .map(|(validity, value)| validity.then_some(value))
     }
 }
 
@@ -80,7 +80,7 @@ where
         self.validity
             .into_iter()
             .zip(self.data.into_iter())
-            .map(|(validity, value)| validity.then(|| value))
+            .map(|(validity, value)| validity.then_some(value))
     }
 }
 
