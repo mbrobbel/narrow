@@ -3,7 +3,6 @@
 //! An implementation of [Apache Arrow](https://arrow.apache.org).
 
 #![deny(warnings)]
-#![feature(generic_associated_types)]
 #![cfg_attr(feature = "extend_one", feature(extend_one))]
 #![cfg_attr(feature = "portable_simd", feature(portable_simd))]
 #![cfg_attr(feature = "trusted_len", feature(trusted_len))]
