@@ -1,9 +1,8 @@
-[package]
-name = "narrow"
+[workspace.package]
 version = "0.2.0"
 authors = ["Matthijs Brobbel <m1brobbel@gmail.com>"]
 edition = "2021"
-# rust-version = "1.66"
+rust-version = "1.65.0"
 description = "An implementation of Apache Arrow"
 readme = "README.md"
 repository = "https://github.com/mbrobbel/narrow"
@@ -12,19 +11,34 @@ license = "Apache-2.0 OR MIT"
 keywords = ["Arrow"]
 categories = ["data-structures"]
 
+[workspace]
+members = ["narrow-derive"]
+
+[package]
+name = "narrow"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description.workspace = true
+readme.workspace = true
+repository.workspace = true
+documentation.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
 [features]
-default = ["nightly"]
-nightly = ["extend_one", "portable_simd", "trusted_len"]
-extend_one = []
-portable_simd = []
-trusted_len = []
+default = ["derive"]
+derive = ["dep:narrow-derive"]
+unsafe = []
 
 [dependencies]
-# narrow-derive = { version = "0.2.0", path = "narrow-derive" }
+narrow-derive = { path = "narrow-derive", optional = true }
 
 [dev-dependencies]
-criterion = "0.4"
-rand = "0.8"
+criterion = { version = "0.4", default-features = false }
+rand = { version = "0.8", default-features = false, features = ["small_rng"] }
 
 [profile.bench]
 lto = true
@@ -33,8 +47,3 @@ codegen-units = 1
 [[bench]]
 name = "narrow"
 harness = false
-
-[workspace]
-members = [
-  "narrow-derive"
-]

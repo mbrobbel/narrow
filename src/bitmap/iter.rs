@@ -18,7 +18,8 @@ pub type BitmapIntoIter<I> = Take<Skip<BitUnpacked<I, u8>>>;
 /// An iterator that packs boolean values as bits in bytes using
 /// least-significant bit (LSB) numbering.
 ///
-/// Wraps around an iterator over items that can be borrowed as boolean values.
+/// Wraps around an iterator (`I`) over items (`T`) that can be borrowed as
+/// boolean values.
 pub struct BitPacked<I, T>
 where
     I: Iterator<Item = T>,
@@ -102,10 +103,10 @@ where
 {
 }
 
-/// An iterator that unpacks boolean values from an iterator over items that can
-/// be borrowed as bytes, by interpreting the bits of these bytes with
-/// least-significant bit (LSB) numbering as boolean values i.e. `1` maps to
-/// `true` and `0` maps to `false`.
+/// An iterator that unpacks boolean values from an iterator (`I`) over items
+/// (`T`) that can be borrowed as bytes, by interpreting the bits of these bytes
+/// with least-significant bit (LSB) numbering as boolean values i.e. `1` maps
+/// to `true` and `0` maps to `false`.
 pub struct BitUnpacked<I, T>
 where
     I: Iterator<Item = T>,
@@ -185,6 +186,8 @@ mod tests {
     fn pack() {
         let input = [false, true, false, true, false, true];
         assert_eq!(input.iter().bit_packed().next(), Some(0x2a));
+        let input = [false, true, false, true, false, true, false, true];
+        assert_eq!(input.iter().bit_packed().next(), Some(0xaa));
         let input = [true; 16];
         assert_eq!(input.iter().bit_packed().collect::<Vec<u8>>(), [0xff, 0xff]);
     }

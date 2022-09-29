@@ -1,11 +1,11 @@
 use criterion::{BenchmarkId, Criterion, Throughput};
 use narrow::bitmap::Bitmap;
-use rand::{prelude::StdRng, Rng, SeedableRng};
+use rand::{prelude::SmallRng, Rng, SeedableRng};
 
 pub(super) fn bench(c: &mut Criterion) {
     {
         let mut group = c.benchmark_group("Bitmap::from_iter");
-        let mut rng = StdRng::seed_from_u64(1234);
+        let mut rng = SmallRng::seed_from_u64(1234);
 
         for size in [12345] {
             for null_fraction in [0., 0.5, 1.] {
@@ -25,7 +25,7 @@ pub(super) fn bench(c: &mut Criterion) {
 
     {
         let mut group = c.benchmark_group("Bitmap::into_iter");
-        let mut rng = StdRng::seed_from_u64(1234);
+        let mut rng = SmallRng::seed_from_u64(1234);
 
         for size in [12345] {
             for null_fraction in [0., 0.5, 1.] {

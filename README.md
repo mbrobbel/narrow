@@ -5,7 +5,7 @@
 [![crates.io](https://img.shields.io/crates/v/narrow.svg)](https://crates.io/crates/narrow)
 [![docs.rs](https://docs.rs/narrow/badge.svg)](https://docs.rs/narrow)
 
-An implementation of [Apache Arrow](https://arrow.apache.org).
+An experimental implementation of [Apache Arrow](https://arrow.apache.org).
 
 This crate provides types to support reading and writing instances of abstract data types in Arrow's in-memory data structures.
 
@@ -16,7 +16,7 @@ This crate provides types to support reading and writing instances of abstract d
 
 ## Minimum supported Rust version
 
-This crate requires Rust nightly.
+The minimum supported Rust version (MSRV) for this crate is Rust 1.65.0.
 
 ## License
 

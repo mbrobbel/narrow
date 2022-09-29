@@ -1,10 +1,11 @@
 status = [
-    "Check (nightly)",
-    "Test (nightly)",
-    "Rustfmt (nightly)",
-    "Clippy (nightly)",
-    "Miri (nightly)",
-    "Rustdoc (nightly)"
+    "Check (stable)",
+    "Test (stable)",
+    "Rustfmt",
+    "Clippy (stable)",
+    "Miri",
+    "Rustdoc (stable)",
+    "Bench (stable)",
 ]
 delete_merged_branches = true
 timeout_sec = 600

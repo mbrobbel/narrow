@@ -1,13 +1,15 @@
 use std::fmt::Debug;
 
+use crate::array::ArrayType;
+
 /// Subtrait for primitive types.
 ///
-/// This exists to use as trait bound where one or more of the supertraits of
-/// this trait are required, and to restrict certain implementations to Arrow
-/// primitive types.
+/// This exists to be used as trait bound where one or more of the supertraits
+/// of this trait are required, and to restrict certain implementations to
+/// Arrow primitive types.
 ///
 /// This trait is sealed to prevent downstream implementations.
-pub trait Primitive: Copy + Debug + Default + sealed::Sealed {}
+pub trait Primitive: ArrayType + Copy + Debug + Default + sealed::Sealed {}
 
 impl Primitive for i8 {}
 impl Primitive for i16 {}

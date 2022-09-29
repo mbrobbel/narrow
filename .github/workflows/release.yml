@@ -7,12 +7,14 @@ on:
 
 jobs:
   github:
-    name: GitHub Release
+    name: GitHub
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: softprops/action-gh-release@v0.1.7
+      - run: hub release create -m ${{ github.ref_name }} ${{ github.ref_name }}
 
   crates:
     name: Crates.io
@@ -22,7 +24,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly
+          toolchain: stable
       - uses: katyo/publish-crates@v1
         with:
           registry-token: ${{ secrets.CRATES_IO_TOKEN }}
