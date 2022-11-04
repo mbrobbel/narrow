@@ -4,7 +4,12 @@ use std::{
 };
 
 use super::{Array, ArrayType};
-use crate::{bitmap::ValidityBitmap, buffer::Buffer, validity::Validity, Length};
+use crate::{
+    bitmap::{Bitmap, ValidityBitmap},
+    buffer::Buffer,
+    validity::Validity,
+    Length,
+};
 
 /// A marker trait for unit types.
 ///
@@ -39,12 +44,14 @@ pub struct NullArray<T = (), const NULLABLE: bool = false, BitmapBuffer = Vec<u8
 )
 where
     T: Unit,
-    Nulls<T>: Validity<NULLABLE>;
+    Nulls<T>: Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>;
 
 impl<T, const NULLABLE: bool, BitmapBuffer> Array for NullArray<T, NULLABLE, BitmapBuffer>
 where
     T: Unit,
     Nulls<T>: Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
 {
     type Item = T;
 }
@@ -53,6 +60,7 @@ impl<T, const NULLABLE: bool, BitmapBuffer> Length for NullArray<T, NULLABLE, Bi
 where
     T: Unit,
     Nulls<T>: Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     <Nulls<T> as Validity<NULLABLE>>::Storage<BitmapBuffer>: Length,
 {
     #[inline]
@@ -68,7 +76,7 @@ where
 {
     type Buffer = BitmapBuffer;
 
-    fn validity_bitmap(&self) -> &crate::bitmap::Bitmap<Self::Buffer> {
+    fn validity_bitmap(&self) -> &Bitmap<Self::Buffer> {
         self.0.validity_bitmap()
     }
 }
@@ -96,6 +104,7 @@ impl<T, U, const NULLABLE: bool, BitmapBuffer> FromIterator<U>
 where
     T: Unit,
     Nulls<T>: Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     <Nulls<T> as Validity<NULLABLE>>::Storage<BitmapBuffer>: FromIterator<U>,
 {
     fn from_iter<I>(iter: I) -> Self
@@ -110,6 +119,7 @@ impl<T, const NULLABLE: bool, BitmapBuffer> IntoIterator for NullArray<T, NULLAB
 where
     T: Unit,
     Nulls<T>: Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     <Nulls<T> as Validity<NULLABLE>>::Storage<BitmapBuffer>: IntoIterator,
 {
     type IntoIter =
@@ -147,7 +157,6 @@ impl<T> Extend<T> for Nulls<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         self.len += iter.into_iter().count();
     }
-    // todo(mbrobbel): others
 }
 
 impl<T> IntoIterator for Nulls<T>

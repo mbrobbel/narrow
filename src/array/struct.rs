@@ -1,5 +1,9 @@
 use super::{Array, ArrayType};
-use crate::{buffer::Buffer, validity::Validity};
+use crate::{
+    buffer::{self, Buffer},
+    offset,
+    validity::Validity,
+};
 
 pub trait StructArrayType {
     type Array: Array;
@@ -15,10 +19,10 @@ where
 struct Foo;
 impl ArrayType for Foo {
     type Array<
-        DataBuffer: crate::buffer::Buffer<Self::Primitive>,
-        BitmapBuffer: crate::buffer::Buffer<u8>,
-        OffsetElement: crate::offset::OffsetElement,
-        OffsetBuffer: crate::buffer::Buffer<OffsetElement>,
+        DataBuffer: buffer::Buffer<Self::Primitive>,
+        BitmapBuffer: buffer::Buffer<u8>,
+        OffsetElement: offset::OffsetElement,
+        OffsetBuffer: buffer::Buffer<OffsetElement>,
     > = StructArray<Foo, false, BitmapBuffer>;
     type Primitive = u8;
     type RefItem<'a> = &'a Foo;

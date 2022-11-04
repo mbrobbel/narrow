@@ -4,7 +4,7 @@ use std::{borrow::Borrow, marker::PhantomData, num::TryFromIntError, ops::AddAss
 
 use self::iter::ScanOffsetsExt;
 use crate::{
-    bitmap::ValidityBitmap,
+    bitmap::{Bitmap, ValidityBitmap},
     buffer::{Buffer, BufferAlloc, BufferExtend, BufferRef},
     validity::Validity,
     Length, Primitive,
@@ -41,6 +41,7 @@ pub struct Offset<const NULLABLE: bool, Data, OffsetElement, OffsetBuffer, Bitma
 where
     OffsetElement: self::OffsetElement,
     OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
 {
     data: Data,
     offsets: <OffsetBuffer as Validity<NULLABLE>>::Storage<BitmapBuffer>,
@@ -53,6 +54,7 @@ where
     Data: BufferRef,
     OffsetElement: self::OffsetElement,
     OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
 {
     type Buffer = <Data as BufferRef>::Buffer;
     type Element = <Data as BufferRef>::Element;
@@ -71,7 +73,7 @@ where
 {
     type Buffer = BitmapBuffer;
 
-    fn validity_bitmap(&self) -> &crate::bitmap::Bitmap<Self::Buffer> {
+    fn validity_bitmap(&self) -> &Bitmap<Self::Buffer> {
         self.offsets.validity_bitmap()
     }
 }
@@ -81,6 +83,7 @@ impl<const NULLABLE: bool, Data, OffsetElement, OffsetBuffer, BitmapBuffer> Leng
 where
     OffsetElement: self::OffsetElement,
     OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     <OffsetBuffer as Validity<NULLABLE>>::Storage<BitmapBuffer>: BufferRef,
 {
     fn len(&self) -> usize {
@@ -95,6 +98,7 @@ where
     T: IntoIterator + Length,
     Data: Default + Extend<<T as IntoIterator>::Item>,
     OffsetElement: self::OffsetElement,
+    BitmapBuffer: Buffer<u8>,
     OffsetBuffer: Buffer<OffsetElement> + FromIterator<OffsetElement>,
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
@@ -154,6 +158,7 @@ impl<const NULLABLE: bool, Data, OffsetElement, OffsetBuffer, BitmapBuffer>
 where
     OffsetElement: self::OffsetElement,
     OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     <OffsetBuffer as Validity<NULLABLE>>::Storage<BitmapBuffer>: BufferRef<Buffer = OffsetBuffer>,
 {
     type Buffer = OffsetBuffer;

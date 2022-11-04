@@ -15,7 +15,8 @@ pub struct StringArray<
 where
     DataBuffer: Buffer<u8>,
     OffsetElement: offset::OffsetElement,
-    OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>;
+    OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>;
 
 pub type Utf8Array<
     const NULLABLE: bool = false,
@@ -36,8 +37,9 @@ impl<'a, const NULLABLE: bool, DataBuffer, OffsetElement, OffsetBuffer, BitmapBu
     for StringArray<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
 where
     DataBuffer: Buffer<u8>,
-    OffsetElement: crate::offset::OffsetElement,
+    OffsetElement: offset::OffsetElement,
     OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>: FromIterator<&'a [u8]>,
 {
     #[inline]
@@ -51,8 +53,9 @@ impl<const NULLABLE: bool, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer
     for StringArray<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
 where
     DataBuffer: Buffer<u8>,
-    OffsetElement: crate::offset::OffsetElement,
+    OffsetElement: offset::OffsetElement,
     OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>: FromIterator<Vec<u8>>,
 {
     #[inline]
@@ -65,8 +68,9 @@ impl<const NULLABLE: bool, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer
     for StringArray<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
 where
     DataBuffer: Buffer<u8>,
-    OffsetElement: crate::offset::OffsetElement,
+    OffsetElement: offset::OffsetElement,
     OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>: Length,
 {
     #[inline]
@@ -79,8 +83,9 @@ impl<const NULLABLE: bool, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer
     for StringArray<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
 where
     DataBuffer: Buffer<u8>,
-    OffsetElement: crate::offset::OffsetElement,
+    OffsetElement: offset::OffsetElement,
     OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>: BufferRef,
 {
     type Buffer = <Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> as BufferRef>::Buffer;

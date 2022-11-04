@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use super::Array;
 use crate::{
-    bitmap::ValidityBitmap,
+    bitmap::{Bitmap, ValidityBitmap},
     buffer::{Buffer, BufferRef, BufferRefMut},
     validity::Validity,
     Length, Primitive,
@@ -44,13 +44,15 @@ pub struct FixedSizePrimitiveArray<
 )
 where
     T: Primitive,
-    DataBuffer: Buffer<T> + Validity<NULLABLE>;
+    DataBuffer: Buffer<T> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>;
 
 impl<T, const NULLABLE: bool, DataBuffer, BitmapBuffer> Array
     for FixedSizePrimitiveArray<T, NULLABLE, DataBuffer, BitmapBuffer>
 where
     T: Primitive,
     DataBuffer: Buffer<T> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
 {
     type Item = T;
 }
@@ -60,6 +62,7 @@ impl<T, const NULLABLE: bool, DataBuffer, BitmapBuffer> BufferRef
 where
     T: Primitive,
     DataBuffer: Buffer<T> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     <DataBuffer as Validity<NULLABLE>>::Storage<BitmapBuffer>: BufferRef,
 {
     type Buffer = <<DataBuffer as Validity<NULLABLE>>::Storage<BitmapBuffer> as BufferRef>::Buffer;
@@ -76,6 +79,7 @@ impl<T, const NULLABLE: bool, DataBuffer, BitmapBuffer> BufferRefMut
 where
     T: Primitive,
     DataBuffer: Buffer<T> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     <DataBuffer as Validity<NULLABLE>>::Storage<BitmapBuffer>: BufferRefMut,
 {
     type BufferMut =
@@ -93,6 +97,7 @@ impl<T, const NULLABLE: bool, DataBuffer, BitmapBuffer> Length
 where
     T: Primitive,
     DataBuffer: Buffer<T> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     <DataBuffer as Validity<NULLABLE>>::Storage<BitmapBuffer>: Length,
 {
     #[inline]
@@ -110,7 +115,7 @@ where
 {
     type Buffer = BitmapBuffer;
 
-    fn validity_bitmap(&self) -> &crate::bitmap::Bitmap<Self::Buffer> {
+    fn validity_bitmap(&self) -> &Bitmap<Self::Buffer> {
         self.0.validity_bitmap()
     }
 }
@@ -120,6 +125,7 @@ impl<T, const NULLABLE: bool, U, DataBuffer, BitmapBuffer> FromIterator<U>
 where
     T: Primitive,
     DataBuffer: Buffer<T> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     <DataBuffer as Validity<NULLABLE>>::Storage<BitmapBuffer>: FromIterator<U>,
 {
     fn from_iter<I>(iter: I) -> Self
@@ -135,6 +141,7 @@ impl<'a, T, const NULLABLE: bool, DataBuffer, BitmapBuffer> IntoIterator
 where
     T: Primitive,
     DataBuffer: Buffer<T> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     &'a <DataBuffer as Validity<NULLABLE>>::Storage<BitmapBuffer>: IntoIterator,
 {
     type IntoIter =
@@ -152,6 +159,7 @@ impl<T, const NULLABLE: bool, DataBuffer, BitmapBuffer> IntoIterator
 where
     T: Primitive,
     DataBuffer: Buffer<T> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     <DataBuffer as Validity<NULLABLE>>::Storage<BitmapBuffer>: IntoIterator,
 {
     type IntoIter =
@@ -165,7 +173,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::mem;
+    use std::{mem, sync::Arc};
 
     use super::*;
     use crate::bitmap::Bitmap;
@@ -178,7 +186,7 @@ mod tests {
         let array = [1i8, 2, 3, 4]
             .iter()
             .copied()
-            .collect::<Int8Array<false, std::sync::Arc<[i8]>>>();
+            .collect::<Int8Array<false, Arc<[i8]>>>();
         assert_eq!(array.len(), 4);
 
         let array = [Some(1u8), None, Some(3), Some(4)]

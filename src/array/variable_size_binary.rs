@@ -15,8 +15,9 @@ pub struct VariableSizeBinaryArray<
 >(Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>)
 where
     DataBuffer: Buffer<u8>,
-    OffsetElement: crate::offset::OffsetElement,
-    OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>;
+    OffsetElement: offset::OffsetElement,
+    OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>;
 
 pub type BinaryArray<
     const NULLABLE: bool = false,
@@ -35,8 +36,9 @@ impl<const NULLABLE: bool, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer
     for VariableSizeBinaryArray<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
 where
     DataBuffer: Buffer<u8>,
-    OffsetElement: crate::offset::OffsetElement,
+    OffsetElement: offset::OffsetElement,
     OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>: Length,
 {
     #[inline]
@@ -49,8 +51,9 @@ impl<const NULLABLE: bool, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer
     for VariableSizeBinaryArray<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
 where
     DataBuffer: Buffer<u8>,
-    OffsetElement: crate::offset::OffsetElement,
+    OffsetElement: offset::OffsetElement,
     OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>: BufferRef,
 {
     type Buffer = <Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> as BufferRef>::Buffer;
@@ -82,8 +85,9 @@ impl<T, const NULLABLE: bool, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuf
     for VariableSizeBinaryArray<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
 where
     DataBuffer: Buffer<u8>,
-    OffsetElement: crate::offset::OffsetElement,
+    OffsetElement: offset::OffsetElement,
     OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>: FromIterator<T>,
 {
     #[inline]
@@ -99,6 +103,7 @@ where
     DataBuffer: Buffer<u8>,
     OffsetElement: offset::OffsetElement,
     OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
     Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>:
         offset::buffer::OffsetBuffer<OffsetElement>,
 {
@@ -122,9 +127,7 @@ mod tests {
     #[test]
     fn from_iter() {
         let input: [&[u8]; 4] = [&[1u8], &[2, 3], &[4, 5, 6], &[7, 8, 9, 0]];
-        let array = input
-            .into_iter()
-            .collect::<VariableSizeBinaryArray<false>>();
+        let array = input.into_iter().collect::<VariableSizeBinaryArray>();
         assert_eq!(array.len(), 4);
         assert_eq!(array.buffer_ref(), &[1, 2, 3, 4, 5, 6, 7, 8, 9, 0]);
         assert_eq!(array.offset_buffer(), &[0, 1, 3, 6, 10]);
@@ -140,11 +143,11 @@ mod tests {
     #[test]
     fn size_of() {
         assert_eq!(
-            mem::size_of::<BinaryArray<false>>(),
+            mem::size_of::<BinaryArray>(),
             mem::size_of::<Vec<u8>>() + mem::size_of::<Vec<i32>>()
         );
         assert_eq!(
-            mem::size_of::<LargeBinaryArray<false>>(),
+            mem::size_of::<LargeBinaryArray>(),
             mem::size_of::<Vec<u8>>() + mem::size_of::<Vec<i64>>()
         );
         assert_eq!(

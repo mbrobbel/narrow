@@ -26,7 +26,9 @@ pub trait Array {
 pub trait ArrayType {
     /// The [Array] type that stores values of this type.
     type Array<
+        // The buffer type for data
         DataBuffer: Buffer<Self::Primitive>,
+        // The buffer type for the bitmap, when nullable
         BitmapBuffer: Buffer<u8>,
         OffsetElement: offset::OffsetElement,
         OffsetBuffer: Buffer<OffsetElement>,
@@ -58,31 +60,31 @@ macro_rules! impl_array_type {
     };
 }
 
-impl_array_type!((), u8, NullArray<(), false, BitmapBuffer>, ());
+impl_array_type!((), u8, NullArray<(), false>, ());
 impl_array_type!(Option<()>, u8, NullArray<(), true, BitmapBuffer>, Option<&'a()>);
 
-impl_array_type!(bool, u8, BooleanArray<false, DataBuffer, BitmapBuffer>, bool);
+impl_array_type!(bool, u8, BooleanArray<false, DataBuffer>, bool);
 impl_array_type!(Option<bool>, u8, BooleanArray<true, DataBuffer, BitmapBuffer>, Option<&'a bool>);
 
-impl_array_type!(i8, Int8Array<false, DataBuffer, BitmapBuffer>);
+impl_array_type!(i8, Int8Array<false, DataBuffer>);
 impl_array_type!(Option<i8>, i8, Int8Array<true, DataBuffer, BitmapBuffer>, Option<&'a i8>);
-impl_array_type!(i16, Int16Array<false, DataBuffer, BitmapBuffer>);
+impl_array_type!(i16, Int16Array<false, DataBuffer>);
 impl_array_type!(Option<i16>, i16, Int16Array<true, DataBuffer, BitmapBuffer>, Option<&'a i16>);
-impl_array_type!(i32, Int32Array<false, DataBuffer, BitmapBuffer>);
+impl_array_type!(i32, Int32Array<false, DataBuffer>);
 impl_array_type!(Option<i32>, i32, Int32Array<true, DataBuffer, BitmapBuffer>, Option<&'a i32>);
-impl_array_type!(i64, Int64Array<false, DataBuffer, BitmapBuffer>);
+impl_array_type!(i64, Int64Array<false, DataBuffer>);
 impl_array_type!(Option<i64>, i64, Int64Array<true, DataBuffer, BitmapBuffer>, Option<&'a i64>);
 
-impl_array_type!(u8, Uint8Array<false, DataBuffer, BitmapBuffer>);
+impl_array_type!(u8, Uint8Array<false, DataBuffer>);
 impl_array_type!(Option<u8>, u8, Uint8Array<true, DataBuffer, BitmapBuffer>, Option<&'a u8>);
-impl_array_type!(u16, Uint16Array<false, DataBuffer, BitmapBuffer>);
+impl_array_type!(u16, Uint16Array<false, DataBuffer>);
 impl_array_type!(Option<u16>, u16, Uint16Array<true, DataBuffer, BitmapBuffer>, Option<&'a u16>);
-impl_array_type!(u32, Uint32Array<false, DataBuffer, BitmapBuffer>);
+impl_array_type!(u32, Uint32Array<false, DataBuffer>);
 impl_array_type!(Option<u32>, u32, Uint32Array<true, DataBuffer, BitmapBuffer>, Option<&'a u32>);
-impl_array_type!(u64, Uint64Array<false, DataBuffer, BitmapBuffer>);
+impl_array_type!(u64, Uint64Array<false, DataBuffer>);
 impl_array_type!(Option<u64>, u64, Uint64Array<true, DataBuffer, BitmapBuffer>, Option<&'a u64>);
 
-impl_array_type!(f32, Float32Array<false, DataBuffer, BitmapBuffer>);
+impl_array_type!(f32, Float32Array<false, DataBuffer>);
 impl_array_type!(Option<f32>, f32, Float32Array<true, DataBuffer, BitmapBuffer>, Option<&'a f32>);
-impl_array_type!(f64, Float64Array<false, DataBuffer, BitmapBuffer>);
+impl_array_type!(f64, Float64Array<false, DataBuffer>);
 impl_array_type!(Option<f64>, f64, Float64Array<true, DataBuffer, BitmapBuffer>, Option<&'a f64>);

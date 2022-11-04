@@ -15,7 +15,10 @@ use crate::{
 ///
 /// Store data with a validity [Bitmap] that uses a single bit per value in `T`
 /// that indicates the nullness or non-nullness of that value.
-pub struct Nullable<DataBuffer, BitmapBuffer = Vec<u8>> {
+pub struct Nullable<DataBuffer, BitmapBuffer = Vec<u8>>
+// where
+//     BitmapBuffer: Buffer<u8>,
+{
     /// Data that could contain null elements.
     data: DataBuffer,
 

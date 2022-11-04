@@ -1,6 +1,6 @@
 //! # narrow
 //!
-//! An experimental implementation of [Apache Arrow](https://arrow.apache.org).
+//! An experimental (work-in-progress) implementation of [Apache Arrow](https://arrow.apache.org).
 
 #![deny(warnings)]
 
