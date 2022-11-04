@@ -40,6 +40,10 @@ jobs:
           override: true
       - uses: actions-rs/cargo@v1.0.3
         with:
+          command: install
+          args: cargo-expand
+      - uses: actions-rs/cargo@v1.0.3
+        with:
           command: test
           args: --all
       - uses: actions-rs/cargo@v1.0.3
