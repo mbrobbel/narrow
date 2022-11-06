@@ -17,7 +17,7 @@ jobs:
         with:
           profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
+          default: true
       - uses: actions-rs/cargo@v1.0.3
         with:
           command: check
@@ -37,7 +37,7 @@ jobs:
         with:
           profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
+          default: true
       - uses: actions-rs/toolchain@v1.0.7
         with:
           profile: minimal
@@ -65,7 +65,7 @@ jobs:
           profile: minimal
           toolchain: stable
           components: rustfmt
-          override: true
+          default: true
       - uses: actions-rs/cargo@v1.0.3
         with:
           command: fmt
@@ -86,7 +86,7 @@ jobs:
           profile: minimal
           toolchain: ${{ matrix.rust }}
           components: clippy
-          override: true
+          default: true
       - uses: actions-rs/cargo@v1.0.3
         with:
           command: clippy
@@ -102,7 +102,7 @@ jobs:
           profile: minimal
           toolchain: nightly
           components: miri
-          override: true
+          default: true
       - uses: actions-rs/cargo@v1.0.3
         with:
           command: miri
@@ -125,7 +125,7 @@ jobs:
           profile: minimal
           toolchain: stable
           components: llvm-tools-preview
-          override: true
+          default: true
       - uses: actions-rs/cargo@v1.0.3
         with:
           command: build

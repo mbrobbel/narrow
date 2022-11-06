@@ -21,7 +21,7 @@ jobs:
         with:
           profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
+          default: true
       - run: cargo bench --bench narrow -- --output-format=bencher | tee output.txt
       - uses: benchmark-action/github-action-benchmark@v1
         with:
