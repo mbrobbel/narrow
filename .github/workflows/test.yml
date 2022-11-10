@@ -49,7 +49,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - run: cargo clippy --all -- --Dwarnings
+      - run: cargo clippy --all -- -Dwarnings
 
   miri:
     name: Miri
