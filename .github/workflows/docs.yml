@@ -11,22 +11,10 @@ jobs:
   rustdoc:
     name: Rustdoc
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - 1.65.0
-          - stable
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1.0.7
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          default: true
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: doc
-          args: --no-deps
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo doc --no-deps
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.rust == 'stable'
         uses: actions/upload-artifact@v3
         with:
