@@ -2,7 +2,10 @@
 
 use std::{
     borrow::{Borrow, BorrowMut},
-    mem, slice,
+    mem,
+    rc::Rc,
+    slice,
+    sync::Arc,
 };
 
 use crate::Primitive;
@@ -11,7 +14,7 @@ use crate::Primitive;
 ///
 /// Read-only slice.
 ///
-/// There is a blanket implementation, so that everything that implements
+/// There is a blanket implementation, so that every type implements
 /// `Borrow<[T]> where T: Primitive` can be used as a `Buffer` in this
 /// crate.
 pub trait Buffer<T>
@@ -33,6 +36,8 @@ where
     }
 }
 
+// Any type that can be borrowed as a slice of some `Primitive` can be used as a
+// Buffer.
 impl<T, U> Buffer<T> for U
 where
     T: Primitive,
@@ -46,11 +51,12 @@ where
 pub trait BufferMut<T>
 where
     T: Primitive,
-    Self: Buffer<T>,
-    Self: BorrowMut<[T]>,
+    Self: Buffer<T> + BorrowMut<[T]>,
 {
 }
 
+// Any type that can be borrowed as a mutable slice of some `Primitive` can be
+// used as a BufferMut.
 impl<T, U> BufferMut<T> for U
 where
     T: Primitive,
@@ -64,13 +70,14 @@ where
 pub trait BufferAlloc<T>
 where
     T: Primitive,
-    Self: Buffer<T>,
-    Self: FromIterator<T>,
+    Self: Buffer<T> + FromIterator<T>,
 {
 }
 
 impl<T> BufferAlloc<T> for Vec<T> where T: Primitive {}
 impl<T> BufferAlloc<T> for Box<[T]> where T: Primitive {}
+impl<T> BufferAlloc<T> for Rc<[T]> where T: Primitive {}
+impl<T> BufferAlloc<T> for Arc<[T]> where T: Primitive {}
 
 /// An extendable contiguous memory buffer for data.
 ///
@@ -102,4 +109,46 @@ where
     T: Primitive,
     U: Buffer<T> + IntoIterator<Item = T>,
 {
+}
+
+/// A reference to a buffer.
+pub trait BufferRef {
+    type Element: Primitive;
+    type Buffer: Buffer<Self::Element>;
+
+    /// Returns a reference to the buffer.
+    fn buffer_ref(&self) -> &Self::Buffer;
+}
+
+impl<T> BufferRef for Vec<T>
+where
+    T: Primitive,
+{
+    type Buffer = Vec<T>;
+    type Element = T;
+
+    fn buffer_ref(&self) -> &Self::Buffer {
+        self
+    }
+}
+
+/// A mutable reference to a mutable buffer.
+pub trait BufferRefMut {
+    type Element: Primitive;
+    type BufferMut: BufferMut<Self::Element>;
+
+    /// Returns a mutable reference to the mutable buffer.
+    fn buffer_ref_mut(&mut self) -> &mut Self::BufferMut;
+}
+
+impl<T> BufferRefMut for Vec<T>
+where
+    T: Primitive,
+{
+    type BufferMut = Vec<T>;
+    type Element = T;
+
+    fn buffer_ref_mut(&mut self) -> &mut Self::BufferMut {
+        self
+    }
 }

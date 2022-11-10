@@ -3,136 +3,79 @@ name: Test
 on: [push, pull_request]
 
 jobs:
+  msrv:
+    name: Minimum supported Rust version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@1.65.0
+      - run: cargo check --all
+
   check:
     name: Check
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - nightly
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1.0.7
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: check
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo check --all
 
   test:
     name: Test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - nightly
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1.0.7
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/install@master
         with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: test
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: test
-          args: --benches
+          crate: cargo-expand
+      - run: cargo test --all
+      - run: cargo test --benches
 
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - nightly
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1.0.7
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
           components: rustfmt
-          override: true
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: fmt
-          args: --all -- --check
+      - run: cargo fmt --all -- --check
 
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - nightly
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1.0.7
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
           components: clippy
-          override: true
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: clippy
-          args: -- -Dwarnings
+      - run: cargo clippy --all -- -Dwarnings
 
   miri:
     name: Miri
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - nightly
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1.0.7
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          components: miri
-          override: true
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: miri
-          args: setup
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: miri
-          args: test
+      - uses: dtolnay/rust-toolchain@miri
+      - run: cargo miri setup
+      - run: cargo miri test
 
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - nightly
     env:
       RUSTFLAGS: "-C instrument-coverage"
       RUSTDOCFLAGS: "-C instrument-coverage"
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1.0.7
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
           components: llvm-tools-preview
-          override: true
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: build
-      - uses: actions-rs/cargo@v1.0.3
+      - run: cargo build
+      - run: cargo test
         env:
           LLVM_PROFILE_FILE: "narrow-%p-%m.profraw"
-        with:
-          command: test
       - name: Install grcov
         run: curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-x86_64-unknown-linux-gnu.tar.bz2 | tar jxf -
       - name: grcov
