@@ -2,6 +2,10 @@
 //!
 //! An experimental (work-in-progress) implementation of [Apache Arrow](https://arrow.apache.org).
 
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/mbrobbel/narrow/main/narrow.svg",
+    html_favicon_url = "https://raw.githubusercontent.com/mbrobbel/narrow/main/narrow.svg"
+)]
 #![deny(warnings)]
 
 mod primitive;
