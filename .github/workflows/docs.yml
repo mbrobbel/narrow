@@ -28,9 +28,9 @@ jobs:
     needs: [rustdoc]
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}/narrow
     concurrency:
-      group: "pages"
+      group: github-pages
       cancel-in-progress: true
     steps:
       - uses: actions/download-artifact@v3
@@ -39,6 +39,6 @@ jobs:
       - uses: actions/configure-pages@v2
       - uses: actions/upload-pages-artifact@v1
         with:
-          path: "."
+          path: .
       - uses: actions/deploy-pages@v1
         id: deployment
