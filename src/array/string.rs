@@ -153,7 +153,6 @@ where
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]
@@ -176,7 +175,7 @@ mod tests {
     fn size_of() {}
 
     #[test]
-    fn validity_bitmap() {
+    fn nullable_string_array() {
         // &str
         let input = [Some("1"), None, Some("23")]
             .into_iter()
