@@ -116,7 +116,7 @@ where
     }
 }
 
-impl<'a, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> FromIterator<Option<String>>
+impl<DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> FromIterator<Option<String>>
     for StringArray<true, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
 where
     DataBuffer: Buffer<u8>,
