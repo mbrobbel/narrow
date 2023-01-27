@@ -10,7 +10,7 @@ pub(crate) struct BitsDisplay<'a>(&'a [u8]);
 impl Display for BitsDisplay<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         f.debug_list()
-            .entries(self.0.iter().map(|byte| format!("{:08b}", byte)))
+            .entries(self.0.iter().map(|byte| format!("{byte:08b}")))
             .finish()
     }
 }
