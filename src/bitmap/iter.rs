@@ -217,28 +217,17 @@ mod tests {
     fn pack_size_hint() {
         assert_eq!(
             (usize::MAX / 8, None),
-            (0..).into_iter().map(|_| true).bit_packed().size_hint()
+            (0..).map(|_| true).bit_packed().size_hint()
         );
         assert_eq!(
             (usize::MAX / 8, None),
-            (0..=usize::MAX)
-                .into_iter()
-                .map(|_| true)
-                .bit_packed()
-                .size_hint()
+            (0..=usize::MAX).map(|_| true).bit_packed().size_hint()
         );
         assert_eq!(
             (usize::MAX / 8, Some(usize::MAX / 8)),
-            (0..usize::MAX)
-                .into_iter()
-                .map(|_| true)
-                .bit_packed()
-                .size_hint()
+            (0..usize::MAX).map(|_| true).bit_packed().size_hint()
         );
-        assert_eq!(
-            (1, Some(1)),
-            (0..3).into_iter().map(|_| true).bit_packed().size_hint()
-        );
+        assert_eq!((1, Some(1)), (0..3).map(|_| true).bit_packed().size_hint());
     }
 
     #[test]

@@ -252,7 +252,7 @@ where
         #[cold]
         #[inline(never)]
         fn assert_failed(index: usize, len: usize) -> ! {
-            panic!("index (is {}) should be < len (is {})", index, len);
+            panic!("index (is {index}) should be < len (is {len})");
         }
 
         let len = self.bits;

@@ -10,12 +10,11 @@ pub(super) fn bench(c: &mut Criterion) {
         for size in [12345] {
             for null_fraction in [0., 0.5, 1.] {
                 let input = (0..size)
-                    .into_iter()
                     .map(|_| rng.gen_bool(1. - null_fraction))
                     .collect::<Vec<_>>();
                 group.throughput(Throughput::Elements(size as u64));
                 group.bench_with_input(
-                    BenchmarkId::new("narrow", format!("{}/{}", size, null_fraction)),
+                    BenchmarkId::new("narrow", format!("{size}/{null_fraction}")),
                     &input,
                     |b, input| b.iter(|| Bitmap::<Vec<u8>>::from_iter(input)),
                 );
@@ -30,13 +29,12 @@ pub(super) fn bench(c: &mut Criterion) {
         for size in [12345] {
             for null_fraction in [0., 0.5, 1.] {
                 let input = (0..size)
-                    .into_iter()
                     .map(|_| rng.gen_bool(1. - null_fraction))
                     .collect::<Vec<_>>();
                 let narrow_bitmap = Bitmap::<Vec<u8>>::from_iter(&input);
                 group.throughput(Throughput::Elements(size as u64));
                 group.bench_with_input(
-                    BenchmarkId::new("narrow", format!("{}/{}", size, null_fraction)),
+                    BenchmarkId::new("narrow", format!("{size}/{null_fraction}")),
                     &narrow_bitmap,
                     |b, input| b.iter(|| Vec::<bool>::from_iter(input)),
                 );
