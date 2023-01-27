@@ -1,4 +1,5 @@
 use crate::{
+    bitmap::ValidityBitmap,
     buffer::{Buffer, BufferRef},
     offset::{self, Offset},
     validity::Validity,
@@ -32,15 +33,14 @@ pub type LargeUtf8Array<
     BitmapBuffer = Vec<u8>,
 > = StringArray<NULLABLE, DataBuffer, i64, OffsetBuffer, BitmapBuffer>;
 
-impl<'a, const NULLABLE: bool, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
-    FromIterator<&'a str>
-    for StringArray<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
+impl<'a, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> FromIterator<&'a str>
+    for StringArray<false, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
 where
     DataBuffer: Buffer<u8>,
     OffsetElement: offset::OffsetElement,
-    OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
+    OffsetBuffer: Buffer<OffsetElement> + Validity<false>,
     BitmapBuffer: Buffer<u8>,
-    Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>: FromIterator<&'a [u8]>,
+    Offset<false, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>: FromIterator<&'a [u8]>,
 {
     #[inline]
     fn from_iter<I: IntoIterator<Item = &'a str>>(iter: I) -> Self {
@@ -48,15 +48,14 @@ where
     }
 }
 
-impl<const NULLABLE: bool, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
-    FromIterator<String>
-    for StringArray<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
+impl<DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> FromIterator<String>
+    for StringArray<false, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
 where
     DataBuffer: Buffer<u8>,
     OffsetElement: offset::OffsetElement,
-    OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
+    OffsetBuffer: Buffer<OffsetElement> + Validity<false>,
     BitmapBuffer: Buffer<u8>,
-    Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>: FromIterator<Vec<u8>>,
+    Offset<false, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>: FromIterator<Vec<u8>>,
 {
     #[inline]
     fn from_iter<I: IntoIterator<Item = String>>(iter: I) -> Self {
@@ -97,6 +96,61 @@ where
     }
 }
 
+impl<'a, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> FromIterator<Option<&'a str>>
+    for StringArray<true, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
+where
+    DataBuffer: Buffer<u8>,
+    OffsetElement: offset::OffsetElement,
+    OffsetBuffer: Buffer<OffsetElement> + Validity<true>,
+    BitmapBuffer: Buffer<u8>,
+    Offset<true, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>:
+        FromIterator<Option<&'a [u8]>>,
+{
+    #[inline]
+    fn from_iter<I: IntoIterator<Item = Option<&'a str>>>(iter: I) -> Self {
+        Self(
+            iter.into_iter()
+                .map(|x| x.map(|string_ref| string_ref.as_bytes()))
+                .collect(),
+        )
+    }
+}
+
+impl<DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> FromIterator<Option<String>>
+    for StringArray<true, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
+where
+    DataBuffer: Buffer<u8>,
+    OffsetElement: offset::OffsetElement,
+    OffsetBuffer: Buffer<OffsetElement> + Validity<true>,
+    BitmapBuffer: Buffer<u8>,
+    Offset<true, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>:
+        FromIterator<Option<Vec<u8>>>,
+{
+    #[inline]
+    fn from_iter<I: IntoIterator<Item = Option<String>>>(iter: I) -> Self {
+        Self(
+            iter.into_iter()
+                .map(|x| x.map(|string| string.into_bytes()))
+                .collect(),
+        )
+    }
+}
+
+impl<DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> ValidityBitmap
+    for StringArray<true, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
+where
+    DataBuffer: Buffer<u8>,
+    OffsetElement: offset::OffsetElement,
+    OffsetBuffer: Buffer<OffsetElement> + Validity<true>,
+    BitmapBuffer: Buffer<u8>,
+{
+    type Buffer = BitmapBuffer;
+
+    fn validity_bitmap(&self) -> &crate::bitmap::Bitmap<Self::Buffer> {
+        self.0.validity_bitmap()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -119,4 +173,24 @@ mod tests {
 
     #[test]
     fn size_of() {}
+
+    #[test]
+    fn nullable_string_array() {
+        // &str
+        let input = [Some("1"), None, Some("23")]
+            .into_iter()
+            .map(|string_ref| string_ref.map(ToString::to_string))
+            .collect::<Vec<_>>();
+        let array = input.into_iter().collect::<Utf8Array<true>>();
+
+        assert_eq!(array.null_count(), 1);
+        assert_eq!(array.buffer_ref(), b"123".as_bytes());
+
+        // String
+        let input = [Some("1"), Some("23"), None, Some("67")];
+        let array = input.into_iter().collect::<Utf8Array<true>>();
+
+        assert_eq!(array.null_count(), 1);
+        assert_eq!(array.buffer_ref(), b"12367".as_bytes());
+    }
 }
