@@ -25,6 +25,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
-      - uses: katyo/publish-crates@v1
-        with:
-          registry-token: ${{ secrets.CRATES_IO_TOKEN }}
+      - run: |
+          cargo publish -p narrow-derive
+          cargo publish -p narrow
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
