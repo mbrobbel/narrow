@@ -13,8 +13,8 @@ use crate::{buffer::Buffer, offset, Primitive};
 pub mod boolean;
 pub mod fixed_size_primitive;
 pub mod null;
+pub mod run_end_encoded;
 pub mod string;
-pub mod r#struct;
 pub mod variable_size_binary;
 
 /// implemented by data structures that are arrow arrays

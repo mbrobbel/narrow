@@ -6,6 +6,8 @@ use crate::{
     Length,
 };
 
+use super::{Array, ArrayType};
+
 pub struct StringArray<
     const NULLABLE: bool = false,
     DataBuffer = Vec<u8>,
@@ -32,6 +34,39 @@ pub type LargeUtf8Array<
     OffsetBuffer = Vec<i64>,
     BitmapBuffer = Vec<u8>,
 > = StringArray<NULLABLE, DataBuffer, i64, OffsetBuffer, BitmapBuffer>;
+
+impl<const NULLABLE: bool, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> Array
+    for StringArray<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
+where
+    DataBuffer: Buffer<u8>,
+    OffsetElement: offset::OffsetElement,
+    OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
+{
+    type Item = String;
+}
+
+impl ArrayType for String {
+    type Array<
+        DataBuffer: Buffer<Self::Primitive>,
+        BitmapBuffer: Buffer<u8>,
+        OffsetElement: offset::OffsetElement,
+        OffsetBuffer: Buffer<OffsetElement>,
+    > = StringArray<false, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>;
+    type Primitive = u8;
+    type RefItem<'a> = &'a str;
+}
+
+impl ArrayType for Option<String> {
+    type Array<
+        DataBuffer: Buffer<Self::Primitive>,
+        BitmapBuffer: Buffer<u8>,
+        OffsetElement: offset::OffsetElement,
+        OffsetBuffer: Buffer<OffsetElement>,
+    > = StringArray<true, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>;
+    type Primitive = u8;
+    type RefItem<'a> = Option<&'a str>;
+}
 
 impl<'a, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> FromIterator<&'a str>
     for StringArray<false, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>

@@ -94,7 +94,7 @@ impl<BitmapBuffer> Bitmap<BitmapBuffer> {
     }
 
     /// Returns the number of trailing padding bits in the last byte of the
-    /// buffer that contain no meaningful bits. This bits should be ignored when
+    /// buffer that contain no meaningful bits. These bits should be ignored when
     /// inspecting the raw byte buffer.
     #[inline]
     pub fn trailing_bits(&self) -> usize {

@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ops::Index};
 
 use super::Array;
 use crate::{
@@ -71,6 +71,22 @@ where
 
     fn buffer_ref(&self) -> &Self::Buffer {
         self.0.buffer_ref()
+    }
+}
+
+impl<T, const NULLABLE: bool, DataBuffer, BitmapBuffer> Index<usize>
+    for FixedSizePrimitiveArray<T, NULLABLE, DataBuffer, BitmapBuffer>
+where
+    T: Primitive,
+    DataBuffer: Buffer<T> + Validity<NULLABLE>,
+    BitmapBuffer: Buffer<u8>,
+    <DataBuffer as Validity<NULLABLE>>::Storage<BitmapBuffer>: Index<usize>,
+{
+    type Output =
+        <<DataBuffer as Validity<NULLABLE>>::Storage<BitmapBuffer> as Index<usize>>::Output;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.0.index(index)
     }
 }
 
