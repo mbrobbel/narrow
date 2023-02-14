@@ -246,11 +246,11 @@ mod tests {
     fn buffers() {
         let input = [1u64, 2, 3, 4, 5, 6, 7];
         let array = input.iter().copied().collect::<Uint64Array>();
-        assert_eq!(array.buffer_ref().as_slice(), input);
+        assert_eq!(array.buffer_ref(), input);
 
         let input = [Some(1u8), None, Some(3), Some(4)];
         let array = input.iter().copied().collect::<Uint8Array<true>>();
-        assert_eq!(array.buffer_ref().as_slice(), [1u8, u8::default(), 3, 4]);
+        assert_eq!(array.buffer_ref(), [1u8, u8::default(), 3, 4]);
         assert_eq!(
             array.validity_bitmap(),
             [true, false, true, true].as_slice()

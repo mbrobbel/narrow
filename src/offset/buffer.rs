@@ -6,7 +6,7 @@ pub trait OffsetBuffer<T>
 where
     T: OffsetElement,
 {
-    type Buffer: Buffer<T>;
+    type Buffer: ?Sized + Buffer<T>;
 
     fn offset_buffer(&self) -> &Self::Buffer;
 }

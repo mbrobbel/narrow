@@ -38,7 +38,7 @@ where
 
 // Any type that can be borrowed as a slice of some `Primitive` can be used as a
 // Buffer.
-impl<T, U> Buffer<T> for U
+impl<T, U: ?Sized> Buffer<T> for U
 where
     T: Primitive,
     U: Borrow<[T]>,
@@ -114,7 +114,7 @@ where
 /// A reference to a buffer.
 pub trait BufferRef {
     type Element: Primitive;
-    type Buffer: Buffer<Self::Element>;
+    type Buffer: ?Sized + Buffer<Self::Element>;
 
     /// Returns a reference to the buffer.
     fn buffer_ref(&self) -> &Self::Buffer;
@@ -124,11 +124,25 @@ impl<T> BufferRef for Vec<T>
 where
     T: Primitive,
 {
-    type Buffer = Vec<T>;
+    type Buffer = [T];
     type Element = T;
 
     fn buffer_ref(&self) -> &Self::Buffer {
-        self
+        self.as_slice()
+    }
+}
+
+impl<T, const N: usize> BufferRef for Vec<[T; N]>
+where
+    T: Primitive,
+{
+    type Buffer = [T];
+    type Element = T;
+
+    fn buffer_ref(&self) -> &Self::Buffer {
+        // self.flatten() is nightly
+        // SAFETY: `[T]` is layout-identical to `[T; N]`
+        unsafe { std::slice::from_raw_parts(self.as_ptr().cast(), self.len() * N) }
     }
 }
 

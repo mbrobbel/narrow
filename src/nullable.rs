@@ -53,19 +53,20 @@ where
     }
 }
 
-impl<T, Data, BitmapBuffer> FromIterator<(bool, T)> for Nullable<Data, BitmapBuffer>
+impl<T, U, Data, BitmapBuffer> FromIterator<(bool, U)> for Nullable<Data, BitmapBuffer>
 where
     T: Default,
+    U: IntoIterator<Item = T>,
     Data: Default + Extend<T>,
     BitmapBuffer: BufferAlloc<u8>,
 {
-    fn from_iter<I: IntoIterator<Item = (bool, T)>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = (bool, U)>>(iter: I) -> Self {
         let mut data = Data::default();
         data.extend(Some(T::default()));
         let validity = iter
             .into_iter()
             .map(|(valid, item)| {
-                data.extend(Some(item));
+                data.extend(item);
                 valid
             })
             .collect();
@@ -162,6 +163,34 @@ mod tests {
         let input = [Some(1u32), Some(2), Some(3), Some(4), None, Some(42)];
         let nullable = input.into_iter().collect::<Nullable<Vec<_>>>();
         assert_eq!(nullable.buffer_ref(), &[1, 2, 3, 4, u32::default(), 42]);
+        assert_eq!(nullable.validity_bitmap().buffer_ref(), &[0b00101111u8]);
+
+        let input = [
+            Some([1, 1]),
+            Some([2, 2]),
+            Some([3, 3]),
+            Some([4, 4]),
+            None,
+            Some([42, 42]),
+        ];
+        let nullable = input.into_iter().collect::<Nullable<Vec<_>>>();
+        assert_eq!(
+            nullable.buffer_ref(),
+            &[
+                1,
+                1,
+                2,
+                2,
+                3,
+                3,
+                4,
+                4,
+                u32::default(),
+                u32::default(),
+                42,
+                42
+            ]
+        );
         assert_eq!(nullable.validity_bitmap().buffer_ref(), &[0b00101111u8]);
     }
 
