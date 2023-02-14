@@ -46,6 +46,28 @@ where
     type Item = String;
 }
 
+impl ArrayType for &str {
+    type Array<
+        DataBuffer: Buffer<Self::Primitive>,
+        BitmapBuffer: Buffer<u8>,
+        OffsetElement: offset::OffsetElement,
+        OffsetBuffer: Buffer<OffsetElement>,
+    > = StringArray<false, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>;
+    type Primitive = u8;
+    type RefItem<'a> = &'a str;
+}
+
+impl ArrayType for Option<&str> {
+    type Array<
+        DataBuffer: Buffer<Self::Primitive>,
+        BitmapBuffer: Buffer<u8>,
+        OffsetElement: offset::OffsetElement,
+        OffsetBuffer: Buffer<OffsetElement>,
+    > = StringArray<true, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>;
+    type Primitive = u8;
+    type RefItem<'a> = Option<&'a str>;
+}
+
 impl ArrayType for String {
     type Array<
         DataBuffer: Buffer<Self::Primitive>,
@@ -201,7 +223,7 @@ mod tests {
             .into_iter()
             .map(ToString::to_string)
             .collect::<Vec<String>>();
-        let array = input.into_iter().collect::<Utf8Array>();
+        let array = input.into_iter().collect::<LargeUtf8Array>();
         assert_eq!(array.len(), 4);
         assert_eq!(array.buffer_ref(), b"1234567890".as_bytes());
     }
