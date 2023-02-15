@@ -131,8 +131,14 @@ where
 {
     type Buffer = BitmapBuffer;
 
+    #[inline]
     fn validity_bitmap(&self) -> &Bitmap<Self::Buffer> {
         self.0.validity_bitmap()
+    }
+
+    #[inline]
+    fn validity_bitmap_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
+        self.0.validity_bitmap_mut()
     }
 }
 

@@ -9,9 +9,13 @@ pub trait ValidityBitmap {
     /// The buffer type of the Bitmap.
     type Buffer: Buffer<u8>;
 
-    /// Returns a reference to a [`Bitmap`] storing the validity information
+    /// Returns a reference to a [Bitmap] storing the validity information
     /// (null-ness of elements) in a collection.
     fn validity_bitmap(&self) -> &Bitmap<Self::Buffer>;
+
+    /// Returns a mutable reference to a [Bitmap] storing the validity
+    /// information (null-ness of elements) in a collection.
+    fn validity_bitmap_mut(&mut self) -> &mut Bitmap<Self::Buffer>;
 
     /// Returns `true` if the element at position `index` is null.
     #[inline]

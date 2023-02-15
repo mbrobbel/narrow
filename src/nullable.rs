@@ -140,6 +140,11 @@ where
     fn validity_bitmap(&self) -> &Bitmap<BitmapBuffer> {
         &self.validity
     }
+
+    #[inline]
+    fn validity_bitmap_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
+        &mut self.validity
+    }
 }
 
 impl<DataBuffer, BitmapBuffer> Length for Nullable<DataBuffer, BitmapBuffer> {
@@ -165,33 +170,25 @@ mod tests {
         assert_eq!(nullable.buffer_ref(), &[1, 2, 3, 4, u32::default(), 42]);
         assert_eq!(nullable.validity_bitmap().buffer_ref(), &[0b00101111u8]);
 
-        let input = [
-            Some([1, 1]),
-            Some([2, 2]),
-            Some([3, 3]),
-            Some([4, 4]),
-            None,
-            Some([42, 42]),
-        ];
-        let nullable = input.into_iter().collect::<Nullable<Vec<_>>>();
+        let input = [Some([1234, 1234]), None, Some([42, 42])];
+        let mut nullable = input.into_iter().collect::<Nullable<Vec<_>>>();
         assert_eq!(
             nullable.buffer_ref(),
-            &[
-                1,
-                1,
-                2,
-                2,
-                3,
-                3,
-                4,
-                4,
-                u32::default(),
-                u32::default(),
-                42,
-                42
-            ]
+            &[1234, 1234, u32::default(), u32::default(), 42, 42]
         );
-        assert_eq!(nullable.validity_bitmap().buffer_ref(), &[0b00101111u8]);
+        assert_eq!(nullable.validity_bitmap().buffer_ref(), &[0b00101u8]);
+        nullable.buffer_ref_mut()[0] = 4321;
+        assert_eq!(
+            nullable.buffer_ref(),
+            &[4321, 1234, u32::default(), u32::default(), 42, 42]
+        );
+        assert_eq!(nullable.buffer_ref().len(), 3 * 2);
+        assert_eq!(nullable.len(), 3);
+        nullable.validity_bitmap_mut().buffer_ref_mut()[0] = 0b00111u8;
+        assert_eq!(
+            nullable.into_iter().collect::<Vec<_>>(),
+            [Some([4321, 1234]), Some([0, 0]), Some([42, 42])]
+        );
     }
 
     #[test]
