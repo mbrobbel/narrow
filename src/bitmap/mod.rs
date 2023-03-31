@@ -138,6 +138,11 @@ where
     fn validity_bitmap(&self) -> &Bitmap<BitmapBuffer> {
         self
     }
+
+    #[inline]
+    fn validity_bitmap_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
+        self
+    }
 }
 
 impl<BitmapBuffer> BufferRef for Bitmap<BitmapBuffer>

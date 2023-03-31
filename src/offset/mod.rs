@@ -73,8 +73,14 @@ where
 {
     type Buffer = BitmapBuffer;
 
+    #[inline]
     fn validity_bitmap(&self) -> &Bitmap<Self::Buffer> {
         self.offsets.validity_bitmap()
+    }
+
+    #[inline]
+    fn validity_bitmap_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
+        self.offsets.validity_bitmap_mut()
     }
 }
 
@@ -138,10 +144,10 @@ where
             .map(|opt| match opt {
                 Some(item) => {
                     state += OffsetElement::try_from(item.len()).unwrap();
-                    data.extend(item.into_iter());
-                    (true, state)
+                    data.extend(item);
+                    (true, std::iter::once(state))
                 }
-                None => (false, state),
+                None => (false, std::iter::once(state)),
             })
             .collect();
         Self {
@@ -159,9 +165,12 @@ where
     OffsetElement: self::OffsetElement,
     OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
     BitmapBuffer: Buffer<u8>,
-    <OffsetBuffer as Validity<NULLABLE>>::Storage<BitmapBuffer>: BufferRef<Buffer = OffsetBuffer>,
+    <OffsetBuffer as Validity<NULLABLE>>::Storage<BitmapBuffer>: BufferRef,
+    <<OffsetBuffer as Validity<NULLABLE>>::Storage<BitmapBuffer> as BufferRef>::Buffer:
+        Buffer<OffsetElement>,
 {
-    type Buffer = OffsetBuffer;
+    type Buffer =
+        <<OffsetBuffer as Validity<NULLABLE>>::Storage<BitmapBuffer> as BufferRef>::Buffer;
 
     fn offset_buffer(&self) -> &Self::Buffer {
         self.offsets.buffer_ref()
