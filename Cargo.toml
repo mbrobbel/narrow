@@ -37,7 +37,7 @@ unsafe = []
 narrow-derive = { path = "narrow-derive", optional = true }
 
 [dev-dependencies]
-criterion = { version = "0.4", default-features = false }
+criterion = { version = "0.5", default-features = false }
 rand = { version = "0.8", default-features = false, features = ["small_rng"] }
 
 [profile.bench]
