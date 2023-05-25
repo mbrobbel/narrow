@@ -30,7 +30,7 @@ where
         unsafe {
             slice::from_raw_parts(
                 self.borrow().as_ptr() as *const u8,
-                self.borrow().len() * mem::size_of::<T>(),
+                mem::size_of_val(self.borrow()),
             )
         }
     }
