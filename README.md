@@ -12,7 +12,7 @@ This crate provides types to support reading and writing instances of abstract d
 ## Docs
 
 - [Docs (release)](https://docs.rs/narrow)
-- [Docs (main)](https://mbrobbel.github.io/narrow/narrow/)
+- [Docs (main)](https://mbrobbel.github.io/narrow/)
 
 ## Minimum supported Rust version
 
