@@ -50,6 +50,7 @@ mod tests {
             b: Option<()>,
             c: (),
             d: Option<[u128; 2]>,
+            e: bool,
         }
         // These impls below can all be generated.
         impl ArrayType for Foo {
@@ -60,6 +61,7 @@ mod tests {
             b: <Option<()> as ArrayType>::Array<Buffer>,
             c: <() as ArrayType>::Array<Buffer>,
             d: <Option<[u128; 2]> as ArrayType>::Array<Buffer>,
+            e: <bool as ArrayType>::Array<Buffer>,
         }
         impl<Buffer: BufferType> Array for FooArray<Buffer> {
             type Item = Foo;
@@ -70,13 +72,14 @@ mod tests {
             <Option<()> as ArrayType>::Array<Buffer>: Default + Extend<Option<()>>,
             <() as ArrayType>::Array<Buffer>: Default + Extend<()>,
             <Option<[u128; 2]> as ArrayType>::Array<Buffer>: Default + Extend<Option<[u128; 2]>>,
+            <bool as ArrayType>::Array<Buffer>: Default + Extend<bool>,
         {
             fn from_iter<T: IntoIterator<Item = Foo>>(iter: T) -> Self {
-                let (a, (b, (c, d))) = iter
+                let (a, (b, (c, (d, e)))) = iter
                     .into_iter()
-                    .map(|Foo { a, b, c, d }| (a, (b, (c, d))))
+                    .map(|Foo { a, b, c, d, e }| (a, (b, (c, (d, e)))))
                     .unzip();
-                Self { a, b, c, d }
+                Self { a, b, c, d, e }
             }
         }
         impl StructArrayType for Foo {
@@ -90,24 +93,28 @@ mod tests {
                 b: None,
                 c: (),
                 d: Some([1, 2]),
+                e: false,
             },
             Foo {
                 a: 2,
                 b: Some(()),
                 c: (),
                 d: Some([3, 4]),
+                e: true,
             },
             Foo {
                 a: 3,
                 b: None,
                 c: (),
                 d: None,
+                e: true,
             },
             Foo {
                 a: 4,
                 b: None,
                 c: (),
                 d: None,
+                e: true,
             },
         ];
         let array = input.into_iter().collect::<StructArray<Foo>>();
@@ -120,6 +127,10 @@ mod tests {
         assert_eq!(
             array.0.d.into_iter().collect::<Vec<_>>(),
             &[Some([1, 2]), Some([3, 4]), None, None]
+        );
+        assert_eq!(
+            array.0.e.into_iter().collect::<Vec<_>>(),
+            &[false, true, true, true]
         );
     }
 }

@@ -2,6 +2,9 @@
 
 use crate::{buffer::BufferType, FixedSize};
 
+mod boolean;
+pub use boolean::*;
+
 mod null;
 pub use null::*;
 
@@ -26,6 +29,9 @@ macro_rules! impl_array_type {
         }
     };
 }
+
+impl_array_type!(bool, BooleanArray<false, Buffer>);
+impl_array_type!(Option<bool>, BooleanArray<true, Buffer>);
 
 impl_array_type!(u8, FixedSizePrimitiveArray<u8, false, Buffer>);
 impl_array_type!(Option<u8>, FixedSizePrimitiveArray<u8, true, Buffer>);

@@ -112,9 +112,27 @@ where
     }
 }
 
+// TODO(mbrobbel): figure out why autotrait fails here
+unsafe impl<T: Unit, const NULLABLE: bool, BitmapBuffer: BufferType> Send
+    for NullArray<T, NULLABLE, BitmapBuffer>
+where
+    Nulls<T>: Validity<NULLABLE>,
+    <Nulls<T> as Validity<NULLABLE>>::Storage<BitmapBuffer>: Send,
+{
+}
+
+// TODO(mbrobbel): figure out why autotrait fails here
+unsafe impl<T: Unit, const NULLABLE: bool, BitmapBuffer: BufferType> Sync
+    for NullArray<T, NULLABLE, BitmapBuffer>
+where
+    Nulls<T>: Validity<NULLABLE>,
+    <Nulls<T> as Validity<NULLABLE>>::Storage<BitmapBuffer>: Sync,
+{
+}
+
 /// New type wrapper for null elements that implements Length.
 #[derive(Debug, Copy, Clone, Default)]
-pub struct Nulls<T> {
+pub struct Nulls<T: Unit> {
     /// The number of null elements
     len: usize,
 
@@ -122,10 +140,7 @@ pub struct Nulls<T> {
     _ty: PhantomData<fn() -> T>,
 }
 
-impl<T> FromIterator<T> for Nulls<T>
-where
-    T: Unit,
-{
+impl<T: Unit> FromIterator<T> for Nulls<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         Self {
             // TODO(mbrobbel): ExactSizeIterator
@@ -135,16 +150,13 @@ where
     }
 }
 
-impl<T> Extend<T> for Nulls<T> {
+impl<T: Unit> Extend<T> for Nulls<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         self.len += iter.into_iter().count();
     }
 }
 
-impl<T> IntoIterator for Nulls<T>
-where
-    T: Unit,
-{
+impl<T: Unit> IntoIterator for Nulls<T> {
     type IntoIter = Take<Repeat<T>>;
     type Item = T;
 
@@ -153,7 +165,7 @@ where
     }
 }
 
-impl<T> Length for Nulls<T> {
+impl<T: Unit> Length for Nulls<T> {
     #[inline]
     fn len(&self) -> usize {
         self.len
@@ -162,10 +174,9 @@ impl<T> Length for Nulls<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::mem;
-
     use super::*;
     use crate::bitmap::Bitmap;
+    use std::mem;
 
     #[test]
     fn unit_types() {
