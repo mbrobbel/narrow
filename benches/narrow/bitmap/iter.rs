@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, Throughput};
-use narrow::bitmap::Bitmap;
+use narrow::{bitmap::Bitmap, buffer::BoxBuffer};
 use rand::{prelude::SmallRng, Rng, SeedableRng};
 
 pub(super) fn bench(c: &mut Criterion) {
@@ -16,7 +16,7 @@ pub(super) fn bench(c: &mut Criterion) {
                 group.bench_with_input(
                     BenchmarkId::new("narrow", format!("{size}/{null_fraction}")),
                     &input,
-                    |b, input| b.iter(|| Bitmap::<Vec<u8>>::from_iter(input)),
+                    |b, input| b.iter(|| Bitmap::<BoxBuffer>::from_iter(input)),
                 );
             }
         }
@@ -31,12 +31,12 @@ pub(super) fn bench(c: &mut Criterion) {
                 let input = (0..size)
                     .map(|_| rng.gen_bool(1. - null_fraction))
                     .collect::<Vec<_>>();
-                let narrow_bitmap = Bitmap::<Vec<u8>>::from_iter(&input);
+                let narrow_bitmap = Bitmap::<BoxBuffer>::from_iter(&input);
                 group.throughput(Throughput::Elements(size as u64));
                 group.bench_with_input(
                     BenchmarkId::new("narrow", format!("{size}/{null_fraction}")),
-                    &narrow_bitmap,
-                    |b, input| b.iter(|| Vec::<bool>::from_iter(input)),
+                    &(),
+                    |b, _| b.iter(|| Vec::<bool>::from_iter(&narrow_bitmap)),
                 );
             }
         }

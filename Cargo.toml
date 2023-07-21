@@ -29,7 +29,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [features]
-default = ["derive"]
+default = ["derive", "unsafe"]
 derive = ["dep:narrow-derive"]
 unsafe = []
 

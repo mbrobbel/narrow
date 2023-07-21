@@ -8,7 +8,7 @@ mod r#struct;
 mod union;
 mod util;
 
-static CRATE: &str = "narrow";
+const CRATE: &str = "narrow";
 
 static NARROW: Lazy<String> = Lazy::new(|| match proc_macro_crate::crate_name(CRATE) {
     Ok(found) => match found {

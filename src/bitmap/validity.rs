@@ -1,22 +1,12 @@
+//! Store validity information in a bitmap.
+
+use super::BitmapRef;
+use crate::length::Length;
 use std::ops::Not;
 
-use super::Bitmap;
-use crate::{buffer::Buffer, Length};
-
 /// A validity bitmap storing the validity information (null-ness) of elements
-/// in a collection in a Bitmap.
-pub trait ValidityBitmap {
-    /// The buffer type of the Bitmap.
-    type Buffer: Buffer<u8>;
-
-    /// Returns a reference to a [Bitmap] storing the validity information
-    /// (null-ness of elements) in a collection.
-    fn validity_bitmap(&self) -> &Bitmap<Self::Buffer>;
-
-    /// Returns a mutable reference to a [Bitmap] storing the validity
-    /// information (null-ness of elements) in a collection.
-    fn validity_bitmap_mut(&mut self) -> &mut Bitmap<Self::Buffer>;
-
+/// in a collection in a bitmap.
+pub trait ValidityBitmap: BitmapRef {
     /// Returns `true` if the element at position `index` is null.
     #[inline]
     fn is_null(&self, index: usize) -> Option<bool> {
@@ -38,13 +28,13 @@ pub trait ValidityBitmap {
     /// Returns the number of null elements.
     #[inline]
     fn null_count(&self) -> usize {
-        self.validity_bitmap().len() - self.valid_count()
+        self.bitmap_ref().len() - self.valid_count()
     }
 
     /// Returns `true` if the element at position `index` is valid.
     #[inline]
     fn is_valid(&self, index: usize) -> Option<bool> {
-        (index < self.validity_bitmap().len()).then(|| unsafe { self.is_valid_unchecked(index) })
+        (index < self.bitmap_ref().len()).then(|| unsafe { self.is_valid_unchecked(index) })
     }
 
     /// Returns `true` if the element at position `index` is valid, without
@@ -56,13 +46,13 @@ pub trait ValidityBitmap {
     /// Calling this method with an out-of-bounds index is undefined behavior.
     #[inline]
     unsafe fn is_valid_unchecked(&self, index: usize) -> bool {
-        self.validity_bitmap().get_unchecked(index)
+        self.bitmap_ref().get_unchecked(index)
     }
 
     /// Returns the number of valid elements.
     #[inline]
     fn valid_count(&self) -> usize {
-        (0..self.validity_bitmap().len())
+        (0..self.bitmap_ref().len())
             .filter(|&index|
                 // Safety
                 // - The index is always in range by iterating over the range
@@ -80,7 +70,7 @@ pub trait ValidityBitmap {
     /// Returns `true` if all the elements are null.
     #[inline]
     fn all_null(&self) -> bool {
-        self.null_count() == self.validity_bitmap().len()
+        self.null_count() == self.bitmap_ref().len()
     }
 
     /// Returns `true` if the array contains at least one valid element.
@@ -92,6 +82,6 @@ pub trait ValidityBitmap {
     /// Returns `true` if all the elements are valid.
     #[inline]
     fn all_valid(&self) -> bool {
-        self.valid_count() == self.validity_bitmap().len()
+        self.valid_count() == self.bitmap_ref().len()
     }
 }

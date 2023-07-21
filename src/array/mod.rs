@@ -1,90 +1,88 @@
 //! Sequences of values with known length all having the same type.
 
-use self::{
-    boolean::BooleanArray,
-    fixed_size_primitive::{
-        Float32Array, Float64Array, Int16Array, Int32Array, Int64Array, Int8Array, Uint16Array,
-        Uint32Array, Uint64Array, Uint8Array,
-    },
-    null::NullArray,
-};
-use crate::{buffer::Buffer, offset, Primitive};
+use crate::{buffer::BufferType, FixedSize};
 
-pub mod boolean;
-pub mod fixed_size_primitive;
-pub mod null;
-pub mod run_end_encoded;
-pub mod string;
-pub mod variable_size_binary;
+mod null;
+pub use null::*;
 
-/// implemented by data structures that are arrow arrays
+mod fixed_size_primitive;
+pub use fixed_size_primitive::*;
+
+mod r#struct;
+pub use r#struct::*;
+
+pub trait ArrayType {
+    type Array<Buffer: BufferType>: Array;
+}
+
 pub trait Array {
     type Item: ArrayType;
 }
 
-// todo(mb): variadic generics for buffer types (just generic for now)
-pub trait ArrayType {
-    /// The [Array] type that stores values of this type.
-    type Array<
-        // The buffer type for data
-        DataBuffer: Buffer<Self::Primitive>,
-        // The buffer type for the bitmap, when nullable
-        BitmapBuffer: Buffer<u8>,
-        OffsetElement: offset::OffsetElement,
-        OffsetBuffer: Buffer<OffsetElement>,
-    >;
-
-    /// Storage type in the data buffer. (This is weird for null arrays).
-    type Primitive: Primitive;
-
-    /// A reference type for this type that is used when borrowing data from the
-    /// array.
-    type RefItem<'a>;
-}
-
 macro_rules! impl_array_type {
-    ($ty:ty, $prim:ty, $array:ty, $item:ty) => {
+    ($ty:ty, $array:ty) => {
         impl ArrayType for $ty {
-            type Array<
-                DataBuffer: Buffer<Self::Primitive>,
-                BitmapBuffer: Buffer<u8>,
-                OffsetElement: offset::OffsetElement,
-                OffsetBuffer: Buffer<OffsetElement>,
-            > = $array;
-            type Primitive = $prim;
-            type RefItem<'a> = $item;
+            type Array<Buffer: BufferType> = $array;
         }
     };
-    ($ty:ty, $array:ty) => {
-        impl_array_type!($ty, $ty, $array, $ty);
-    };
 }
 
-impl_array_type!((), u8, NullArray<(), false>, ());
-impl_array_type!(Option<()>, u8, NullArray<(), true, BitmapBuffer>, Option<&'a()>);
+impl_array_type!((), NullArray<(), false, Buffer>);
+impl_array_type!(Option<()>, NullArray<(), true, Buffer>);
 
-impl_array_type!(bool, u8, BooleanArray<false, DataBuffer>, bool);
-impl_array_type!(Option<bool>, u8, BooleanArray<true, DataBuffer, BitmapBuffer>, Option<&'a bool>);
+impl_array_type!(u8, FixedSizePrimitiveArray<u8, false, Buffer>);
+impl_array_type!(Option<u8>, FixedSizePrimitiveArray<u8, true, Buffer>);
+impl_array_type!(i8, FixedSizePrimitiveArray<i8, false, Buffer>);
+impl_array_type!(Option<i8>, FixedSizePrimitiveArray<i8, true, Buffer>);
+impl_array_type!(u16, FixedSizePrimitiveArray<u16, false, Buffer>);
+impl_array_type!(Option<u16>, FixedSizePrimitiveArray<u16, true, Buffer>);
+impl_array_type!(i16, FixedSizePrimitiveArray<i16, false, Buffer>);
+impl_array_type!(Option<i16>, FixedSizePrimitiveArray<i16, true, Buffer>);
+impl_array_type!(u32, FixedSizePrimitiveArray<u32, false, Buffer>);
+impl_array_type!(Option<u32>, FixedSizePrimitiveArray<u32, true, Buffer>);
+impl_array_type!(i32, FixedSizePrimitiveArray<i32, false, Buffer>);
+impl_array_type!(Option<i32>, FixedSizePrimitiveArray<i32, true, Buffer>);
+impl_array_type!(u64, FixedSizePrimitiveArray<u64, false, Buffer>);
+impl_array_type!(Option<u64>, FixedSizePrimitiveArray<u64, true, Buffer>);
+impl_array_type!(i64, FixedSizePrimitiveArray<i64, false, Buffer>);
+impl_array_type!(Option<i64>, FixedSizePrimitiveArray<i64, true, Buffer>);
+impl_array_type!(u128, FixedSizePrimitiveArray<u128, false, Buffer>);
+impl_array_type!(Option<u128>, FixedSizePrimitiveArray<u128, true, Buffer>);
+impl_array_type!(i128, FixedSizePrimitiveArray<i128, false, Buffer>);
+impl_array_type!(Option<i128>, FixedSizePrimitiveArray<i128, true, Buffer>);
 
-impl_array_type!(i8, Int8Array<false, DataBuffer>);
-impl_array_type!(Option<i8>, i8, Int8Array<true, DataBuffer, BitmapBuffer>, Option<&'a i8>);
-impl_array_type!(i16, Int16Array<false, DataBuffer>);
-impl_array_type!(Option<i16>, i16, Int16Array<true, DataBuffer, BitmapBuffer>, Option<&'a i16>);
-impl_array_type!(i32, Int32Array<false, DataBuffer>);
-impl_array_type!(Option<i32>, i32, Int32Array<true, DataBuffer, BitmapBuffer>, Option<&'a i32>);
-impl_array_type!(i64, Int64Array<false, DataBuffer>);
-impl_array_type!(Option<i64>, i64, Int64Array<true, DataBuffer, BitmapBuffer>, Option<&'a i64>);
+impl_array_type!(usize, FixedSizePrimitiveArray<usize, false, Buffer>);
+impl_array_type!(Option<usize>, FixedSizePrimitiveArray<usize, true, Buffer>);
+impl_array_type!(isize, FixedSizePrimitiveArray<isize, false, Buffer>);
+impl_array_type!(Option<isize>, FixedSizePrimitiveArray<isize, true, Buffer>);
 
-impl_array_type!(u8, Uint8Array<false, DataBuffer>);
-impl_array_type!(Option<u8>, u8, Uint8Array<true, DataBuffer, BitmapBuffer>, Option<&'a u8>);
-impl_array_type!(u16, Uint16Array<false, DataBuffer>);
-impl_array_type!(Option<u16>, u16, Uint16Array<true, DataBuffer, BitmapBuffer>, Option<&'a u16>);
-impl_array_type!(u32, Uint32Array<false, DataBuffer>);
-impl_array_type!(Option<u32>, u32, Uint32Array<true, DataBuffer, BitmapBuffer>, Option<&'a u32>);
-impl_array_type!(u64, Uint64Array<false, DataBuffer>);
-impl_array_type!(Option<u64>, u64, Uint64Array<true, DataBuffer, BitmapBuffer>, Option<&'a u64>);
+impl_array_type!(f32, FixedSizePrimitiveArray<f32, false, Buffer>);
+impl_array_type!(Option<f32>, FixedSizePrimitiveArray<f32, true, Buffer>);
+impl_array_type!(f64, FixedSizePrimitiveArray<f64, false, Buffer>);
+impl_array_type!(Option<f64>, FixedSizePrimitiveArray<f64, true, Buffer>);
 
-impl_array_type!(f32, Float32Array<false, DataBuffer>);
-impl_array_type!(Option<f32>, f32, Float32Array<true, DataBuffer, BitmapBuffer>, Option<&'a f32>);
-impl_array_type!(f64, Float64Array<false, DataBuffer>);
-impl_array_type!(Option<f64>, f64, Float64Array<true, DataBuffer, BitmapBuffer>, Option<&'a f64>);
+impl<T: FixedSize, const N: usize> ArrayType for [T; N] {
+    type Array<Buffer: BufferType> = FixedSizePrimitiveArray<[T; N], false, Buffer>;
+}
+impl<T: FixedSize, const N: usize> ArrayType for Option<[T; N]> {
+    type Array<Buffer: BufferType> = FixedSizePrimitiveArray<[T; N], true, Buffer>;
+}
+
+impl<T: FixedSize> ArrayType for (T,) {
+    type Array<Buffer: BufferType> = FixedSizePrimitiveArray<(T,), false, Buffer>;
+}
+impl<T: FixedSize> ArrayType for Option<(T,)> {
+    type Array<Buffer: BufferType> = FixedSizePrimitiveArray<(T,), true, Buffer>;
+}
+impl<T1: FixedSize, T2: FixedSize> ArrayType for (T1, T2) {
+    type Array<Buffer: BufferType> = FixedSizePrimitiveArray<(T1, T2), false, Buffer>;
+}
+impl<T1: FixedSize, T2: FixedSize> ArrayType for Option<(T1, T2)> {
+    type Array<Buffer: BufferType> = FixedSizePrimitiveArray<(T1, T2), true, Buffer>;
+}
+impl<T1: FixedSize, T2: FixedSize, T3: FixedSize> ArrayType for (T1, T2, T3) {
+    type Array<Buffer: BufferType> = FixedSizePrimitiveArray<(T1, T2, T3), false, Buffer>;
+}
+impl<T1: FixedSize, T2: FixedSize, T3: FixedSize, T4: FixedSize> ArrayType for (T1, T2, T3, T4) {
+    type Array<Buffer: BufferType> = FixedSizePrimitiveArray<(T1, T2, T3, T4), false, Buffer>;
+}

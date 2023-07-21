@@ -1,3 +1,5 @@
+//! The length (number of elements) of a collection.
+
 use std::{collections::VecDeque, rc::Rc, sync::Arc};
 
 /// The length (or number of elements) of a collection.
@@ -13,14 +15,14 @@ pub trait Length {
     }
 }
 
-impl<T, const N: usize> Length for [T; N] {
+impl<T> Length for &[T] {
     #[inline]
     fn len(&self) -> usize {
-        N
+        <[T]>::len(self)
     }
 }
 
-impl<T> Length for &[T] {
+impl<T> Length for &mut [T] {
     #[inline]
     fn len(&self) -> usize {
         <[T]>::len(self)
@@ -59,22 +61,5 @@ impl<T> Length for VecDeque<T> {
     #[inline]
     fn len(&self) -> usize {
         VecDeque::len(self)
-    }
-}
-
-impl<T> Length for &T
-where
-    T: Length,
-{
-    #[inline]
-    fn len(&self) -> usize {
-        T::len(self)
-    }
-}
-
-impl Length for &str {
-    #[inline]
-    fn len(&self) -> usize {
-        str::len(self)
     }
 }
