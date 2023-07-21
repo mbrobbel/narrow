@@ -14,12 +14,14 @@ pub use fixed_size_primitive::*;
 mod r#struct;
 pub use r#struct::*;
 
-pub trait ArrayType {
-    type Array<Buffer: BufferType>: Array;
-}
+mod variable_size_binary;
+pub use variable_size_binary::*;
 
-pub trait Array {
-    type Item: ArrayType;
+mod string;
+pub use string::*;
+
+pub trait ArrayType {
+    type Array<Buffer: BufferType>;
 }
 
 macro_rules! impl_array_type {
@@ -79,4 +81,30 @@ impl<T: FixedSize, const N: usize> ArrayType for [T; N] {
 }
 impl<T: FixedSize, const N: usize> ArrayType for Option<[T; N]> {
     type Array<Buffer: BufferType> = FixedSizePrimitiveArray<[T; N], true, Buffer>;
+}
+
+impl<'a> ArrayType for &'a [u8] {
+    type Array<Buffer: BufferType> = VariableSizeBinaryArray<false, i32, Buffer>;
+}
+impl<'a> ArrayType for Option<&'a [u8]> {
+    type Array<Buffer: BufferType> = VariableSizeBinaryArray<true, i32, Buffer>;
+}
+impl ArrayType for Vec<u8> {
+    type Array<Buffer: BufferType> = VariableSizeBinaryArray<false, i32, Buffer>;
+}
+impl ArrayType for Option<Vec<u8>> {
+    type Array<Buffer: BufferType> = VariableSizeBinaryArray<true, i32, Buffer>;
+}
+
+impl<'a> ArrayType for &'a str {
+    type Array<Buffer: BufferType> = StringArray<false, i32, Buffer>;
+}
+impl<'a> ArrayType for Option<&'a str> {
+    type Array<Buffer: BufferType> = StringArray<true, i32, Buffer>;
+}
+impl ArrayType for String {
+    type Array<Buffer: BufferType> = StringArray<false, i32, Buffer>;
+}
+impl ArrayType for Option<String> {
+    type Array<Buffer: BufferType> = StringArray<true, i32, Buffer>;
 }

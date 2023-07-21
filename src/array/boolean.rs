@@ -7,8 +7,6 @@ use crate::{
     Length,
 };
 
-use super::Array;
-
 /// Array with boolean values.
 ///
 /// Values are stored using single bits in a [Bitmap].
@@ -17,13 +15,6 @@ pub struct BooleanArray<const NULLABLE: bool = false, Buffer: BufferType = VecBu
 )
 where
     Bitmap<Buffer>: Validity<NULLABLE>;
-
-impl<const NULLABLE: bool, Buffer: BufferType> Array for BooleanArray<NULLABLE, Buffer>
-where
-    Bitmap<Buffer>: Validity<NULLABLE>,
-{
-    type Item = bool;
-}
 
 impl<const NULLABLE: bool, Buffer: BufferType> Default for BooleanArray<NULLABLE, Buffer>
 where

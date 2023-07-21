@@ -63,3 +63,15 @@ impl<T> Length for VecDeque<T> {
         VecDeque::len(self)
     }
 }
+
+impl Length for &str {
+    fn len(&self) -> usize {
+        str::len(self)
+    }
+}
+
+impl Length for String {
+    fn len(&self) -> usize {
+        String::len(self)
+    }
+}

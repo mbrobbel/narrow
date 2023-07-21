@@ -1,4 +1,3 @@
-use super::Array;
 use crate::{
     buffer::{BufferType, VecBuffer},
     validity::Validity,
@@ -15,14 +14,6 @@ pub struct FixedSizePrimitiveArray<
 >(pub <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>)
 where
     <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>;
-
-impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType> Array
-    for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
-where
-    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
-{
-    type Item = T;
-}
 
 impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType> Default
     for FixedSizePrimitiveArray<T, NULLABLE, Buffer>

@@ -181,7 +181,7 @@ mod tests {
     fn offsets() {
         let input = [Count(1), Count(2), Count(3), Count(4)];
         assert_eq!(
-            input.iter().offsets().collect::<Vec<i32>>(),
+            input.into_iter().offsets().collect::<Vec<i32>>(),
             [i32::default(), 1, 3, 6, 10]
         );
     }
