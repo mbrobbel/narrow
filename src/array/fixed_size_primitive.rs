@@ -114,18 +114,6 @@ mod tests {
         assert_eq!(array.0.as_slice(), &[[1, 2], [3, 4]]);
         assert_eq!(<_ as Buffer<u8>>::as_bytes(&array.0), &[1, 2, 3, 4]);
 
-        let input = [(1u8, 42u32), (2, u8::MAX as u32 + 1)];
-        let array = input.into_iter().collect::<FixedSizePrimitiveArray<_>>();
-        assert_eq!(
-            array.0.as_bytes(),
-            &[
-                1, 0, 0, 0, //
-                42, 0, 0, 0, //
-                2, 0, 0, 0, //
-                0, 1, 0, 0
-            ]
-        );
-
         let input = [Some(1u64), None, Some(3), Some(4)];
         let array = input.iter().collect::<FixedSizePrimitiveArray<_, true>>();
         assert_eq!(array.0.buffer_ref().as_slice(), &[1, u64::default(), 3, 4]);
@@ -141,10 +129,6 @@ mod tests {
         let array = input.into_iter().collect::<FixedSizePrimitiveArray<_>>();
         assert_eq!(array.into_iter().collect::<Vec<_>>(), input);
 
-        let input = [(1u8, 42u32), (2, u8::MAX as u32 + 1)];
-        let array = input.into_iter().collect::<FixedSizePrimitiveArray<_>>();
-        assert_eq!(array.into_iter().collect::<Vec<_>>(), input);
-
         let input = [Some(1u64), None, Some(3), Some(4)];
         let array = input.iter().collect::<FixedSizePrimitiveArray<_, true>>();
         assert_eq!(array.into_iter().collect::<Vec<_>>(), input);
@@ -157,10 +141,6 @@ mod tests {
         assert_eq!(array.len(), input.as_slice().len());
 
         let input = [[1u8, 2], [3, 4]];
-        let array = input.into_iter().collect::<FixedSizePrimitiveArray<_>>();
-        assert_eq!(array.len(), input.as_slice().len());
-
-        let input = [(1u8, 42u32), (2, u8::MAX as u32 + 1)];
         let array = input.into_iter().collect::<FixedSizePrimitiveArray<_>>();
         assert_eq!(array.len(), input.as_slice().len());
 

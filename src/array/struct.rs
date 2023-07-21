@@ -41,7 +41,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::buffer::Buffer;
 
     #[test]
     fn from_iter() {
@@ -49,7 +48,7 @@ mod tests {
         struct Foo {
             a: u32,
             b: Option<()>,
-            c: Option<(u8, u16)>,
+            c: (),
             d: Option<[u128; 2]>,
         }
         // These impls below can all be generated.
@@ -59,7 +58,7 @@ mod tests {
         struct FooArray<Buffer: BufferType> {
             a: <u32 as ArrayType>::Array<Buffer>,
             b: <Option<()> as ArrayType>::Array<Buffer>,
-            c: <Option<(u8, u16)> as ArrayType>::Array<Buffer>,
+            c: <() as ArrayType>::Array<Buffer>,
             d: <Option<[u128; 2]> as ArrayType>::Array<Buffer>,
         }
         impl<Buffer: BufferType> Array for FooArray<Buffer> {
@@ -69,7 +68,7 @@ mod tests {
         where
             <u32 as ArrayType>::Array<Buffer>: Default + Extend<u32>,
             <Option<()> as ArrayType>::Array<Buffer>: Default + Extend<Option<()>>,
-            <Option<(u8, u16)> as ArrayType>::Array<Buffer>: Default + Extend<Option<(u8, u16)>>,
+            <() as ArrayType>::Array<Buffer>: Default + Extend<()>,
             <Option<[u128; 2]> as ArrayType>::Array<Buffer>: Default + Extend<Option<[u128; 2]>>,
         {
             fn from_iter<T: IntoIterator<Item = Foo>>(iter: T) -> Self {
@@ -89,25 +88,25 @@ mod tests {
             Foo {
                 a: 1,
                 b: None,
-                c: Some((1, 2)),
+                c: (),
                 d: Some([1, 2]),
             },
             Foo {
                 a: 2,
                 b: Some(()),
-                c: None,
+                c: (),
                 d: Some([3, 4]),
             },
             Foo {
                 a: 3,
                 b: None,
-                c: Some((3, 4)),
+                c: (),
                 d: None,
             },
             Foo {
                 a: 4,
                 b: None,
-                c: None,
+                c: (),
                 d: None,
             },
         ];
@@ -117,14 +116,7 @@ mod tests {
             array.0.b.into_iter().collect::<Vec<_>>(),
             &[None, Some(()), None, None]
         );
-        assert_eq!(
-            <_ as Buffer<(u8, u16)>>::as_bytes(array.0.c.0.as_ref()),
-            &[1, 0, 2, 0, 0, 0, 0, 0, 3, 0, 4, 0, 0, 0, 0, 0]
-        );
-        assert_eq!(
-            array.0.c.into_iter().collect::<Vec<_>>(),
-            &[Some((1, 2)), None, Some((3, 4)), None]
-        );
+        assert_eq!(array.0.c.into_iter().collect::<Vec<_>>(), &[(), (), (), ()]);
         assert_eq!(
             array.0.d.into_iter().collect::<Vec<_>>(),
             &[Some([1, 2]), Some([3, 4]), None, None]

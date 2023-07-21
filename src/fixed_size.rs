@@ -32,18 +32,10 @@ impl FixedSize for usize {}
 impl FixedSize for f32 {}
 impl FixedSize for f64 {}
 
-impl<const N: usize, T: FixedSize> FixedSize for [T; N] {}
-
-macro_rules! tuples {
-    ( $head:ident, $( $tail:ident, )* ) => {
-        impl<$head: FixedSize, $( $tail: FixedSize ),*> FixedSize for ($head, $( $tail ),*) {}
-        tuples!($( $tail, )*);
-    };
-    () => {};
-}
-
 impl FixedSize for () {}
-tuples!(A, B, C, D,);
+impl<T: FixedSize> FixedSize for (T,) {}
+
+impl<const N: usize, T: FixedSize> FixedSize for [T; N] {}
 
 mod sealed {
     /// Used to seal [super::FixedSize].
@@ -61,9 +53,6 @@ mod tests {
     fn size() {
         assert_eq!(<()>::SIZE, 0);
         assert_eq!(<(u8,)>::SIZE, 1);
-        // Note how this is not 1 + 2 + 4 + 8
-        // https://doc.rust-lang.org/reference/type-layout.html#tuple-layout
-        assert_eq!(<(u8, u16, u32, u64)>::SIZE, 16);
         assert_eq!(u8::SIZE, 1);
         assert_eq!(<[u16; 21]>::SIZE, 42);
         assert_eq!(<[u8; 1234]>::SIZE, 1234);

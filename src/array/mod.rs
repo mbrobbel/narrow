@@ -27,9 +27,6 @@ macro_rules! impl_array_type {
     };
 }
 
-impl_array_type!((), NullArray<(), false, Buffer>);
-impl_array_type!(Option<()>, NullArray<(), true, Buffer>);
-
 impl_array_type!(u8, FixedSizePrimitiveArray<u8, false, Buffer>);
 impl_array_type!(Option<u8>, FixedSizePrimitiveArray<u8, true, Buffer>);
 impl_array_type!(i8, FixedSizePrimitiveArray<i8, false, Buffer>);
@@ -61,12 +58,8 @@ impl_array_type!(Option<f32>, FixedSizePrimitiveArray<f32, true, Buffer>);
 impl_array_type!(f64, FixedSizePrimitiveArray<f64, false, Buffer>);
 impl_array_type!(Option<f64>, FixedSizePrimitiveArray<f64, true, Buffer>);
 
-impl<T: FixedSize, const N: usize> ArrayType for [T; N] {
-    type Array<Buffer: BufferType> = FixedSizePrimitiveArray<[T; N], false, Buffer>;
-}
-impl<T: FixedSize, const N: usize> ArrayType for Option<[T; N]> {
-    type Array<Buffer: BufferType> = FixedSizePrimitiveArray<[T; N], true, Buffer>;
-}
+impl_array_type!((), NullArray<(), false, Buffer>);
+impl_array_type!(Option<()>, NullArray<(), true, Buffer>);
 
 impl<T: FixedSize> ArrayType for (T,) {
     type Array<Buffer: BufferType> = FixedSizePrimitiveArray<(T,), false, Buffer>;
@@ -74,15 +67,10 @@ impl<T: FixedSize> ArrayType for (T,) {
 impl<T: FixedSize> ArrayType for Option<(T,)> {
     type Array<Buffer: BufferType> = FixedSizePrimitiveArray<(T,), true, Buffer>;
 }
-impl<T1: FixedSize, T2: FixedSize> ArrayType for (T1, T2) {
-    type Array<Buffer: BufferType> = FixedSizePrimitiveArray<(T1, T2), false, Buffer>;
+
+impl<T: FixedSize, const N: usize> ArrayType for [T; N] {
+    type Array<Buffer: BufferType> = FixedSizePrimitiveArray<[T; N], false, Buffer>;
 }
-impl<T1: FixedSize, T2: FixedSize> ArrayType for Option<(T1, T2)> {
-    type Array<Buffer: BufferType> = FixedSizePrimitiveArray<(T1, T2), true, Buffer>;
-}
-impl<T1: FixedSize, T2: FixedSize, T3: FixedSize> ArrayType for (T1, T2, T3) {
-    type Array<Buffer: BufferType> = FixedSizePrimitiveArray<(T1, T2, T3), false, Buffer>;
-}
-impl<T1: FixedSize, T2: FixedSize, T3: FixedSize, T4: FixedSize> ArrayType for (T1, T2, T3, T4) {
-    type Array<Buffer: BufferType> = FixedSizePrimitiveArray<(T1, T2, T3, T4), false, Buffer>;
+impl<T: FixedSize, const N: usize> ArrayType for Option<[T; N]> {
+    type Array<Buffer: BufferType> = FixedSizePrimitiveArray<[T; N], true, Buffer>;
 }
