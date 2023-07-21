@@ -1,4 +1,4 @@
-use super::ArrayType;
+use super::{Array, ArrayType};
 use crate::{
     buffer::{BufferType, VecBuffer},
     validity::Validity,
@@ -17,6 +17,13 @@ pub struct StructArray<
 >(<<T as StructArrayType>::Array<BitmapBuffer> as Validity<NULLABLE>>::Storage<BitmapBuffer>)
 where
     <T as StructArrayType>::Array<BitmapBuffer>: Validity<NULLABLE>;
+
+impl<T: StructArrayType, const NULLABLE: bool, BitmapBuffer: BufferType> Array
+    for StructArray<T, NULLABLE, BitmapBuffer>
+where
+    <T as StructArrayType>::Array<BitmapBuffer>: Validity<NULLABLE>,
+{
+}
 
 impl<T: StructArrayType, U, const NULLABLE: bool, BitmapBuffer: BufferType> FromIterator<U>
     for StructArray<T, NULLABLE, BitmapBuffer>
@@ -162,11 +169,11 @@ mod tests {
             &[0, 1, 3, 4, 4]
         );
         assert_eq!(
-            array.0.g.0 .0.data.into_iter().collect::<Vec<_>>(),
+            array.0.g.0 .0 .0.data.into_iter().collect::<Vec<_>>(),
             &[97, 115, 100, 102] // a s d f
         );
         assert_eq!(
-            array.0.g.0 .0.offsets.into_iter().collect::<Vec<_>>(),
+            array.0.g.0 .0 .0.offsets.into_iter().collect::<Vec<_>>(),
             &[0, 1, 2, 3, 4]
         );
     }

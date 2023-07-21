@@ -1,6 +1,6 @@
 //! A sequence of nulls.
 
-use super::ArrayType;
+use super::{Array, ArrayType};
 use crate::{
     buffer::{BufferType, VecBuffer},
     validity::Validity,
@@ -41,6 +41,13 @@ pub struct NullArray<
 >(<Nulls<T> as Validity<NULLABLE>>::Storage<BitmapBuffer>)
 where
     Nulls<T>: Validity<NULLABLE>;
+
+impl<T: Unit, const NULLABLE: bool, BitmapBuffer: BufferType> Array
+    for NullArray<T, NULLABLE, BitmapBuffer>
+where
+    Nulls<T>: Validity<NULLABLE>,
+{
+}
 
 impl<T: Unit, const NULLABLE: bool, BitmapBuffer: BufferType> Default
     for NullArray<T, NULLABLE, BitmapBuffer>

@@ -95,6 +95,31 @@ where
     }
 }
 
+impl<T, U: IntoIterator, OffsetItem: OffsetElement, Buffer: BufferType> Extend<Option<U>>
+    for Offset<T, true, OffsetItem, Buffer>
+where
+    T: Default + Extend<<U as IntoIterator>::Item>,
+    U: Length,
+    <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<true>>::Storage<Buffer>:
+        Extend<OffsetItem>,
+{
+    fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, _iter: I) {
+        todo!()
+        // let mut state = match self.offsets.as_slice().last() {
+        //     Some(offset) => *offset,
+        //     None => {
+        //         self.offsets.extend(Some(OffsetItem::default()));
+        //         OffsetItem::default()
+        //     }
+        // };
+        // self.data.extend(iter.into_iter().flat_map(|item| {
+        //     state += OffsetItem::try_from(item.len()).unwrap();
+        //     self.offsets.extend(Some(state));
+        //     item.into_iter()
+        // }));
+    }
+}
+
 impl<T, U: IntoIterator, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<U>
     for Offset<T, false, OffsetItem, Buffer>
 where
@@ -115,6 +140,30 @@ where
             .scan_offsets()
             .collect();
         Self { data, offsets }
+    }
+}
+
+impl<T, U: IntoIterator, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<Option<U>>
+    for Offset<T, true, OffsetItem, Buffer>
+where
+    T: Default + Extend<<U as IntoIterator>::Item>,
+    U: Length,
+    <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<true>>::Storage<Buffer>:
+        FromIterator<Option<OffsetItem>>,
+{
+    fn from_iter<I: IntoIterator<Item = Option<U>>>(_iter: I) -> Self {
+        // let mut data = T::default();
+        // let offsets = iter
+        //     .into_iter()
+        //     .map(|item| {
+        //         let len = item.len();
+        //         data.extend(item.into_iter());
+        //         len
+        //     })
+        //     .scan_offsets()
+        //     .collect();
+        // Self { data, offsets }
+        todo!()
     }
 }
 

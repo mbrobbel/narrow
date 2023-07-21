@@ -1,15 +1,20 @@
 //! Sequences of values with known length all having the same type.
 
+use std::collections::VecDeque;
+
 use crate::{buffer::BufferType, FixedSize};
 
 mod boolean;
 pub use boolean::*;
 
+mod fixed_size_primitive;
+pub use fixed_size_primitive::*;
+
 mod null;
 pub use null::*;
 
-mod fixed_size_primitive;
-pub use fixed_size_primitive::*;
+mod string;
+pub use string::*;
 
 mod r#struct;
 pub use r#struct::*;
@@ -17,11 +22,13 @@ pub use r#struct::*;
 mod variable_size_binary;
 pub use variable_size_binary::*;
 
-mod string;
-pub use string::*;
+mod variable_size_list;
+pub use variable_size_list::*;
+
+pub trait Array {}
 
 pub trait ArrayType {
-    type Array<Buffer: BufferType>;
+    type Array<Buffer: BufferType>: Array;
 }
 
 macro_rules! impl_array_type {
@@ -83,18 +90,18 @@ impl<T: FixedSize, const N: usize> ArrayType for Option<[T; N]> {
     type Array<Buffer: BufferType> = FixedSizePrimitiveArray<[T; N], true, Buffer>;
 }
 
-impl<'a> ArrayType for &'a [u8] {
-    type Array<Buffer: BufferType> = VariableSizeBinaryArray<false, i32, Buffer>;
-}
-impl<'a> ArrayType for Option<&'a [u8]> {
-    type Array<Buffer: BufferType> = VariableSizeBinaryArray<true, i32, Buffer>;
-}
-impl ArrayType for Vec<u8> {
-    type Array<Buffer: BufferType> = VariableSizeBinaryArray<false, i32, Buffer>;
-}
-impl ArrayType for Option<Vec<u8>> {
-    type Array<Buffer: BufferType> = VariableSizeBinaryArray<true, i32, Buffer>;
-}
+// impl<'a> ArrayType for &'a [u8] {
+//     type Array<Buffer: BufferType> = VariableSizeBinaryArray<false, i32, Buffer>;
+// }
+// impl<'a> ArrayType for Option<&'a [u8]> {
+//     type Array<Buffer: BufferType> = VariableSizeBinaryArray<true, i32, Buffer>;
+// }
+// impl ArrayType for Vec<u8> {
+//     type Array<Buffer: BufferType> = VariableSizeBinaryArray<false, i32, Buffer>;
+// }
+// impl ArrayType for Option<Vec<u8>> {
+//     type Array<Buffer: BufferType> = VariableSizeBinaryArray<true, i32, Buffer>;
+// }
 
 impl<'a> ArrayType for &'a str {
     type Array<Buffer: BufferType> = StringArray<false, i32, Buffer>;
@@ -107,4 +114,29 @@ impl ArrayType for String {
 }
 impl ArrayType for Option<String> {
     type Array<Buffer: BufferType> = StringArray<true, i32, Buffer>;
+}
+
+impl<'a, T: ArrayType> ArrayType for &'a [T] {
+    type Array<Buffer: BufferType> =
+        VariableSizeListArray<<T as ArrayType>::Array<Buffer>, false, i32, Buffer>;
+}
+impl<'a, T: ArrayType> ArrayType for Option<&'a [T]> {
+    type Array<Buffer: BufferType> =
+        VariableSizeListArray<<T as ArrayType>::Array<Buffer>, true, i32, Buffer>;
+}
+impl<T: ArrayType> ArrayType for Vec<T> {
+    type Array<Buffer: BufferType> =
+        VariableSizeListArray<<T as ArrayType>::Array<Buffer>, false, i32, Buffer>;
+}
+impl<T: ArrayType> ArrayType for Option<Vec<T>> {
+    type Array<Buffer: BufferType> =
+        VariableSizeListArray<<T as ArrayType>::Array<Buffer>, true, i32, Buffer>;
+}
+impl<T: ArrayType> ArrayType for VecDeque<T> {
+    type Array<Buffer: BufferType> =
+        VariableSizeListArray<<T as ArrayType>::Array<Buffer>, false, i32, Buffer>;
+}
+impl<T: ArrayType> ArrayType for Option<VecDeque<T>> {
+    type Array<Buffer: BufferType> =
+        VariableSizeListArray<<T as ArrayType>::Array<Buffer>, true, i32, Buffer>;
 }
