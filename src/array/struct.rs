@@ -44,6 +44,7 @@ mod tests {
     #[test]
     fn from_iter() {
         // Definition
+        // #[derive(Array)]
         struct Foo<'a> {
             a: u32,
             b: Option<()>,

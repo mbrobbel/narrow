@@ -16,8 +16,8 @@ pub use null::*;
 mod string;
 pub use string::*;
 
-mod r#struct;
-pub use r#struct::*;
+// mod r#struct;
+// pub use r#struct::*;
 
 mod variable_size_binary;
 pub use variable_size_binary::*;

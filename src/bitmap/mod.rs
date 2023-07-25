@@ -52,6 +52,14 @@ pub struct Bitmap<Buffer: BufferType = VecBuffer> {
     offset: usize,
 }
 
+impl<Buffer: BufferType> BitmapRef for Bitmap<Buffer> {
+    type Buffer = Buffer;
+
+    fn bitmap_ref(&self) -> &Bitmap<Self::Buffer> {
+        self
+    }
+}
+
 impl<Buffer: BufferType> Bitmap<Buffer> {
     /// Forms a Bitmap from a buffer, a number of bits and an offset (in
     /// bits).
@@ -288,6 +296,8 @@ impl<Buffer: BufferType> Length for Bitmap<Buffer> {
         self.bits
     }
 }
+
+impl<Buffer: BufferType> ValidityBitmap for Bitmap<Buffer> {}
 
 #[cfg(test)]
 mod tests {

@@ -23,19 +23,19 @@ pub struct VariableSizeBinaryArray<
     >,
 )
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>;
+    FixedSizePrimitiveArray<u8, false, Buffer>: Validity<NULLABLE>;
 
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Array
     for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    FixedSizePrimitiveArray<u8, false, Buffer>: Validity<NULLABLE>,
 {
 }
 
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Default
     for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    FixedSizePrimitiveArray<u8, false, Buffer>: Validity<NULLABLE>,
     VariableSizeListArray<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer>:
         Default,
 {
@@ -47,7 +47,7 @@ where
 impl<T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Extend<T>
     for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    FixedSizePrimitiveArray<u8, false, Buffer>: Validity<NULLABLE>,
     VariableSizeListArray<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer>:
         Extend<T>,
     // Offset<<Buffer as BufferType>::Buffer<u8>, NULLABLE, OffsetItem, Buffer>: Extend<T>,
@@ -60,7 +60,7 @@ where
 impl<T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<T>
     for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    FixedSizePrimitiveArray<u8, false, Buffer>: Validity<NULLABLE>,
     VariableSizeListArray<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer>:
         FromIterator<T>,
     // Offset<<Buffer as BufferType>::Buffer<u8>, NULLABLE, OffsetItem, Buffer>: FromIterator<T>,
@@ -73,7 +73,7 @@ where
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Length
     for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    FixedSizePrimitiveArray<u8, false, Buffer>: Validity<NULLABLE>,
     VariableSizeListArray<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer>:
         Length,
     // Offset<<Buffer as BufferType>::Buffer<u8>, NULLABLE, OffsetItem, Buffer>: Length,
@@ -89,9 +89,16 @@ mod tests {
 
     #[test]
     fn from_iter() {
-        let input: Vec<&[u8]> = vec![&[1], &[2, 3], &[4]];
+        let input = vec![vec![1], vec![], vec![2, 3], vec![4]];
         let array = input.into_iter().collect::<VariableSizeBinaryArray>();
+        assert_eq!(array.len(), 4);
         assert_eq!(array.0 .0.data.0, &[1, 2, 3, 4]);
-        assert_eq!(array.0 .0.offsets, &[0, 1, 3, 4]);
+        assert_eq!(array.0 .0.offsets, &[0, 1, 1, 3, 4]);
+
+        let input = vec![Some(vec![1]), None, Some(vec![2, 3]), Some(vec![4])];
+        let array = input.into_iter().collect::<VariableSizeBinaryArray<true>>();
+        assert_eq!(array.len(), 4);
+        assert_eq!(array.0 .0.data.as_ref().0, &[1, 0, 2, 3, 4]);
+        assert_eq!(array.0 .0.offsets, &[0, 1, 1, 3, 4]);
     }
 }

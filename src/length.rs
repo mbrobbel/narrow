@@ -15,6 +15,12 @@ pub trait Length {
     }
 }
 
+impl<const N: usize, T> Length for [T; N] {
+    fn len(&self) -> usize {
+        N
+    }
+}
+
 impl<T> Length for &[T] {
     #[inline]
     fn len(&self) -> usize {
@@ -73,5 +79,14 @@ impl Length for &str {
 impl Length for String {
     fn len(&self) -> usize {
         String::len(self)
+    }
+}
+
+impl<T: Length> Length for Option<T> {
+    fn len(&self) -> usize {
+        match self {
+            Some(item) => item.len(),
+            None => 0,
+        }
     }
 }

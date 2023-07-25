@@ -1,4 +1,4 @@
-use super::{Array, VariableSizeBinaryArray};
+use super::{Array, FixedSizePrimitiveArray, VariableSizeBinaryArray};
 use crate::{
     buffer::{BufferType, VecBuffer},
     offset::OffsetElement,
@@ -13,19 +13,19 @@ pub struct StringArray<
     Buffer: BufferType = VecBuffer,
 >(pub VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>)
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>;
+    FixedSizePrimitiveArray<u8, false, Buffer>: Validity<NULLABLE>;
 
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Array
     for StringArray<NULLABLE, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    FixedSizePrimitiveArray<u8, false, Buffer>: Validity<NULLABLE>,
 {
 }
 
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Default
     for StringArray<NULLABLE, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    FixedSizePrimitiveArray<u8, false, Buffer>: Validity<NULLABLE>,
     VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>: Default,
 {
     fn default() -> Self {
@@ -36,7 +36,7 @@ where
 impl<'a, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Extend<&'a str>
     for StringArray<NULLABLE, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    FixedSizePrimitiveArray<u8, false, Buffer>: Validity<NULLABLE>,
     VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>: Extend<&'a [u8]>,
 {
     fn extend<I: IntoIterator<Item = &'a str>>(&mut self, iter: I) {
@@ -47,7 +47,7 @@ where
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Extend<String>
     for StringArray<NULLABLE, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    FixedSizePrimitiveArray<u8, false, Buffer>: Validity<NULLABLE>,
     VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>: Extend<Vec<u8>>,
 {
     fn extend<I: IntoIterator<Item = String>>(&mut self, iter: I) {
@@ -102,7 +102,7 @@ where
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Length
     for StringArray<NULLABLE, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    FixedSizePrimitiveArray<u8, false, Buffer>: Validity<NULLABLE>,
     VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>: Length,
 {
     fn len(&self) -> usize {
