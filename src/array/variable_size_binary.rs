@@ -24,6 +24,12 @@ pub struct VariableSizeBinaryArray<
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>;
 
+pub type BinaryArray<const NULLABLE: bool = false, Buffer = VecBuffer> =
+    VariableSizeBinaryArray<NULLABLE, i32, Buffer>;
+
+pub type LargeBinaryArray<const NULLABLE: bool = false, Buffer = VecBuffer> =
+    VariableSizeBinaryArray<NULLABLE, i64, Buffer>;
+
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Array
     for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
 where
@@ -116,12 +122,34 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::bitmap::BitmapRef;
-
     use super::*;
+    use crate::{
+        bitmap::{Bitmap, BitmapRef},
+        buffer::BufferRef,
+    };
+    use std::mem;
 
     #[test]
     fn from_iter() {
+        let input: [&[u8]; 4] = [&[1u8], &[2, 3], &[4, 5, 6], &[7, 8, 9, 0]];
+        let array = input
+            .into_iter()
+            .map(|x| x.to_vec())
+            .collect::<VariableSizeBinaryArray>();
+        assert_eq!(array.len(), 4);
+        assert_eq!(array.0 .0.data.0, &[1, 2, 3, 4, 5, 6, 7, 8, 9, 0]);
+        assert_eq!(array.0 .0.offsets, &[0, 1, 3, 6, 10]);
+
+        let input: [Option<&[u8]>; 4] = [Some(&[1u8]), None, Some(&[4, 5, 6]), Some(&[7, 8, 9, 0])];
+        let array = input
+            .into_iter()
+            .map(|x| x.map(|x| x.to_vec()))
+            .collect::<VariableSizeBinaryArray<true>>();
+        assert_eq!(array.len(), 4);
+        assert_eq!(array.0 .0.data.0, &[1, 4, 5, 6, 7, 8, 9, 0]);
+        assert_eq!(array.0 .0.offsets.as_ref(), &[0, 1, 1, 4, 8]);
+        assert_eq!(array.0 .0.offsets.bitmap_ref().buffer_ref(), &[0b00001101]);
+
         let input = vec![vec![1], vec![], vec![2, 3], vec![4]];
         let array = input.into_iter().collect::<VariableSizeBinaryArray>();
         assert_eq!(array.len(), 4);
@@ -151,5 +179,25 @@ mod tests {
         let array = input.into_iter().collect::<StringArray<true>>();
         let variable_size_binary: VariableSizeBinaryArray<true> = array.into();
         assert_eq!(variable_size_binary.len(), 3);
+    }
+
+    #[test]
+    fn size_of() {
+        assert_eq!(
+            mem::size_of::<BinaryArray>(),
+            mem::size_of::<Vec<u8>>() + mem::size_of::<Vec<i32>>()
+        );
+        assert_eq!(
+            mem::size_of::<LargeBinaryArray>(),
+            mem::size_of::<Vec<u8>>() + mem::size_of::<Vec<i64>>()
+        );
+        assert_eq!(
+            mem::size_of::<BinaryArray<true>>(),
+            mem::size_of::<Vec<u8>>() + mem::size_of::<Vec<i32>>() + mem::size_of::<Bitmap>()
+        );
+        assert_eq!(
+            mem::size_of::<LargeBinaryArray<true>>(),
+            mem::size_of::<Vec<u8>>() + mem::size_of::<Vec<i64>>() + mem::size_of::<Bitmap>()
+        );
     }
 }

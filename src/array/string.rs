@@ -15,6 +15,12 @@ pub struct StringArray<
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>;
 
+pub type Utf8Array<const NULLABLE: bool = false, Buffer = VecBuffer> =
+    StringArray<NULLABLE, i32, Buffer>;
+
+pub type LargeUtf8Array<const NULLABLE: bool = false, Buffer = VecBuffer> =
+    StringArray<NULLABLE, i64, Buffer>;
+
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Array
     for StringArray<NULLABLE, OffsetItem, Buffer>
 where
@@ -112,12 +118,19 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::bitmap::BitmapRef;
-
     use super::*;
+    use crate::bitmap::BitmapRef;
 
     #[test]
     fn from_iter() {
+        let input = ["1", "23", "456", "7890"];
+        let array = input
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect::<Utf8Array>();
+        assert_eq!(array.len(), 4);
+        assert_eq!(array.0 .0 .0.data.0, b"1234567890");
+
         let input = vec!["a".to_string(), "sd".to_string(), "f".to_string()];
         let array = input.into_iter().collect::<StringArray>();
         assert_eq!(array.len(), 3);

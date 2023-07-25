@@ -7,8 +7,6 @@ use crate::{
 };
 use std::{num::TryFromIntError, ops::AddAssign};
 
-// mod iter;
-
 /// Types representing offset values.
 ///
 /// Values with these types can be used to represent offset values.

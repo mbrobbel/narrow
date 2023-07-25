@@ -17,6 +17,31 @@ pub struct FixedSizePrimitiveArray<
 where
     <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>;
 
+macro_rules! type_def {
+    ($ident:ident, $ty:ty) => {
+        #[doc = "Array with ["]
+        #[doc = stringify!($ty)]
+        #[doc = "] values."]
+        pub type $ident<const NULLABLE: bool = false, Buffer = VecBuffer> =
+            FixedSizePrimitiveArray<$ty, NULLABLE, Buffer>;
+    };
+}
+
+type_def!(Int8Array, i8);
+type_def!(Int16Array, i16);
+type_def!(Int32Array, i32);
+type_def!(Int64Array, i64);
+type_def!(Uint8Array, u8);
+type_def!(Uint16Array, u16);
+type_def!(Uint32Array, u32);
+type_def!(Uint64Array, u64);
+
+type_def!(IsizeArray, isize);
+type_def!(UsizeArray, usize);
+
+type_def!(Float32Array, f32);
+type_def!(Float64Array, f64);
+
 impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType> Array
     for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
 where
@@ -100,7 +125,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::buffer::{Buffer, BufferRef};
+    use crate::{
+        bitmap::Bitmap,
+        buffer::{Buffer, BufferRef},
+    };
+    use std::mem;
 
     #[test]
     fn from_iter() {
@@ -147,5 +176,14 @@ mod tests {
         let input = [Some(1u64), None, Some(3), Some(4)];
         let array = input.iter().collect::<FixedSizePrimitiveArray<_, true>>();
         assert_eq!(array.len(), input.len());
+    }
+
+    #[test]
+    fn size_of() {
+        assert_eq!(mem::size_of::<Int8Array>(), mem::size_of::<Vec<i8>>());
+        assert_eq!(
+            std::mem::size_of::<Int8Array<true>>(),
+            mem::size_of::<Int8Array>() + mem::size_of::<Bitmap>()
+        );
     }
 }

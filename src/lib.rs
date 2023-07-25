@@ -7,6 +7,11 @@
     html_favicon_url = "https://raw.githubusercontent.com/mbrobbel/narrow/main/narrow.svg"
 )]
 #![deny(warnings)]
+// #![deny(
+//     missing_copy_implementations,
+//     missing_debug_implementations,
+//     missing_docs
+// )]
 
 mod fixed_size;
 pub use self::fixed_size::FixedSize;

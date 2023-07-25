@@ -10,7 +10,7 @@ use crate::{buffer::BufferType, nullable::Nullable};
 /// adding a [Bitmap](crate::bitmap::Bitmap) that stores validity information,
 /// depending on the const generic `NULLABLE`.
 pub trait Validity<const NULLABLE: bool> {
-    /// Storage type for data.
+    /// Storage type constructor for data.
     ///
     /// Generic over a [Bitmap](crate::bitmap::Bitmap)'s [BufferType].
     type Storage<BitmapBuffer: BufferType>;
