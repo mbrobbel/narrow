@@ -5,7 +5,10 @@ use crate::{
     buffer::{Buffer, BufferMut, BufferRef, BufferRefMut, BufferType, VecBuffer},
     FixedSize, Length,
 };
-use std::iter::{Map, Zip};
+use std::{
+    borrow::Borrow,
+    iter::{Map, Zip},
+};
 
 /// Wrapper for nullable data.
 ///
@@ -13,11 +16,11 @@ use std::iter::{Map, Zip};
 /// that indicates the validity (non-nullness) or invalidity (nullness) of that value.
 pub struct Nullable<T, BitmapBuffer: BufferType = VecBuffer> {
     /// Data that may contain null elements.
-    data: T,
+    pub(crate) data: T,
 
     /// The validity bitmap with validity information for the elements in the
     /// data.
-    validity: Bitmap<BitmapBuffer>,
+    pub(crate) validity: Bitmap<BitmapBuffer>,
 }
 
 impl<T, BitmapBuffer: BufferType> AsRef<T> for Nullable<T, BitmapBuffer> {
@@ -76,16 +79,30 @@ where
     }
 }
 
+impl<T: Extend<U>, U: Default, V: Borrow<bool>, BitmapBuffer: BufferType> Extend<(V, U)>
+    for Nullable<T, BitmapBuffer>
+where
+    <BitmapBuffer as BufferType>::Buffer<u8>: BufferMut<u8> + Extend<u8>,
+{
+    fn extend<I: IntoIterator<Item = (V, U)>>(&mut self, iter: I) {
+        self.data.extend(
+            iter.into_iter()
+                .inspect(|(valid, _)| self.validity.extend(std::iter::once(valid.borrow())))
+                .map(|(_, item)| item),
+        )
+    }
+}
+
 impl<T: Extend<U>, U: Default, BitmapBuffer: BufferType> Extend<Option<U>>
     for Nullable<T, BitmapBuffer>
 where
     <BitmapBuffer as BufferType>::Buffer<u8>: BufferMut<u8> + Extend<u8>,
 {
     fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
-        let iter = iter
-            .into_iter()
-            .inspect(|item| self.validity.extend(Some(item.is_some())));
-        self.data.extend(iter.map(Option::unwrap_or_default));
+        self.extend(
+            iter.into_iter()
+                .map(|opt| (opt.is_some(), opt.unwrap_or_default())),
+        )
     }
 }
 

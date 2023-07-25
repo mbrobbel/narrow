@@ -1,8 +1,9 @@
 //! Sequences of values with known length all having the same type.
 
-use std::collections::VecDeque;
+// use std::collections::VecDeque;
 
 use crate::{buffer::BufferType, FixedSize};
+use std::collections::VecDeque;
 
 mod boolean;
 pub use boolean::*;
@@ -16,8 +17,8 @@ pub use null::*;
 mod string;
 pub use string::*;
 
-// mod r#struct;
-// pub use r#struct::*;
+mod r#struct;
+pub use r#struct::*;
 
 mod variable_size_binary;
 pub use variable_size_binary::*;
@@ -89,19 +90,6 @@ impl<T: FixedSize, const N: usize> ArrayType for [T; N] {
 impl<T: FixedSize, const N: usize> ArrayType for Option<[T; N]> {
     type Array<Buffer: BufferType> = FixedSizePrimitiveArray<[T; N], true, Buffer>;
 }
-
-// impl<'a> ArrayType for &'a [u8] {
-//     type Array<Buffer: BufferType> = VariableSizeBinaryArray<false, i32, Buffer>;
-// }
-// impl<'a> ArrayType for Option<&'a [u8]> {
-//     type Array<Buffer: BufferType> = VariableSizeBinaryArray<true, i32, Buffer>;
-// }
-// impl ArrayType for Vec<u8> {
-//     type Array<Buffer: BufferType> = VariableSizeBinaryArray<false, i32, Buffer>;
-// }
-// impl ArrayType for Option<Vec<u8>> {
-//     type Array<Buffer: BufferType> = VariableSizeBinaryArray<true, i32, Buffer>;
-// }
 
 impl<'a> ArrayType for &'a str {
     type Array<Buffer: BufferType> = StringArray<false, i32, Buffer>;
