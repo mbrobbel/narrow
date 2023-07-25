@@ -1,11 +1,10 @@
 //! Bitmap formatting.
 
+use crate::buffer::Buffer;
 use std::fmt::{Display, Formatter, Result};
 
-use crate::buffer::Buffer;
-
 /// A slice wrapper with a [Display] implementation to format bytes as bits.
-pub(crate) struct BitsDisplay<'a>(&'a [u8]);
+pub(super) struct BitsDisplay<'a>(&'a [u8]);
 
 impl Display for BitsDisplay<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
@@ -15,7 +14,7 @@ impl Display for BitsDisplay<'_> {
     }
 }
 
-pub(crate) trait BitsDisplayExt {
+pub(super) trait BitsDisplayExt {
     fn bits_display(&self) -> BitsDisplay<'_>;
 }
 
@@ -24,7 +23,7 @@ where
     T: Buffer<u8>,
 {
     fn bits_display(&self) -> BitsDisplay<'_> {
-        BitsDisplay(self.as_bytes())
+        BitsDisplay(self.as_slice())
     }
 }
 

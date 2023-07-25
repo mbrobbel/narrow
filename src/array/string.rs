@@ -1,259 +1,163 @@
+use super::{Array, VariableSizeBinaryArray};
 use crate::{
-    bitmap::ValidityBitmap,
-    buffer::{Buffer, BufferRef},
-    offset::{self, Offset},
+    buffer::{BufferType, VecBuffer},
+    offset::OffsetElement,
     validity::Validity,
     Length,
 };
 
-use super::{Array, ArrayType};
-
+/// Array with string values.
 pub struct StringArray<
     const NULLABLE: bool = false,
-    DataBuffer = Vec<u8>,
-    OffsetElement = i32,
-    OffsetBuffer = Vec<OffsetElement>,
-    BitmapBuffer = Vec<u8>,
->(Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>)
+    OffsetItem: OffsetElement = i32,
+    Buffer: BufferType = VecBuffer,
+>(pub VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>)
 where
-    DataBuffer: Buffer<u8>,
-    OffsetElement: offset::OffsetElement,
-    OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
-    BitmapBuffer: Buffer<u8>;
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>;
 
-pub type Utf8Array<
-    const NULLABLE: bool = false,
-    DataBuffer = Vec<u8>,
-    OffsetBuffer = Vec<i32>,
-    BitmapBuffer = Vec<u8>,
-> = StringArray<NULLABLE, DataBuffer, i32, OffsetBuffer, BitmapBuffer>;
+pub type Utf8Array<const NULLABLE: bool = false, Buffer = VecBuffer> =
+    StringArray<NULLABLE, i32, Buffer>;
 
-pub type LargeUtf8Array<
-    const NULLABLE: bool = false,
-    DataBuffer = Vec<u8>,
-    OffsetBuffer = Vec<i64>,
-    BitmapBuffer = Vec<u8>,
-> = StringArray<NULLABLE, DataBuffer, i64, OffsetBuffer, BitmapBuffer>;
+pub type LargeUtf8Array<const NULLABLE: bool = false, Buffer = VecBuffer> =
+    StringArray<NULLABLE, i64, Buffer>;
 
-impl<const NULLABLE: bool, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> Array
-    for StringArray<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
+impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Array
+    for StringArray<NULLABLE, OffsetItem, Buffer>
 where
-    DataBuffer: Buffer<u8>,
-    OffsetElement: offset::OffsetElement,
-    OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
-    BitmapBuffer: Buffer<u8>,
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
 {
-    type Item = String;
 }
 
-impl ArrayType for &str {
-    type Array<
-        DataBuffer: Buffer<Self::Primitive>,
-        BitmapBuffer: Buffer<u8>,
-        OffsetElement: offset::OffsetElement,
-        OffsetBuffer: Buffer<OffsetElement>,
-    > = StringArray<false, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>;
-    type Primitive = u8;
-    type RefItem<'a> = &'a str;
-}
-
-impl ArrayType for Option<&str> {
-    type Array<
-        DataBuffer: Buffer<Self::Primitive>,
-        BitmapBuffer: Buffer<u8>,
-        OffsetElement: offset::OffsetElement,
-        OffsetBuffer: Buffer<OffsetElement>,
-    > = StringArray<true, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>;
-    type Primitive = u8;
-    type RefItem<'a> = Option<&'a str>;
-}
-
-impl ArrayType for String {
-    type Array<
-        DataBuffer: Buffer<Self::Primitive>,
-        BitmapBuffer: Buffer<u8>,
-        OffsetElement: offset::OffsetElement,
-        OffsetBuffer: Buffer<OffsetElement>,
-    > = StringArray<false, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>;
-    type Primitive = u8;
-    type RefItem<'a> = &'a str;
-}
-
-impl ArrayType for Option<String> {
-    type Array<
-        DataBuffer: Buffer<Self::Primitive>,
-        BitmapBuffer: Buffer<u8>,
-        OffsetElement: offset::OffsetElement,
-        OffsetBuffer: Buffer<OffsetElement>,
-    > = StringArray<true, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>;
-    type Primitive = u8;
-    type RefItem<'a> = Option<&'a str>;
-}
-
-impl<'a, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> FromIterator<&'a str>
-    for StringArray<false, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
+impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Default
+    for StringArray<NULLABLE, OffsetItem, Buffer>
 where
-    DataBuffer: Buffer<u8>,
-    OffsetElement: offset::OffsetElement,
-    OffsetBuffer: Buffer<OffsetElement> + Validity<false>,
-    BitmapBuffer: Buffer<u8>,
-    Offset<false, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>: FromIterator<&'a [u8]>,
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>: Default,
 {
-    #[inline]
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
+impl<'a, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Extend<&'a str>
+    for StringArray<NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>: Extend<&'a [u8]>,
+{
+    fn extend<I: IntoIterator<Item = &'a str>>(&mut self, iter: I) {
+        self.0.extend(iter.into_iter().map(str::as_bytes))
+    }
+}
+
+impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Extend<String>
+    for StringArray<NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>: Extend<Vec<u8>>,
+{
+    fn extend<I: IntoIterator<Item = String>>(&mut self, iter: I) {
+        self.0.extend(iter.into_iter().map(String::into_bytes))
+    }
+}
+
+impl<'a, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<&'a str>
+    for StringArray<false, OffsetItem, Buffer>
+where
+    VariableSizeBinaryArray<false, OffsetItem, Buffer>: FromIterator<&'a [u8]>,
+{
     fn from_iter<I: IntoIterator<Item = &'a str>>(iter: I) -> Self {
-        Self(iter.into_iter().map(|x| x.as_bytes()).collect())
+        Self(iter.into_iter().map(str::as_bytes).collect())
     }
 }
 
-impl<DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> FromIterator<String>
-    for StringArray<false, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
+impl<'a, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<Option<&'a str>>
+    for StringArray<true, OffsetItem, Buffer>
 where
-    DataBuffer: Buffer<u8>,
-    OffsetElement: offset::OffsetElement,
-    OffsetBuffer: Buffer<OffsetElement> + Validity<false>,
-    BitmapBuffer: Buffer<u8>,
-    Offset<false, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>: FromIterator<Vec<u8>>,
+    VariableSizeBinaryArray<true, OffsetItem, Buffer>: FromIterator<Option<&'a [u8]>>,
 {
-    #[inline]
-    fn from_iter<I: IntoIterator<Item = String>>(iter: I) -> Self {
-        Self(iter.into_iter().map(|x| x.into_bytes()).collect())
-    }
-}
-
-impl<const NULLABLE: bool, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> Length
-    for StringArray<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
-where
-    DataBuffer: Buffer<u8>,
-    OffsetElement: offset::OffsetElement,
-    OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
-    BitmapBuffer: Buffer<u8>,
-    Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>: Length,
-{
-    #[inline]
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-impl<const NULLABLE: bool, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> BufferRef
-    for StringArray<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
-where
-    DataBuffer: Buffer<u8>,
-    OffsetElement: offset::OffsetElement,
-    OffsetBuffer: Buffer<OffsetElement> + Validity<NULLABLE>,
-    BitmapBuffer: Buffer<u8>,
-    Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>: BufferRef,
-{
-    type Buffer = <Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> as BufferRef>::Buffer;
-    type Element = <Offset<NULLABLE, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> as BufferRef>::Element;
-
-    #[inline]
-    fn buffer_ref(&self) -> &Self::Buffer {
-        self.0.buffer_ref()
-    }
-}
-
-impl<'a, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> FromIterator<Option<&'a str>>
-    for StringArray<true, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
-where
-    DataBuffer: Buffer<u8>,
-    OffsetElement: offset::OffsetElement,
-    OffsetBuffer: Buffer<OffsetElement> + Validity<true>,
-    BitmapBuffer: Buffer<u8>,
-    Offset<true, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>:
-        FromIterator<Option<&'a [u8]>>,
-{
-    #[inline]
     fn from_iter<I: IntoIterator<Item = Option<&'a str>>>(iter: I) -> Self {
-        Self(
-            iter.into_iter()
-                .map(|x| x.map(|string_ref| string_ref.as_bytes()))
-                .collect(),
-        )
+        Self(iter.into_iter().map(|x| x.map(str::as_bytes)).collect())
     }
 }
 
-impl<DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> FromIterator<Option<String>>
-    for StringArray<true, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
+impl<OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<String>
+    for StringArray<false, OffsetItem, Buffer>
 where
-    DataBuffer: Buffer<u8>,
-    OffsetElement: offset::OffsetElement,
-    OffsetBuffer: Buffer<OffsetElement> + Validity<true>,
-    BitmapBuffer: Buffer<u8>,
-    Offset<true, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>:
-        FromIterator<Option<Vec<u8>>>,
+    VariableSizeBinaryArray<false, OffsetItem, Buffer>: FromIterator<Vec<u8>>,
 {
-    #[inline]
+    fn from_iter<I: IntoIterator<Item = String>>(iter: I) -> Self {
+        Self(iter.into_iter().map(String::into_bytes).collect())
+    }
+}
+
+impl<OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<Option<String>>
+    for StringArray<true, OffsetItem, Buffer>
+where
+    VariableSizeBinaryArray<true, OffsetItem, Buffer>: FromIterator<Option<Vec<u8>>>,
+{
     fn from_iter<I: IntoIterator<Item = Option<String>>>(iter: I) -> Self {
         Self(
             iter.into_iter()
-                .map(|x| x.map(|string| string.into_bytes()))
+                .map(|x| x.map(String::into_bytes))
                 .collect(),
         )
     }
 }
 
-impl<DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer> ValidityBitmap
-    for StringArray<true, DataBuffer, OffsetElement, OffsetBuffer, BitmapBuffer>
+impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Length
+    for StringArray<NULLABLE, OffsetItem, Buffer>
 where
-    DataBuffer: Buffer<u8>,
-    OffsetElement: offset::OffsetElement,
-    OffsetBuffer: Buffer<OffsetElement> + Validity<true>,
-    BitmapBuffer: Buffer<u8>,
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>: Length,
 {
-    type Buffer = BitmapBuffer;
-
-    #[inline]
-    fn validity_bitmap(&self) -> &crate::bitmap::Bitmap<Self::Buffer> {
-        self.0.validity_bitmap()
-    }
-
-    #[inline]
-    fn validity_bitmap_mut(&mut self) -> &mut crate::bitmap::Bitmap<Self::Buffer> {
-        self.0.validity_bitmap_mut()
+    fn len(&self) -> usize {
+        self.0.len()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bitmap::BitmapRef;
 
     #[test]
     fn from_iter() {
         let input = ["1", "23", "456", "7890"];
-        let array = input.into_iter().collect::<Utf8Array>();
-        assert_eq!(array.len(), 4);
-        assert_eq!(array.buffer_ref(), b"1234567890".as_bytes());
-
-        let input = ["1", "23", "456", "7890"]
+        let array = input
             .into_iter()
-            .map(ToString::to_string)
-            .collect::<Vec<String>>();
-        let array = input.into_iter().collect::<LargeUtf8Array>();
+            .map(ToOwned::to_owned)
+            .collect::<Utf8Array>();
         assert_eq!(array.len(), 4);
-        assert_eq!(array.buffer_ref(), b"1234567890".as_bytes());
-    }
+        assert_eq!(array.0 .0 .0.data.0, b"1234567890");
 
-    #[test]
-    fn size_of() {}
+        let input = vec!["a".to_string(), "sd".to_string(), "f".to_string()];
+        let array = input.into_iter().collect::<StringArray>();
+        assert_eq!(array.len(), 3);
+        assert_eq!(array.0 .0 .0.data.0, &[97, 115, 100, 102]);
+        assert_eq!(array.0 .0 .0.offsets, &[0, 1, 3, 4]);
 
-    #[test]
-    fn nullable_string_array() {
-        // &str
-        let input = [Some("1"), None, Some("23")]
-            .into_iter()
-            .map(|string_ref| string_ref.map(ToString::to_string))
-            .collect::<Vec<_>>();
-        let array = input.into_iter().collect::<Utf8Array<true>>();
-
-        assert_eq!(array.null_count(), 1);
-        assert_eq!(array.buffer_ref(), b"123".as_bytes());
-
-        // String
-        let input = [Some("1"), Some("23"), None, Some("67")];
-        let array = input.into_iter().collect::<Utf8Array<true>>();
-
-        assert_eq!(array.null_count(), 1);
-        assert_eq!(array.buffer_ref(), b"12367".as_bytes());
+        let input = vec![
+            Some("a".to_string()),
+            None,
+            Some("sd".to_string()),
+            Some("f".to_string()),
+            None,
+        ];
+        let array = input.into_iter().collect::<StringArray<true>>();
+        assert_eq!(array.len(), 5);
+        assert_eq!(array.0 .0 .0.data.0, &[97, 115, 100, 102]);
+        assert_eq!(array.0 .0 .0.offsets.as_ref(), &[0, 1, 1, 3, 4, 4]);
+        assert_eq!(
+            array
+                .0
+                 .0
+                 .0
+                .offsets
+                .bitmap_ref()
+                .into_iter()
+                .collect::<Vec<_>>(),
+            &[true, false, true, true, false]
+        );
     }
 }

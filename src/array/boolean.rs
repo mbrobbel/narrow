@@ -1,7 +1,9 @@
+//! Array with boolean values.
+
 use super::Array;
 use crate::{
-    bitmap::{Bitmap, ValidityBitmap},
-    buffer::{Buffer, BufferRef, BufferRefMut},
+    bitmap::Bitmap,
+    buffer::{BufferType, VecBuffer},
     validity::Validity,
     Length,
 };
@@ -9,67 +11,80 @@ use crate::{
 /// Array with boolean values.
 ///
 /// Values are stored using single bits in a [Bitmap].
-pub struct BooleanArray<const NULLABLE: bool = false, DataBuffer = Vec<u8>, BitmapBuffer = Vec<u8>>(
-    <Bitmap<DataBuffer> as Validity<NULLABLE>>::Storage<BitmapBuffer>,
+pub struct BooleanArray<const NULLABLE: bool = false, Buffer: BufferType = VecBuffer>(
+    <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>,
 )
 where
-    DataBuffer: Buffer<u8>,
-    BitmapBuffer: Buffer<u8>,
-    Bitmap<DataBuffer>: Validity<NULLABLE>;
+    Bitmap<Buffer>: Validity<NULLABLE>;
 
-impl<const NULLABLE: bool, DataBuffer, BitmapBuffer> Array
-    for BooleanArray<NULLABLE, DataBuffer, BitmapBuffer>
-where
-    DataBuffer: Buffer<u8>,
-    BitmapBuffer: Buffer<u8>,
-    Bitmap<DataBuffer>: Validity<NULLABLE>,
+impl<const NULLABLE: bool, Buffer: BufferType> Array for BooleanArray<NULLABLE, Buffer> where
+    Bitmap<Buffer>: Validity<NULLABLE>
 {
-    type Item = bool;
 }
 
-impl<const NULLABLE: bool, DataBuffer, BitmapBuffer> BufferRef
-    for BooleanArray<NULLABLE, DataBuffer, BitmapBuffer>
+impl<const NULLABLE: bool, Buffer: BufferType> Default for BooleanArray<NULLABLE, Buffer>
 where
-    DataBuffer: Buffer<u8>,
-    BitmapBuffer: Buffer<u8>,
-    Bitmap<DataBuffer>: Validity<NULLABLE>,
-    <Bitmap<DataBuffer> as Validity<NULLABLE>>::Storage<BitmapBuffer>: BufferRef,
+    Bitmap<Buffer>: Validity<NULLABLE>,
+    <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Default,
 {
-    type Buffer =
-        <<Bitmap<DataBuffer> as Validity<NULLABLE>>::Storage<BitmapBuffer> as BufferRef>::Buffer;
-    type Element =
-        <<Bitmap<DataBuffer> as Validity<NULLABLE>>::Storage<BitmapBuffer> as BufferRef>::Element;
-
-    fn buffer_ref(&self) -> &Self::Buffer {
-        self.0.buffer_ref()
+    fn default() -> Self {
+        Self(Default::default())
     }
 }
 
-impl<const NULLABLE: bool, DataBuffer, BitmapBuffer> BufferRefMut
-    for BooleanArray<NULLABLE, DataBuffer, BitmapBuffer>
+impl<U, const NULLABLE: bool, Buffer: BufferType> Extend<U> for BooleanArray<NULLABLE, Buffer>
 where
-    DataBuffer: Buffer<u8>,
-    BitmapBuffer: Buffer<u8>,
-    Bitmap<DataBuffer>: Validity<NULLABLE>,
-    <Bitmap<DataBuffer> as Validity<NULLABLE>>::Storage<BitmapBuffer>: BufferRefMut,
+    Bitmap<Buffer>: Validity<NULLABLE>,
+    <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Extend<U>,
 {
-    type BufferMut =
-        <<Bitmap<DataBuffer> as Validity<NULLABLE>>::Storage<BitmapBuffer> as BufferRefMut>::BufferMut;
-    type Element =
-        <<Bitmap<DataBuffer> as Validity<NULLABLE>>::Storage<BitmapBuffer> as BufferRefMut>::Element;
-
-    fn buffer_ref_mut(&mut self) -> &mut Self::BufferMut {
-        self.0.buffer_ref_mut()
+    fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
+        self.0.extend(iter)
     }
 }
 
-impl<const NULLABLE: bool, DataBuffer, BitmapBuffer> Length
-    for BooleanArray<NULLABLE, DataBuffer, BitmapBuffer>
+impl<const NULLABLE: bool, U, Buffer: BufferType> FromIterator<U> for BooleanArray<NULLABLE, Buffer>
 where
-    DataBuffer: Buffer<u8>,
-    BitmapBuffer: Buffer<u8>,
-    Bitmap<DataBuffer>: Validity<NULLABLE>,
-    <Bitmap<DataBuffer> as Validity<NULLABLE>>::Storage<BitmapBuffer>: Length,
+    Bitmap<Buffer>: Validity<NULLABLE>,
+    <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: FromIterator<U>,
+{
+    fn from_iter<I: IntoIterator<Item = U>>(iter: I) -> Self {
+        Self(iter.into_iter().collect())
+    }
+}
+
+impl<'a, const NULLABLE: bool, Buffer: BufferType> IntoIterator
+    for &'a BooleanArray<NULLABLE, Buffer>
+where
+    Bitmap<Buffer>: Validity<NULLABLE>,
+    &'a <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: IntoIterator,
+{
+    type Item = <&'a <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as IntoIterator>::Item;
+    type IntoIter =
+        <&'a <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<const NULLABLE: bool, Buffer: BufferType> IntoIterator for BooleanArray<NULLABLE, Buffer>
+where
+    Bitmap<Buffer>: Validity<NULLABLE>,
+    <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: IntoIterator,
+{
+    type Item = <<Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as IntoIterator>::Item;
+    type IntoIter =
+        <<Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<const NULLABLE: bool, Buffer: BufferType> Length for BooleanArray<NULLABLE, Buffer>
+where
+    Bitmap<Buffer>: Validity<NULLABLE>,
+    <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Length,
 {
     #[inline]
     fn len(&self) -> usize {
@@ -77,98 +92,37 @@ where
     }
 }
 
-impl<DataBuffer, BitmapBuffer> ValidityBitmap for BooleanArray<true, DataBuffer, BitmapBuffer>
-where
-    DataBuffer: Buffer<u8>,
-    BitmapBuffer: Buffer<u8>,
-{
-    type Buffer = BitmapBuffer;
-
-    #[inline]
-    fn validity_bitmap(&self) -> &Bitmap<BitmapBuffer> {
-        self.0.validity_bitmap()
-    }
-
-    #[inline]
-    fn validity_bitmap_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
-        self.0.validity_bitmap_mut()
-    }
-}
-
-impl<T, const NULLABLE: bool, DataBuffer, BitmapBuffer> FromIterator<T>
-    for BooleanArray<NULLABLE, DataBuffer, BitmapBuffer>
-where
-    DataBuffer: Buffer<u8>,
-    BitmapBuffer: Buffer<u8>,
-    Bitmap<DataBuffer>: Validity<NULLABLE>,
-    <Bitmap<DataBuffer> as Validity<NULLABLE>>::Storage<BitmapBuffer>: FromIterator<T>,
-{
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        Self(iter.into_iter().collect())
-    }
-}
-
-impl<'a, const NULLABLE: bool, DataBuffer, BitmapBuffer> IntoIterator
-    for &'a BooleanArray<NULLABLE, DataBuffer, BitmapBuffer>
-where
-    DataBuffer: Buffer<u8>,
-    BitmapBuffer: Buffer<u8>,
-    Bitmap<DataBuffer>: Validity<NULLABLE>,
-    &'a <Bitmap<DataBuffer> as Validity<NULLABLE>>::Storage<BitmapBuffer>: IntoIterator,
-{
-    type IntoIter =
-        <&'a <Bitmap<DataBuffer> as Validity<NULLABLE>>::Storage<BitmapBuffer> as
-IntoIterator>::IntoIter;
-    type Item =
-        <&'a <Bitmap<DataBuffer> as Validity<NULLABLE>>::Storage<BitmapBuffer> as IntoIterator>::Item;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
-impl<const NULLABLE: bool, DataBuffer, BitmapBuffer> IntoIterator
-    for BooleanArray<NULLABLE, DataBuffer, BitmapBuffer>
-where
-    DataBuffer: Buffer<u8>,
-    BitmapBuffer: Buffer<u8>,
-    Bitmap<DataBuffer>: Validity<NULLABLE>,
-    <Bitmap<DataBuffer> as Validity<NULLABLE>>::Storage<BitmapBuffer>: IntoIterator,
-{
-    type IntoIter =
-        <<Bitmap<DataBuffer> as Validity<NULLABLE>>::Storage<BitmapBuffer> as
-IntoIterator>::IntoIter;
-    type Item =
-        <<Bitmap<DataBuffer> as Validity<NULLABLE>>::Storage<BitmapBuffer> as IntoIterator>::Item;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use std::mem;
+    use crate::{
+        bitmap::{BitmapRef, ValidityBitmap},
+        buffer::{BoxBuffer, BufferRefMut},
+    };
 
     use super::*;
+    use std::mem;
 
     #[test]
     fn from_iter() {
         let array = [true, false, true, true]
             .into_iter()
-            .collect::<BooleanArray<false, Box<[u8]>, Box<[u8]>>>();
+            .collect::<BooleanArray<false, BoxBuffer>>();
         assert_eq!(array.len(), 4);
 
         let array = [Some(true), None, Some(true), Some(false)]
             .into_iter()
             .collect::<BooleanArray<true>>();
         assert_eq!(array.len(), 4);
-        assert_eq!(array.is_valid(0), Some(true));
-        assert_eq!(array.is_null(1), Some(true));
-        assert_eq!(array.is_valid(2), Some(true));
-        assert_eq!(array.is_valid(3), Some(true));
-        assert!(array.is_valid(4).is_none());
-        assert_eq!(array.validity_bitmap().len(), array.len());
+        assert_eq!(array.0.data.is_valid(0), Some(true));
+        assert_eq!(array.0.data.is_null(1), Some(true));
+        assert_eq!(array.0.data.is_valid(2), Some(true));
+        assert_eq!(array.0.data.is_valid(3), Some(false));
+        assert_eq!(array.0.validity.is_valid(0), Some(true));
+        assert_eq!(array.0.validity.is_null(1), Some(true));
+        assert_eq!(array.0.validity.is_valid(2), Some(true));
+        assert_eq!(array.0.validity.is_valid(3), Some(true));
+        assert!(array.0.data.is_valid(4).is_none());
+        assert_eq!(array.0.data.bitmap_ref().len(), array.len());
     }
 
     #[test]
@@ -191,10 +145,10 @@ mod tests {
     }
 
     #[test]
-    fn buffer_mut() {
+    fn buffer_ref_mut() {
         let input = [false, false, false, false];
         let mut array = input.iter().collect::<BooleanArray>();
-        array.buffer_ref_mut()[0] = 0b0000_1111;
+        array.0.buffer_ref_mut()[0] = 0b0000_1111;
         assert_eq!(
             array.into_iter().collect::<Vec<_>>(),
             [true, true, true, true]

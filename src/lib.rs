@@ -7,15 +7,21 @@
     html_favicon_url = "https://raw.githubusercontent.com/mbrobbel/narrow/main/narrow.svg"
 )]
 #![deny(warnings)]
+// #![deny(
+//     missing_copy_implementations,
+//     missing_debug_implementations,
+//     missing_docs
+// )]
 
-mod primitive;
-pub use primitive::Primitive;
+mod fixed_size;
+pub use self::fixed_size::FixedSize;
 
 mod length;
-pub use length::Length;
+pub use self::length::Length;
+
+pub mod buffer;
 
 pub mod bitmap;
-pub mod buffer;
 
 pub(crate) mod nullable;
 pub(crate) mod offset;
@@ -23,6 +29,6 @@ pub(crate) mod validity;
 
 pub mod array;
 
-// Re-export `narrow_derive` macros when the `derive` feature is enabled.
-#[cfg(feature = "derive")]
-pub use narrow_derive::Array;
+// // Re-export `narrow_derive` macros when the `derive` feature is enabled.
+// #[cfg(feature = "derive")]
+// pub use narrow_derive::Array;
