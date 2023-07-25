@@ -149,7 +149,7 @@ where
     fn into_iter(self) -> Self::IntoIter {
         self.validity
             .into_iter()
-            .zip(self.data.into_iter())
+            .zip(&self.data)
             .map(|(validity, value)| validity.then_some(value))
     }
 }
@@ -171,7 +171,7 @@ where
     fn into_iter(self) -> Self::IntoIter {
         self.validity
             .into_iter()
-            .zip(self.data.into_iter())
+            .zip(self.data)
             .map(|(validity, value)| validity.then_some(value))
     }
 }
