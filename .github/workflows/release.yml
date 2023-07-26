@@ -10,10 +10,12 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    name: Release
+  changelog:
+    name: Changelog
     runs-on: ubuntu-latest
     concurrency: release
+    outputs:
+      skip: ${{ steps.changelog.outputs.skip }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -33,9 +35,35 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo install cargo-smart-release@0.20.0 --locked
       - run: cargo check --all
-      - env:
+      - id: changelog
+        env:
           GH_TOKEN: ${{ github.token }}
-        run: cargo changelog --execute narrow narrow-derive || gh run cancel --repo ${{ github.repository }} ${{ github.run_id }}
+        run: cargo changelog narrow narrow-derive || echo "skip=true" >> "$GITHUB_OUTPUT"
+
+  release:
+    name: Release
+    needs: changelog
+    runs-on: ubuntu-latest
+    concurrency: release
+    if: needs.changelog.outputs.skip != 'true'
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-
+            ${{ runner.os }}-cargo-
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install cargo-smart-release@0.20.0 --locked
       - run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
