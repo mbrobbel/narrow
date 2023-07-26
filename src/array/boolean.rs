@@ -3,7 +3,7 @@
 use super::Array;
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
-    buffer::{BufferType, VecBuffer},
+    buffer::{BufferRef, BufferRefMut, BufferType, VecBuffer},
     validity::Validity,
     Length,
 };
@@ -20,6 +20,32 @@ where
 impl<const NULLABLE: bool, Buffer: BufferType> Array for BooleanArray<NULLABLE, Buffer> where
     Bitmap<Buffer>: Validity<NULLABLE>
 {
+}
+
+impl<const NULLABLE: bool, Buffer: BufferType> BufferRef<u8> for BooleanArray<NULLABLE, Buffer>
+where
+    Bitmap<Buffer>: Validity<NULLABLE>,
+    <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: BufferRef<u8>,
+{
+    type Buffer =
+        <<Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as BufferRef<u8>>::Buffer;
+
+    fn buffer_ref(&self) -> &Self::Buffer {
+        self.0.buffer_ref()
+    }
+}
+
+impl<const NULLABLE: bool, Buffer: BufferType> BufferRefMut<u8> for BooleanArray<NULLABLE, Buffer>
+where
+    Bitmap<Buffer>: Validity<NULLABLE>,
+    <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: BufferRefMut<u8>,
+{
+    type BufferMut =
+        <<Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as BufferRefMut<u8>>::BufferMut;
+
+    fn buffer_ref_mut(&mut self) -> &mut Self::BufferMut {
+        self.0.buffer_ref_mut()
+    }
 }
 
 impl<const NULLABLE: bool, Buffer: BufferType> Default for BooleanArray<NULLABLE, Buffer>
@@ -119,10 +145,13 @@ mod tests {
 
     #[test]
     fn from_iter() {
-        let array = [true, false, true, true]
+        let mut array = [true, false, true, true]
             .into_iter()
             .collect::<BooleanArray<false, BoxBuffer>>();
         assert_eq!(array.len(), 4);
+        assert_eq!(array.buffer_ref().as_ref(), [0b00001101]);
+        array.buffer_ref_mut()[0] = 0xff;
+        assert_eq!(array.buffer_ref().as_ref(), [0b11111111]);
 
         let array = [Some(true), None, Some(true), Some(false)]
             .into_iter()
@@ -136,6 +165,10 @@ mod tests {
         assert_eq!(array.is_null(1), Some(true));
         assert_eq!(array.is_valid(2), Some(true));
         assert_eq!(array.is_valid(3), Some(true));
+        assert!(array.bitmap_ref()[0]);
+        assert!(!array.bitmap_ref()[1]);
+        assert!(array.bitmap_ref()[2]);
+        assert!(array.bitmap_ref()[3]);
         assert!(array.0.data.is_valid(4).is_none());
         assert_eq!(array.0.data.bitmap_ref().len(), array.len());
     }
