@@ -148,8 +148,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
-      - run: cargo build
-      - run: cargo test
+      - uses: dtolnay/install@master
+        with:
+          crate: cargo-expand
+      - run: cargo build --all
+      - run: cargo test --all
         env:
           LLVM_PROFILE_FILE: "narrow-%p-%m.profraw"
       - name: Install grcov
