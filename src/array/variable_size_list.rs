@@ -139,5 +139,30 @@ mod tests {
         assert_eq!(array.0.offsets, &[0, 2]);
         assert_eq!(array.0.data.0.offsets, &[0, 2, 3]);
         assert_eq!(array.0.data.0.data.0.offsets, &[0, 3, 6, 9]);
+
+        let input = vec![
+            None,
+            Some(vec![
+                None,
+                Some(vec![None, Some(vec![1, 2, 3]), Some(vec![1, 2, 3])]),
+                Some(vec![None, Some(vec![4, 5, 6])]),
+            ]),
+        ];
+        let array = input.into_iter().collect::<VariableSizeListArray<
+            VariableSizeListArray<VariableSizeListArray<FixedSizePrimitiveArray<u8>, true>, true>,
+            true,
+        >>();
+        assert_eq!(array.0.data.0.data.0.data.0, &[1, 2, 3, 1, 2, 3, 4, 5, 6]);
+        assert_eq!(array.0.offsets.as_ref(), &[0, 0, 3]);
+        assert_eq!(array.0.data.0.offsets.as_ref(), &[0, 0, 3, 5]);
+        assert_eq!(array.0.data.0.data.0.offsets.as_ref(), &[0, 0, 3, 6, 6, 9]);
+        assert_eq!(array.is_null(0), Some(true));
+        assert_eq!(array.is_valid(1), Some(true));
+        assert_eq!(array.0.data.is_null(0), Some(true));
+        assert_eq!(array.0.data.is_valid(1), Some(true));
+        assert_eq!(array.0.data.0.data.is_null(0), Some(true));
+        assert_eq!(array.0.data.0.data.is_valid(1), Some(true));
+        assert_eq!(array.0.data.0.data.0.is_null(0), Some(true));
+        assert_eq!(array.0.data.0.data.0.is_valid(1), Some(true));
     }
 }
