@@ -164,5 +164,52 @@ mod tests {
         assert_eq!(array.0.data.0.data.is_valid(1), Some(true));
         assert_eq!(array.0.data.0.data.0.is_null(0), Some(true));
         assert_eq!(array.0.data.0.data.0.is_valid(1), Some(true));
+
+        let input = vec![
+            None,
+            Some(vec![
+                None,
+                Some(vec![
+                    None,
+                    Some(vec![None, Some(2), Some(3)]),
+                    Some(vec![None, Some(2), Some(3)]),
+                ]),
+                Some(vec![None, Some(vec![None, Some(5), Some(6)])]),
+            ]),
+        ];
+        let array = input.into_iter().collect::<VariableSizeListArray<
+            VariableSizeListArray<
+                VariableSizeListArray<FixedSizePrimitiveArray<u8, true>, true>,
+                true,
+            >,
+            true,
+        >>();
+        assert_eq!(
+            array.0.data.0.data.0.data.0.as_ref(),
+            &[
+                u8::default(),
+                2,
+                3,
+                u8::default(),
+                2,
+                3,
+                u8::default(),
+                5,
+                6
+            ]
+        );
+        assert_eq!(array.0.offsets.as_ref(), &[0, 0, 3]);
+        assert_eq!(array.0.data.0.offsets.as_ref(), &[0, 0, 3, 5]);
+        assert_eq!(array.0.data.0.data.0.offsets.as_ref(), &[0, 0, 3, 6, 6, 9]);
+        assert_eq!(array.is_null(0), Some(true));
+        assert_eq!(array.is_valid(1), Some(true));
+        assert_eq!(array.0.data.is_null(0), Some(true));
+        assert_eq!(array.0.data.is_valid(1), Some(true));
+        assert_eq!(array.0.data.0.data.is_null(0), Some(true));
+        assert_eq!(array.0.data.0.data.is_valid(1), Some(true));
+        assert_eq!(array.0.data.0.data.0.is_null(0), Some(true));
+        assert_eq!(array.0.data.0.data.0.is_valid(1), Some(true));
+        assert_eq!(array.0.data.0.data.0.data.0.is_null(0), Some(true));
+        assert_eq!(array.0.data.0.data.0.data.0.is_valid(1), Some(true));
     }
 }
