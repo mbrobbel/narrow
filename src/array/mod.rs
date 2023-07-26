@@ -1,7 +1,5 @@
 //! Sequences of values with known length all having the same type.
 
-// use std::collections::VecDeque;
-
 use crate::{buffer::BufferType, FixedSize};
 use std::collections::VecDeque;
 

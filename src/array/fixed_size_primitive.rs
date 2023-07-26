@@ -1,12 +1,9 @@
+use super::Array;
 use crate::{
     buffer::{BufferType, VecBuffer},
     validity::Validity,
-    FixedSize,
-    Length,
-    // Length,
+    FixedSize, Length,
 };
-
-use super::Array;
 
 /// Array with primitive values.
 pub struct FixedSizePrimitiveArray<

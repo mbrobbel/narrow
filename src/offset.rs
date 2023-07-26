@@ -183,10 +183,8 @@ impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Length
 
 #[cfg(test)]
 mod tests {
-    use crate::bitmap::{BitmapRef, ValidityBitmap};
-
     use super::*;
-    // use crate::bitmap::{BitmapRef, ValidityBitmap};
+    use crate::bitmap::{BitmapRef, ValidityBitmap};
 
     #[test]
     fn default() {

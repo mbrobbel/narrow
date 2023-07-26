@@ -94,12 +94,11 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::{
         bitmap::{BitmapRef, ValidityBitmap},
         buffer::{BoxBuffer, BufferRefMut},
     };
-
-    use super::*;
     use std::mem;
 
     #[test]
