@@ -2,7 +2,7 @@
 
 use crate::{
     bitmap::{Bitmap, BitmapIntoIter, BitmapIter, BitmapRef, BitmapRefMut, ValidityBitmap},
-    buffer::{Buffer, BufferMut, BufferRef, BufferRefMut, BufferType, VecBuffer},
+    buffer::{self, BufferMut, BufferRef, BufferRefMut, BufferType, VecBuffer},
     FixedSize, Length,
 };
 use std::{
@@ -14,39 +14,39 @@ use std::{
 ///
 /// Store data with a validity [Bitmap] that uses a single bit per value in `T`
 /// that indicates the validity (non-nullness) or invalidity (nullness) of that value.
-pub struct Nullable<T, BitmapBuffer: BufferType = VecBuffer> {
+pub struct Nullable<T, Buffer: BufferType = VecBuffer> {
     /// Data that may contain null elements.
     pub(crate) data: T,
 
     /// The validity bitmap with validity information for the elements in the
     /// data.
-    pub(crate) validity: Bitmap<BitmapBuffer>,
+    pub(crate) validity: Bitmap<Buffer>,
 }
 
-impl<T, BitmapBuffer: BufferType> AsRef<T> for Nullable<T, BitmapBuffer> {
+impl<T, Buffer: BufferType> AsRef<T> for Nullable<T, Buffer> {
     fn as_ref(&self) -> &T {
         &self.data
     }
 }
 
-impl<T, BitmapBuffer: BufferType> BitmapRef for Nullable<T, BitmapBuffer> {
-    type Buffer = BitmapBuffer;
+impl<T, Buffer: BufferType> BitmapRef for Nullable<T, Buffer> {
+    type Buffer = Buffer;
 
     fn bitmap_ref(&self) -> &Bitmap<Self::Buffer> {
         &self.validity
     }
 }
 
-impl<T, BitmapBuffer: BufferType> BitmapRefMut for Nullable<T, BitmapBuffer> {
+impl<T, Buffer: BufferType> BitmapRefMut for Nullable<T, Buffer> {
     fn bitmap_ref_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
         &mut self.validity
     }
 }
 
-impl<T, U, BitmapBuffer: BufferType> BufferRef<U> for Nullable<T, BitmapBuffer>
+impl<T, U, Buffer: BufferType> BufferRef<U> for Nullable<T, Buffer>
 where
     U: FixedSize,
-    T: Buffer<U>,
+    T: buffer::Buffer<U>,
 {
     type Buffer = T;
 
@@ -55,7 +55,7 @@ where
     }
 }
 
-impl<T, U, BitmapBuffer: BufferType> BufferRefMut<U> for Nullable<T, BitmapBuffer>
+impl<T, U, Buffer: BufferType> BufferRefMut<U> for Nullable<T, Buffer>
 where
     U: FixedSize,
     T: BufferMut<U>,
@@ -67,9 +67,9 @@ where
     }
 }
 
-impl<T: Default, BitmapBuffer: BufferType> Default for Nullable<T, BitmapBuffer>
+impl<T: Default, Buffer: BufferType> Default for Nullable<T, Buffer>
 where
-    Bitmap<BitmapBuffer>: Default,
+    Bitmap<Buffer>: Default,
 {
     fn default() -> Self {
         Self {
@@ -79,10 +79,10 @@ where
     }
 }
 
-impl<T: Extend<U>, U: Default, V: Borrow<bool>, BitmapBuffer: BufferType> Extend<(V, U)>
-    for Nullable<T, BitmapBuffer>
+impl<T: Extend<U>, U: Default, V: Borrow<bool>, Buffer: BufferType> Extend<(V, U)>
+    for Nullable<T, Buffer>
 where
-    <BitmapBuffer as BufferType>::Buffer<u8>: BufferMut<u8> + Extend<u8>,
+    <Buffer as BufferType>::Buffer<u8>: BufferMut<u8> + Extend<u8>,
 {
     fn extend<I: IntoIterator<Item = (V, U)>>(&mut self, iter: I) {
         self.data.extend(
@@ -93,10 +93,9 @@ where
     }
 }
 
-impl<T: Extend<U>, U: Default, BitmapBuffer: BufferType> Extend<Option<U>>
-    for Nullable<T, BitmapBuffer>
+impl<T: Extend<U>, U: Default, Buffer: BufferType> Extend<Option<U>> for Nullable<T, Buffer>
 where
-    <BitmapBuffer as BufferType>::Buffer<u8>: BufferMut<u8> + Extend<u8>,
+    <Buffer as BufferType>::Buffer<u8>: BufferMut<u8> + Extend<u8>,
 {
     fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
         self.extend(
@@ -106,11 +105,11 @@ where
     }
 }
 
-impl<'a, T, U, BitmapBuffer: BufferType> FromIterator<&'a Option<U>> for Nullable<T, BitmapBuffer>
+impl<'a, T, U, Buffer: BufferType> FromIterator<&'a Option<U>> for Nullable<T, Buffer>
 where
     T: Default + Extend<U>,
     U: Copy + Default,
-    <BitmapBuffer as BufferType>::Buffer<u8>: BufferMut<u8> + Default + Extend<u8>,
+    <Buffer as BufferType>::Buffer<u8>: BufferMut<u8> + Default + Extend<u8>,
 {
     fn from_iter<I: IntoIterator<Item = &'a Option<U>>>(iter: I) -> Self {
         let (validity, data) = iter
@@ -121,11 +120,11 @@ where
     }
 }
 
-impl<T, U, BitmapBuffer: BufferType> FromIterator<Option<U>> for Nullable<T, BitmapBuffer>
+impl<T, U, Buffer: BufferType> FromIterator<Option<U>> for Nullable<T, Buffer>
 where
     T: Default + Extend<U>,
     U: Default,
-    <BitmapBuffer as BufferType>::Buffer<u8>: BufferMut<u8> + Default + Extend<u8>,
+    <Buffer as BufferType>::Buffer<u8>: BufferMut<u8> + Default + Extend<u8>,
 {
     fn from_iter<I: IntoIterator<Item = Option<U>>>(iter: I) -> Self {
         let (validity, data) = iter
@@ -136,7 +135,7 @@ where
     }
 }
 
-impl<'a, T, BitmapBuffer: BufferType> IntoIterator for &'a Nullable<T, BitmapBuffer>
+impl<'a, T, Buffer: BufferType> IntoIterator for &'a Nullable<T, Buffer>
 where
     &'a T: IntoIterator,
 {
@@ -154,15 +153,15 @@ where
     }
 }
 
-impl<T, BitmapBuffer: BufferType> IntoIterator for Nullable<T, BitmapBuffer>
+impl<T, Buffer: BufferType> IntoIterator for Nullable<T, Buffer>
 where
     T: IntoIterator,
-    <BitmapBuffer as BufferType>::Buffer<u8>: IntoIterator<Item = u8>,
+    <Buffer as BufferType>::Buffer<u8>: IntoIterator<Item = u8>,
 {
     type Item = Option<<T as IntoIterator>::Item>;
     type IntoIter = Map<
         Zip<
-            BitmapIntoIter<<<BitmapBuffer as BufferType>::Buffer<u8> as IntoIterator>::IntoIter>,
+            BitmapIntoIter<<<Buffer as BufferType>::Buffer<u8> as IntoIterator>::IntoIter>,
             <T as IntoIterator>::IntoIter,
         >,
         fn((bool, <T as IntoIterator>::Item)) -> Self::Item,
@@ -176,13 +175,13 @@ where
     }
 }
 
-impl<T, BitmapBuffer: BufferType> Length for Nullable<T, BitmapBuffer> {
+impl<T, Buffer: BufferType> Length for Nullable<T, Buffer> {
     fn len(&self) -> usize {
         self.validity.len()
     }
 }
 
-impl<T, BitmapBuffer: BufferType> ValidityBitmap for Nullable<T, BitmapBuffer> {}
+impl<T, Buffer: BufferType> ValidityBitmap for Nullable<T, Buffer> {}
 
 #[cfg(test)]
 mod tests {
