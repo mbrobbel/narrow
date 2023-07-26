@@ -2,6 +2,7 @@
 
 use super::{Array, FixedSizePrimitiveArray, StringArray, VariableSizeListArray};
 use crate::{
+    bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
     offset::OffsetElement,
     validity::Validity,
@@ -118,6 +119,29 @@ where
     fn len(&self) -> usize {
         self.0.len()
     }
+}
+
+impl<OffsetItem: OffsetElement, Buffer: BufferType> BitmapRef
+    for VariableSizeBinaryArray<true, OffsetItem, Buffer>
+{
+    type Buffer = Buffer;
+
+    fn bitmap_ref(&self) -> &Bitmap<Self::Buffer> {
+        self.0.bitmap_ref()
+    }
+}
+
+impl<OffsetItem: OffsetElement, Buffer: BufferType> BitmapRefMut
+    for VariableSizeBinaryArray<true, OffsetItem, Buffer>
+{
+    fn bitmap_ref_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
+        self.0.bitmap_ref_mut()
+    }
+}
+
+impl<OffsetItem: OffsetElement, Buffer: BufferType> ValidityBitmap
+    for VariableSizeBinaryArray<true, OffsetItem, Buffer>
+{
 }
 
 #[cfg(test)]

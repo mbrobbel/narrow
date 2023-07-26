@@ -1,5 +1,6 @@
 use super::Array;
 use crate::{
+    bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
     offset::{Offset, OffsetElement},
     validity::Validity,
@@ -65,6 +66,29 @@ where
     fn len(&self) -> usize {
         self.0.len()
     }
+}
+
+impl<T: Array, OffsetItem: OffsetElement, Buffer: BufferType> BitmapRef
+    for VariableSizeListArray<T, true, OffsetItem, Buffer>
+{
+    type Buffer = Buffer;
+
+    fn bitmap_ref(&self) -> &Bitmap<Self::Buffer> {
+        self.0.bitmap_ref()
+    }
+}
+
+impl<T: Array, OffsetItem: OffsetElement, Buffer: BufferType> BitmapRefMut
+    for VariableSizeListArray<T, true, OffsetItem, Buffer>
+{
+    fn bitmap_ref_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
+        self.0.bitmap_ref_mut()
+    }
+}
+
+impl<T: Array, OffsetItem: OffsetElement, Buffer: BufferType> ValidityBitmap
+    for VariableSizeListArray<T, true, OffsetItem, Buffer>
+{
 }
 
 #[cfg(test)]

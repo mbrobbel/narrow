@@ -2,7 +2,7 @@
 
 use super::Array;
 use crate::{
-    bitmap::Bitmap,
+    bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
     validity::Validity,
     Length,
@@ -92,6 +92,22 @@ where
     }
 }
 
+impl<Buffer: BufferType> BitmapRef for BooleanArray<true, Buffer> {
+    type Buffer = Buffer;
+
+    fn bitmap_ref(&self) -> &Bitmap<Self::Buffer> {
+        self.0.bitmap_ref()
+    }
+}
+
+impl<Buffer: BufferType> BitmapRefMut for BooleanArray<true, Buffer> {
+    fn bitmap_ref_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
+        self.0.bitmap_ref_mut()
+    }
+}
+
+impl<Buffer: BufferType> ValidityBitmap for BooleanArray<true, Buffer> {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -116,10 +132,10 @@ mod tests {
         assert_eq!(array.0.data.is_null(1), Some(true));
         assert_eq!(array.0.data.is_valid(2), Some(true));
         assert_eq!(array.0.data.is_valid(3), Some(false));
-        assert_eq!(array.0.validity.is_valid(0), Some(true));
-        assert_eq!(array.0.validity.is_null(1), Some(true));
-        assert_eq!(array.0.validity.is_valid(2), Some(true));
-        assert_eq!(array.0.validity.is_valid(3), Some(true));
+        assert_eq!(array.is_valid(0), Some(true));
+        assert_eq!(array.is_null(1), Some(true));
+        assert_eq!(array.is_valid(2), Some(true));
+        assert_eq!(array.is_valid(3), Some(true));
         assert!(array.0.data.is_valid(4).is_none());
         assert_eq!(array.0.data.bitmap_ref().len(), array.len());
     }

@@ -1,5 +1,6 @@
 use super::{Array, VariableSizeBinaryArray};
 use crate::{
+    bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
     offset::OffsetElement,
     validity::Validity,
@@ -116,6 +117,29 @@ where
     }
 }
 
+impl<OffsetItem: OffsetElement, Buffer: BufferType> BitmapRef
+    for StringArray<true, OffsetItem, Buffer>
+{
+    type Buffer = Buffer;
+
+    fn bitmap_ref(&self) -> &Bitmap<Self::Buffer> {
+        self.0.bitmap_ref()
+    }
+}
+
+impl<OffsetItem: OffsetElement, Buffer: BufferType> BitmapRefMut
+    for StringArray<true, OffsetItem, Buffer>
+{
+    fn bitmap_ref_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
+        self.0.bitmap_ref_mut()
+    }
+}
+
+impl<OffsetItem: OffsetElement, Buffer: BufferType> ValidityBitmap
+    for StringArray<true, OffsetItem, Buffer>
+{
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -146,17 +170,16 @@ mod tests {
         ];
         let array = input.into_iter().collect::<StringArray<true>>();
         assert_eq!(array.len(), 5);
+        assert_eq!(array.is_valid(0), Some(true));
+        assert_eq!(array.is_valid(1), Some(false));
+        assert_eq!(array.is_valid(2), Some(true));
+        assert_eq!(array.is_valid(3), Some(true));
+        assert_eq!(array.is_valid(4), Some(false));
+        assert_eq!(array.is_valid(5), None);
         assert_eq!(array.0 .0 .0.data.0, &[97, 115, 100, 102]);
         assert_eq!(array.0 .0 .0.offsets.as_ref(), &[0, 1, 1, 3, 4, 4]);
         assert_eq!(
-            array
-                .0
-                 .0
-                 .0
-                .offsets
-                .bitmap_ref()
-                .into_iter()
-                .collect::<Vec<_>>(),
+            array.bitmap_ref().into_iter().collect::<Vec<_>>(),
             &[true, false, true, true, false]
         );
     }

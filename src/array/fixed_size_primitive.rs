@@ -1,5 +1,6 @@
 use super::Array;
 use crate::{
+    bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
     validity::Validity,
     FixedSize, Length,
@@ -119,6 +120,22 @@ where
     }
 }
 
+impl<T: FixedSize, Buffer: BufferType> BitmapRef for FixedSizePrimitiveArray<T, true, Buffer> {
+    type Buffer = Buffer;
+
+    fn bitmap_ref(&self) -> &Bitmap<Self::Buffer> {
+        self.0.bitmap_ref()
+    }
+}
+
+impl<T: FixedSize, Buffer: BufferType> BitmapRefMut for FixedSizePrimitiveArray<T, true, Buffer> {
+    fn bitmap_ref_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
+        self.0.bitmap_ref_mut()
+    }
+}
+
+impl<T: FixedSize, Buffer: BufferType> ValidityBitmap for FixedSizePrimitiveArray<T, true, Buffer> {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -143,6 +160,11 @@ mod tests {
         let input = [Some(1u64), None, Some(3), Some(4)];
         let array = input.iter().collect::<FixedSizePrimitiveArray<_, true>>();
         assert_eq!(array.0.buffer_ref().as_slice(), &[1, u64::default(), 3, 4]);
+        assert_eq!(array.is_valid(0), Some(true));
+        assert_eq!(array.is_null(1), Some(true));
+        assert_eq!(array.is_valid(2), Some(true));
+        assert_eq!(array.is_valid(3), Some(true));
+        assert_eq!(array.is_valid(4), None);
     }
 
     #[test]

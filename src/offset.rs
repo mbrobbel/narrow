@@ -1,6 +1,7 @@
 //! Offsets for variable-sized arrays.
 
 use crate::{
+    bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{Buffer, BufferType, VecBuffer},
     validity::Validity,
     FixedSize, Length,
@@ -179,6 +180,29 @@ impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Length
         // The offsets contains a bitmap that uses the number of bits as length
         self.offsets.len()
     }
+}
+
+impl<T, OffsetItem: OffsetElement, Buffer: BufferType> BitmapRef
+    for Offset<T, true, OffsetItem, Buffer>
+{
+    type Buffer = Buffer;
+
+    fn bitmap_ref(&self) -> &Bitmap<Self::Buffer> {
+        self.offsets.bitmap_ref()
+    }
+}
+
+impl<T, OffsetItem: OffsetElement, Buffer: BufferType> BitmapRefMut
+    for Offset<T, true, OffsetItem, Buffer>
+{
+    fn bitmap_ref_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
+        self.offsets.bitmap_ref_mut()
+    }
+}
+
+impl<T, OffsetItem: OffsetElement, Buffer: BufferType> ValidityBitmap
+    for Offset<T, true, OffsetItem, Buffer>
+{
 }
 
 #[cfg(test)]
