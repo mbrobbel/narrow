@@ -2,6 +2,7 @@
 
 use super::{Array, ArrayType};
 use crate::{
+    bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
     validity::Validity,
     Length,
@@ -26,7 +27,7 @@ use std::{
 /// type.
 pub unsafe trait Unit
 where
-    Self: ArrayType + Copy + Default,
+    Self: ArrayType + Copy + Default + Send + Sync + 'static,
 {
 }
 
@@ -34,48 +35,43 @@ where
 // - std::mem::size_of::<()> == 0
 unsafe impl Unit for () {}
 
-pub struct NullArray<
-    T: Unit = (),
-    const NULLABLE: bool = false,
-    BitmapBuffer: BufferType = VecBuffer,
->(<Nulls<T> as Validity<NULLABLE>>::Storage<BitmapBuffer>)
+pub struct NullArray<T: Unit = (), const NULLABLE: bool = false, Buffer: BufferType = VecBuffer>(
+    <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>,
+)
 where
     Nulls<T>: Validity<NULLABLE>;
 
-impl<T: Unit, const NULLABLE: bool, BitmapBuffer: BufferType> Array
-    for NullArray<T, NULLABLE, BitmapBuffer>
-where
-    Nulls<T>: Validity<NULLABLE>,
+impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> Array for NullArray<T, NULLABLE, Buffer> where
+    Nulls<T>: Validity<NULLABLE>
 {
 }
 
-impl<T: Unit, const NULLABLE: bool, BitmapBuffer: BufferType> Default
-    for NullArray<T, NULLABLE, BitmapBuffer>
+impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> Default for NullArray<T, NULLABLE, Buffer>
 where
     Nulls<T>: Validity<NULLABLE>,
-    <Nulls<T> as Validity<NULLABLE>>::Storage<BitmapBuffer>: Default,
+    <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>: Default,
 {
     fn default() -> Self {
         Self(Default::default())
     }
 }
 
-impl<T: Unit, U, const NULLABLE: bool, BitmapBuffer: BufferType> Extend<U>
-    for NullArray<T, NULLABLE, BitmapBuffer>
+impl<T: Unit, U, const NULLABLE: bool, Buffer: BufferType> Extend<U>
+    for NullArray<T, NULLABLE, Buffer>
 where
     Nulls<T>: Validity<NULLABLE>,
-    <Nulls<T> as Validity<NULLABLE>>::Storage<BitmapBuffer>: Extend<U>,
+    <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>: Extend<U>,
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
         self.0.extend(iter)
     }
 }
 
-impl<T: Unit, U, const NULLABLE: bool, BitmapBuffer: BufferType> FromIterator<U>
-    for NullArray<T, NULLABLE, BitmapBuffer>
+impl<T: Unit, U, const NULLABLE: bool, Buffer: BufferType> FromIterator<U>
+    for NullArray<T, NULLABLE, Buffer>
 where
     Nulls<T>: Validity<NULLABLE>,
-    <Nulls<T> as Validity<NULLABLE>>::Storage<BitmapBuffer>: FromIterator<U>,
+    <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>: FromIterator<U>,
 {
     fn from_iter<I>(iter: I) -> Self
     where
@@ -85,26 +81,24 @@ where
     }
 }
 
-impl<T: Unit, const NULLABLE: bool, BitmapBuffer: BufferType> Length
-    for NullArray<T, NULLABLE, BitmapBuffer>
+impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> Length for NullArray<T, NULLABLE, Buffer>
 where
     Nulls<T>: Validity<NULLABLE>,
-    <Nulls<T> as Validity<NULLABLE>>::Storage<BitmapBuffer>: Length,
+    <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>: Length,
 {
     fn len(&self) -> usize {
         self.0.len()
     }
 }
 
-impl<T: Unit, const NULLABLE: bool, BitmapBuffer: BufferType> IntoIterator
-    for NullArray<T, NULLABLE, BitmapBuffer>
+impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> IntoIterator
+    for NullArray<T, NULLABLE, Buffer>
 where
     Nulls<T>: Validity<NULLABLE>,
-    <Nulls<T> as Validity<NULLABLE>>::Storage<BitmapBuffer>: IntoIterator,
+    <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>: IntoIterator,
 {
-    type Item = <<Nulls<T> as Validity<NULLABLE>>::Storage<BitmapBuffer> as IntoIterator>::Item;
-    type IntoIter =
-        <<Nulls<T> as Validity<NULLABLE>>::Storage<BitmapBuffer> as IntoIterator>::IntoIter;
+    type Item = <<Nulls<T> as Validity<NULLABLE>>::Storage<Buffer> as IntoIterator>::Item;
+    type IntoIter = <<Nulls<T> as Validity<NULLABLE>>::Storage<Buffer> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -112,22 +106,38 @@ where
 }
 
 // TODO(mbrobbel): figure out why autotrait fails here
-unsafe impl<T: Unit, const NULLABLE: bool, BitmapBuffer: BufferType> Send
-    for NullArray<T, NULLABLE, BitmapBuffer>
+unsafe impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> Send
+    for NullArray<T, NULLABLE, Buffer>
 where
     Nulls<T>: Validity<NULLABLE>,
-    <Nulls<T> as Validity<NULLABLE>>::Storage<BitmapBuffer>: Send,
+    <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>: Send,
 {
 }
 
 // TODO(mbrobbel): figure out why autotrait fails here
-unsafe impl<T: Unit, const NULLABLE: bool, BitmapBuffer: BufferType> Sync
-    for NullArray<T, NULLABLE, BitmapBuffer>
+unsafe impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> Sync
+    for NullArray<T, NULLABLE, Buffer>
 where
     Nulls<T>: Validity<NULLABLE>,
-    <Nulls<T> as Validity<NULLABLE>>::Storage<BitmapBuffer>: Sync,
+    <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>: Sync,
 {
 }
+
+impl<T: Unit, Buffer: BufferType> BitmapRef for NullArray<T, true, Buffer> {
+    type Buffer = Buffer;
+
+    fn bitmap_ref(&self) -> &Bitmap<Self::Buffer> {
+        self.0.bitmap_ref()
+    }
+}
+
+impl<T: Unit, Buffer: BufferType> BitmapRefMut for NullArray<T, true, Buffer> {
+    fn bitmap_ref_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
+        self.0.bitmap_ref_mut()
+    }
+}
+
+impl<T: Unit, Buffer: BufferType> ValidityBitmap for NullArray<T, true, Buffer> {}
 
 /// New type wrapper for null elements that implements Length.
 #[derive(Debug, Copy, Clone, Default)]
@@ -203,6 +213,11 @@ mod tests {
 
         let input = [Some(()), None, Some(()), None];
         let array = input.iter().copied().collect::<NullArray<_, true>>();
+        assert_eq!(array.is_valid(0), Some(true));
+        assert_eq!(array.is_null(1), Some(true));
+        assert_eq!(array.is_valid(2), Some(true));
+        assert_eq!(array.is_valid(3), Some(false));
+        assert_eq!(array.is_valid(4), None);
         assert_eq!(input, array.into_iter().collect::<Vec<_>>().as_slice());
     }
 
