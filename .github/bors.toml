@@ -1,3 +1,0 @@
-status = ["Check", "Test", "Rustfmt", "Clippy", "Miri", "Rustdoc", "Bench"]
-delete_merged_branches = true
-timeout_sec = 600
