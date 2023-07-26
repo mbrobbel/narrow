@@ -48,3 +48,7 @@ jobs:
             --execute \
             --verbose \
             narrow
+      - if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh run cancel --repo ${{ github.repository }} ${{ github.run_id }}
