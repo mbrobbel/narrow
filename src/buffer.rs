@@ -18,17 +18,6 @@ pub trait BufferType {
     type Buffer<T: FixedSize>: Buffer<T>;
 }
 
-// pub trait ValidityBuffer: BufferType {
-//     type Validity<'a, T: FixedSize + 'a, const NULLABLE: bool>: Buffer<T>
-//         + crate::validity::Validity<NULLABLE>;
-// }
-// impl<U> ValidityBuffer for U
-// where
-//     U: BufferType,
-// {
-//     type Validity<'a, T: FixedSize + 'a, const NULLABLE: bool> = Self::Buffer<'a, T>;
-// }
-
 /// An immutable reference to a buffer.
 ///
 /// This can be used to provide immutable access to an internal buffer.
