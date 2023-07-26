@@ -64,11 +64,8 @@ jobs:
             ${{ runner.os }}-cargo-
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo install cargo-smart-release@0.20.0 --locked || true
-      - run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
       - env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PAT }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: |
           cargo smart-release \
