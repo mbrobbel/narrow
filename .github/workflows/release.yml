@@ -44,8 +44,7 @@ jobs:
           cargo smart-release \
             --update-crates-index \
             --allow-fully-generated-changelogs \
-            --execute \
             --no-changelog-preview \
-            --allow-dirty \
+            --execute \
             --verbose \
             narrow
