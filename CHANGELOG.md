@@ -5,16 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 0.2.2 (2023-07-26)
+
+### Bug Fixes
+
+ - <csr-id-f244d3afb4e6daad54afe796f0d84f053b2f1b26/> specify derive crate version to fix publish
+
+### Chore
+
+ - <csr-id-3cbea45adf8eb3095220f8e55f78327eb9798036/> remove some comments
 
 ### Commit Statistics
 
 <csr-read-only-do-not-edit/>
 
- - 58 commits contributed to the release over the course of 630 calendar days.
+ - 62 commits contributed to the release over the course of 630 calendar days.
  - 726 days passed between releases.
- - 0 commits were understood as [conventional](https://www.conventionalcommits.org).
- - 0 issues like '(#ID)' were seen in commit messages
+ - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 2 unique issues were worked on: [#69](https://github.com/mbrobbel/narrow/issues/69), [#70](https://github.com/mbrobbel/narrow/issues/70)
 
 ### Commit Details
 
@@ -22,7 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <details><summary>view details</summary>
 
+ * **[#69](https://github.com/mbrobbel/narrow/issues/69)**
+    - Remove some comments ([`3cbea45`](https://github.com/mbrobbel/narrow/commit/3cbea45adf8eb3095220f8e55f78327eb9798036))
+ * **[#70](https://github.com/mbrobbel/narrow/issues/70)**
+    - Specify derive crate version to fix publish ([`f244d3a`](https://github.com/mbrobbel/narrow/commit/f244d3afb4e6daad54afe796f0d84f053b2f1b26))
  * **Uncategorized**
+    - Specify derive crate version to fix publish ([`e192fd5`](https://github.com/mbrobbel/narrow/commit/e192fd541649954faa7b69b2c2dc1a0939a20133))
+    - Remove some comments ([`048f330`](https://github.com/mbrobbel/narrow/commit/048f330edc5df2ddc370cf81d8a59fe0b909ad51))
     - Merge #62 ([`5deccd3`](https://github.com/mbrobbel/narrow/commit/5deccd3dfd6e1e7d05566c8db5fe6aff52ba6072))
     - Fix clippy warning ([`9b7b2e6`](https://github.com/mbrobbel/narrow/commit/9b7b2e6b459bf6fddc03ff2d808476c5d27b0810))
     - Clean up ([`b5a048f`](https://github.com/mbrobbel/narrow/commit/b5a048fd58f097ce3d0a35f2410a1b5da54aec71))

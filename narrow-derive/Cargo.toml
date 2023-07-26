@@ -1,6 +1,6 @@
 [package]
 name = "narrow-derive"
-version.workspace = true
+version= "0.2.2"
 authors.workspace = true
 edition.workspace = true
 rust-version.workspace = true
