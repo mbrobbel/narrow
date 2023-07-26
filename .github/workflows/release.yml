@@ -33,7 +33,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo install cargo-smart-release@0.20.0 --locked
       - run: cargo check --all
-      - run: cargo changelog --execute narrow
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: cargo changelog --execute narrow narrow-derive || gh run cancel --repo ${{ github.repository }} ${{ github.run_id }}
       - run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
@@ -48,7 +50,3 @@ jobs:
             --execute \
             --verbose \
             narrow
-      - if: failure()
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh run cancel --repo ${{ github.repository }} ${{ github.run_id }}
