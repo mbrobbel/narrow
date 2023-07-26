@@ -148,6 +148,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
+      - uses: dtolnay/install@master
+        with:
+          crate: cargo-expand
       - run: cargo build --all
       - run: cargo test --all
         env:
