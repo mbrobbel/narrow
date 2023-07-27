@@ -1,6 +1,48 @@
 
 
+## v0.3.2 (2023-07-27)
+
+### Bug Fixes
+
+ - <csr-id-a7a3f79a98fc15879aabf677b17e12bb285ce57f/> `ArrayType` derive for unit structs
+   Add support to derive `ArrayType` for unit structs:
+   ```rust
+   #[derive(ArrayType, Copy, Clone, Default)]
+   struct Foo;
+   
+   let array = [Foo; 5].into_iter().collect::<StructArray<Foo>>();
+   assert_eq!(array.len(), 5);
+   
+   let array = [Some(Foo); 5].into_iter().collect::<StructArray<Foo, true>>();
+   assert_eq!(array.len(), 5);
+   assert!(array.all_valid());
+   ```
+ - <csr-id-e951ed1510214d09794168f1b385289359b76b1c/> `ArrayType` derive for unit structs
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 3 commits contributed to the release.
+ - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#79](https://github.com/mbrobbel/narrow/issues/79)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#79](https://github.com/mbrobbel/narrow/issues/79)**
+    - `ArrayType` derive for unit structs ([`a7a3f79`](https://github.com/mbrobbel/narrow/commit/a7a3f79a98fc15879aabf677b17e12bb285ce57f))
+ * **Uncategorized**
+    - Merge branch 'main' into unit-struct-derive ([`09e3183`](https://github.com/mbrobbel/narrow/commit/09e31830dcbb6c34ca0905079bef9ca0ae15f317))
+    - `ArrayType` derive for unit structs ([`e951ed1`](https://github.com/mbrobbel/narrow/commit/e951ed1510214d09794168f1b385289359b76b1c))
+</details>
+
 ## v0.3.1 (2023-07-27)
+
+<csr-id-17bf9944762a9b036fd6d1a5fa5280f2e68dba03/>
 
 ### Chore
 
@@ -10,7 +52,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 1 commit contributed to the release.
+ - 2 commits contributed to the release.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 0 issues like '(#ID)' were seen in commit messages
 
@@ -21,6 +63,7 @@
 <details><summary>view details</summary>
 
  * **Uncategorized**
+    - Release narrow-derive v0.3.1, narrow v0.3.1 ([`902016c`](https://github.com/mbrobbel/narrow/commit/902016c0f3c44ce65c28183ea75d84ad173e29aa))
     - Fix gh release ([`17bf994`](https://github.com/mbrobbel/narrow/commit/17bf9944762a9b036fd6d1a5fa5280f2e68dba03))
 </details>
 
