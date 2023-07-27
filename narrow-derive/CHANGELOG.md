@@ -1,6 +1,34 @@
 
 
+## v0.3.1 (2023-07-27)
+
+### Chore
+
+ - <csr-id-17bf9944762a9b036fd6d1a5fa5280f2e68dba03/> fix gh release
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 0 issues like '(#ID)' were seen in commit messages
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **Uncategorized**
+    - Fix gh release ([`17bf994`](https://github.com/mbrobbel/narrow/commit/17bf9944762a9b036fd6d1a5fa5280f2e68dba03))
+</details>
+
 ## v0.3.0 (2023-07-27)
+
+<csr-id-9a206988b5bf324e5279e552f9f336fb339db5ec/>
+<csr-id-248e258f379d2f16a556cd182ee3d5641a926566/>
+<csr-id-fbd7fb87ce887b92aa03d129f39a5405fef8c2fa/>
 
 ### Chore
 
@@ -12,7 +40,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 3 commits contributed to the release.
+ - 4 commits contributed to the release.
  - 3 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#78](https://github.com/mbrobbel/narrow/issues/78)
 
@@ -25,11 +53,14 @@
  * **[#78](https://github.com/mbrobbel/narrow/issues/78)**
     - Attempt to fix release by bumping and removing changelogs ([`248e258`](https://github.com/mbrobbel/narrow/commit/248e258f379d2f16a556cd182ee3d5641a926566))
  * **Uncategorized**
+    - Release narrow-derive v0.3.0, narrow v0.3.0 ([`2a5e4cc`](https://github.com/mbrobbel/narrow/commit/2a5e4cc2cb6bd00fd4ff177b2a32c7f5dd816b84))
     - Clear changelog ([`9a20698`](https://github.com/mbrobbel/narrow/commit/9a206988b5bf324e5279e552f9f336fb339db5ec))
     - Attempt to fix release by bumping and removing changelogs ([`fbd7fb8`](https://github.com/mbrobbel/narrow/commit/fbd7fb87ce887b92aa03d129f39a5405fef8c2fa))
 </details>
 
 ## v0.2.2 (2023-07-26)
+
+<csr-id-1b3b54e5df31ea737e04214a10840de61a06130a/>
 
 ### Chore
 
