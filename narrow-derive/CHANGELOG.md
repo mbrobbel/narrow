@@ -1,5 +1,60 @@
 
 
+## v0.3.3 (2023-07-27)
+
+### Bug Fixes
+
+ - <csr-id-9a48422f4a8de0f9b5d109ce44c4c9a14544116a/> `ArrayType` derive for tuple structs
+   ```rust
+   #[derive(ArrayType, Default)]
+   struct Foo<'a>(u32, u16, &'a str);
+   
+   #[derive(ArrayType, Default)]
+   struct Bar<'a>(Foo<'a>);
+   
+   #[derive(ArrayType, Default)]
+   struct FooBar<'a, T>(Bar<'a>, T);
+   
+   let input = [
+       FooBar(Bar(Foo(1, 2, "n")), false),
+       FooBar(Bar(Foo(1, 2, "arrow")), false),
+   ];
+   let array = input.into_iter().collect::<StructArray<FooBar<_>>>();
+   assert_eq!(array.len(), 2);
+   
+   let input = vec![
+       Some(vec![Some(FooBar(Bar(Foo(42, 0, "!"), 1234))]),
+       None,
+       Some(vec![None]),
+       Some(vec![None, None]),
+   ];
+   let array = input
+       .into_iter()
+       .collect::<VariableSizeListArray<StructArray<FooBar<_>, true>, true>>();
+   assert_eq!(array.len(), 4);
+   ```
+ - <csr-id-1db19ad5f65ec2d690e2fbcb1292812bfaba2abb/> `ArrayType` derive for tuple structs
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 2 commits contributed to the release.
+ - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#80](https://github.com/mbrobbel/narrow/issues/80)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#80](https://github.com/mbrobbel/narrow/issues/80)**
+    - `ArrayType` derive for tuple structs ([`9a48422`](https://github.com/mbrobbel/narrow/commit/9a48422f4a8de0f9b5d109ce44c4c9a14544116a))
+ * **Uncategorized**
+    - `ArrayType` derive for tuple structs ([`1db19ad`](https://github.com/mbrobbel/narrow/commit/1db19ad5f65ec2d690e2fbcb1292812bfaba2abb))
+</details>
+
 ## v0.3.2 (2023-07-27)
 
 ### Bug Fixes
@@ -23,7 +78,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 3 commits contributed to the release.
+ - 4 commits contributed to the release.
  - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#79](https://github.com/mbrobbel/narrow/issues/79)
 
@@ -36,6 +91,7 @@
  * **[#79](https://github.com/mbrobbel/narrow/issues/79)**
     - `ArrayType` derive for unit structs ([`a7a3f79`](https://github.com/mbrobbel/narrow/commit/a7a3f79a98fc15879aabf677b17e12bb285ce57f))
  * **Uncategorized**
+    - Release narrow-derive v0.3.2, narrow v0.3.2 ([`ac49ae4`](https://github.com/mbrobbel/narrow/commit/ac49ae411b3ca4021de805165225d0ce0e0801b6))
     - Merge branch 'main' into unit-struct-derive ([`09e3183`](https://github.com/mbrobbel/narrow/commit/09e31830dcbb6c34ca0905079bef9ca0ae15f317))
     - `ArrayType` derive for unit structs ([`e951ed1`](https://github.com/mbrobbel/narrow/commit/e951ed1510214d09794168f1b385289359b76b1c))
 </details>
