@@ -245,7 +245,7 @@ mod tests {
             },
         ];
         let array = input.into_iter().collect::<StructArray<Foo>>();
-        assert_eq!(array.len(), 2);
+        assert_eq!(array.len(), 4);
         assert_eq!(array.0.a.into_iter().collect::<Vec<_>>(), &[1, 2, 3, 4]);
         assert_eq!(
             array.0.b.into_iter().collect::<Vec<_>>(),
