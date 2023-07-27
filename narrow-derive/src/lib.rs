@@ -18,9 +18,9 @@ static NARROW: Lazy<String> = Lazy::new(|| match proc_macro_crate::crate_name(CR
     _ => CRATE.to_string(),
 });
 
-/// Derive macro for the Array trait.
-#[proc_macro_derive(Array, attributes(narrow))]
-pub fn derive_array(input: TokenStream) -> TokenStream {
+/// Derive macro for the ArrayType trait.
+#[proc_macro_derive(ArrayType, attributes(narrow))]
+pub fn derive_array_type(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     match input.data {

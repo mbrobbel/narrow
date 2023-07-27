@@ -29,6 +29,6 @@ pub(crate) mod validity;
 
 pub mod array;
 
-// // Re-export `narrow_derive` macros when the `derive` feature is enabled.
-// #[cfg(feature = "derive")]
-// pub use narrow_derive::Array;
+// Re-export `narrow_derive` macros when the `derive` feature is enabled.
+#[cfg(feature = "derive")]
+pub use narrow_derive::ArrayType;
