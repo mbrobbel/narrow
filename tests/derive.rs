@@ -72,42 +72,49 @@ mod tests {
                 };
 
                 #[derive(ArrayType, Default)]
-                struct Foo(u32, u16);
+                struct Foo<'a>(u32, u16, &'a str);
 
                 #[derive(ArrayType, Default)]
-                struct Bar(Foo);
+                struct Bar<'a>(Foo<'a>);
 
                 #[derive(ArrayType, Default)]
-                struct FooBar<T>(Bar, T);
+                struct FooBar<'a, T>(Bar<'a>, T);
 
                 #[test]
                 fn non_nullable() {
-                    let input = [Foo(1, 2), Foo(3, 4)];
+                    let input = [Foo(1, 2, "as"), Foo(3, 4, "df")];
                     let array = input.into_iter().collect::<StructArray<Foo>>();
                     assert_eq!(array.len(), 2);
 
-                    let input = [Bar(Foo(1, 2)), Bar(Foo(3, 4)), Bar(Foo(5, 6))];
+                    let input = [
+                        Bar(Foo(1, 2, "hello")),
+                        Bar(Foo(3, 4, "world")),
+                        Bar(Foo(5, 6, "!")),
+                    ];
                     let array = input.into_iter().collect::<StructArray<Bar>>();
                     assert_eq!(array.len(), 3);
                 }
 
                 #[test]
                 fn nullable() {
-                    let input = [Some(Foo(1, 2)), None, Some(Foo(3, 4))];
+                    let input = [Some(Foo(1, 2, "n")), None, Some(Foo(3, 4, "arrow"))];
                     let array = input.into_iter().collect::<StructArray<Foo, true>>();
                     assert_eq!(array.len(), 3);
                     assert_eq!(array.is_valid(0), Some(true));
                     assert_eq!(array.is_null(1), Some(true));
                     assert_eq!(array.is_valid(2), Some(true));
 
-                    let input = [Some(Bar(Foo(1, 2))), None];
+                    let input = [Some(Bar(Foo(1, 2, "yes"))), None];
                     let array = input.into_iter().collect::<StructArray<Bar, true>>();
                     assert_eq!(array.len(), 2);
                 }
 
                 #[test]
                 fn generic() {
-                    let input = [FooBar(Bar(Foo(1, 2)), false), FooBar(Bar(Foo(1, 2)), false)];
+                    let input = [
+                        FooBar(Bar(Foo(1, 2, "n")), false),
+                        FooBar(Bar(Foo(1, 2, "arrow")), false),
+                    ];
                     let array = input.into_iter().collect::<StructArray<FooBar<_>>>();
                     assert_eq!(array.len(), 2);
                 }
@@ -115,7 +122,7 @@ mod tests {
                 #[test]
                 fn nested() {
                     let input = vec![
-                        Some(vec![Some(FooBar(Bar::default(), 1234))]),
+                        Some(vec![Some(FooBar(Bar(Foo(42, 0, "!")), 1234))]),
                         None,
                         Some(vec![None]),
                         Some(vec![None, None]),
