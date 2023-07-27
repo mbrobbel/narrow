@@ -47,16 +47,6 @@ where
         Self(iter.into_iter().collect())
     }
 }
-impl<const N: bool, Buffer: narrow::buffer::BufferType> narrow::Length
-for FooArray<N, Buffer>
-where
-    Self: Sized,
-{
-    #[inline]
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
 impl<const N: bool, Buffer: narrow::buffer::BufferType> ::std::iter::Extend<Foo<N>>
 for FooArray<N, Buffer>
 where
@@ -73,5 +63,15 @@ where
 {
     fn default() -> Self {
         Self(::std::default::Default::default())
+    }
+}
+impl<const N: bool, Buffer: narrow::buffer::BufferType> narrow::Length
+for FooArray<N, Buffer>
+where
+    Self: Sized,
+{
+    #[inline]
+    fn len(&self) -> usize {
+        self.0.len()
     }
 }
