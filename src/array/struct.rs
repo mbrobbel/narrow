@@ -27,6 +27,17 @@ where
 {
 }
 
+impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> Default
+    for StructArray<T, NULLABLE, Buffer>
+where
+    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Default,
+{
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
 impl<T: StructArrayType, U, const NULLABLE: bool, Buffer: BufferType> FromIterator<U>
     for StructArray<T, NULLABLE, Buffer>
 where
@@ -35,6 +46,17 @@ where
 {
     fn from_iter<I: IntoIterator<Item = U>>(iter: I) -> Self {
         Self(iter.into_iter().collect())
+    }
+}
+
+impl<T: StructArrayType, U, const NULLABLE: bool, Buffer: BufferType> Extend<U>
+    for StructArray<T, NULLABLE, Buffer>
+where
+    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Extend<U>,
+{
+    fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
+        self.0.extend(iter);
     }
 }
 

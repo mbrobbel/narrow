@@ -28,12 +28,6 @@ for FooArray<Buffer> {
         Self(iter.into_iter().collect())
     }
 }
-impl<Buffer: narrow::buffer::BufferType> narrow::Length for FooArray<Buffer> {
-    #[inline]
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
 impl<Buffer: narrow::buffer::BufferType> ::std::iter::Extend<Foo> for FooArray<Buffer> {
     fn extend<_I: ::std::iter::IntoIterator<Item = Foo>>(&mut self, iter: _I) {
         self.0.extend(iter)
@@ -42,5 +36,11 @@ impl<Buffer: narrow::buffer::BufferType> ::std::iter::Extend<Foo> for FooArray<B
 impl<Buffer: narrow::buffer::BufferType> ::std::default::Default for FooArray<Buffer> {
     fn default() -> Self {
         Self(::std::default::Default::default())
+    }
+}
+impl<Buffer: narrow::buffer::BufferType> narrow::Length for FooArray<Buffer> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.0.len()
     }
 }
