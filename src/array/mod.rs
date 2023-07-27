@@ -26,7 +26,10 @@ pub use variable_size_list::*;
 
 pub trait Array {}
 
-pub trait ArrayType {
+// Note: the default generics is required for to allow impls outside on foreign wrappers.
+// See https://rust-lang.github.io/rfcs/2451-re-rebalancing-coherence.html
+// The resulting behavior when using anything other than the default `Self` is undefined.
+pub trait ArrayType<T: ?Sized = Self> {
     type Array<Buffer: BufferType>: Array;
 }
 

@@ -1,12 +1,9 @@
+use crate::NARROW;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
     parse_quote, visit::Visit, visit_mut::VisitMut, Generics, Ident, Type, TypePath, WherePredicate,
 };
-
-use crate::NARROW;
-
-mod bounds;
 
 /// Returns the name of the `narrow` crate. Panics when the `narrow` crate is
 /// not found.
@@ -14,17 +11,6 @@ pub(super) fn narrow() -> TokenStream {
     let ident = format_ident!("{}", &*NARROW);
     quote!(#ident)
 }
-
-pub(super) fn raw_array(ident: &Ident) -> (Ident, String) {
-    (
-        format_ident!("Raw{}Array", ident),
-        format!(" Array with [{ident}] values."),
-    )
-}
-
-// pub(super) fn alias_array_ident(ident: &Ident) -> Ident {
-//     format_ident!("{}Array", ident)
-// }
 
 /// Replace Self with ident in where clauses.
 pub(super) struct SelfReplace<'a> {
