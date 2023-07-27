@@ -1,5 +1,29 @@
 
 
+## v0.3.1 (2023-07-27)
+
+### Chore
+
+ - <csr-id-17bf9944762a9b036fd6d1a5fa5280f2e68dba03/> fix gh release
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 0 issues like '(#ID)' were seen in commit messages
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **Uncategorized**
+    - Fix gh release ([`17bf994`](https://github.com/mbrobbel/narrow/commit/17bf9944762a9b036fd6d1a5fa5280f2e68dba03))
+</details>
+
 ## v0.3.0 (2023-07-27)
 
 ### Documentation
@@ -33,6 +57,9 @@
 </details>
 
 ## v0.2.5 (2023-07-26)
+
+<csr-id-adc3f3b5ff5854ece947fe4dbee33e8d8cf5fff6/>
+<csr-id-aeefe446e6845ab203e72685d37fc263e1cbd2a5/>
 
 ### Bug Fixes
 
@@ -72,6 +99,8 @@
 </details>
 
 ## v0.2.2 (2023-07-26)
+
+<csr-id-3cbea45adf8eb3095220f8e55f78327eb9798036/>
 
 ### Chore
 
