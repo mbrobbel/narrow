@@ -86,6 +86,9 @@ mod tests {
         impl<'a> ArrayType for Foo<'a> {
             type Array<Buffer: BufferType> = StructArray<Foo<'a>, false, Buffer>;
         }
+        impl<'a> ArrayType for Option<Foo<'a>> {
+            type Array<Buffer: BufferType> = StructArray<Foo<'a>, true, Buffer>;
+        }
 
         struct FooArray<'a, Buffer: BufferType> {
             a: <u32 as ArrayType>::Array<Buffer>,
@@ -193,6 +196,15 @@ mod tests {
             type Array<Buffer: BufferType> = FooArray<'a, Buffer>;
         }
 
+        impl<'a, Buffer: BufferType> Length for FooArray<'a, Buffer>
+        where
+            <u32 as ArrayType>::Array<Buffer>: Length,
+        {
+            fn len(&self) -> usize {
+                self.a.len()
+            }
+        }
+
         // And then:
         let input = [
             Foo {
@@ -233,6 +245,7 @@ mod tests {
             },
         ];
         let array = input.into_iter().collect::<StructArray<Foo>>();
+        assert_eq!(array.len(), 4);
         assert_eq!(array.0.a.into_iter().collect::<Vec<_>>(), &[1, 2, 3, 4]);
         assert_eq!(
             array.0.b.into_iter().collect::<Vec<_>>(),

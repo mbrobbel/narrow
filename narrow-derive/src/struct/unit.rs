@@ -1,8 +1,12 @@
+use crate::{
+    r#struct::{array_type_ident, array_type_impl},
+    util,
+};
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
-use syn::{parse_quote, visit_mut::VisitMut, DeriveInput, Generics, Ident, Visibility};
-
-use crate::util;
+use quote::quote;
+use syn::{
+    parse_quote, DeriveInput, Generics, Ident, ImplGenerics, TypeGenerics, Visibility, WhereClause,
+};
 
 pub(super) fn derive(input: &DeriveInput) -> TokenStream {
     let DeriveInput {
@@ -12,117 +16,179 @@ pub(super) fn derive(input: &DeriveInput) -> TokenStream {
         ..
     } = input;
 
-    // let narrow = util::narrow();
+    // Generate the ArrayType implementation.
+    let array_type_impl = array_type_impl(ident, generics);
 
-    // Construct the raw array wrapper.
-    // let raw_array_def = quote! {
-    //   #[doc = #raw_array_doc]
-    //   #vis struct #raw_array_ident #array_generics
-    // (#narrow::array::null::NullArray<#ident #ty_generics>) #array_where_clause;
-    // };
+    // Generate the StructArrayType implementation.
+    let struct_array_type_impl = struct_array_type_impl(ident, generics);
 
-    // Add NullArray generics.
-    // let mut array_generics = generics.clone();
-    // AddNullableConstGeneric.visit_generics_mut(&mut array_generics);
+    // Generate the Unit implementation.
+    let unit_impl = unit_impl(ident, generics);
 
-    // // let generics = SelfReplace::generics(&ident, &generics);
-    // let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    // Generate the array type definition.
+    let array_type_def = array_type_def(vis, ident, generics);
 
-    // // Replace `Self` with ident in where clauses.
-    // let mut where_clause = where_clause.cloned();
-    // where_clause
-    //     .as_mut()
-    //     .map(|where_clause|
-    // SelfReplace(&ident).visit_where_clause_mut(where_clause));
+    // Generate the length impl.
+    let length_impl = length_impl(ident, generics);
 
-    // let array_generics = SelfReplace::generics(ident, generics);
-    // let (array_impl_generics, array_ty_generics, array_where_clause) =
-    //     array_generics.split_for_impl();
+    // Generate the FromIterator impl.
+    let from_iterator_impl = from_iterator_impl(ident, generics);
 
-    // // Add a type definition for the array of this type.
-    // let alias_array_ident = util::alias_array_ident(&ident);
-    // let alias_array = quote!(
-    //   #[doc = #raw_array_doc]
-    //   #[automatically_derived]
-    //   #vis type #alias_array_ident #generics #where_clause =
-    // #narrow::array::r#struct::StructArray<#ident #ty_generics>; );
+    // Generate the Extend impl.
+    let extend_impl = extend_impl(ident, generics);
 
-    // Implement ArrayType for this type.
-    // let array_type_impl = quote! {
-    //   #[automatically_derived]
-    //   impl #impl_generics #narrow::array::ArrayType for #ident #ty_generics
-    // #where_clause {     type Array<const N: bool, T: OffsetValue> =
-    // #raw_array_ident #array_generics;   }
-    // };
-
-    let raw_array = raw_array_def(vis, ident, generics);
-
-    // todo impl unit for this type
+    // Generate the Default impl.
+    let default_impl = default_impl(ident, generics);
 
     quote! {
-      #raw_array
+      #array_type_impl
 
-      // #array_type_impl
+      #struct_array_type_impl
+
+      #unit_impl
+
+      #array_type_def
+
+      #from_iterator_impl
+
+      #length_impl
+
+      #extend_impl
+
+      #default_impl
     }
-    //   #alias_array
-    // }
 }
 
-pub(super) fn raw_array_def(vis: &Visibility, ident: &Ident, generics: &Generics) -> TokenStream {
+fn unit_impl(ident: &Ident, generics: &Generics) -> TokenStream {
     let narrow = util::narrow();
 
-    // Get the ident and doc for the raw array struct.
-    let (raw_array_ident, raw_array_doc) = util::raw_array(ident);
-
-    // Get the ty_generics of the inner type.
-    let (_, ty_generics, where_clause) = generics.split_for_impl();
-
-    // Add the const generic trait bound for nullability.
-    let generics = NullArrayGenerics::generics(generics);
-    let nullarray_nullable = NullArrayGenerics::nullable_generic();
-    let nullarray_validity_bitmap_buffer = NullArrayGenerics::validity_bitmap_buffer_generic();
-    // let (_, _, _) = generics.split_for_impl();
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {
-      #[doc = #raw_array_doc]
-      #vis struct #raw_array_ident #generics(
-        #narrow::array::null::NullArray<
-          #ident #ty_generics,
-          #nullarray_nullable,
-          #nullarray_validity_bitmap_buffer
-        >
-      ) #where_clause;
+        /// Safety:
+        /// - This is a unit struct.
+        unsafe impl #impl_generics #narrow::array::Unit for #ident #ty_generics #where_clause {}
     }
 }
 
-struct NullArrayGenerics;
+fn struct_array_type_impl(ident: &Ident, generics: &Generics) -> TokenStream {
+    let narrow = util::narrow();
+
+    let array_type_ident = array_type_ident(ident);
+
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+    let array_generics = NullArrayGenerics::new(generics);
+    let (_, ty_generics_with_buffer, _) = array_generics.split_for_impl();
+
+    quote! {
+        impl #impl_generics #narrow::array::StructArrayType for #ident #ty_generics #where_clause {
+            type Array<Buffer: #narrow::buffer::BufferType> = #array_type_ident #ty_generics_with_buffer;
+        }
+    }
+}
+
+fn array_type_def(vis: &Visibility, ident: &Ident, generics: &Generics) -> TokenStream {
+    let narrow = util::narrow();
+
+    let array_type_ident = array_type_ident(ident);
+
+    let (_, ty_generics, where_clause) = generics.split_for_impl();
+
+    let array_generics = NullArrayGenerics::new(generics);
+    let (impl_generics_with_buffer, _, _) = array_generics.split_for_impl();
+
+    quote! {
+        #vis struct #array_type_ident #impl_generics_with_buffer(
+            #narrow::array::NullArray<#ident #ty_generics, false, Buffer>
+        ) #where_clause;
+    }
+}
+
+fn from_iterator_impl(ident: &Ident, generics: &Generics) -> TokenStream {
+    let array_type_ident = array_type_ident(ident);
+
+    let (_, ty_generics, where_clause) = generics.split_for_impl();
+
+    let array_generics = NullArrayGenerics::new(generics);
+    let (impl_generics_with_buffer, ty_generics_with_buffer, _) = array_generics.split_for_impl();
+
+    quote! {
+        impl #impl_generics_with_buffer ::std::iter::FromIterator<#ident #ty_generics> for #array_type_ident #ty_generics_with_buffer #where_clause {
+            fn from_iter<_I: ::std::iter::IntoIterator<Item = #ident #ty_generics>>(iter: _I) -> Self {
+                Self(iter.into_iter().collect())
+            }
+        }
+    }
+}
+
+fn length_impl(ident: &Ident, generics: &Generics) -> TokenStream {
+    let narrow = util::narrow();
+
+    let array_type_ident = array_type_ident(ident);
+
+    let (_, _ty_generics, where_clause) = generics.split_for_impl();
+
+    let array_generics = NullArrayGenerics::new(generics);
+    let (impl_generics_with_buffer, ty_generics_with_buffer, _) = array_generics.split_for_impl();
+
+    quote! {
+        impl #impl_generics_with_buffer #narrow::Length for #array_type_ident #ty_generics_with_buffer #where_clause {
+            #[inline]
+            fn len(&self) -> usize {
+                self.0.len()
+            }
+        }
+    }
+}
+
+fn extend_impl(ident: &Ident, generics: &Generics) -> TokenStream {
+    let array_type_ident = array_type_ident(ident);
+
+    let (_, ty_generics, where_clause) = generics.split_for_impl();
+
+    let array_generics = NullArrayGenerics::new(generics);
+    let (impl_generics_with_buffer, ty_generics_with_buffer, _) = array_generics.split_for_impl();
+
+    quote! {
+        impl #impl_generics_with_buffer ::std::iter::Extend<#ident #ty_generics> for #array_type_ident #ty_generics_with_buffer #where_clause {
+            fn extend<_I: ::std::iter::IntoIterator<Item=#ident #ty_generics>>(&mut self, iter: _I) {
+                self.0.extend(iter)
+            }
+        }
+    }
+}
+
+fn default_impl(ident: &Ident, generics: &Generics) -> TokenStream {
+    let array_type_ident = array_type_ident(ident);
+
+    let (_, _, where_clause) = generics.split_for_impl();
+
+    let array_generics = NullArrayGenerics::new(generics);
+    let (impl_generics_with_buffer, ty_generics_with_buffer, _) = array_generics.split_for_impl();
+
+    quote! {
+        impl #impl_generics_with_buffer ::std::default::Default for #array_type_ident #ty_generics_with_buffer #where_clause {
+            fn default() -> Self {
+                Self(::std::default::Default::default())
+            }
+        }
+    }
+}
+
+struct NullArrayGenerics(Generics);
 
 impl NullArrayGenerics {
-    fn generics(generics: &Generics) -> Generics {
-        let mut generics = generics.clone();
-        Self.visit_generics_mut(&mut generics);
-        generics
-    }
+    fn new(generics: &Generics) -> Self {
+        let narrow = util::narrow();
 
-    fn nullable_generic() -> Ident {
-        format_ident!("_NARROW_NULLABLE")
-    }
-
-    fn validity_bitmap_buffer_generic() -> Ident {
-        format_ident!("_NARROW_VALIDITY_BITMAP_BUFFER")
-    }
-}
-
-impl VisitMut for NullArrayGenerics {
-    fn visit_generics_mut(&mut self, generics: &mut Generics) {
-        let nullable = Self::nullable_generic();
-        generics
+        let mut generics_with_buffer = generics.clone();
+        generics_with_buffer
             .params
-            .push(parse_quote!(const #nullable: bool = false));
-
-        let validity_bitmap_buffer = Self::validity_bitmap_buffer_generic();
-        generics
-            .params
-            .push(parse_quote!(#validity_bitmap_buffer = Vec<u8>));
+            .push(parse_quote!(Buffer: #narrow::buffer::BufferType = #narrow::buffer::VecBuffer));
+        Self(generics_with_buffer)
+    }
+    fn split_for_impl(&self) -> (ImplGenerics, TypeGenerics, Option<&WhereClause>) {
+        self.0.split_for_impl()
     }
 }
