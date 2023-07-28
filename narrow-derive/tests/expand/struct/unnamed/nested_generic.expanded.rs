@@ -27,6 +27,7 @@ where
 impl<T: narrow::array::ArrayType> narrow::array::StructArrayType for Foo<T>
 where
     T: Copy,
+    T: narrow::array::ArrayType,
 {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<T, Buffer>;
 }
@@ -81,6 +82,7 @@ impl<T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType> narrow::Le
 for FooArray<T, Buffer>
 where
     T: Copy,
+    T: narrow::array::ArrayType,
     <T as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
 {
     #[inline]
@@ -104,7 +106,10 @@ for ::std::option::Option<Bar<'a, T>> {
         Buffer,
     >;
 }
-impl<'a, T: narrow::array::ArrayType> narrow::array::StructArrayType for Bar<'a, T> {
+impl<'a, T: narrow::array::ArrayType> narrow::array::StructArrayType for Bar<'a, T>
+where
+    &'a Foo<T>: narrow::array::ArrayType,
+{
     type Array<Buffer: narrow::buffer::BufferType> = BarArray<'a, T, Buffer>;
 }
 struct BarArray<'a, T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType>(
@@ -159,6 +164,7 @@ where
 impl<'a, T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType> narrow::Length
 for BarArray<'a, T, Buffer>
 where
+    &'a Foo<T>: narrow::array::ArrayType,
     <&'a Foo<T> as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
 {
     #[inline]
@@ -181,7 +187,10 @@ impl<'a> narrow::array::ArrayType<FooBar<'a>> for ::std::option::Option<FooBar<'
         Buffer,
     >;
 }
-impl<'a> narrow::array::StructArrayType for FooBar<'a> {
+impl<'a> narrow::array::StructArrayType for FooBar<'a>
+where
+    Bar<'a, u32>: narrow::array::ArrayType,
+{
     type Array<Buffer: narrow::buffer::BufferType> = FooBarArray<'a, Buffer>;
 }
 struct FooBarArray<'a, Buffer: narrow::buffer::BufferType>(
@@ -228,6 +237,7 @@ where
 }
 impl<'a, Buffer: narrow::buffer::BufferType> narrow::Length for FooBarArray<'a, Buffer>
 where
+    Bar<'a, u32>: narrow::array::ArrayType,
     <Bar<'a, u32> as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
 {
     #[inline]

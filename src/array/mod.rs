@@ -33,6 +33,10 @@ pub trait ArrayType<T: ?Sized = Self> {
     type Array<Buffer: BufferType>: Array;
 }
 
+impl<T: ArrayType + ?Sized> ArrayType for &T {
+    type Array<Buffer: BufferType> = <T as ArrayType>::Array<Buffer>;
+}
+
 macro_rules! impl_array_type {
     ($ty:ty, $array:ty) => {
         impl ArrayType for $ty {
@@ -92,7 +96,7 @@ impl<T: FixedSize, const N: usize> ArrayType for Option<[T; N]> {
     type Array<Buffer: BufferType> = FixedSizePrimitiveArray<[T; N], true, Buffer>;
 }
 
-impl<'a> ArrayType for &'a str {
+impl ArrayType for str {
     type Array<Buffer: BufferType> = StringArray<false, i32, Buffer>;
 }
 impl<'a> ArrayType for Option<&'a str> {

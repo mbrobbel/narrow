@@ -13,7 +13,10 @@ impl narrow::array::ArrayType<Foo> for ::std::option::Option<Foo> {
         Buffer,
     >;
 }
-impl narrow::array::StructArrayType for Foo {
+impl narrow::array::StructArrayType for Foo
+where
+    u32: narrow::array::ArrayType,
+{
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<Buffer>;
 }
 struct FooArray<Buffer: narrow::buffer::BufferType>(
@@ -52,6 +55,7 @@ where
 }
 impl<Buffer: narrow::buffer::BufferType> narrow::Length for FooArray<Buffer>
 where
+    u32: narrow::array::ArrayType,
     <u32 as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
 {
     #[inline]
@@ -74,7 +78,10 @@ impl narrow::array::ArrayType<Bar> for ::std::option::Option<Bar> {
         Buffer,
     >;
 }
-impl narrow::array::StructArrayType for Bar {
+impl narrow::array::StructArrayType for Bar
+where
+    Foo: narrow::array::ArrayType,
+{
     type Array<Buffer: narrow::buffer::BufferType> = BarArray<Buffer>;
 }
 struct BarArray<Buffer: narrow::buffer::BufferType>(
@@ -113,6 +120,7 @@ where
 }
 impl<Buffer: narrow::buffer::BufferType> narrow::Length for BarArray<Buffer>
 where
+    Foo: narrow::array::ArrayType,
     <Foo as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
 {
     #[inline]

@@ -16,7 +16,7 @@ pub struct StructArray<
     T: StructArrayType,
     const NULLABLE: bool = false,
     Buffer: BufferType = VecBuffer,
->(<<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>)
+>(pub <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>)
 where
     <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>;
 

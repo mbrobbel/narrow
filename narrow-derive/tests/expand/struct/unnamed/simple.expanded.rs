@@ -13,7 +13,10 @@ impl narrow::array::ArrayType<Foo> for ::std::option::Option<Foo> {
         Buffer,
     >;
 }
-impl narrow::array::StructArrayType for Foo {
+impl narrow::array::StructArrayType for Foo
+where
+    u32: narrow::array::ArrayType,
+{
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<Buffer>;
 }
 struct FooArray<Buffer: narrow::buffer::BufferType>(
@@ -52,6 +55,7 @@ where
 }
 impl<Buffer: narrow::buffer::BufferType> narrow::Length for FooArray<Buffer>
 where
+    u32: narrow::array::ArrayType,
     <u32 as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
 {
     #[inline]
@@ -74,7 +78,13 @@ impl narrow::array::ArrayType<Bar> for ::std::option::Option<Bar> {
         Buffer,
     >;
 }
-impl narrow::array::StructArrayType for Bar {
+impl narrow::array::StructArrayType for Bar
+where
+    u8: narrow::array::ArrayType,
+    u16: narrow::array::ArrayType,
+    u32: narrow::array::ArrayType,
+    u64: narrow::array::ArrayType,
+{
     type Array<Buffer: narrow::buffer::BufferType> = BarArray<Buffer>;
 }
 struct BarArray<Buffer: narrow::buffer::BufferType>(
@@ -142,6 +152,7 @@ where
 }
 impl<Buffer: narrow::buffer::BufferType> narrow::Length for BarArray<Buffer>
 where
+    u8: narrow::array::ArrayType,
     <u8 as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
 {
     #[inline]
@@ -165,7 +176,10 @@ for ::std::option::Option<FooBar<T>> {
         Buffer,
     >;
 }
-impl<T: narrow::array::ArrayType> narrow::array::StructArrayType for FooBar<T> {
+impl<T: narrow::array::ArrayType> narrow::array::StructArrayType for FooBar<T>
+where
+    T: narrow::array::ArrayType,
+{
     type Array<Buffer: narrow::buffer::BufferType> = FooBarArray<T, Buffer>;
 }
 struct FooBarArray<T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType>(
@@ -213,6 +227,7 @@ where
 impl<T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType> narrow::Length
 for FooBarArray<T, Buffer>
 where
+    T: narrow::array::ArrayType,
     <T as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
 {
     #[inline]
