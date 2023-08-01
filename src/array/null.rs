@@ -36,7 +36,7 @@ where
 unsafe impl Unit for () {}
 
 pub struct NullArray<T: Unit = (), const NULLABLE: bool = false, Buffer: BufferType = VecBuffer>(
-    <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>,
+    pub <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>,
 )
 where
     Nulls<T>: Validity<NULLABLE>;

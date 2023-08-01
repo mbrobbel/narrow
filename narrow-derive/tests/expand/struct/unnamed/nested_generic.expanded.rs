@@ -38,21 +38,6 @@ where
 impl<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
-> ::std::iter::FromIterator<Foo<T>> for FooArray<T, Buffer>
-where
-    T: Copy,
-    <T as narrow::array::ArrayType>::Array<
-        Buffer,
-    >: ::std::default::Default + ::std::iter::Extend<T>,
-{
-    fn from_iter<_I: ::std::iter::IntoIterator<Item = Foo<T>>>(iter: _I) -> Self {
-        let (_0, ()) = iter.into_iter().map(|Foo(_0)| (_0, ())).unzip();
-        Self(_0)
-    }
-}
-impl<
-    T: narrow::array::ArrayType,
-    Buffer: narrow::buffer::BufferType,
 > ::std::default::Default for FooArray<T, Buffer>
 where
     T: Copy,
@@ -60,6 +45,16 @@ where
 {
     fn default() -> Self {
         Self(::std::default::Default::default())
+    }
+}
+impl<T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType> narrow::Length
+for FooArray<T, Buffer>
+where
+    T: Copy,
+    <T as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
+{
+    fn len(&self) -> usize {
+        self.0.len()
     }
 }
 impl<
@@ -77,15 +72,19 @@ where
             });
     }
 }
-impl<T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType> narrow::Length
-for FooArray<T, Buffer>
+impl<
+    T: narrow::array::ArrayType,
+    Buffer: narrow::buffer::BufferType,
+> ::std::iter::FromIterator<Foo<T>> for FooArray<T, Buffer>
 where
     T: Copy,
-    <T as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
+    <T as narrow::array::ArrayType>::Array<
+        Buffer,
+    >: ::std::default::Default + ::std::iter::Extend<T>,
 {
-    #[inline]
-    fn len(&self) -> usize {
-        self.0.len()
+    fn from_iter<_I: ::std::iter::IntoIterator<Item = Foo<T>>>(iter: _I) -> Self {
+        let (_0, ()) = iter.into_iter().map(|Foo(_0)| (_0, ())).unzip();
+        Self(_0)
     }
 }
 struct Bar<'a, T>(&'a Foo<T>);
@@ -114,29 +113,21 @@ impl<
     'a,
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
-> ::std::iter::FromIterator<Bar<'a, T>> for BarArray<'a, T, Buffer>
-where
-    <&'a Foo<
-        T,
-    > as narrow::array::ArrayType>::Array<
-        Buffer,
-    >: ::std::default::Default + ::std::iter::Extend<&'a Foo<T>>,
-{
-    fn from_iter<_I: ::std::iter::IntoIterator<Item = Bar<'a, T>>>(iter: _I) -> Self {
-        let (_0, ()) = iter.into_iter().map(|Bar(_0)| (_0, ())).unzip();
-        Self(_0)
-    }
-}
-impl<
-    'a,
-    T: narrow::array::ArrayType,
-    Buffer: narrow::buffer::BufferType,
 > ::std::default::Default for BarArray<'a, T, Buffer>
 where
     <&'a Foo<T> as narrow::array::ArrayType>::Array<Buffer>: ::std::default::Default,
 {
     fn default() -> Self {
         Self(::std::default::Default::default())
+    }
+}
+impl<'a, T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType> narrow::Length
+for BarArray<'a, T, Buffer>
+where
+    <&'a Foo<T> as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
+{
+    fn len(&self) -> usize {
+        self.0.len()
     }
 }
 impl<
@@ -156,14 +147,21 @@ where
             });
     }
 }
-impl<'a, T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType> narrow::Length
-for BarArray<'a, T, Buffer>
+impl<
+    'a,
+    T: narrow::array::ArrayType,
+    Buffer: narrow::buffer::BufferType,
+> ::std::iter::FromIterator<Bar<'a, T>> for BarArray<'a, T, Buffer>
 where
-    <&'a Foo<T> as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
+    <&'a Foo<
+        T,
+    > as narrow::array::ArrayType>::Array<
+        Buffer,
+    >: ::std::default::Default + ::std::iter::Extend<&'a Foo<T>>,
 {
-    #[inline]
-    fn len(&self) -> usize {
-        self.0.len()
+    fn from_iter<_I: ::std::iter::IntoIterator<Item = Bar<'a, T>>>(iter: _I) -> Self {
+        let (_0, ()) = iter.into_iter().map(|Bar(_0)| (_0, ())).unzip();
+        Self(_0)
     }
 }
 struct FooBar<'a>(Bar<'a, u32>);
@@ -187,21 +185,6 @@ impl<'a> narrow::array::StructArrayType for FooBar<'a> {
 struct FooBarArray<'a, Buffer: narrow::buffer::BufferType>(
     <Bar<'a, u32> as narrow::array::ArrayType>::Array<Buffer>,
 );
-impl<'a, Buffer: narrow::buffer::BufferType> ::std::iter::FromIterator<FooBar<'a>>
-for FooBarArray<'a, Buffer>
-where
-    <Bar<
-        'a,
-        u32,
-    > as narrow::array::ArrayType>::Array<
-        Buffer,
-    >: ::std::default::Default + ::std::iter::Extend<Bar<'a, u32>>,
-{
-    fn from_iter<_I: ::std::iter::IntoIterator<Item = FooBar<'a>>>(iter: _I) -> Self {
-        let (_0, ()) = iter.into_iter().map(|FooBar(_0)| (_0, ())).unzip();
-        Self(_0)
-    }
-}
 impl<'a, Buffer: narrow::buffer::BufferType> ::std::default::Default
 for FooBarArray<'a, Buffer>
 where
@@ -209,6 +192,14 @@ where
 {
     fn default() -> Self {
         Self(::std::default::Default::default())
+    }
+}
+impl<'a, Buffer: narrow::buffer::BufferType> narrow::Length for FooBarArray<'a, Buffer>
+where
+    <Bar<'a, u32> as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
+{
+    fn len(&self) -> usize {
+        self.0.len()
     }
 }
 impl<'a, Buffer: narrow::buffer::BufferType> ::std::iter::Extend<FooBar<'a>>
@@ -226,12 +217,18 @@ where
             });
     }
 }
-impl<'a, Buffer: narrow::buffer::BufferType> narrow::Length for FooBarArray<'a, Buffer>
+impl<'a, Buffer: narrow::buffer::BufferType> ::std::iter::FromIterator<FooBar<'a>>
+for FooBarArray<'a, Buffer>
 where
-    <Bar<'a, u32> as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
+    <Bar<
+        'a,
+        u32,
+    > as narrow::array::ArrayType>::Array<
+        Buffer,
+    >: ::std::default::Default + ::std::iter::Extend<Bar<'a, u32>>,
 {
-    #[inline]
-    fn len(&self) -> usize {
-        self.0.len()
+    fn from_iter<_I: ::std::iter::IntoIterator<Item = FooBar<'a>>>(iter: _I) -> Self {
+        let (_0, ()) = iter.into_iter().map(|FooBar(_0)| (_0, ())).unzip();
+        Self(_0)
     }
 }

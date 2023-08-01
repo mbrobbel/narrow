@@ -8,7 +8,9 @@ use crate::{
 
 /// Struct array types.
 pub trait StructArrayType: ArrayType {
-    /// The array type that stores items of this struct. Note this differs from the `ArrayType` array because that wraps this array
+    /// The array type that stores items of this struct. Note this differs from
+    /// the [ArrayType] array because that wraps this array. Also note that this
+    /// has no [Array] bound.
     type Array<Buffer: BufferType>;
 }
 
@@ -16,7 +18,7 @@ pub struct StructArray<
     T: StructArrayType,
     const NULLABLE: bool = false,
     Buffer: BufferType = VecBuffer,
->(<<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>)
+>(pub <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>)
 where
     <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>;
 

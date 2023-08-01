@@ -1,2 +1,4 @@
 #[derive(narrow_derive::ArrayType)]
-struct Foo<T: Sized>(T);
+struct Foo
+where
+    Self: Debug;
