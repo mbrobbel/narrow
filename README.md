@@ -1,6 +1,6 @@
-# Narrow
-
 ![Narrow logo](narrow.svg)
+
+# Narrow
 
 [![crates.io](https://img.shields.io/crates/v/narrow.svg)](https://crates.io/crates/narrow)
 [![docs.rs](https://docs.rs/narrow/badge.svg)](https://docs.rs/narrow)
