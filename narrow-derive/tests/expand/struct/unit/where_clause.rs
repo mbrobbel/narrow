@@ -1,4 +1,5 @@
 #[derive(narrow_derive::ArrayType)]
 pub(super) struct Foo<const N: bool = false>
 where
-    Self: Sized;
+    Self: Sized,
+    (): From<Self>;

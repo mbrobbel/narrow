@@ -1,4 +1,7 @@
 pub struct Foo<const N: usize = 42>;
+/// Safety:
+/// - This is a unit struct.
+unsafe impl<const N: usize> narrow::array::Unit for Foo<N> {}
 impl<const N: usize> narrow::array::ArrayType for Foo<N> {
     type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
         Foo<N>,
@@ -16,26 +19,9 @@ impl<const N: usize> narrow::array::ArrayType<Foo<N>> for ::std::option::Option<
 impl<const N: usize> narrow::array::StructArrayType for Foo<N> {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<N, Buffer>;
 }
-/// Safety:
-/// - This is a unit struct.
-unsafe impl<const N: usize> narrow::array::Unit for Foo<N> {}
 pub struct FooArray<const N: usize, Buffer: narrow::buffer::BufferType>(
     narrow::array::NullArray<Foo<N>, false, Buffer>,
 );
-impl<
-    const N: usize,
-    Buffer: narrow::buffer::BufferType,
-> ::std::iter::FromIterator<Foo<N>> for FooArray<N, Buffer> {
-    fn from_iter<_I: ::std::iter::IntoIterator<Item = Foo<N>>>(iter: _I) -> Self {
-        Self(iter.into_iter().collect())
-    }
-}
-impl<const N: usize, Buffer: narrow::buffer::BufferType> ::std::iter::Extend<Foo<N>>
-for FooArray<N, Buffer> {
-    fn extend<_I: ::std::iter::IntoIterator<Item = Foo<N>>>(&mut self, iter: _I) {
-        self.0.extend(iter)
-    }
-}
 impl<const N: usize, Buffer: narrow::buffer::BufferType> ::std::default::Default
 for FooArray<N, Buffer> {
     fn default() -> Self {
@@ -44,8 +30,21 @@ for FooArray<N, Buffer> {
 }
 impl<const N: usize, Buffer: narrow::buffer::BufferType> narrow::Length
 for FooArray<N, Buffer> {
-    #[inline]
     fn len(&self) -> usize {
         self.0.len()
+    }
+}
+impl<const N: usize, Buffer: narrow::buffer::BufferType> ::std::iter::Extend<Foo<N>>
+for FooArray<N, Buffer> {
+    fn extend<_I: ::std::iter::IntoIterator<Item = Foo<N>>>(&mut self, iter: _I) {
+        self.0.extend(iter)
+    }
+}
+impl<
+    const N: usize,
+    Buffer: narrow::buffer::BufferType,
+> ::std::iter::FromIterator<Foo<N>> for FooArray<N, Buffer> {
+    fn from_iter<_I: ::std::iter::IntoIterator<Item = Foo<N>>>(iter: _I) -> Self {
+        Self(iter.into_iter().collect())
     }
 }

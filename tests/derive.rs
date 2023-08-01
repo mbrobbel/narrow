@@ -142,13 +142,29 @@ mod tests {
             }
 
             mod named {
-                use narrow::{array::StructArray, ArrayType, Length};
+                use narrow::{
+                    array::{StructArray, VariableSizeListArray},
+                    bitmap::ValidityBitmap,
+                    ArrayType, Length,
+                };
 
                 #[derive(ArrayType)]
                 struct Foo<'a, T: ?Sized> {
                     a: &'a T,
                     b: bool,
                     c: u8,
+                }
+                impl<'a, T: ?Sized> Default for Foo<'a, T>
+                where
+                    &'a T: Default,
+                {
+                    fn default() -> Self {
+                        Self {
+                            a: Default::default(),
+                            b: Default::default(),
+                            c: Default::default(),
+                        }
+                    }
                 }
 
                 #[derive(ArrayType, Default)]
@@ -200,38 +216,63 @@ mod tests {
                     ];
                     let array = input.into_iter().collect::<StructArray<Bar<_>, true>>();
                     assert_eq!(array.len(), 3);
-                    // assert_eq!(array.is_valid(0), Some(true));
-                    // assert_eq!(array.is_null(1), Some(true));
-                    // assert_eq!(array.is_valid(2), Some(true));
+                    assert_eq!(array.is_valid(0), Some(true));
+                    assert_eq!(array.is_null(1), Some(true));
+                    assert_eq!(array.is_valid(2), Some(true));
 
-                    // let input = [Some(Bar(Foo(1, 2, "yes"))), None];
-                    // let array = input.into_iter().collect::<StructArray<Bar, true>>();
-                    // assert_eq!(array.len(), 2);
+                    let input = [
+                        Some(Bar {
+                            a: 1,
+                            b: None,
+                            c: false,
+                        }),
+                        None,
+                    ];
+                    let array = input.into_iter().collect::<StructArray<Bar<_>, true>>();
+                    assert_eq!(array.len(), 2);
                 }
 
-                // #[test]
-                // fn generic() {
-                //     let input = [
-                //         FooBar(Bar(Foo(1, 2, "n")), false),
-                //         FooBar(Bar(Foo(1, 2, "arrow")), false),
-                //     ];
-                //     let array = input.into_iter().collect::<StructArray<FooBar<_>>>();
-                //     assert_eq!(array.len(), 2);
-                // }
+                #[test]
+                fn generic() {
+                    let input = [
+                        Some(Bar {
+                            a: 1,
+                            b: Some(false),
+                            c: Foo {
+                                a: "a",
+                                b: false,
+                                c: 123,
+                            },
+                        }),
+                        None,
+                    ];
+                    let array = input
+                        .into_iter()
+                        .collect::<StructArray<Bar<Foo<str>>, true>>();
+                    assert_eq!(array.len(), 2);
+                }
 
-                // #[test]
-                // fn nested() {
-                //     let input = vec![
-                //         Some(vec![Some(FooBar(Bar(Foo(42, 0, "!")), 1234))]),
-                //         None,
-                //         Some(vec![None]),
-                //         Some(vec![None, None]),
-                //     ];
-                //     let array = input
-                //         .into_iter()
-                //         .collect::<VariableSizeListArray<StructArray<FooBar<_>, true>, true>>();
-                //     assert_eq!(array.len(), 4);
-                // }
+                #[test]
+                fn nested() {
+                    let input = vec![
+                        Some(vec![Some(Bar {
+                            a: 2,
+                            b: None,
+                            c: Foo {
+                                a: "a",
+                                b: false,
+                                c: 123,
+                            },
+                        })]),
+                        None,
+                        Some(vec![None]),
+                        Some(vec![None, None]),
+                    ];
+                    let array = input
+                        .into_iter()
+                        .collect::<VariableSizeListArray<StructArray<Bar<Foo<str>>, true>, true>>();
+                    assert_eq!(array.len(), 4);
+                }
             }
         }
     }

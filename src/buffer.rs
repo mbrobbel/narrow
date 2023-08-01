@@ -136,8 +136,6 @@ impl<T: FixedSize, const N: usize> BufferMut<T> for [T; N] {
     }
 }
 
-// TODO(mbrobbel): generate more via macro
-
 /// A [BufferType] implementation for array in array.
 ///
 /// Stores items `T` in `[[T; M]; N]`.

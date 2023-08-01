@@ -14,30 +14,12 @@ for ::std::option::Option<Foo<'a, T>> {
         Buffer,
     >;
 }
-impl<'a, T: narrow::array::ArrayType> narrow::array::StructArrayType for Foo<'a, T>
-where
-    &'a T: narrow::array::ArrayType,
-{
+impl<'a, T: narrow::array::ArrayType> narrow::array::StructArrayType for Foo<'a, T> {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<'a, T, Buffer>;
 }
 struct FooArray<'a, T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType>(
     <&'a T as narrow::array::ArrayType>::Array<Buffer>,
 );
-impl<
-    'a,
-    T: narrow::array::ArrayType,
-    Buffer: narrow::buffer::BufferType,
-> ::std::iter::FromIterator<Foo<'a, T>> for FooArray<'a, T, Buffer>
-where
-    <&'a T as narrow::array::ArrayType>::Array<
-        Buffer,
-    >: ::std::default::Default + ::std::iter::Extend<&'a T>,
-{
-    fn from_iter<_I: ::std::iter::IntoIterator<Item = Foo<'a, T>>>(iter: _I) -> Self {
-        let (_0, ()) = iter.into_iter().map(|Foo(_0)| (_0, ())).unzip();
-        Self(_0)
-    }
-}
 impl<
     'a,
     T: narrow::array::ArrayType,
@@ -48,6 +30,15 @@ where
 {
     fn default() -> Self {
         Self(::std::default::Default::default())
+    }
+}
+impl<'a, T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType> narrow::Length
+for FooArray<'a, T, Buffer>
+where
+    <&'a T as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
+{
+    fn len(&self) -> usize {
+        self.0.len()
     }
 }
 impl<
@@ -65,14 +56,18 @@ where
             });
     }
 }
-impl<'a, T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType> narrow::Length
-for FooArray<'a, T, Buffer>
+impl<
+    'a,
+    T: narrow::array::ArrayType,
+    Buffer: narrow::buffer::BufferType,
+> ::std::iter::FromIterator<Foo<'a, T>> for FooArray<'a, T, Buffer>
 where
-    &'a T: narrow::array::ArrayType,
-    <&'a T as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
+    <&'a T as narrow::array::ArrayType>::Array<
+        Buffer,
+    >: ::std::default::Default + ::std::iter::Extend<&'a T>,
 {
-    #[inline]
-    fn len(&self) -> usize {
-        self.0.len()
+    fn from_iter<_I: ::std::iter::IntoIterator<Item = Foo<'a, T>>>(iter: _I) -> Self {
+        let (_0, ()) = iter.into_iter().map(|Foo(_0)| (_0, ())).unzip();
+        Self(_0)
     }
 }
