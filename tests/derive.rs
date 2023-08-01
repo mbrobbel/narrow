@@ -154,6 +154,7 @@ mod tests {
                     b: bool,
                     c: u8,
                 }
+
                 impl<'a, T: ?Sized> Default for Foo<'a, T>
                 where
                     &'a T: Default,
@@ -219,6 +220,20 @@ mod tests {
                     assert_eq!(array.is_valid(0), Some(true));
                     assert_eq!(array.is_null(1), Some(true));
                     assert_eq!(array.is_valid(2), Some(true));
+
+                    let int_array = &array.0.as_ref().a;
+                    assert_eq!(int_array.0.as_slice(), &[1, Default::default(), 2]);
+
+                    let bool_array = &array.0.as_ref().b;
+                    assert_eq!(
+                        bool_array.into_iter().collect::<Vec<_>>(),
+                        &[Some(false), None, None]
+                    );
+
+                    let null_array = &array.0.as_ref().c;
+                    assert_eq!(null_array.is_null(0), Some(true));
+                    assert_eq!(null_array.is_null(1), Some(true));
+                    assert_eq!(null_array.is_valid(2), Some(true));
 
                     let input = [
                         Some(Bar {
