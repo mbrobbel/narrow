@@ -31,7 +31,7 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-bench-
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
-      - run: cargo bench --bench narrow -- --output-format=bencher | tee output.txt
+      - run: cargo bench --bench narrow --all-features -- --output-format=bencher | tee output.txt
       - uses: actions/upload-artifact@v3
         with:
           name: benchmark-results

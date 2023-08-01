@@ -27,7 +27,7 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-msrv-
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
-      - run: cargo check --all
+      - run: cargo check --all --all-features
 
   check:
     name: Check
@@ -49,7 +49,7 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-check-
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
-      - run: cargo check --all
+      - run: cargo check --all --all-features
 
   test:
     name: Test
@@ -75,8 +75,8 @@ jobs:
       - uses: dtolnay/install@master
         with:
           crate: cargo-expand
-      - run: cargo test --all
-      - run: cargo test --benches
+      - run: cargo test --all --all-features
+      - run: cargo test --benches --all-features
 
   rustfmt:
     name: Rustfmt
@@ -110,7 +110,7 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-clippy-
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
-      - run: cargo clippy --all -- -Dwarnings
+      - run: cargo clippy --all --all-features -- -Dwarnings
 
   miri:
     name: Miri
@@ -133,7 +133,7 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
       - run: cargo miri setup
-      - run: cargo miri test
+      - run: cargo miri test --all-features
 
   coverage:
     name: Coverage
@@ -163,8 +163,8 @@ jobs:
       - uses: dtolnay/install@master
         with:
           crate: cargo-expand
-      - run: cargo build --all
-      - run: cargo test --all
+      - run: cargo build --all --all-features
+      - run: cargo test --all --all-features
         env:
           LLVM_PROFILE_FILE: "narrow-%p-%m.profraw"
       - name: Install grcov

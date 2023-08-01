@@ -471,4 +471,19 @@ mod tests {
             mem::size_of::<Box<[u8]>>() + 2 * mem::size_of::<usize>()
         );
     }
+
+    #[test]
+    #[cfg(feature = "arrow-buffer")]
+    fn arrow_buffer() {
+        use crate::buffer::{ArrowBuffer, ArrowMutableBuffer};
+
+        let input = vec![true, false, true];
+        let bitmap = input.into_iter().collect::<Bitmap<ArrowBuffer>>();
+        assert_eq!(bitmap.len(), 3);
+
+        let input = vec![true, false, true];
+        let bitmap = input.into_iter().collect::<Bitmap<ArrowMutableBuffer>>();
+        assert_eq!(bitmap.len(), 3);
+        assert_eq!(bitmap.into_iter().collect::<Vec<_>>(), [true, false, true]);
+    }
 }

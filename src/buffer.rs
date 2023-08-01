@@ -358,6 +358,66 @@ impl<T: FixedSize> BufferMut<T> for Rc<[T]> {
     }
 }
 
+#[cfg(feature = "arrow-buffer")]
+/// A [BufferType] implementation for [arrow_buffer::Buffer].
+pub struct ArrowBuffer;
+
+#[cfg(feature = "arrow-buffer")]
+impl BufferType for ArrowBuffer {
+    type Buffer<T: FixedSize> = arrow_buffer::Buffer;
+}
+
+#[cfg(feature = "arrow-buffer")]
+impl<T: FixedSize> Buffer<T> for arrow_buffer::Buffer {
+    fn as_slice(&self) -> &[T] {
+        // This only works if FixedSize: arrow_buffer::ArrowNativeType, however that forces us to remove some FixedSize impls.
+        // self.typed_data()
+
+        // Instead we copy the logic here and rely on our trait for safety.
+        // https://github.com/apache/arrow-rs/blob/5724cf21c23aa9d5a3ef06b6381cf267903746ee/arrow-buffer/src/buffer/immutable.rs#L228-L235
+        let (prefix, offsets, suffix) = unsafe { self.as_slice().align_to::<T>() };
+        assert!(prefix.is_empty() && suffix.is_empty());
+        offsets
+    }
+}
+
+#[cfg(feature = "arrow-buffer")]
+/// A [BufferType] implementation for [arrow_buffer::Buffer].
+pub struct ArrowMutableBuffer;
+
+#[cfg(feature = "arrow-buffer")]
+impl BufferType for ArrowMutableBuffer {
+    type Buffer<T: FixedSize> = arrow_buffer::Buffer;
+}
+
+#[cfg(feature = "arrow-buffer")]
+impl<T: FixedSize> Buffer<T> for arrow_buffer::MutableBuffer {
+    fn as_slice(&self) -> &[T] {
+        // This only works if FixedSize: arrow_buffer::ArrowNativeType, however that forces us to remove some FixedSize impls.
+        // self.typed_data()
+
+        // Instead we copy the logic here and rely on our trait for safety.
+        // https://github.com/apache/arrow-rs/blob/5724cf21c23aa9d5a3ef06b6381cf267903746ee/arrow-buffer/src/buffer/immutable.rs#L228-L235
+        let (prefix, offsets, suffix) = unsafe { self.as_slice().align_to::<T>() };
+        assert!(prefix.is_empty() && suffix.is_empty());
+        offsets
+    }
+}
+
+#[cfg(feature = "arrow-buffer")]
+impl<T: FixedSize> BufferMut<T> for arrow_buffer::MutableBuffer {
+    fn as_mut_slice(&mut self) -> &mut [T] {
+        // This only works if FixedSize: arrow_buffer::ArrowNativeType, however that forces us to remove some FixedSize impls.
+        // self.typed_data()
+
+        // Instead we copy the logic here and rely on our trait for safety.
+        // https://github.com/apache/arrow-rs/blob/5724cf21c23aa9d5a3ef06b6381cf267903746ee/arrow-buffer/src/buffer/mutable.rs#L351-L359
+        let (prefix, offsets, suffix) = unsafe { self.as_slice_mut().align_to_mut::<T>() };
+        assert!(prefix.is_empty() && suffix.is_empty());
+        offsets
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -421,5 +481,20 @@ mod tests {
             <_ as Buffer<u8>>::as_bytes(&slice_array_mut),
             &[0, 2, 3, 4, 5, 6]
         );
+    }
+
+    #[test]
+    #[cfg(feature = "arrow-buffer")]
+    fn arrow() {
+        let buffer = arrow_buffer::Buffer::from_vec(vec![1, 2, 3, 4]);
+        assert_eq!(<_ as Buffer<u32>>::as_slice(&buffer), &[1, 2, 3, 4]);
+
+        let mut buffer = arrow_buffer::MutableBuffer::from_vec(vec![1u64, 2, 3, 4]);
+        assert_eq!(
+            <_ as BufferMut<u64>>::as_mut_slice(&mut buffer),
+            &[1, 2, 3, 4]
+        );
+        <_ as BufferMut<u64>>::as_mut_slice(&mut buffer)[3] = 42;
+        assert_eq!(<_ as Buffer<u64>>::as_slice(&buffer), &[1, 2, 3, 42]);
     }
 }

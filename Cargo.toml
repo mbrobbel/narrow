@@ -28,11 +28,13 @@ keywords.workspace = true
 categories.workspace = true
 
 [features]
-default = ["derive", "unsafe"]
+default = ["arrow-buffer", "derive", "unsafe"]
+arrow-buffer = ["dep:arrow-buffer"]
 derive = ["dep:narrow-derive"]
 unsafe = []
 
 [dependencies]
+arrow-buffer = { version = "44.0.0", default-features = false, optional = true }
 narrow-derive = { path = "narrow-derive", version = "^0.3.4", optional = true }
 
 [dev-dependencies]
