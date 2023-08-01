@@ -1,5 +1,86 @@
 
 
+## v0.3.4 (2023-08-01)
+
+### Bug Fixes
+
+ - <csr-id-8fb5f2f5b2559a5c77efc7193514befad815cddb/> `ArrayType` derive for named structs
+   ```rust
+   #[derive(ArrayType, Default)]
+   struct Bar<T> {
+       a: u32,
+       b: Option<bool>,
+       c: T,
+   }
+   
+   let input = [
+       Some(Bar {
+           a: 1,
+           b: Some(false),
+           c: None,
+       }),
+       None,
+       Some(Bar {
+           a: 2,
+           b: None,
+           c: Some(()),
+       }),
+   ];
+   
+   let array = input.into_iter().collect::<StructArray<Bar<_>, true>>();
+   assert_eq!(array.len(), 3);
+   assert_eq!(array.is_valid(0), Some(true));
+   assert_eq!(array.is_null(1), Some(true));
+   assert_eq!(array.is_valid(2), Some(true));
+   
+   let int_array = &array.0.as_ref().a;
+   assert_eq!(int_array.0.as_slice(), &[1, Default::default(), 2]);
+   
+   let bool_array = &array.0.as_ref().b;
+   assert_eq!(
+       bool_array.into_iter().collect::<Vec<_>>(),
+       &[Some(false), None, None]
+   );
+   
+   let null_array = &array.0.as_ref().c;
+   assert_eq!(null_array.is_null(0), Some(true));
+   assert_eq!(null_array.is_null(1), Some(true));
+   assert_eq!(null_array.is_valid(2), Some(true));
+   
+   let input = [
+       Some(Bar {
+           a: 1,
+           b: None,
+           c: false,
+       }),
+       None,
+   ];
+   let array = input.into_iter().collect::<StructArray<Bar<_>, true>>();
+   assert_eq!(array.len(), 2);
+   ```
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 3 commits contributed to the release over the course of 4 calendar days.
+ - 4 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#82](https://github.com/mbrobbel/narrow/issues/82)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#82](https://github.com/mbrobbel/narrow/issues/82)**
+    - `ArrayType` derive for named structs ([`8fb5f2f`](https://github.com/mbrobbel/narrow/commit/8fb5f2f5b2559a5c77efc7193514befad815cddb))
+ * **Uncategorized**
+    - Consolidate the common items for the different field types ([`427bebb`](https://github.com/mbrobbel/narrow/commit/427bebbd80dadead8260440b02ec283e29cc58ef))
+    - Add derive support for named structs ([`538c16c`](https://github.com/mbrobbel/narrow/commit/538c16c1e47673b0a924e3fd9b3208e00ead36ec))
+</details>
+
 ## v0.3.3 (2023-07-27)
 
 ### Bug Fixes
@@ -16,21 +97,21 @@
    struct FooBar<'a, T>(Bar<'a>, T);
    
    let input = [
-       FooBar(Bar(Foo(1, 2, "n")), false),
-       FooBar(Bar(Foo(1, 2, "arrow")), false),
+   FooBar(Bar(Foo(1, 2, "n")), false),
+   FooBar(Bar(Foo(1, 2, "arrow")), false),
    ];
    let array = input.into_iter().collect::<StructArray<FooBar<_>>>();
    assert_eq!(array.len(), 2);
    
    let input = vec![
-       Some(vec![Some(FooBar(Bar(Foo(42, 0, "!"), 1234))]),
-       None,
-       Some(vec![None]),
-       Some(vec![None, None]),
+   Some(vec![Some(FooBar(Bar(Foo(42, 0, "!"), 1234))]),
+   None,
+   Some(vec![None]),
+   Some(vec![None, None]),
    ];
    let array = input
-       .into_iter()
-       .collect::<VariableSizeListArray<StructArray<FooBar<_>, true>, true>>();
+   .into_iter()
+   .collect::<VariableSizeListArray<StructArray<FooBar<_>, true>, true>>();
    assert_eq!(array.len(), 4);
    ```
  - <csr-id-1db19ad5f65ec2d690e2fbcb1292812bfaba2abb/> `ArrayType` derive for tuple structs
@@ -39,7 +120,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 2 commits contributed to the release.
+ - 3 commits contributed to the release.
  - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#80](https://github.com/mbrobbel/narrow/issues/80)
 
@@ -52,6 +133,7 @@
  * **[#80](https://github.com/mbrobbel/narrow/issues/80)**
     - `ArrayType` derive for tuple structs ([`9a48422`](https://github.com/mbrobbel/narrow/commit/9a48422f4a8de0f9b5d109ce44c4c9a14544116a))
  * **Uncategorized**
+    - Release narrow-derive v0.3.3, narrow v0.3.3 ([`cb07d58`](https://github.com/mbrobbel/narrow/commit/cb07d5839367936aa9b557a7b846ad7b9c98b7f2))
     - `ArrayType` derive for tuple structs ([`1db19ad`](https://github.com/mbrobbel/narrow/commit/1db19ad5f65ec2d690e2fbcb1292812bfaba2abb))
 </details>
 
