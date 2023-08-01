@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        id: rust-toolchain
       - uses: actions/cache@v3
         with:
           path: |
@@ -24,11 +26,11 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-bench-${{ hashFiles('**/Cargo.toml') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-bench-
+            ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-bench-
+            ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
-      - uses: dtolnay/rust-toolchain@stable
       - run: cargo bench --bench narrow -- --output-format=bencher | tee output.txt
       - uses: actions/upload-artifact@v3
         with:
