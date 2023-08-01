@@ -90,3 +90,17 @@ impl<T: Length> Length for Option<T> {
         }
     }
 }
+
+#[cfg(feature = "arrow-buffer")]
+impl Length for arrow_buffer::Buffer {
+    fn len(&self) -> usize {
+        arrow_buffer::Buffer::len(self)
+    }
+}
+
+#[cfg(feature = "arrow-buffer")]
+impl Length for arrow_buffer::MutableBuffer {
+    fn len(&self) -> usize {
+        arrow_buffer::MutableBuffer::len(self)
+    }
+}

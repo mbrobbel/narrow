@@ -205,4 +205,20 @@ mod tests {
             mem::size_of::<Int8Array>() + mem::size_of::<Bitmap>()
         );
     }
+
+    #[test]
+    #[cfg(feature = "arrow-buffer")]
+    fn arrow_buffer() {
+        use crate::buffer::{ArrowBuffer, ArrowMutableBuffer};
+
+        let input = [1, 2, 3, 4];
+        let array = input.into_iter().collect::<Int8Array<false, ArrowBuffer>>();
+        // TODO(mbrobbel): nr of bytes
+        assert_eq!(array.len(), 4);
+
+        let input = [Some(1), None, Some(3), Some(4)];
+        let array = input
+            .into_iter()
+            .collect::<Int8Array<true, ArrowMutableBuffer>>();
+    }
 }

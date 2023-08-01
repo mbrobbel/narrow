@@ -387,7 +387,7 @@ pub struct ArrowMutableBuffer;
 
 #[cfg(feature = "arrow-buffer")]
 impl BufferType for ArrowMutableBuffer {
-    type Buffer<T: FixedSize> = arrow_buffer::Buffer;
+    type Buffer<T: FixedSize> = arrow_buffer::MutableBuffer;
 }
 
 #[cfg(feature = "arrow-buffer")]
