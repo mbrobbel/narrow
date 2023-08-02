@@ -40,25 +40,45 @@ where
     }
 }
 
-impl<'a, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Extend<&'a str>
-    for StringArray<NULLABLE, OffsetItem, Buffer>
+impl<'a, OffsetItem: OffsetElement, Buffer: BufferType> Extend<&'a str>
+    for StringArray<false, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>: Extend<&'a [u8]>,
+    VariableSizeBinaryArray<false, OffsetItem, Buffer>: Extend<&'a [u8]>,
 {
     fn extend<I: IntoIterator<Item = &'a str>>(&mut self, iter: I) {
         self.0.extend(iter.into_iter().map(str::as_bytes))
     }
 }
 
-impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Extend<String>
-    for StringArray<NULLABLE, OffsetItem, Buffer>
+impl<'a, OffsetItem: OffsetElement, Buffer: BufferType> Extend<Option<&'a str>>
+    for StringArray<true, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>: Extend<Vec<u8>>,
+    VariableSizeBinaryArray<true, OffsetItem, Buffer>: Extend<Option<&'a [u8]>>,
+{
+    fn extend<I: IntoIterator<Item = Option<&'a str>>>(&mut self, iter: I) {
+        self.0
+            .extend(iter.into_iter().map(|opt| opt.map(str::as_bytes)))
+    }
+}
+
+impl<OffsetItem: OffsetElement, Buffer: BufferType> Extend<String>
+    for StringArray<false, OffsetItem, Buffer>
+where
+    VariableSizeBinaryArray<false, OffsetItem, Buffer>: Extend<Vec<u8>>,
 {
     fn extend<I: IntoIterator<Item = String>>(&mut self, iter: I) {
         self.0.extend(iter.into_iter().map(String::into_bytes))
+    }
+}
+
+impl<OffsetItem: OffsetElement, Buffer: BufferType> Extend<Option<String>>
+    for StringArray<true, OffsetItem, Buffer>
+where
+    VariableSizeBinaryArray<true, OffsetItem, Buffer>: Extend<Option<Vec<u8>>>,
+{
+    fn extend<I: IntoIterator<Item = Option<String>>>(&mut self, iter: I) {
+        self.0
+            .extend(iter.into_iter().map(|opt| opt.map(String::into_bytes)))
     }
 }
 
@@ -176,7 +196,7 @@ mod tests {
         assert_eq!(array.is_valid(3), Some(true));
         assert_eq!(array.is_valid(4), Some(false));
         assert_eq!(array.is_valid(5), None);
-        assert_eq!(array.0 .0 .0.data.0, &[97, 115, 100, 102]);
+        assert_eq!(array.0 .0 .0.data.0, "asdf".as_bytes());
         assert_eq!(array.0 .0 .0.offsets.as_ref(), &[0, 1, 1, 3, 4, 4]);
         assert_eq!(
             array.bitmap_ref().into_iter().collect::<Vec<_>>(),

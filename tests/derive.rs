@@ -144,7 +144,7 @@ mod tests {
             mod named {
                 use narrow::{
                     array::{StructArray, VariableSizeListArray},
-                    bitmap::ValidityBitmap,
+                    bitmap::{BitmapRef, ValidityBitmap},
                     ArrayType, Length,
                 };
 
@@ -153,6 +153,7 @@ mod tests {
                     a: &'a T,
                     b: bool,
                     c: u8,
+                    d: Option<Vec<Option<String>>>,
                 }
 
                 impl<'a, T: ?Sized> Default for Foo<'a, T>
@@ -164,6 +165,7 @@ mod tests {
                             a: Default::default(),
                             b: Default::default(),
                             c: Default::default(),
+                            d: Default::default(),
                         }
                     }
                 }
@@ -188,16 +190,55 @@ mod tests {
                             a: "as",
                             b: true,
                             c: 4,
+                            d: Some(vec![
+                                Some("hello".to_string()),
+                                None,
+                                Some("world".to_string()),
+                            ]),
                         },
                         Foo {
                             a: "df",
                             b: false,
                             c: 2,
+                            d: None,
                         },
                     ];
                     let array = input.into_iter().collect::<StructArray<Foo<_>>>();
                     assert_eq!(array.len(), 2);
                     assert_eq!(array.0.c.0, &[4, 2]);
+                    assert_eq!(
+                        array.0.d.0.data.0 .0 .0.data.0.as_slice(),
+                        "helloworld".as_bytes()
+                    );
+                    assert_eq!(array.0.d.0.data.0 .0 .0.offsets.as_ref(), &[0, 5, 5, 10]);
+                    assert_eq!(
+                        array
+                            .0
+                            .d
+                            .0
+                            .data
+                            .0
+                             .0
+                             .0
+                            .offsets
+                            .bitmap_ref()
+                            .into_iter()
+                            .collect::<Vec<_>>(),
+                        [true, false, true]
+                    );
+                    assert_eq!(array.0.d.0.offsets.as_ref(), &[0, 3, 3]);
+                    assert_eq!(
+                        array
+                            .0
+                            .d
+                            .0
+                            .offsets
+                            .bitmap_ref()
+                            .into_iter()
+                            .collect::<Vec<_>>(),
+                        [true, false]
+                    );
+                    assert_eq!(array.0.d.0.offsets.as_ref(), &[0, 3, 3]);
                 }
 
                 #[test]
@@ -257,6 +298,11 @@ mod tests {
                                 a: "a",
                                 b: false,
                                 c: 123,
+                                d: Some(vec![
+                                    Some("as".to_string()),
+                                    Some("d".to_string()),
+                                    Some("f".to_string()),
+                                ]),
                             },
                         }),
                         None,
@@ -277,6 +323,7 @@ mod tests {
                                 a: "a",
                                 b: false,
                                 c: 123,
+                                d: None,
                             },
                         })]),
                         None,

@@ -96,10 +96,10 @@ where
     }
 }
 
-impl<T, U: Length, OffsetItem: OffsetElement, Buffer: BufferType> Extend<Option<U>>
+impl<T, U: IntoIterator + Length, OffsetItem: OffsetElement, Buffer: BufferType> Extend<Option<U>>
     for Offset<T, true, OffsetItem, Buffer>
 where
-    T: Extend<U>,
+    T: Extend<<U as IntoIterator>::Item>,
     <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<true>>::Storage<Buffer>:
         Extend<(bool, OffsetItem)>,
 {
@@ -111,6 +111,7 @@ where
                     state += OffsetItem::try_from(opt.len()).unwrap();
                     self.offsets.extend(std::iter::once((opt.is_some(), state)));
                 })
+                .flatten()
                 .flatten(),
         );
     }
@@ -232,14 +233,18 @@ mod tests {
         assert_eq!(offset.offsets.as_slice(), &[0, 2, 3]);
         assert_eq!(offset.len(), 2);
 
-        let mut offset = Offset::<Vec<Vec<u8>>, true>::default();
+        let mut offset = Offset::<Vec<u8>, true>::default();
         offset.extend(vec![Some(vec![1, 2, 3, 4]), None, None]);
         assert_eq!(offset.offsets.as_ref().as_slice(), &[0, 4, 4, 4]);
         assert_eq!(offset.len(), 3);
 
-        let mut offset = Offset::<Vec<String>, true>::default();
-        offset.extend(vec![Some("as".to_string()), None, Some("df".to_string())]);
-        assert_eq!(offset.data.as_slice(), &["as", "df"]);
+        let mut offset = Offset::<Vec<u8>, true>::default();
+        offset.extend(vec![
+            Some("as".to_string().into_bytes()),
+            None,
+            Some("df".to_string().into_bytes()),
+        ]);
+        assert_eq!(offset.data.as_slice(), "asdf".as_bytes());
         assert_eq!(offset.offsets.bitmap_ref().valid_count(), 2);
         assert_eq!(offset.offsets.bitmap_ref().null_count(), 1);
         assert_eq!(offset.offsets.as_ref().as_slice(), &[0, 2, 2, 4]);
