@@ -92,15 +92,13 @@ impl<T: Length> Length for Option<T> {
 }
 
 #[cfg(feature = "arrow-buffer")]
-impl Length for arrow_buffer::Buffer {
-    fn len(&self) -> usize {
-        arrow_buffer::Buffer::len(self)
-    }
-}
+mod arrow {
+    use crate::Length;
+    use arrow_buffer::{ArrowNativeType, BufferBuilder};
 
-#[cfg(feature = "arrow-buffer")]
-impl Length for arrow_buffer::MutableBuffer {
-    fn len(&self) -> usize {
-        arrow_buffer::MutableBuffer::len(self)
+    impl<T: ArrowNativeType> Length for BufferBuilder<T> {
+        fn len(&self) -> usize {
+            BufferBuilder::len(self)
+        }
     }
 }

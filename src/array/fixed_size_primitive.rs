@@ -209,16 +209,17 @@ mod tests {
     #[test]
     #[cfg(feature = "arrow-buffer")]
     fn arrow_buffer() {
-        use crate::buffer::{ArrowBuffer, ArrowMutableBuffer};
+        use crate::buffer::ArrowBuffer;
 
         let input = [1, 2, 3, 4];
-        let array = input.into_iter().collect::<Int8Array<false, ArrowBuffer>>();
-        // TODO(mbrobbel): nr of bytes
+        let mut array = input.into_iter().collect::<Int8Array<false, ArrowBuffer>>();
         assert_eq!(array.len(), 4);
+        // Use arrow_buffer
+        array.0.append_n(5, 5);
+        assert_eq!(array.0.as_slice(), &[1, 2, 3, 4, 5, 5, 5, 5, 5]);
 
         let input = [Some(1), None, Some(3), Some(4)];
-        let array = input
-            .into_iter()
-            .collect::<Int8Array<true, ArrowMutableBuffer>>();
+        let array = input.into_iter().collect::<Int8Array<true, ArrowBuffer>>();
+        assert_eq!(array.len(), 4);
     }
 }

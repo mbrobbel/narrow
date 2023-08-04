@@ -475,14 +475,14 @@ mod tests {
     #[test]
     #[cfg(feature = "arrow-buffer")]
     fn arrow_buffer() {
-        use crate::buffer::{ArrowBuffer, ArrowMutableBuffer};
+        use crate::buffer::ArrowBuffer;
 
         let input = vec![true, false, true];
         let bitmap = input.into_iter().collect::<Bitmap<ArrowBuffer>>();
         assert_eq!(bitmap.len(), 3);
 
         let input = vec![true, false, true];
-        let bitmap = input.into_iter().collect::<Bitmap<ArrowMutableBuffer>>();
+        let bitmap = input.into_iter().collect::<Bitmap<ArrowBuffer>>();
         assert_eq!(bitmap.len(), 3);
         assert_eq!(bitmap.into_iter().collect::<Vec<_>>(), [true, false, true]);
     }

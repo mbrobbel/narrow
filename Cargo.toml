@@ -34,7 +34,7 @@ derive = ["dep:narrow-derive"]
 unsafe = []
 
 [dependencies]
-arrow-buffer = { version = "44.0.0", default-features = false, optional = true }
+arrow-buffer = { git = "https://github.com/mbrobbel/arrow-rs.git", branch = "arrow-native-type", optional = true }
 narrow-derive = { path = "narrow-derive", version = "^0.3.4", optional = true }
 
 [dev-dependencies]

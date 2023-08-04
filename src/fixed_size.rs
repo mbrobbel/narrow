@@ -10,7 +10,16 @@ use std::fmt::Debug;
 /// fixed-size types.
 ///
 /// This trait is sealed to prevent downstream implementations.
+#[cfg(not(feature = "arrow-buffer"))]
 pub trait FixedSize: ArrayType + Copy + Debug + Sized + sealed::Sealed + 'static {
+    /// The fixed-size of this type in bytes.
+    const SIZE: usize = std::mem::size_of::<Self>();
+}
+
+#[cfg(feature = "arrow-buffer")]
+pub trait FixedSize:
+    arrow_buffer::ArrowNativeType + ArrayType + Copy + Debug + Sized + sealed::Sealed + 'static
+{
     /// The fixed-size of this type in bytes.
     const SIZE: usize = std::mem::size_of::<Self>();
 }
@@ -47,7 +56,7 @@ mod sealed {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::FixedSize;
 
     #[test]
     fn size() {
