@@ -299,6 +299,21 @@ impl<Buffer: BufferType> Length for Bitmap<Buffer> {
 
 impl<Buffer: BufferType> ValidityBitmap for Bitmap<Buffer> {}
 
+#[cfg(feature = "arrow-buffer")]
+mod arrow {
+    use super::Bitmap;
+    use crate::buffer::ArrowBuffer;
+    use arrow_buffer::BooleanBuffer;
+
+    impl From<Bitmap<ArrowBuffer>> for BooleanBuffer {
+        fn from(mut value: Bitmap<ArrowBuffer>) -> Self {
+            BooleanBuffer::new(value.buffer.finish(), 0, value.bits)
+        }
+    }
+}
+
+pub use arrow::*;
+
 #[cfg(test)]
 mod tests {
     use crate::buffer::{ArrayBuffer, BoxBuffer, BufferRefMut, SliceBuffer};

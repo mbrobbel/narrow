@@ -28,12 +28,14 @@ keywords.workspace = true
 categories.workspace = true
 
 [features]
-default = ["arrow-buffer", "derive", "unsafe"]
+default = ["arrow-array", "arrow-buffer", "derive", "unsafe"]
+arrow-array = ["dep:arrow-array", "arrow-buffer"]
 arrow-buffer = ["dep:arrow-buffer"]
 derive = ["dep:narrow-derive"]
 unsafe = []
 
 [dependencies]
+arrow-array = { git = "https://github.com/mbrobbel/arrow-rs.git", branch = "arrow-native-type", optional = true }
 arrow-buffer = { git = "https://github.com/mbrobbel/arrow-rs.git", branch = "arrow-native-type", optional = true }
 narrow-derive = { path = "narrow-derive", version = "^0.3.4", optional = true }
 
