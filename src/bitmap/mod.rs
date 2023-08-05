@@ -302,12 +302,15 @@ impl<Buffer: BufferType> ValidityBitmap for Bitmap<Buffer> {}
 #[cfg(feature = "arrow-buffer")]
 mod arrow {
     use super::Bitmap;
-    use crate::buffer::ArrowBuffer;
+    use crate::buffer::{ArrowBuffer, BufferType};
     use arrow_buffer::BooleanBuffer;
 
-    impl From<Bitmap<ArrowBuffer>> for BooleanBuffer {
-        fn from(mut value: Bitmap<ArrowBuffer>) -> Self {
-            BooleanBuffer::new(value.buffer.finish(), 0, value.bits)
+    impl<Buffer: BufferType> From<Bitmap<Buffer>> for BooleanBuffer
+    where
+        <Buffer as BufferType>::Buffer<u8>: Into<<ArrowBuffer as BufferType>::Buffer<u8>>,
+    {
+        fn from(value: Bitmap<Buffer>) -> Self {
+            BooleanBuffer::new(value.buffer.into().finish(), 0, value.bits)
         }
     }
 }
