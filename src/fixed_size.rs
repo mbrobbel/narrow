@@ -21,7 +21,7 @@ pub trait FixedSize:
     arrow_buffer::ArrowNativeType + ArrayType + Copy + Debug + Sized + sealed::Sealed + 'static
 {
     /// The fixed-size of this type in bytes.
-    const SIZE: usize = std::mem::size_of::<Self>();
+    const SIZE: usize = mem::size_of::<Self>();
 }
 
 impl FixedSize for i8 {}
