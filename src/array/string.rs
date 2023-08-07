@@ -82,6 +82,17 @@ where
     }
 }
 
+impl<OffsetItem: OffsetElement, Buffer: BufferType> From<StringArray<false, OffsetItem, Buffer>>
+    for StringArray<true, OffsetItem, Buffer>
+where
+    VariableSizeBinaryArray<false, OffsetItem, Buffer>:
+        Into<VariableSizeBinaryArray<true, OffsetItem, Buffer>>,
+{
+    fn from(value: StringArray<false, OffsetItem, Buffer>) -> Self {
+        Self(value.0.into())
+    }
+}
+
 impl<'a, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<&'a str>
     for StringArray<false, OffsetItem, Buffer>
 where
@@ -163,7 +174,7 @@ impl<OffsetItem: OffsetElement, Buffer: BufferType> ValidityBitmap
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bitmap::BitmapRef;
+    use crate::{bitmap::BitmapRef, buffer::BufferRef};
 
     #[test]
     fn from_iter() {
@@ -202,5 +213,16 @@ mod tests {
             array.bitmap_ref().into_iter().collect::<Vec<_>>(),
             &[true, false, true, true, false]
         );
+    }
+
+    #[test]
+    fn convert_nullable() {
+        let input = ["hello", " ", "world"];
+        let array = input
+            .into_iter()
+            .map(ToString::to_string)
+            .collect::<StringArray>();
+        let nullable: StringArray<true> = array.into();
+        assert_eq!(nullable.bitmap_ref().buffer_ref(), &[0b00000111]);
     }
 }

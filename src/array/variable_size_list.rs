@@ -46,6 +46,17 @@ where
     }
 }
 
+impl<T: Array, OffsetItem: OffsetElement, Buffer: BufferType>
+    From<VariableSizeListArray<T, false, OffsetItem, Buffer>>
+    for VariableSizeListArray<T, true, OffsetItem, Buffer>
+where
+    Offset<T, false, OffsetItem, Buffer>: Into<Offset<T, true, OffsetItem, Buffer>>,
+{
+    fn from(value: VariableSizeListArray<T, false, OffsetItem, Buffer>) -> Self {
+        Self(value.0.into())
+    }
+}
+
 impl<T: Array, U, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType>
     FromIterator<U> for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
 where

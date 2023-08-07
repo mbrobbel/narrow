@@ -86,6 +86,25 @@ where
     }
 }
 
+impl<OffsetItem: OffsetElement, Buffer: BufferType>
+    From<VariableSizeBinaryArray<false, OffsetItem, Buffer>>
+    for VariableSizeBinaryArray<true, OffsetItem, Buffer>
+where
+    VariableSizeListArray<FixedSizePrimitiveArray<u8, false, Buffer>, false, OffsetItem, Buffer>:
+        Into<
+            VariableSizeListArray<
+                FixedSizePrimitiveArray<u8, false, Buffer>,
+                true,
+                OffsetItem,
+                Buffer,
+            >,
+        >,
+{
+    fn from(value: VariableSizeBinaryArray<false, OffsetItem, Buffer>) -> Self {
+        Self(value.0.into())
+    }
+}
+
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType>
     From<StringArray<NULLABLE, OffsetItem, Buffer>>
     for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>

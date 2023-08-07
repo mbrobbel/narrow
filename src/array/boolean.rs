@@ -4,6 +4,7 @@ use super::Array;
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferRef, BufferRefMut, BufferType, VecBuffer},
+    nullable::Nullable,
     validity::Validity,
     Length,
 };
@@ -65,6 +66,15 @@ where
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
         self.0.extend(iter)
+    }
+}
+
+impl<Buffer: BufferType> From<BooleanArray<false, Buffer>> for BooleanArray<true, Buffer>
+where
+    Bitmap<Buffer>: FromIterator<bool>,
+{
+    fn from(value: BooleanArray<false, Buffer>) -> Self {
+        Self(Nullable::wrap(value.0))
     }
 }
 
@@ -200,6 +210,18 @@ mod tests {
         assert_eq!(
             array.into_iter().collect::<Vec<_>>(),
             [true, true, true, true]
+        );
+    }
+
+    #[test]
+    fn convert_nullable() {
+        let input = [true, false];
+        let array = input.into_iter().collect::<BooleanArray>();
+        let nullable: BooleanArray<true> = array.into();
+        assert!(nullable.all_valid());
+        assert_eq!(
+            nullable.into_iter().collect::<Vec<_>>(),
+            [Some(true), Some(false)]
         );
     }
 

@@ -4,6 +4,7 @@ use super::{Array, ArrayType};
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
+    nullable::Nullable,
     validity::Validity,
     Length,
 };
@@ -64,6 +65,15 @@ where
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
         self.0.extend(iter)
+    }
+}
+
+impl<T: Unit, Buffer: BufferType> From<NullArray<T, false, Buffer>> for NullArray<T, true, Buffer>
+where
+    Bitmap<Buffer>: FromIterator<bool>,
+{
+    fn from(value: NullArray<T, false, Buffer>) -> Self {
+        Self(Nullable::wrap(value.0))
     }
 }
 

@@ -2,6 +2,7 @@ use super::{Array, ArrayType};
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
+    nullable::Nullable,
     validity::Validity,
     Length,
 };
@@ -37,6 +38,17 @@ where
 {
     fn default() -> Self {
         Self(Default::default())
+    }
+}
+
+impl<T: StructArrayType, Buffer: BufferType> From<StructArray<T, false, Buffer>>
+    for StructArray<T, true, Buffer>
+where
+    <T as StructArrayType>::Array<Buffer>: Length,
+    Bitmap<Buffer>: FromIterator<bool>,
+{
+    fn from(value: StructArray<T, false, Buffer>) -> Self {
+        Self(Nullable::wrap(value.0))
     }
 }
 
