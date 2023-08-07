@@ -1,7 +1,7 @@
 //! Subtrait for fixed-size types.
 
 use crate::array::ArrayType;
-use std::fmt::Debug;
+use std::{fmt::Debug, mem};
 
 /// Subtrait for fixed-size types.
 ///
@@ -13,7 +13,7 @@ use std::fmt::Debug;
 #[cfg(not(feature = "arrow-buffer"))]
 pub trait FixedSize: ArrayType + Copy + Debug + Sized + sealed::Sealed + 'static {
     /// The fixed-size of this type in bytes.
-    const SIZE: usize = std::mem::size_of::<Self>();
+    const SIZE: usize = mem::size_of::<Self>();
 }
 
 #[cfg(feature = "arrow-buffer")]
@@ -42,7 +42,6 @@ impl FixedSize for f32 {}
 impl FixedSize for f64 {}
 
 impl FixedSize for () {}
-impl<T: FixedSize> FixedSize for (T,) {}
 
 impl<const N: usize, T: FixedSize> FixedSize for [T; N] {}
 
@@ -61,7 +60,6 @@ mod tests {
     #[test]
     fn size() {
         assert_eq!(<()>::SIZE, 0);
-        assert_eq!(<(u8,)>::SIZE, 1);
         assert_eq!(u8::SIZE, 1);
         assert_eq!(<[u16; 21]>::SIZE, 42);
         assert_eq!(<[u8; 1234]>::SIZE, 1234);
