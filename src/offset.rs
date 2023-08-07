@@ -3,10 +3,11 @@
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{Buffer, BufferType, VecBuffer},
+    nullable::Nullable,
     validity::Validity,
     FixedSize, Length,
 };
-use std::{num::TryFromIntError, ops::AddAssign};
+use std::{iter, num::TryFromIntError, ops::AddAssign};
 
 /// Types representing offset values.
 ///
@@ -51,7 +52,7 @@ where
 {
     fn default() -> Self {
         let mut offsets = <Buffer as BufferType>::Buffer::<OffsetItem>::default();
-        offsets.extend(std::iter::once(OffsetItem::default()));
+        offsets.extend(iter::once(OffsetItem::default()));
         Self {
             data: Default::default(),
             offsets,
@@ -69,7 +70,7 @@ where
         let mut offsets = <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<true>>::Storage::<
             Buffer,
         >::default();
-        offsets.data.extend(std::iter::once(OffsetItem::default()));
+        offsets.data.extend(iter::once(OffsetItem::default()));
         Self {
             data: Default::default(),
             offsets,
@@ -89,7 +90,7 @@ where
             iter.into_iter()
                 .inspect(|item| {
                     state += OffsetItem::try_from(item.len()).unwrap();
-                    self.offsets.extend(std::iter::once(state));
+                    self.offsets.extend(iter::once(state));
                 })
                 .flatten(),
         );
@@ -109,11 +110,31 @@ where
             iter.into_iter()
                 .inspect(|opt| {
                     state += OffsetItem::try_from(opt.len()).unwrap();
-                    self.offsets.extend(std::iter::once((opt.is_some(), state)));
+                    self.offsets.extend(iter::once((opt.is_some(), state)));
                 })
                 .flatten()
                 .flatten(),
         );
+    }
+}
+
+impl<T, OffsetItem: OffsetElement, Buffer: BufferType> From<Offset<T, false, OffsetItem, Buffer>>
+    for Offset<T, true, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Length,
+    Bitmap<Buffer>: FromIterator<bool>,
+{
+    fn from(value: Offset<T, false, OffsetItem, Buffer>) -> Self {
+        // Not using `Nullable::wrap` because the offset buffer has one more
+        // element than the length.
+        let validity = Bitmap::new_valid(value.len());
+        Self {
+            data: value.data,
+            offsets: Nullable {
+                data: value.offsets,
+                validity,
+            },
+        }
     }
 }
 
@@ -131,7 +152,7 @@ where
             .into_iter()
             .inspect(|item| {
                 state += OffsetItem::try_from(item.len()).unwrap();
-                offset.offsets.extend(std::iter::once(state));
+                offset.offsets.extend(iter::once(state));
             })
             .flatten()
             .collect();
@@ -154,9 +175,7 @@ where
             .into_iter()
             .inspect(|opt| {
                 state += OffsetItem::try_from(opt.len()).unwrap();
-                offset
-                    .offsets
-                    .extend(std::iter::once((opt.is_some(), state)));
+                offset.offsets.extend(iter::once((opt.is_some(), state)));
             })
             .flatten()
             .flatten()
@@ -263,5 +282,15 @@ mod tests {
         assert_eq!(offset.len(), 4);
         assert_eq!(offset.offsets.as_ref().as_slice(), &[0, 1, 1, 2, 2]);
         assert_eq!(offset.data, "ab");
+    }
+
+    #[test]
+    fn convert_nullable() {
+        let input = vec![vec![1, 2, 3, 4], vec![5, 6], vec![7, 8, 9]];
+        let offset = input.into_iter().collect::<Offset<Vec<u8>>>();
+        assert_eq!(offset.len(), 3);
+        let offset: Offset<Vec<u8>, true> = offset.into();
+        assert_eq!(offset.len(), 3);
+        assert!(offset.all_valid());
     }
 }

@@ -2,6 +2,7 @@ use super::Array;
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
+    nullable::Nullable,
     validity::Validity,
     FixedSize, Length,
 };
@@ -66,6 +67,17 @@ where
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
         self.0.extend(iter)
+    }
+}
+
+impl<T: FixedSize, Buffer: BufferType> From<FixedSizePrimitiveArray<T, false, Buffer>>
+    for FixedSizePrimitiveArray<T, true, Buffer>
+where
+    <Buffer as BufferType>::Buffer<T>: Length,
+    Bitmap<Buffer>: FromIterator<bool>,
+{
+    fn from(value: FixedSizePrimitiveArray<T, false, Buffer>) -> Self {
+        Self(Nullable::wrap(value.0))
     }
 }
 
@@ -141,7 +153,7 @@ mod tests {
     use super::*;
     use crate::{
         bitmap::Bitmap,
-        buffer::{Buffer, BufferRef},
+        buffer::{Buffer, BufferRef, BufferRefMut},
     };
     use std::mem;
 
@@ -195,6 +207,18 @@ mod tests {
         let input = [Some(1u64), None, Some(3), Some(4)];
         let array = input.iter().collect::<FixedSizePrimitiveArray<_, true>>();
         assert_eq!(array.len(), input.len());
+    }
+
+    #[test]
+    fn convert_nullable() {
+        let input = [1, 2, 3, 4];
+        let array = input.into_iter().collect::<FixedSizePrimitiveArray<_>>();
+        let mut nullable: FixedSizePrimitiveArray<_, true> = array.into();
+        nullable.bitmap_ref_mut().buffer_ref_mut().as_mut_slice()[0] = 0b00001101;
+        assert_eq!(
+            nullable.into_iter().collect::<Vec<_>>(),
+            [Some(1), None, Some(3), Some(4)]
+        );
     }
 
     #[test]

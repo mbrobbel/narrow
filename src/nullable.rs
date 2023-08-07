@@ -23,6 +23,18 @@ pub struct Nullable<T, Buffer: BufferType = VecBuffer> {
     pub(crate) validity: Bitmap<Buffer>,
 }
 
+impl<T, Buffer: BufferType> Nullable<T, Buffer> {
+    /// Adds a validity bitmap to `T`, with all bits set.
+    pub(crate) fn wrap(data: T) -> Self
+    where
+        T: Length,
+        Bitmap<Buffer>: FromIterator<bool>,
+    {
+        let validity = Bitmap::new_valid(data.len());
+        Self { data, validity }
+    }
+}
+
 impl<T, Buffer: BufferType> AsRef<T> for Nullable<T, Buffer> {
     fn as_ref(&self) -> &T {
         &self.data
