@@ -187,10 +187,10 @@ mod arrow {
             let array = PrimitiveArray::<Int8Type>::from(array);
             assert_eq!(array.len(), 4);
 
-            // let input = [1, 2, 3, 4];
-            // let array = input.into_iter().collect::<Int8Array<false>>();
-            // let array = PrimitiveArray::<Int8Type>::from(array);
-            // assert_eq!(array.len(), 4);
+            let input = [1, 2, 3, 4];
+            let array = input.into_iter().collect::<Int8Array<false>>();
+            let array = PrimitiveArray::<Int8Type>::from(array);
+            assert_eq!(array.len(), 4);
 
             let input = [Some(1), None, Some(3), Some(4)];
             let array = input.into_iter().collect::<Int8Array<true, ArrowBuffer>>();
