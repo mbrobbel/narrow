@@ -1,1 +1,1 @@
-pub mod fixed_size_primitive;
+mod fixed_size_primitive;

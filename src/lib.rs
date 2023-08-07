@@ -2,6 +2,7 @@
 //!
 //! An experimental (work-in-progress) implementation of [Apache Arrow](https://arrow.apache.org).
 
+#![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg))]
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/mbrobbel/narrow/main/narrow.svg",
     html_favicon_url = "https://raw.githubusercontent.com/mbrobbel/narrow/main/narrow.svg"
@@ -29,7 +30,7 @@ pub(crate) mod validity;
 
 pub mod array;
 
-#[cfg(any(feature = "arrow-array", feature = "arrow-buffer"))]
+#[cfg(feature = "arrow-rs")]
 pub mod arrow;
 
 // Re-export `narrow_derive` macros when the `derive` feature is enabled.

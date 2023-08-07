@@ -1,11 +1,9 @@
-#[cfg(feature = "arrow-array")]
-pub mod array;
+//! Interop with the [`arrow-rs`] crate.
+//!
+//! [`arrow-rs`]: https://crates.io/crates/arrow
 
-#[cfg(feature = "arrow-buffer")]
-pub mod bitmap;
-
-#[cfg(feature = "arrow-buffer")]
-pub mod buffer;
-
-#[cfg(feature = "arrow-buffer")]
-pub mod length;
+mod array;
+mod bitmap;
+mod buffer;
+pub use buffer::*;
+mod length;

@@ -28,10 +28,8 @@ keywords.workspace = true
 categories.workspace = true
 
 [features]
-default = ["arrow", "derive", "unsafe"]
-arrow = ["arrow-array", "arrow-buffer"]
-arrow-array = ["dep:arrow-array", "arrow-buffer"]
-arrow-buffer = ["dep:arrow-buffer"]
+default = ["arrow-rs", "derive", "unsafe"]
+arrow-rs = ["dep:arrow-array", "dep:arrow-buffer"]
 derive = ["dep:narrow-derive"]
 unsafe = []
 

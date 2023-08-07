@@ -2,7 +2,7 @@ use crate::buffer::{Buffer, BufferMut, BufferType};
 use crate::FixedSize;
 use arrow_buffer::{ArrowNativeType, BufferBuilder, ScalarBuffer};
 
-/// A [BufferType] implementation for [arrow_buffer::BufferBuilder].
+/// A [BufferType] implementation for [BufferBuilder].
 pub struct ArrowBuffer;
 
 impl BufferType for ArrowBuffer {
@@ -21,7 +21,7 @@ impl<T: FixedSize + ArrowNativeType> BufferMut<T> for BufferBuilder<T> {
     }
 }
 
-/// A [BufferType] implementation for [arrow_buffer::ScalarBuffer].
+/// A [BufferType] implementation for [ScalarBuffer].
 pub struct ArrowScalarBuffer;
 
 impl BufferType for ArrowScalarBuffer {

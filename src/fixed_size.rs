@@ -3,7 +3,8 @@
 use crate::array::ArrayType;
 use std::{fmt::Debug, mem};
 
-#[cfg(not(feature = "arrow-buffer"))]
+#[cfg(not(feature = "arrow-rs"))]
+#[cfg_attr(docsrs, doc(cfg(all())))]
 /// Subtrait for fixed-size types.
 ///
 /// This exists to be used as trait bound where one or more of the supertraits
@@ -16,7 +17,11 @@ pub trait FixedSize: ArrayType + Copy + Debug + Sized + sealed::Sealed + 'static
     const SIZE: usize = mem::size_of::<Self>();
 }
 
-#[cfg(feature = "arrow-buffer")]
+#[cfg(feature = "arrow-rs")]
+use arrow_buffer::ArrowNativeType as _arrow_rs_trait;
+
+#[cfg(feature = "arrow-rs")]
+#[cfg_attr(docsrs, doc(cfg(all())))]
 /// Subtrait for fixed-size types.
 ///
 /// This exists to be used as trait bound where one or more of the supertraits
@@ -25,7 +30,7 @@ pub trait FixedSize: ArrayType + Copy + Debug + Sized + sealed::Sealed + 'static
 ///
 /// This trait is sealed to prevent downstream implementations.
 pub trait FixedSize:
-    ArrayType + Copy + Debug + Sized + sealed::Sealed + 'static + arrow_buffer::ArrowNativeType
+    ArrayType + Copy + Debug + Sized + sealed::Sealed + 'static + _arrow_rs_trait
 {
     /// The fixed-size of this type in bytes.
     const SIZE: usize = mem::size_of::<Self>();
