@@ -42,14 +42,14 @@ pub trait BitmapRefMut: BitmapRef {
 // todo(mb): implement ops
 pub struct Bitmap<Buffer: BufferType = VecBuffer> {
     /// The bits are stored in this buffer of bytes.
-    buffer: <Buffer as BufferType>::Buffer<u8>,
+    pub(crate) buffer: <Buffer as BufferType>::Buffer<u8>,
 
     /// The number of bits stored in the bitmap.
-    bits: usize,
+    pub(crate) bits: usize,
 
     /// An offset (in number of bits) in the buffer. This enables zero-copy
     /// slicing of the bitmap on non-byte boundaries.
-    offset: usize,
+    pub(crate) offset: usize,
 }
 
 impl<Buffer: BufferType> BitmapRef for Bitmap<Buffer> {
@@ -299,24 +299,6 @@ impl<Buffer: BufferType> Length for Bitmap<Buffer> {
 
 impl<Buffer: BufferType> ValidityBitmap for Bitmap<Buffer> {}
 
-#[cfg(feature = "arrow-buffer")]
-mod arrow {
-    use super::Bitmap;
-    use crate::buffer::{ArrowBuffer, BufferType};
-    use arrow_buffer::BooleanBuffer;
-
-    impl<Buffer: BufferType> From<Bitmap<Buffer>> for BooleanBuffer
-    where
-        <Buffer as BufferType>::Buffer<u8>: Into<<ArrowBuffer as BufferType>::Buffer<u8>>,
-    {
-        fn from(value: Bitmap<Buffer>) -> Self {
-            BooleanBuffer::new(value.buffer.into().finish(), 0, value.bits)
-        }
-    }
-}
-
-pub use arrow::*;
-
 #[cfg(test)]
 mod tests {
     use crate::buffer::{ArrayBuffer, BoxBuffer, BufferRefMut, SliceBuffer};
@@ -488,20 +470,5 @@ mod tests {
             mem::size_of::<Bitmap<BoxBuffer>>(),
             mem::size_of::<Box<[u8]>>() + 2 * mem::size_of::<usize>()
         );
-    }
-
-    #[test]
-    #[cfg(feature = "arrow-buffer")]
-    fn arrow_buffer() {
-        use crate::buffer::ArrowBuffer;
-
-        let input = vec![true, false, true];
-        let bitmap = input.into_iter().collect::<Bitmap<ArrowBuffer>>();
-        assert_eq!(bitmap.len(), 3);
-
-        let input = vec![true, false, true];
-        let bitmap = input.into_iter().collect::<Bitmap<ArrowBuffer>>();
-        assert_eq!(bitmap.len(), 3);
-        assert_eq!(bitmap.into_iter().collect::<Vec<_>>(), [true, false, true]);
     }
 }

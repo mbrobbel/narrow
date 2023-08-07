@@ -3,6 +3,7 @@
 use crate::array::ArrayType;
 use std::{fmt::Debug, mem};
 
+#[cfg(not(feature = "arrow-buffer"))]
 /// Subtrait for fixed-size types.
 ///
 /// This exists to be used as trait bound where one or more of the supertraits
@@ -10,18 +11,32 @@ use std::{fmt::Debug, mem};
 /// fixed-size types.
 ///
 /// This trait is sealed to prevent downstream implementations.
-#[cfg(not(feature = "arrow-buffer"))]
 pub trait FixedSize: ArrayType + Copy + Debug + Sized + sealed::Sealed + 'static {
     /// The fixed-size of this type in bytes.
     const SIZE: usize = mem::size_of::<Self>();
 }
 
 #[cfg(feature = "arrow-buffer")]
+/// Subtrait for fixed-size types.
+///
+/// This exists to be used as trait bound where one or more of the supertraits
+/// of this trait are required, and to restrict certain implementations to
+/// fixed-size types.
+///
+/// This trait is sealed to prevent downstream implementations.
 pub trait FixedSize:
-    arrow_buffer::ArrowNativeType + ArrayType + Copy + Debug + Sized + sealed::Sealed + 'static
+    ArrayType + Copy + Debug + Sized + sealed::Sealed + 'static + arrow_buffer::ArrowNativeType
 {
     /// The fixed-size of this type in bytes.
     const SIZE: usize = mem::size_of::<Self>();
+}
+
+mod sealed {
+    /// Used to seal [super::FixedSize].
+    pub trait Sealed {}
+
+    // Prevent downstream implementation of [super::FixedSize].
+    impl<T> Sealed for T where T: super::FixedSize {}
 }
 
 impl FixedSize for i8 {}
@@ -43,19 +58,11 @@ impl FixedSize for f64 {}
 
 impl FixedSize for () {}
 
-impl<const N: usize, T: FixedSize> FixedSize for [T; N] {}
-
-mod sealed {
-    /// Used to seal [super::FixedSize].
-    pub trait Sealed {}
-
-    // Prevent downstream implementation of [super::FixedSize].
-    impl<T> Sealed for T where T: super::FixedSize {}
-}
+impl<const N: usize, T: super::FixedSize> FixedSize for [T; N] {}
 
 #[cfg(test)]
 mod tests {
-    use crate::FixedSize;
+    use super::FixedSize;
 
     #[test]
     fn size() {
