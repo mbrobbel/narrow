@@ -136,6 +136,15 @@ impl<Buffer: BufferType> Bitmap<Buffer> {
     pub fn byte_index(&self, index: usize) -> usize {
         (self.offset + index) / 8
     }
+
+    /// Returns a [Bitmap] with `len` bits set.
+    pub fn new_valid(len: usize) -> Self
+    where
+        Self: FromIterator<bool>,
+    {
+        // TODO: optimize
+        Bitmap::from_iter(std::iter::repeat(true).take(len))
+    }
 }
 
 impl<Buffer: BufferType> BufferRef<u8> for Bitmap<Buffer> {
