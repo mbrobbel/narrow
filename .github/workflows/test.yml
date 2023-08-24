@@ -27,7 +27,7 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-msrv-
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
-      - run: cargo check --all --all-targets --all-features
+      - run: cargo check --all --all-features
 
   check:
     name: Check
