@@ -1,3 +1,5 @@
+//! Array with string values.
+
 use super::{Array, VariableSizeBinaryArray};
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
@@ -16,9 +18,11 @@ pub struct StringArray<
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>;
 
+/// Array with string values, using `i32` offset values.
 pub type Utf8Array<const NULLABLE: bool = false, Buffer = VecBuffer> =
     StringArray<NULLABLE, i32, Buffer>;
 
+/// Array with string values, using `i64` offset values.
 pub type LargeUtf8Array<const NULLABLE: bool = false, Buffer = VecBuffer> =
     StringArray<NULLABLE, i64, Buffer>;
 
@@ -36,7 +40,7 @@ where
     VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>: Default,
 {
     fn default() -> Self {
-        Self(Default::default())
+        Self(VariableSizeBinaryArray::default())
     }
 }
 
@@ -46,7 +50,7 @@ where
     VariableSizeBinaryArray<false, OffsetItem, Buffer>: Extend<&'a [u8]>,
 {
     fn extend<I: IntoIterator<Item = &'a str>>(&mut self, iter: I) {
-        self.0.extend(iter.into_iter().map(str::as_bytes))
+        self.0.extend(iter.into_iter().map(str::as_bytes));
     }
 }
 
@@ -57,7 +61,7 @@ where
 {
     fn extend<I: IntoIterator<Item = Option<&'a str>>>(&mut self, iter: I) {
         self.0
-            .extend(iter.into_iter().map(|opt| opt.map(str::as_bytes)))
+            .extend(iter.into_iter().map(|opt| opt.map(str::as_bytes)));
     }
 }
 
@@ -67,7 +71,7 @@ where
     VariableSizeBinaryArray<false, OffsetItem, Buffer>: Extend<Vec<u8>>,
 {
     fn extend<I: IntoIterator<Item = String>>(&mut self, iter: I) {
-        self.0.extend(iter.into_iter().map(String::into_bytes))
+        self.0.extend(iter.into_iter().map(String::into_bytes));
     }
 }
 
@@ -78,7 +82,7 @@ where
 {
     fn extend<I: IntoIterator<Item = Option<String>>>(&mut self, iter: I) {
         self.0
-            .extend(iter.into_iter().map(|opt| opt.map(String::into_bytes)))
+            .extend(iter.into_iter().map(|opt| opt.map(String::into_bytes)));
     }
 }
 
@@ -186,17 +190,20 @@ mod tests {
         assert_eq!(array.len(), 4);
         assert_eq!(array.0 .0 .0.data.0, b"1234567890");
 
-        let input = vec!["a".to_string(), "sd".to_string(), "f".to_string()];
-        let array = input.into_iter().collect::<StringArray>();
-        assert_eq!(array.len(), 3);
-        assert_eq!(array.0 .0 .0.data.0, &[97, 115, 100, 102]);
-        assert_eq!(array.0 .0 .0.offsets, &[0, 1, 3, 4]);
+        let input_string = vec!["a".to_owned(), "sd".to_owned(), "f".to_owned()];
+        let array_string = input_string.into_iter().collect::<StringArray>();
+        assert_eq!(array_string.len(), 3);
+        assert_eq!(array_string.0 .0 .0.data.0, &[97, 115, 100, 102]);
+        assert_eq!(array_string.0 .0 .0.offsets, &[0, 1, 3, 4]);
+    }
 
+    #[test]
+    fn from_iter_nullable() {
         let input = vec![
-            Some("a".to_string()),
+            Some("a".to_owned()),
             None,
-            Some("sd".to_string()),
-            Some("f".to_string()),
+            Some("sd".to_owned()),
+            Some("f".to_owned()),
             None,
         ];
         let array = input.into_iter().collect::<StringArray<true>>();
@@ -223,6 +230,6 @@ mod tests {
             .map(ToString::to_string)
             .collect::<StringArray>();
         let nullable: StringArray<true> = array.into();
-        assert_eq!(nullable.bitmap_ref().buffer_ref(), &[0b00000111]);
+        assert_eq!(nullable.bitmap_ref().buffer_ref(), &[0b0000_0111]);
     }
 }

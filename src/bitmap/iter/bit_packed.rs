@@ -1,3 +1,5 @@
+//! An iterator that packs boolean values.
+
 use std::borrow::Borrow;
 
 /// An iterator that packs boolean values as bits in bytes using
@@ -10,6 +12,7 @@ where
     I: Iterator<Item = T>,
     T: Borrow<bool>,
 {
+    /// The inner iterator with boolean values.
     iter: I,
 }
 
@@ -27,7 +30,7 @@ where
         self.iter.next().map(|next| {
             // Set the least significant bit based on the first boolean value.
             let mut byte = u8::from(*next.borrow());
-            for bit_position in 1u8..8 {
+            for bit_position in 1..8 {
                 // If the inner iterator has more boolean values and they are set
                 // (`true`), set the corresponding bit in the output byte.
                 if let Some(x) = self.iter.next() {
@@ -42,12 +45,13 @@ where
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let (lower, upper) = self.iter.size_hint();
-
         #[inline]
-        fn bytes_for_bits(bits: usize) -> usize {
+        /// Returns the number of bytes required to store the given number of bits.
+        const fn bytes_for_bits(bits: usize) -> usize {
             bits.saturating_add(7) / 8
         }
+
+        let (lower, upper) = self.iter.size_hint();
 
         // One item is returned per 8 items in the inner iterator.
         (bytes_for_bits(lower), upper.map(bytes_for_bits))
@@ -56,7 +60,7 @@ where
     // todo(mb): advance_by, nth
 }
 
-// If the inner iterator is ExactSizeIterator, the bounds reported by
+// If the inner iterator is [`ExactSizeIterator`], the bounds reported by
 // the size hint of this iterator are exact.
 impl<I, T> ExactSizeIterator for BitPacked<I, T>
 where
@@ -65,7 +69,7 @@ where
 {
 }
 
-/// An [Iterator] extension trait for [BitPacked].
+/// An [`Iterator`] extension trait for [`BitPacked`].
 pub trait BitPackedExt<T>: Iterator<Item = T>
 where
     T: Borrow<bool>,
@@ -96,13 +100,13 @@ mod tests {
         let mut iter = [false, true, false, true, false, true].iter().bit_packed();
         assert_eq!(iter.next(), Some(0x2a));
         assert!(iter.next().is_none());
-        let mut iter = [false, true, false, true, false, true, false, true]
+        let mut iter_byte = [false, true, false, true, false, true, false, true]
             .iter()
             .bit_packed();
-        assert_eq!(iter.next(), Some(0xaa));
-        assert!(iter.next().is_none());
-        let iter = [true; 16].iter().bit_packed();
-        assert_eq!(iter.collect::<Vec<u8>>(), [0xff, 0xff]);
+        assert_eq!(iter_byte.next(), Some(0xaa));
+        assert!(iter_byte.next().is_none());
+        let iter_two = [true; 16].iter().bit_packed();
+        assert_eq!(iter_two.collect::<Vec<u8>>(), [0xff, 0xff]);
     }
 
     #[test]

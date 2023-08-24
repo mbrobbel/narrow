@@ -5,8 +5,8 @@ use std::{marker::PhantomData, mem, rc::Rc, slice, sync::Arc};
 
 /// A memory buffer type constructor for Arrow data.
 ///
-/// The generic associated type constructor [Self::Buffer] defines the
-/// [Buffer] type that stores [FixedSize] items.
+/// The generic associated type constructor [`Self::Buffer`] defines the
+/// [`Buffer`] type that stores [`FixedSize`] items.
 ///
 // note
 // Arrow buffers are like Rust slices with "primitive" item types.
@@ -14,7 +14,7 @@ use std::{marker::PhantomData, mem, rc::Rc, slice, sync::Arc};
 // implement Buffer<T> for all U: Borrow<[T] where T: FixedSize, however,the approach here is a little
 // bit more elaborate to also support buffer types that don't implement Borrow<[T]>.
 pub trait BufferType {
-    /// A [Buffer] type for [FixedSize] items of type `T`.
+    /// A [`Buffer`] type for [`FixedSize`] items of type `T`.
     type Buffer<T: FixedSize>: Buffer<T>;
 }
 
@@ -33,7 +33,7 @@ pub trait BufferRef<T: FixedSize> {
 ///
 /// This can be used to provide mutable access to an internal buffer.
 pub trait BufferRefMut<T: FixedSize> {
-    /// The [BufferMut] type.
+    /// The [`BufferMut`] type.
     type BufferMut: BufferMut<T>;
 
     /// Returns a mutable reference to a buffer.
@@ -76,13 +76,7 @@ pub trait BufferMut<T: FixedSize>: Buffer<T> {
     fn as_mut_slice(&mut self) -> &mut [T];
 
     /// Returns the contents of the entire buffer as a mutable byte slice.
-    ///
-    /// # Safety
-    ///
-    /// This function is marked unsafe because writes to the buffer may cause
-    /// undefined behavior when the bytes no longer represent properly
-    /// initialized values of type `T`.
-    unsafe fn as_mut_bytes(&mut self) -> &mut [u8] {
+    fn as_mut_bytes(&mut self) -> &mut [u8] {
         // Safety:
         // - The pointer returned by slice::as_mut_ptr (via Borrow) points to slice::len()
         //   consecutive properly initialized values of type T, with size_of::<T> bytes
@@ -96,7 +90,8 @@ pub trait BufferMut<T: FixedSize>: Buffer<T> {
     }
 }
 
-/// A [BufferType] for a single item.
+/// A [`BufferType`] for a single item.
+#[derive(Clone, Copy, Debug)]
 pub struct SingleBuffer;
 
 impl BufferType for SingleBuffer {
@@ -115,9 +110,10 @@ impl<T: FixedSize> BufferMut<T> for T {
     }
 }
 
-/// A [BufferType] implementation for array.
+/// A [`BufferType`] implementation for array.
 ///
 /// Stores items `T` in `[T; N]`.
+#[derive(Clone, Copy, Debug)]
 pub struct ArrayBuffer<const N: usize>;
 
 impl<const N: usize> BufferType for ArrayBuffer<N> {
@@ -136,9 +132,10 @@ impl<T: FixedSize, const N: usize> BufferMut<T> for [T; N] {
     }
 }
 
-/// A [BufferType] implementation for array in array.
+/// A [`BufferType`] implementation for array in array.
 ///
 /// Stores items `T` in `[[T; M]; N]`.
+#[derive(Clone, Copy, Debug)]
 pub struct ArrayArrayBuffer<const M: usize, const N: usize>;
 
 impl<const M: usize, const N: usize> BufferType for ArrayArrayBuffer<M, N> {
@@ -161,9 +158,10 @@ impl<T: FixedSize, const M: usize, const N: usize> BufferMut<T> for [[T; M]; N] 
     }
 }
 
-/// A [BufferType] implementation for slice.
+/// A [`BufferType`] implementation for slice.
 ///
 /// Stores items `T` in `&[T]`.
+#[derive(Clone, Copy, Debug)]
 pub struct SliceBuffer<'a>(PhantomData<&'a ()>);
 
 impl<'a> BufferType for SliceBuffer<'a> {
@@ -176,9 +174,10 @@ impl<T: FixedSize> Buffer<T> for &[T] {
     }
 }
 
-/// A [BufferType] implementation for mutable slice.
+/// A [`BufferType`] implementation for mutable slice.
 ///
 /// Stores items `T` in `&mut [T]`.
+#[derive(Clone, Copy, Debug)]
 pub struct SliceMutBuffer<'a>(PhantomData<&'a ()>);
 
 impl<'a> BufferType for SliceMutBuffer<'a> {
@@ -197,9 +196,10 @@ impl<T: FixedSize> BufferMut<T> for &mut [T] {
     }
 }
 
-/// A [BufferType] implementation for slice with array items.
+/// A [`BufferType`] implementation for slice with array items.
 ///
 /// Stores items `T` in `&[[T; N]]`.
+#[derive(Clone, Copy, Debug)]
 pub struct SliceArrayBuffer<'a, const N: usize>(PhantomData<&'a ()>);
 
 impl<'a, const N: usize> BufferType for SliceArrayBuffer<'a, N> {
@@ -214,9 +214,10 @@ impl<T: FixedSize, const N: usize> Buffer<T> for &[[T; N]] {
     }
 }
 
-/// A [BufferType] implementation for mutable slice with array items.
+/// A [`BufferType`] implementation for mutable slice with array items.
 ///
 /// Stores items `T` in `&mut [[T; N]]`.
+#[derive(Clone, Copy, Debug)]
 pub struct SliceArrayMutBuffer<'a, const N: usize>(PhantomData<&'a ()>);
 
 impl<'a, const N: usize> BufferType for SliceArrayMutBuffer<'a, N> {
@@ -241,9 +242,10 @@ impl<T: FixedSize, const N: usize> BufferMut<T> for &mut [[T; N]] {
     }
 }
 
-/// A [BufferType] implementation for [Vec].
+/// A [`BufferType`] implementation for [`Vec`].
 ///
 /// Stores items `T` in `Vec<T>`.
+#[derive(Clone, Copy, Debug)]
 pub struct VecBuffer;
 
 impl BufferType for VecBuffer {
@@ -262,9 +264,10 @@ impl<T: FixedSize> BufferMut<T> for Vec<T> {
     }
 }
 
-/// A [BufferType] implementation for [Vec] with array items.
+/// A [`BufferType`] implementation for [`Vec`] with array items.
 ///
 /// Stores items `T` in `Vec<[T;N]>`.
+#[derive(Clone, Copy, Debug)]
 pub struct VecArrayBuffer<const N: usize>;
 
 impl<const N: usize> BufferType for VecArrayBuffer<N> {
@@ -289,9 +292,10 @@ impl<T: FixedSize, const N: usize> BufferMut<T> for Vec<[T; N]> {
     }
 }
 
-/// A [BufferType] implementation for [Box].
+/// A [`BufferType`] implementation for [`Box`].
 ///
 /// Stores items `T` in `Box<[T]>`.
+#[derive(Clone, Copy, Debug)]
 pub struct BoxBuffer;
 
 impl BufferType for BoxBuffer {
@@ -310,9 +314,10 @@ impl<T: FixedSize> BufferMut<T> for Box<[T]> {
     }
 }
 
-/// A [BufferType] implementation for [Arc].
+/// A [`BufferType`] implementation for [`Arc`].
 ///
 /// Stores items `T` in `Arc<[T]>`.
+#[derive(Clone, Copy, Debug)]
 pub struct ArcBuffer;
 
 impl BufferType for ArcBuffer {
@@ -334,9 +339,10 @@ impl<T: FixedSize> BufferMut<T> for Arc<[T]> {
     }
 }
 
-/// A [BufferType] implementation for [Rc].
+/// A [`BufferType`] implementation for [`Rc`].
 ///
 /// Stores items `T` in `Rc<[T]>`.
+#[derive(Clone, Copy, Debug)]
 pub struct RcBuffer;
 
 impl BufferType for RcBuffer {
@@ -366,7 +372,7 @@ mod tests {
     fn single() {
         let mut single: <SingleBuffer as BufferType>::Buffer<u16> = 1234;
         assert_eq!(single.as_bytes(), [210, 4]);
-        unsafe { single.as_mut_bytes()[1] = 0 };
+        single.as_mut_bytes()[1] = 0;
         assert_eq!(single.as_bytes(), [210, 0]);
         single.as_mut_slice()[0] = 1234;
         assert_eq!(single, 1234);
@@ -379,7 +385,7 @@ mod tests {
             <_ as Buffer<u16>>::as_bytes(&array),
             &[1, 0, 2, 0, 3, 0, 4, 0]
         );
-        unsafe { <_ as BufferMut<u16>>::as_mut_bytes(&mut array)[1] = 1 };
+        <_ as BufferMut<u16>>::as_mut_bytes(&mut array)[1] = 1;
         assert_eq!(<_ as Buffer<u16>>::as_bytes(&array)[..2], [1, 1]);
         array.as_mut_slice()[0] = 1;
         assert_eq!(array, [1, 2, 3, 4]);
@@ -393,7 +399,7 @@ mod tests {
             <_ as Buffer<u8>>::as_bytes(&array_array),
             &[1, 2, 3, 4, 1, 2, 3, 4]
         );
-        unsafe { <_ as BufferMut<u8>>::as_mut_bytes(&mut array_array)[1] = 1 };
+        <_ as BufferMut<u8>>::as_mut_bytes(&mut array_array)[1] = 1;
         assert_eq!(
             <_ as Buffer<u8>>::as_slice(&array_array),
             [1, 1, 3, 4, 1, 2, 3, 4]

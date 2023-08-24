@@ -25,9 +25,11 @@ pub struct VariableSizeBinaryArray<
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>;
 
+/// Variable-size binary elements, using `i32` offset values.
 pub type BinaryArray<const NULLABLE: bool = false, Buffer = VecBuffer> =
     VariableSizeBinaryArray<NULLABLE, i32, Buffer>;
 
+/// Variable-size binary elements, using `i64` offset value.
 pub type LargeBinaryArray<const NULLABLE: bool = false, Buffer = VecBuffer> =
     VariableSizeBinaryArray<NULLABLE, i64, Buffer>;
 
@@ -46,7 +48,7 @@ where
         Default,
 {
     fn default() -> Self {
-        Self(Default::default())
+        Self(VariableSizeListArray::default())
     }
 }
 
@@ -58,7 +60,7 @@ where
         Extend<T>,
 {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        self.0.extend(iter)
+        self.0.extend(iter);
     }
 }
 
@@ -174,38 +176,43 @@ mod tests {
 
     #[test]
     fn from_iter() {
-        let input: [&[u8]; 4] = [&[1u8], &[2, 3], &[4, 5, 6], &[7, 8, 9, 0]];
+        let input: [&[u8]; 4] = [&[1], &[2, 3], &[4, 5, 6], &[7, 8, 9, 0]];
         let array = input
             .into_iter()
-            .map(|x| x.to_vec())
+            .map(<[u8]>::to_vec)
             .collect::<VariableSizeBinaryArray>();
         assert_eq!(array.len(), 4);
         assert_eq!(array.0 .0.data.0, &[1, 2, 3, 4, 5, 6, 7, 8, 9, 0]);
         assert_eq!(array.0 .0.offsets, &[0, 1, 3, 6, 10]);
 
-        let input: [Option<&[u8]>; 4] = [Some(&[1u8]), None, Some(&[4, 5, 6]), Some(&[7, 8, 9, 0])];
+        let input_vec = vec![vec![1], vec![], vec![2, 3], vec![4]];
+        let array_vec = input_vec.into_iter().collect::<VariableSizeBinaryArray>();
+        assert_eq!(array_vec.len(), 4);
+        assert_eq!(array_vec.0 .0.data.0, &[1, 2, 3, 4]);
+        assert_eq!(array_vec.0 .0.offsets, &[0, 1, 1, 3, 4]);
+    }
+
+    #[test]
+    fn from_iter_nullable() {
+        let input: [Option<&[u8]>; 4] = [Some(&[1]), None, Some(&[4, 5, 6]), Some(&[7, 8, 9, 0])];
         let array = input
             .into_iter()
-            .map(|x| x.map(|x| x.to_vec()))
+            .map(|x| x.map(<[u8]>::to_vec))
             .collect::<VariableSizeBinaryArray<true>>();
         assert_eq!(array.len(), 4);
         assert_eq!(array.0 .0.data.0, &[1, 4, 5, 6, 7, 8, 9, 0]);
         assert_eq!(array.0 .0.offsets.as_ref(), &[0, 1, 1, 4, 8]);
-        assert_eq!(array.0 .0.offsets.bitmap_ref().buffer_ref(), &[0b00001101]);
+        assert_eq!(array.0 .0.offsets.bitmap_ref().buffer_ref(), &[0b000_01101]);
 
-        let input = vec![vec![1], vec![], vec![2, 3], vec![4]];
-        let array = input.into_iter().collect::<VariableSizeBinaryArray>();
-        assert_eq!(array.len(), 4);
-        assert_eq!(array.0 .0.data.0, &[1, 2, 3, 4]);
-        assert_eq!(array.0 .0.offsets, &[0, 1, 1, 3, 4]);
-
-        let input = vec![Some(vec![1]), None, Some(vec![2, 3]), Some(vec![4])];
-        let array = input.into_iter().collect::<VariableSizeBinaryArray<true>>();
-        assert_eq!(array.len(), 4);
-        assert_eq!(array.0 .0.data.0, &[1, 2, 3, 4]);
-        assert_eq!(array.0 .0.offsets.as_ref(), &[0, 1, 1, 3, 4]);
+        let input_vec = vec![Some(vec![1]), None, Some(vec![2, 3]), Some(vec![4])];
+        let array_vec = input_vec
+            .into_iter()
+            .collect::<VariableSizeBinaryArray<true>>();
+        assert_eq!(array_vec.len(), 4);
+        assert_eq!(array_vec.0 .0.data.0, &[1, 2, 3, 4]);
+        assert_eq!(array_vec.0 .0.offsets.as_ref(), &[0, 1, 1, 3, 4]);
         assert_eq!(
-            array
+            array_vec
                 .0
                  .0
                 .offsets
@@ -218,7 +225,7 @@ mod tests {
 
     #[test]
     fn convert() {
-        let input = vec![Some("a".to_string()), None, Some("b".to_string())];
+        let input = vec![Some("a".to_owned()), None, Some("b".to_owned())];
         let array = input.into_iter().collect::<StringArray<true>>();
         let variable_size_binary: VariableSizeBinaryArray<true> = array.into();
         assert_eq!(variable_size_binary.len(), 3);

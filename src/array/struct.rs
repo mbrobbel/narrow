@@ -1,3 +1,5 @@
+//! Array for product types.
+
 use super::{Array, ArrayType};
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
@@ -10,11 +12,12 @@ use crate::{
 /// Struct array types.
 pub trait StructArrayType: ArrayType {
     /// The array type that stores items of this struct. Note this differs from
-    /// the [ArrayType] array because that wraps this array. Also note that this
-    /// has no [Array] bound.
+    /// the [`ArrayType`] array because that wraps this array. Also note that this
+    /// has no [`Array`] bound.
     type Array<Buffer: BufferType>;
 }
 
+/// Array for product types.
 pub struct StructArray<
     T: StructArrayType,
     const NULLABLE: bool = false,
@@ -105,72 +108,106 @@ impl<T: StructArrayType, Buffer: BufferType> ValidityBitmap for StructArray<T, t
 mod tests {
     use super::*;
 
-    #[test]
-    fn from_iter() {
-        // Definition
-        #[derive(Default)]
-        struct Foo<'a> {
-            a: u32,
-            b: Option<()>,
-            c: (),
-            d: Option<[u128; 2]>,
-            e: bool,
-            f: &'a [u8],
-            g: String,
-        }
-        // These impls below can all be generated.
-        impl<'a> ArrayType for Foo<'a> {
-            type Array<Buffer: BufferType> = StructArray<Foo<'a>, false, Buffer>;
-        }
-        impl<'a> ArrayType for Option<Foo<'a>> {
-            type Array<Buffer: BufferType> = StructArray<Foo<'a>, true, Buffer>;
-        }
+    // Definition
+    #[derive(Default)]
+    struct Foo<'a> {
+        a: u32,
+        b: Option<()>,
+        c: (),
+        d: Option<[u128; 2]>,
+        e: bool,
+        f: &'a [u8],
+        g: String,
+    }
+    // These impls below can all be generated.
+    impl<'a> ArrayType for Foo<'a> {
+        type Array<Buffer: BufferType> = StructArray<Foo<'a>, false, Buffer>;
+    }
+    impl<'a> ArrayType for Option<Foo<'a>> {
+        type Array<Buffer: BufferType> = StructArray<Foo<'a>, true, Buffer>;
+    }
 
-        struct FooArray<'a, Buffer: BufferType> {
-            a: <u32 as ArrayType>::Array<Buffer>,
-            b: <Option<()> as ArrayType>::Array<Buffer>,
-            c: <() as ArrayType>::Array<Buffer>,
-            d: <Option<[u128; 2]> as ArrayType>::Array<Buffer>,
-            e: <bool as ArrayType>::Array<Buffer>,
-            f: <&'a [u8] as ArrayType>::Array<Buffer>,
-            g: <String as ArrayType>::Array<Buffer>,
-        }
+    struct FooArray<'a, Buffer: BufferType> {
+        a: <u32 as ArrayType>::Array<Buffer>,
+        b: <Option<()> as ArrayType>::Array<Buffer>,
+        c: <() as ArrayType>::Array<Buffer>,
+        d: <Option<[u128; 2]> as ArrayType>::Array<Buffer>,
+        e: <bool as ArrayType>::Array<Buffer>,
+        f: <&'a [u8] as ArrayType>::Array<Buffer>,
+        g: <String as ArrayType>::Array<Buffer>,
+    }
 
-        impl<'a, Buffer: BufferType> Default for FooArray<'a, Buffer>
-        where
-            <u32 as ArrayType>::Array<Buffer>: Default,
-            <Option<()> as ArrayType>::Array<Buffer>: Default,
-            <() as ArrayType>::Array<Buffer>: Default,
-            <Option<[u128; 2]> as ArrayType>::Array<Buffer>: Default,
-            <bool as ArrayType>::Array<Buffer>: Default,
-            <&'a [u8] as ArrayType>::Array<Buffer>: Default,
-            <String as ArrayType>::Array<Buffer>: Default,
-        {
-            fn default() -> Self {
-                Self {
-                    a: <u32 as ArrayType>::Array::<Buffer>::default(),
-                    b: <Option<()> as ArrayType>::Array::<Buffer>::default(),
-                    c: <() as ArrayType>::Array::<Buffer>::default(),
-                    d: <Option<[u128; 2]> as ArrayType>::Array::<Buffer>::default(),
-                    e: <bool as ArrayType>::Array::<Buffer>::default(),
-                    f: <&'a [u8] as ArrayType>::Array::<Buffer>::default(),
-                    g: <String as ArrayType>::Array::<Buffer>::default(),
-                }
+    impl<'a, Buffer: BufferType> Default for FooArray<'a, Buffer>
+    where
+        <u32 as ArrayType>::Array<Buffer>: Default,
+        <Option<()> as ArrayType>::Array<Buffer>: Default,
+        <() as ArrayType>::Array<Buffer>: Default,
+        <Option<[u128; 2]> as ArrayType>::Array<Buffer>: Default,
+        <bool as ArrayType>::Array<Buffer>: Default,
+        <&'a [u8] as ArrayType>::Array<Buffer>: Default,
+        <String as ArrayType>::Array<Buffer>: Default,
+    {
+        fn default() -> Self {
+            Self {
+                a: <u32 as ArrayType>::Array::<Buffer>::default(),
+                b: <Option<()> as ArrayType>::Array::<Buffer>::default(),
+                c: <() as ArrayType>::Array::<Buffer>::default(),
+                d: <Option<[u128; 2]> as ArrayType>::Array::<Buffer>::default(),
+                e: <bool as ArrayType>::Array::<Buffer>::default(),
+                f: <&'a [u8] as ArrayType>::Array::<Buffer>::default(),
+                g: <String as ArrayType>::Array::<Buffer>::default(),
             }
         }
+    }
 
-        impl<'a, Buffer: BufferType> Extend<Foo<'a>> for FooArray<'a, Buffer>
-        where
-            <u32 as ArrayType>::Array<Buffer>: Extend<u32>,
-            <Option<()> as ArrayType>::Array<Buffer>: Extend<Option<()>>,
-            <() as ArrayType>::Array<Buffer>: Extend<()>,
-            <Option<[u128; 2]> as ArrayType>::Array<Buffer>: Extend<Option<[u128; 2]>>,
-            <bool as ArrayType>::Array<Buffer>: Extend<bool>,
-            <&'a [u8] as ArrayType>::Array<Buffer>: Extend<&'a [u8]>,
-            <String as ArrayType>::Array<Buffer>: Extend<String>,
-        {
-            fn extend<I: IntoIterator<Item = Foo<'a>>>(&mut self, iter: I) {
-                iter.into_iter().for_each(
+    impl<'a, Buffer: BufferType> Extend<Foo<'a>> for FooArray<'a, Buffer>
+    where
+        <u32 as ArrayType>::Array<Buffer>: Extend<u32>,
+        <Option<()> as ArrayType>::Array<Buffer>: Extend<Option<()>>,
+        <() as ArrayType>::Array<Buffer>: Extend<()>,
+        <Option<[u128; 2]> as ArrayType>::Array<Buffer>: Extend<Option<[u128; 2]>>,
+        <bool as ArrayType>::Array<Buffer>: Extend<bool>,
+        <&'a [u8] as ArrayType>::Array<Buffer>: Extend<&'a [u8]>,
+        <String as ArrayType>::Array<Buffer>: Extend<String>,
+    {
+        fn extend<I: IntoIterator<Item = Foo<'a>>>(&mut self, iter: I) {
+            iter.into_iter().for_each(
+                |Foo {
+                     a,
+                     b,
+                     c,
+                     d,
+                     e,
+                     f,
+                     g,
+                 }| {
+                    self.a.extend(std::iter::once(a));
+                    self.b.extend(std::iter::once(b));
+                    self.c.extend(std::iter::once(c));
+                    self.d.extend(std::iter::once(d));
+                    self.e.extend(std::iter::once(e));
+                    self.f.extend(std::iter::once(f));
+                    self.g.extend(std::iter::once(g));
+                },
+            );
+        }
+    }
+
+    impl<'a, Buffer: BufferType> FromIterator<Foo<'a>> for FooArray<'a, Buffer>
+    where
+        <u32 as ArrayType>::Array<Buffer>: Default + Extend<u32>,
+        <Option<()> as ArrayType>::Array<Buffer>: Default + Extend<Option<()>>,
+        <() as ArrayType>::Array<Buffer>: Default + Extend<()>,
+        <Option<[u128; 2]> as ArrayType>::Array<Buffer>: Default + Extend<Option<[u128; 2]>>,
+        <bool as ArrayType>::Array<Buffer>: Default + Extend<bool>,
+        <&'a [u8] as ArrayType>::Array<Buffer>: Default + Extend<&'a [u8]>,
+        <String as ArrayType>::Array<Buffer>: Default + Extend<String>,
+    {
+        #[allow(clippy::many_single_char_names)]
+        fn from_iter<T: IntoIterator<Item = Foo<'a>>>(iter: T) -> Self {
+            let (a, (b, (c, (d, (e, (f, g)))))) = iter
+                .into_iter()
+                .map(
                     |Foo {
                          a,
                          b,
@@ -179,69 +216,35 @@ mod tests {
                          e,
                          f,
                          g,
-                     }| {
-                        self.a.extend(std::iter::once(a));
-                        self.b.extend(std::iter::once(b));
-                        self.c.extend(std::iter::once(c));
-                        self.d.extend(std::iter::once(d));
-                        self.e.extend(std::iter::once(e));
-                        self.f.extend(std::iter::once(f));
-                        self.g.extend(std::iter::once(g));
-                    },
+                     }| (a, (b, (c, (d, (e, (f, g)))))),
                 )
+                .unzip();
+            Self {
+                a,
+                b,
+                c,
+                d,
+                e,
+                f,
+                g,
             }
         }
+    }
+    impl<'a> StructArrayType for Foo<'a> {
+        type Array<Buffer: BufferType> = FooArray<'a, Buffer>;
+    }
 
-        impl<'a, Buffer: BufferType> FromIterator<Foo<'a>> for FooArray<'a, Buffer>
-        where
-            <u32 as ArrayType>::Array<Buffer>: Default + Extend<u32>,
-            <Option<()> as ArrayType>::Array<Buffer>: Default + Extend<Option<()>>,
-            <() as ArrayType>::Array<Buffer>: Default + Extend<()>,
-            <Option<[u128; 2]> as ArrayType>::Array<Buffer>: Default + Extend<Option<[u128; 2]>>,
-            <bool as ArrayType>::Array<Buffer>: Default + Extend<bool>,
-            <&'a [u8] as ArrayType>::Array<Buffer>: Default + Extend<&'a [u8]>,
-            <String as ArrayType>::Array<Buffer>: Default + Extend<String>,
-        {
-            fn from_iter<T: IntoIterator<Item = Foo<'a>>>(iter: T) -> Self {
-                let (a, (b, (c, (d, (e, (f, g)))))) = iter
-                    .into_iter()
-                    .map(
-                        |Foo {
-                             a,
-                             b,
-                             c,
-                             d,
-                             e,
-                             f,
-                             g,
-                         }| (a, (b, (c, (d, (e, (f, g)))))),
-                    )
-                    .unzip();
-                Self {
-                    a,
-                    b,
-                    c,
-                    d,
-                    e,
-                    f,
-                    g,
-                }
-            }
+    impl<'a, Buffer: BufferType> Length for FooArray<'a, Buffer>
+    where
+        <u32 as ArrayType>::Array<Buffer>: Length,
+    {
+        fn len(&self) -> usize {
+            self.a.len()
         }
-        impl<'a> StructArrayType for Foo<'a> {
-            type Array<Buffer: BufferType> = FooArray<'a, Buffer>;
-        }
+    }
 
-        impl<'a, Buffer: BufferType> Length for FooArray<'a, Buffer>
-        where
-            <u32 as ArrayType>::Array<Buffer>: Length,
-        {
-            fn len(&self) -> usize {
-                self.a.len()
-            }
-        }
-
-        // And then:
+    #[test]
+    fn from_iter() {
         let input = [
             Foo {
                 a: 1,
@@ -250,7 +253,7 @@ mod tests {
                 d: Some([1, 2]),
                 e: false,
                 f: &[1],
-                g: "a".to_string(),
+                g: "a".to_owned(),
             },
             Foo {
                 a: 2,
@@ -259,7 +262,7 @@ mod tests {
                 d: Some([3, 4]),
                 e: true,
                 f: &[2, 3],
-                g: "s".to_string(),
+                g: "s".to_owned(),
             },
             Foo {
                 a: 3,
@@ -268,7 +271,7 @@ mod tests {
                 d: None,
                 e: true,
                 f: &[4],
-                g: "d".to_string(),
+                g: "d".to_owned(),
             },
             Foo {
                 a: 4,
@@ -277,7 +280,7 @@ mod tests {
                 d: None,
                 e: true,
                 f: &[],
-                g: "f".to_string(),
+                g: "f".to_owned(),
             },
         ];
         let array = input.into_iter().collect::<StructArray<Foo>>();
@@ -313,7 +316,7 @@ mod tests {
             &[0, 1, 2, 3, 4]
         );
 
-        let input = [
+        let input_nullable = [
             None,
             Some(Foo {
                 a: 1,
@@ -322,13 +325,15 @@ mod tests {
                 d: Some([1, 2]),
                 e: false,
                 f: &[1],
-                g: "a".to_string(),
+                g: "a".to_owned(),
             }),
         ];
-        let array = input.into_iter().collect::<StructArray<Foo, true>>();
-        assert_eq!(array.len(), 2);
-        assert_eq!(array.is_null(0), Some(true));
-        assert_eq!(array.is_valid(1), Some(true));
-        assert_eq!(array.is_valid(2), None);
+        let array_nullable = input_nullable
+            .into_iter()
+            .collect::<StructArray<Foo, true>>();
+        assert_eq!(array_nullable.len(), 2);
+        assert_eq!(array_nullable.is_null(0), Some(true));
+        assert_eq!(array_nullable.is_valid(1), Some(true));
+        assert_eq!(array_nullable.is_valid(2), None);
     }
 }

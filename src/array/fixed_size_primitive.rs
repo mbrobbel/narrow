@@ -1,3 +1,5 @@
+//! Array with fixed-size primitive values.
+
 use super::Array;
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
@@ -16,6 +18,7 @@ pub struct FixedSizePrimitiveArray<
 where
     <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>;
 
+/// Generates type definitions for fixed-size primitive arrays with the known fixed-size types.
 macro_rules! type_def {
     ($ident:ident, $ty:ty) => {
         #[doc = "Array with ["]
@@ -66,7 +69,7 @@ where
     <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>: Extend<U>,
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
-        self.0.extend(iter)
+        self.0.extend(iter);
     }
 }
 
@@ -159,17 +162,22 @@ mod tests {
 
     #[test]
     fn from_iter() {
-        let input = [1u8, 2, 3, 4];
+        let input = [1_u8, 2, 3, 4];
         let array = input.into_iter().collect::<FixedSizePrimitiveArray<_>>();
         assert_eq!(array.0.as_slice(), &[1, 2, 3, 4]);
         assert_eq!(array.0.as_slice(), array.0.as_bytes());
 
-        let input = [[1u8, 2], [3, 4]];
-        let array = input.into_iter().collect::<FixedSizePrimitiveArray<_>>();
-        assert_eq!(array.0.as_slice(), &[[1, 2], [3, 4]]);
-        assert_eq!(<_ as Buffer<u8>>::as_bytes(&array.0), &[1, 2, 3, 4]);
+        let input_array = [[1_u8, 2], [3, 4]];
+        let array_array = input_array
+            .into_iter()
+            .collect::<FixedSizePrimitiveArray<_>>();
+        assert_eq!(array_array.0.as_slice(), &[[1, 2], [3, 4]]);
+        assert_eq!(<_ as Buffer<u8>>::as_bytes(&array_array.0), &[1, 2, 3, 4]);
+    }
 
-        let input = [Some(1u64), None, Some(3), Some(4)];
+    #[test]
+    fn from_iter_nullable() {
+        let input = [Some(1_u64), None, Some(3), Some(4)];
         let array = input.iter().collect::<FixedSizePrimitiveArray<_, true>>();
         assert_eq!(array.0.buffer_ref().as_slice(), &[1, u64::default(), 3, 4]);
         assert_eq!(array.is_valid(0), Some(true));
@@ -181,32 +189,41 @@ mod tests {
 
     #[test]
     fn into_iter() {
-        let input = [1u8, 2, 3, 4];
+        let input = [1_u8, 2, 3, 4];
         let array = input.into_iter().collect::<FixedSizePrimitiveArray<_>>();
         assert_eq!(array.into_iter().collect::<Vec<_>>(), input);
 
-        let input = [[1u8, 2], [3, 4]];
-        let array = input.into_iter().collect::<FixedSizePrimitiveArray<_>>();
-        assert_eq!(array.into_iter().collect::<Vec<_>>(), input);
+        let input_array = [[1_u8, 2], [3, 4]];
+        let array_array = input_array
+            .into_iter()
+            .collect::<FixedSizePrimitiveArray<_>>();
+        assert_eq!(array_array.into_iter().collect::<Vec<_>>(), input_array);
+    }
 
-        let input = [Some(1u64), None, Some(3), Some(4)];
+    #[test]
+    fn into_iter_nullable() {
+        let input = [Some(1_u64), None, Some(3), Some(4)];
         let array = input.iter().collect::<FixedSizePrimitiveArray<_, true>>();
         assert_eq!(array.into_iter().collect::<Vec<_>>(), input);
     }
 
     #[test]
     fn length() {
-        let input = [1u8, 2, 3, 4];
+        let input = [1_u8, 2, 3, 4];
         let array = input.into_iter().collect::<FixedSizePrimitiveArray<_>>();
         assert_eq!(array.len(), input.as_slice().len());
 
-        let input = [[1u8, 2], [3, 4]];
-        let array = input.into_iter().collect::<FixedSizePrimitiveArray<_>>();
-        assert_eq!(array.len(), input.as_slice().len());
+        let input_array = [[1_u8, 2], [3, 4]];
+        let array_array = input_array
+            .into_iter()
+            .collect::<FixedSizePrimitiveArray<_>>();
+        assert_eq!(array_array.len(), input_array.as_slice().len());
 
-        let input = [Some(1u64), None, Some(3), Some(4)];
-        let array = input.iter().collect::<FixedSizePrimitiveArray<_, true>>();
-        assert_eq!(array.len(), input.len());
+        let input_nullable = [Some(1_u64), None, Some(3), Some(4)];
+        let array_nullable = input_nullable
+            .iter()
+            .collect::<FixedSizePrimitiveArray<_, true>>();
+        assert_eq!(array_nullable.len(), input_nullable.len());
     }
 
     #[test]
@@ -214,7 +231,7 @@ mod tests {
         let input = [1, 2, 3, 4];
         let array = input.into_iter().collect::<FixedSizePrimitiveArray<_>>();
         let mut nullable: FixedSizePrimitiveArray<_, true> = array.into();
-        nullable.bitmap_ref_mut().buffer_ref_mut().as_mut_slice()[0] = 0b00001101;
+        nullable.bitmap_ref_mut().buffer_ref_mut().as_mut_slice()[0] = 0b0000_1101;
         assert_eq!(
             nullable.into_iter().collect::<Vec<_>>(),
             [Some(1), None, Some(3), Some(4)]

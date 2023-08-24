@@ -28,9 +28,8 @@ keywords.workspace = true
 categories.workspace = true
 
 [features]
-default = ["derive", "unsafe"]
+default = []
 derive = ["dep:narrow-derive"]
-unsafe = []
 
 [dependencies]
 narrow-derive = { path = "narrow-derive", version = "^0.3.4", optional = true }

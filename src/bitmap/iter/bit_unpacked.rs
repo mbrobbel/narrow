@@ -1,3 +1,5 @@
+//! An iterator that unpacks boolean values.
+
 use std::borrow::Borrow;
 
 /// An iterator that unpacks boolean values from an iterator (`I`) over items
@@ -12,8 +14,11 @@ where
     I: Iterator<Item = T>,
     T: Borrow<u8>,
 {
+    /// The iterator over the bytes storing packed bits.
     iter: I,
+    /// The popped byte yielding bits.
     byte: Option<u8>,
+    /// The mask selecting bits from the popped byte.
     mask: u8,
 }
 
@@ -46,7 +51,7 @@ where
         // 8 items are returned per one item in the inner iterator.
         (
             lower.saturating_mul(8),
-            upper.and_then(|upper| upper.checked_mul(8)),
+            upper.and_then(|bound| bound.checked_mul(8)),
         )
     }
 
@@ -62,11 +67,12 @@ where
 {
 }
 
-/// An [Iterator] extension trait for [BitUnpacked].
+/// An [`Iterator`] extension trait for [`BitUnpacked`].
 pub trait BitUnpackedExt<T>: Iterator<Item = T>
 where
     T: Borrow<u8>,
 {
+    /// Returns an iterator that unpacks bits from the bytes in the iterator.
     fn bit_unpacked(self) -> BitUnpacked<Self, T>
     where
         Self: Sized,

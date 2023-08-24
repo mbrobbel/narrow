@@ -36,11 +36,12 @@ impl FixedSize for () {}
 
 impl<const N: usize, T: FixedSize> FixedSize for [T; N] {}
 
+/// Private module for [`sealed::Sealed`] trait.
 mod sealed {
-    /// Used to seal [super::FixedSize].
+    /// Used to seal [`super::FixedSize`].
     pub trait Sealed {}
 
-    // Prevent downstream implementation of [super::FixedSize].
+    /// Prevent downstream implementation of [`super::FixedSize`].
     impl<T> Sealed for T where T: super::FixedSize {}
 }
 

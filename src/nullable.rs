@@ -85,8 +85,8 @@ where
 {
     fn default() -> Self {
         Self {
-            data: Default::default(),
-            validity: Default::default(),
+            data: T::default(),
+            validity: Bitmap::default(),
         }
     }
 }
@@ -97,11 +97,15 @@ where
     <Buffer as BufferType>::Buffer<u8>: BufferMut<u8> + Extend<u8>,
 {
     fn extend<I: IntoIterator<Item = (V, U)>>(&mut self, iter: I) {
+        // https://github.com/rust-lang/rust-clippy/issues/9378
+        #[allow(clippy::pattern_type_mismatch)]
         self.data.extend(
             iter.into_iter()
-                .inspect(|(valid, _)| self.validity.extend(std::iter::once(valid.borrow())))
+                .inspect(|(valid, _value)| {
+                    self.validity.extend(std::iter::once(valid.borrow()));
+                })
                 .map(|(_, item)| item),
-        )
+        );
     }
 }
 
@@ -113,7 +117,7 @@ where
         self.extend(
             iter.into_iter()
                 .map(|opt| (opt.is_some(), opt.unwrap_or_default())),
-        )
+        );
     }
 }
 
@@ -206,26 +210,29 @@ mod tests {
 
     #[test]
     fn from_iter() {
-        let input = [Some(1u32), Some(2), Some(3), Some(4), None, Some(42)];
+        let input = [Some(1), Some(2), Some(3), Some(4), None, Some(42)];
         let nullable = input.into_iter().collect::<Nullable<Vec<_>>>();
         assert_eq!(nullable.buffer_ref(), &[1, 2, 3, 4, u32::default(), 42]);
-        assert_eq!(nullable.bitmap_ref().buffer_ref(), &[0b00101111u8]);
+        assert_eq!(nullable.bitmap_ref().buffer_ref(), &[0b0010_1111]);
         assert_eq!(
             (&nullable)
                 .into_iter()
-                .map(|x| x.cloned())
+                .map(Option::<&_>::copied)
                 .collect::<Vec<_>>(),
             input
         );
         assert_eq!(nullable.len(), 6);
+    }
 
+    #[test]
+    fn from_iter_array() {
         let input = [Some([1234, 1234]), None, Some([42, 42])];
         let mut nullable = input.into_iter().collect::<Nullable<Vec<_>>>();
         assert_eq!(
             <_ as BufferRef<u32>>::buffer_ref(&nullable).as_slice(),
             &[[1234, 1234], [u32::default(), u32::default()], [42, 42]]
         );
-        assert_eq!(nullable.bitmap_ref().buffer_ref(), &[0b00101u8]);
+        assert_eq!(nullable.bitmap_ref().buffer_ref(), &[0b00101]);
         <_ as BufferRefMut<u32>>::buffer_ref_mut(&mut nullable).as_mut_slice()[0] = [4321, 4321];
         assert_eq!(
             <_ as BufferRef<u32>>::buffer_ref(&nullable).as_slice(),
@@ -233,7 +240,7 @@ mod tests {
         );
         assert_eq!(<_ as BufferRef<u32>>::buffer_ref(&nullable).len(), 3);
         assert_eq!(nullable.len(), 3);
-        nullable.bitmap_ref_mut().buffer_ref_mut()[0] = 0b00111u8;
+        nullable.bitmap_ref_mut().buffer_ref_mut()[0] = 0b00111;
         assert_eq!(
             nullable.into_iter().collect::<Vec<_>>(),
             [Some([4321, 4321]), Some([0, 0]), Some([42, 42])]
@@ -242,7 +249,7 @@ mod tests {
 
     #[test]
     fn into_iter() {
-        let input = [Some(1u32), Some(2), Some(3), Some(4), None, Some(42)];
+        let input = [Some(1), Some(2), Some(3), Some(4), None, Some(42)];
         let nullable = input.into_iter().collect::<Nullable<Vec<_>>>();
         let output = nullable.into_iter().collect::<Vec<_>>();
         assert_eq!(input, output.as_slice());
@@ -252,8 +259,8 @@ mod tests {
     fn opt_bool_iter() {
         let input = [Some(true), Some(false), None];
         let nullable = input.into_iter().collect::<Nullable<Bitmap>>();
-        assert_eq!(nullable.as_ref().buffer_ref(), &[0b00000001u8]);
-        assert_eq!(nullable.bitmap_ref().buffer_ref(), &[0b00000011u8]);
+        assert_eq!(nullable.as_ref().buffer_ref(), &[0b0000_0001]);
+        assert_eq!(nullable.bitmap_ref().buffer_ref(), &[0b0000_0011]);
     }
 
     #[test]
@@ -284,7 +291,7 @@ mod tests {
 
         let input = [Some(()), Some(()), None];
         let nullable = input.into_iter().collect::<Nullable<Count>>();
-        assert_eq!(nullable.bitmap_ref().buffer_ref(), &[0b00000011u8]);
+        assert_eq!(nullable.bitmap_ref().buffer_ref(), &[0b0000_0011]);
         assert_eq!(nullable.into_iter().collect::<Vec<Option<()>>>(), input);
     }
 

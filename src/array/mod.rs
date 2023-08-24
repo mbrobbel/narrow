@@ -24,12 +24,15 @@ pub use variable_size_binary::*;
 mod variable_size_list;
 pub use variable_size_list::*;
 
+/// Types that store their data in Arrow arrays.
 pub trait Array {}
 
 // Note: the default generics is required for to allow impls outside on foreign wrappers.
 // See https://rust-lang.github.io/rfcs/2451-re-rebalancing-coherence.html
 // The resulting behavior when using anything other than the default `Self` is undefined.
+/// Types that can be stored in Arrow arrays.
 pub trait ArrayType<T: ?Sized = Self> {
+    /// The [`Array`] type for these items.
     type Array<Buffer: BufferType>: Array;
 }
 
@@ -37,6 +40,7 @@ impl<T: ArrayType + ?Sized> ArrayType for &T {
     type Array<Buffer: BufferType> = <T as ArrayType>::Array<Buffer>;
 }
 
+/// Implement [`ArrayType`] for `ty` using `array`.
 macro_rules! impl_array_type {
     ($ty:ty, $array:ty) => {
         impl ArrayType for $ty {

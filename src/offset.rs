@@ -22,16 +22,43 @@ pub trait OffsetElement:
     + TryInto<usize, Error = TryFromIntError>
     + sealed::Sealed
 {
+    /// The unsigned variant of Self.
+    type Unsigned: TryFrom<usize, Error = TryFromIntError>;
+
+    /// Checked addition. Computes `self + rhs`, returning `None` if overflow occurred.
+    fn checked_add(self, rhs: Self) -> Option<Self>;
+    /// Checked addition with an unsigned value. Computes `self + rhs`, returning `None` if overflow occurred.
+    fn checked_add_unsigned(self, rhs: Self::Unsigned) -> Option<Self>;
 }
 
+/// Private module for a seal trait.
 mod sealed {
+    /// Sealed trait to seal [`super::OffsetElement`].
     pub trait Sealed {}
     impl<T> Sealed for T where T: super::OffsetElement {}
 }
 
-impl OffsetElement for i32 {}
-impl OffsetElement for i64 {}
+impl OffsetElement for i32 {
+    type Unsigned = u32;
+    fn checked_add(self, rhs: Self) -> Option<Self> {
+        i32::checked_add(self, rhs)
+    }
 
+    fn checked_add_unsigned(self, rhs: Self::Unsigned) -> Option<Self> {
+        i32::checked_add_unsigned(self, rhs)
+    }
+}
+impl OffsetElement for i64 {
+    type Unsigned = u64;
+    fn checked_add(self, rhs: Self) -> Option<Self> {
+        i64::checked_add(self, rhs)
+    }
+    fn checked_add_unsigned(self, rhs: Self::Unsigned) -> Option<Self> {
+        i64::checked_add_unsigned(self, rhs)
+    }
+}
+
+/// Offset abstraction.
 pub struct Offset<
     T,
     const NULLABLE: bool = false,
@@ -40,7 +67,9 @@ pub struct Offset<
 > where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
 {
+    /// The data
     pub data: T,
+    /// The offsets
     pub offsets:
         <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<NULLABLE>>::Storage<Buffer>,
 }
@@ -54,7 +83,7 @@ where
         let mut offsets = <Buffer as BufferType>::Buffer::<OffsetItem>::default();
         offsets.extend(iter::once(OffsetItem::default()));
         Self {
-            data: Default::default(),
+            data: T::default(),
             offsets,
         }
     }
@@ -72,7 +101,7 @@ where
         >::default();
         offsets.data.extend(iter::once(OffsetItem::default()));
         Self {
-            data: Default::default(),
+            data: T::default(),
             offsets,
         }
     }
@@ -85,11 +114,20 @@ where
     <Buffer as BufferType>::Buffer<OffsetItem>: Extend<OffsetItem>,
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
-        let mut state = self.offsets.as_slice().last().copied().unwrap();
+        let mut state = self
+            .offsets
+            .as_slice()
+            .last()
+            .copied()
+            .expect("at least one value in the offsets buffer");
         self.data.extend(
             iter.into_iter()
                 .inspect(|item| {
-                    state += OffsetItem::try_from(item.len()).unwrap();
+                    state = state
+                        .checked_add_unsigned(
+                            OffsetItem::Unsigned::try_from(item.len()).expect("len overflow"),
+                        )
+                        .expect("offset value overflow");
                     self.offsets.extend(iter::once(state));
                 })
                 .flatten(),
@@ -105,11 +143,21 @@ where
         Extend<(bool, OffsetItem)>,
 {
     fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
-        let mut state = self.offsets.as_ref().as_slice().last().copied().unwrap();
+        let mut state = self
+            .offsets
+            .as_ref()
+            .as_slice()
+            .last()
+            .copied()
+            .expect("at least one value in the offsets buffer");
         self.data.extend(
             iter.into_iter()
                 .inspect(|opt| {
-                    state += OffsetItem::try_from(opt.len()).unwrap();
+                    state = state
+                        .checked_add_unsigned(
+                            OffsetItem::Unsigned::try_from(opt.len()).expect("len overflow"),
+                        )
+                        .expect("offset value overflow");
                     self.offsets.extend(iter::once((opt.is_some(), state)));
                 })
                 .flatten()
@@ -142,20 +190,12 @@ impl<T, U: IntoIterator + Length, OffsetItem: OffsetElement, Buffer: BufferType>
     for Offset<T, false, OffsetItem, Buffer>
 where
     Self: Default,
-    T: FromIterator<<U as IntoIterator>::Item>,
+    T: Extend<<U as IntoIterator>::Item>,
     <Buffer as BufferType>::Buffer<OffsetItem>: Extend<OffsetItem>,
 {
     fn from_iter<I: IntoIterator<Item = U>>(iter: I) -> Self {
         let mut offset = Self::default();
-        let mut state = offset.offsets.as_slice().last().copied().unwrap();
-        offset.data = iter
-            .into_iter()
-            .inspect(|item| {
-                state += OffsetItem::try_from(item.len()).unwrap();
-                offset.offsets.extend(iter::once(state));
-            })
-            .flatten()
-            .collect();
+        offset.extend(iter);
         offset
     }
 }
@@ -164,23 +204,25 @@ impl<T, U: IntoIterator + Length, OffsetItem: OffsetElement, Buffer: BufferType>
     FromIterator<Option<U>> for Offset<T, true, OffsetItem, Buffer>
 where
     Self: Default,
-    T: FromIterator<<U as IntoIterator>::Item>,
+    T: Extend<<U as IntoIterator>::Item>,
     <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<true>>::Storage<Buffer>:
         Extend<(bool, OffsetItem)>,
 {
     fn from_iter<I: IntoIterator<Item = Option<U>>>(iter: I) -> Self {
         let mut offset = Self::default();
-        let mut state = offset.offsets.as_ref().as_slice().last().copied().unwrap();
-        offset.data = iter
-            .into_iter()
-            .inspect(|opt| {
-                state += OffsetItem::try_from(opt.len()).unwrap();
-                offset.offsets.extend(iter::once((opt.is_some(), state)));
-            })
-            .flatten()
-            .flatten()
-            .collect();
+        offset.extend(iter);
         offset
+        // let mut state = offset.offsets.as_ref().as_slice().last().copied().unwrap();
+        // offset.data = iter
+        //     .into_iter()
+        //     .inspect(|opt| {
+        //         state += OffsetItem::try_from(opt.len()).unwrap();
+        //         offset.offsets.extend(iter::once((opt.is_some(), state)));
+        //     })
+        //     .flatten()
+        //     .flatten()
+        //     .collect();
+        // offset
     }
 }
 
@@ -189,7 +231,10 @@ impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Length
 {
     fn len(&self) -> usize {
         // The offsets buffer has an additional value
-        self.offsets.len() - 1
+        self.offsets
+            .len()
+            .checked_sub(1)
+            .expect("offset len underflow")
     }
 }
 
@@ -234,7 +279,10 @@ mod tests {
     fn default() {
         let offset = Offset::<()>::default();
         assert_eq!(offset.offsets.as_slice(), &[0]);
+    }
 
+    #[test]
+    fn default_nullable() {
         let offset = Offset::<(), true>::default();
         assert_eq!(offset.offsets.data.as_slice(), &[0]);
         assert_eq!(offset.len(), 0);
@@ -251,17 +299,23 @@ mod tests {
         offset.extend(std::iter::once(vec![vec![5]]));
         assert_eq!(offset.offsets.as_slice(), &[0, 2, 3]);
         assert_eq!(offset.len(), 2);
+    }
 
+    #[test]
+    fn extend_nullable() {
         let mut offset = Offset::<Vec<u8>, true>::default();
         offset.extend(vec![Some(vec![1, 2, 3, 4]), None, None]);
         assert_eq!(offset.offsets.as_ref().as_slice(), &[0, 4, 4, 4]);
         assert_eq!(offset.len(), 3);
+    }
 
+    #[test]
+    fn extend_nullable_string() {
         let mut offset = Offset::<Vec<u8>, true>::default();
         offset.extend(vec![
-            Some("as".to_string().into_bytes()),
+            Some("as".to_owned().into_bytes()),
             None,
-            Some("df".to_string().into_bytes()),
+            Some("df".to_owned().into_bytes()),
         ]);
         assert_eq!(offset.data.as_slice(), "asdf".as_bytes());
         assert_eq!(offset.offsets.bitmap_ref().valid_count(), 2);
@@ -275,9 +329,12 @@ mod tests {
         let offset = input.into_iter().collect::<Offset<Vec<u8>>>();
         assert_eq!(offset.len(), 3);
         assert_eq!(offset.offsets.as_slice(), &[0, 4, 6, 9]);
-        assert_eq!(offset.data, &[1u8, 2, 3, 4, 5, 6, 7, 8, 9]);
+        assert_eq!(offset.data, &[1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    }
 
-        let input = vec![Some(["a".to_string()]), None, Some(["b".to_string()]), None];
+    #[test]
+    fn from_iter_nullable() {
+        let input = vec![Some(["a".to_owned()]), None, Some(["b".to_owned()]), None];
         let offset = input.into_iter().collect::<Offset<String, true>>();
         assert_eq!(offset.len(), 4);
         assert_eq!(offset.offsets.as_ref().as_slice(), &[0, 1, 1, 2, 2]);
@@ -285,12 +342,12 @@ mod tests {
     }
 
     #[test]
-    fn convert_nullable() {
+    fn convert() {
         let input = vec![vec![1, 2, 3, 4], vec![5, 6], vec![7, 8, 9]];
         let offset = input.into_iter().collect::<Offset<Vec<u8>>>();
         assert_eq!(offset.len(), 3);
-        let offset: Offset<Vec<u8>, true> = offset.into();
-        assert_eq!(offset.len(), 3);
-        assert!(offset.all_valid());
+        let offset_nullable: Offset<Vec<u8>, true> = offset.into();
+        assert_eq!(offset_nullable.len(), 3);
+        assert!(offset_nullable.all_valid());
     }
 }
