@@ -43,7 +43,7 @@ jobs:
   #   concurrency: release
   #   if: needs.changelog.outputs.skip != 'true'
   #   environment:
-  #     name: crates.io
+  #     name: crates-io
   #     url: https://crates.io/crates/narrow/${{ steps.version.outputs.version }}
   #   steps:
   #     - uses: actions/checkout@v3
