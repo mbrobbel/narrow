@@ -212,17 +212,6 @@ where
         let mut offset = Self::default();
         offset.extend(iter);
         offset
-        // let mut state = offset.offsets.as_ref().as_slice().last().copied().unwrap();
-        // offset.data = iter
-        //     .into_iter()
-        //     .inspect(|opt| {
-        //         state += OffsetItem::try_from(opt.len()).unwrap();
-        //         offset.offsets.extend(iter::once((opt.is_some(), state)));
-        //     })
-        //     .flatten()
-        //     .flatten()
-        //     .collect();
-        // offset
     }
 }
 
