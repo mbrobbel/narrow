@@ -172,3 +172,5 @@ jobs:
       - name: grcov
         run: ./grcov --branch --binary-path ./target/debug/ --source-dir . --output-type lcov --output-path lcov.info .
       - uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
