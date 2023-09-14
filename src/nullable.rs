@@ -3,7 +3,7 @@
 use crate::{
     bitmap::{Bitmap, BitmapIntoIter, BitmapIter, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{self, BufferMut, BufferRef, BufferRefMut, BufferType, VecBuffer},
-    FixedSize, Length,
+    FixedSize, Index, Length,
 };
 use std::{
     borrow::Borrow,
@@ -151,6 +151,20 @@ where
     }
 }
 
+impl<T, Buffer: BufferType> Index for Nullable<T, Buffer>
+where
+    T: Index,
+{
+    type Item<'a> = Option<<T as Index>::Item<'a>>
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        self.is_valid_unchecked(index)
+            .then(|| self.data.index_unchecked(index))
+    }
+}
+
 impl<'a, T, Buffer: BufferType> IntoIterator for &'a Nullable<T, Buffer>
 where
     &'a T: IntoIterator,
@@ -253,6 +267,29 @@ mod tests {
         let nullable = input.into_iter().collect::<Nullable<Vec<_>>>();
         let output = nullable.into_iter().collect::<Vec<_>>();
         assert_eq!(input, output.as_slice());
+    }
+
+    #[test]
+    fn index() {
+        let input = [Some(1), Some(2), None, Some(4)];
+        let nullable = input.into_iter().collect::<Nullable<Vec<_>>>();
+        assert_eq!(nullable.index(0), Some(Some(&1)));
+        assert_eq!(nullable.index_checked(0), Some(&1));
+        assert_eq!(nullable.index(1), Some(Some(&2)));
+        assert_eq!(nullable.index_checked(1), Some(&2));
+        assert_eq!(nullable.index(2), Some(None));
+        assert_eq!(nullable.index_checked(2), None);
+        assert_eq!(nullable.index(3), Some(Some(&4)));
+        assert_eq!(nullable.index_checked(3), Some(&4));
+        assert_eq!(nullable.index(4), None);
+    }
+
+    #[test]
+    #[should_panic]
+    fn index_checked() {
+        let input = [Some(1), None];
+        let nullable = input.into_iter().collect::<Nullable<Vec<_>>>();
+        let _ = nullable.index_checked(2);
     }
 
     #[test]

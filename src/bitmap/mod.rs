@@ -2,13 +2,13 @@
 
 use crate::{
     buffer::{Buffer, BufferMut, BufferRef, BufferRefMut, BufferType, VecBuffer},
-    Length,
+    Index, Length,
 };
 use std::{
     any,
     borrow::Borrow,
     fmt::{Debug, Formatter, Result},
-    ops::Index,
+    ops,
 };
 
 mod iter;
@@ -246,7 +246,17 @@ where
     }
 }
 
-impl<Buffer: BufferType> Index<usize> for Bitmap<Buffer> {
+impl<Buffer: BufferType> Index for Bitmap<Buffer> {
+    type Item<'a> = bool
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        self.get_unchecked(index)
+    }
+}
+
+impl<Buffer: BufferType> ops::Index<usize> for Bitmap<Buffer> {
     type Output = bool;
 
     fn index(&self, index: usize) -> &Self::Output {

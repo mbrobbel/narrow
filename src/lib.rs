@@ -63,6 +63,9 @@ pub use self::fixed_size::FixedSize;
 mod length;
 pub use self::length::Length;
 
+mod index;
+pub use self::index::Index;
+
 pub mod buffer;
 
 pub mod bitmap;

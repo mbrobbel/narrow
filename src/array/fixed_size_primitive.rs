@@ -6,8 +6,9 @@ use crate::{
     buffer::{BufferType, VecBuffer},
     nullable::Nullable,
     validity::Validity,
-    FixedSize, Length,
+    FixedSize, Index, Length,
 };
+use std::{ops, slice::SliceIndex};
 
 /// Array with primitive values.
 pub struct FixedSizePrimitiveArray<
@@ -92,6 +93,33 @@ where
 {
     fn from_iter<I: IntoIterator<Item = U>>(iter: I) -> Self {
         Self(iter.into_iter().collect())
+    }
+}
+
+impl<T: FixedSize, I: SliceIndex<[T]>, Buffer: BufferType> ops::Index<I>
+    for FixedSizePrimitiveArray<T, false, Buffer>
+where
+    <Buffer as BufferType>::Buffer<T>: ops::Index<I, Output = <I as SliceIndex<[T]>>::Output>,
+{
+    type Output = <I as SliceIndex<[T]>>::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        ops::Index::index(&self.0, index)
+    }
+}
+
+impl<T: FixedSize, Buffer: BufferType, const NULLABLE: bool> Index
+    for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
+where
+    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
+    <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>: Index,
+{
+    type Item<'a> = <<<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer> as Index>::Item<'a>
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        self.0.index_unchecked(index)
     }
 }
 
@@ -236,6 +264,22 @@ mod tests {
             nullable.into_iter().collect::<Vec<_>>(),
             [Some(1), None, Some(3), Some(4)]
         );
+    }
+
+    #[test]
+    fn index() {
+        let array = [1, 2, 3, 4]
+            .into_iter()
+            .collect::<FixedSizePrimitiveArray<_>>();
+        assert_eq!(array[..3], [1, 2, 3]);
+        assert_eq!(array[3], 4);
+        assert_eq!(array.index_checked(3), &4);
+
+        let nullable = [Some(1), None, Some(3), Some(4)]
+            .into_iter()
+            .collect::<FixedSizePrimitiveArray<_, true>>();
+        assert_eq!(nullable.index_checked(1), None);
+        assert_eq!(nullable.index_checked(3), Some(&4));
     }
 
     #[test]

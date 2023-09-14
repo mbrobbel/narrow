@@ -308,11 +308,11 @@ mod tests {
             &[0, 1, 3, 4, 4]
         );
         assert_eq!(
-            array.0.g.0 .0 .0.data.into_iter().collect::<Vec<_>>(),
+            array.0.g.0 .0.data.into_iter().collect::<Vec<_>>(),
             &[97, 115, 100, 102] // a s d f
         );
         assert_eq!(
-            array.0.g.0 .0 .0.offsets.into_iter().collect::<Vec<_>>(),
+            array.0.g.0 .0.offsets.into_iter().collect::<Vec<_>>(),
             &[0, 1, 2, 3, 4]
         );
 

@@ -6,7 +6,7 @@ use crate::{
     buffer::{BufferType, VecBuffer},
     offset::{Offset, OffsetElement},
     validity::Validity,
-    Length,
+    Index, Length,
 };
 use std::fmt::{Debug, Formatter, Result};
 
@@ -81,6 +81,21 @@ where
 {
     fn from_iter<I: IntoIterator<Item = U>>(iter: I) -> Self {
         Self(iter.into_iter().collect())
+    }
+}
+
+impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Index
+    for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Offset<T, NULLABLE, OffsetItem, Buffer>: Index,
+{
+    type Item<'a> = <Offset<T, NULLABLE, OffsetItem, Buffer> as Index>::Item<'a>
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        self.0.index_unchecked(index)
     }
 }
 
@@ -250,5 +265,31 @@ mod tests {
         assert_eq!(array_3.0.data.0.data.0.is_valid(1), Some(true));
         assert_eq!(array_3.0.data.0.data.0.data.0.is_null(0), Some(true));
         assert_eq!(array_3.0.data.0.data.0.data.0.is_valid(1), Some(true));
+    }
+
+    #[test]
+    fn index() {
+        let input = vec![vec![vec![1, 2, 3], vec![1, 2, 3]], vec![vec![4, 5, 6]]];
+        let array = input
+            .into_iter()
+            .collect::<VariableSizeListArray<VariableSizeListArray<FixedSizePrimitiveArray<u8>>>>();
+        assert_eq!(
+            array
+                .index_checked(0)
+                .flatten()
+                .copied()
+                .collect::<Vec<_>>(),
+            [1, 2, 3, 1, 2, 3]
+        );
+        assert_eq!(
+            array
+                .index_checked(1)
+                .next()
+                .expect("a value")
+                .copied()
+                .collect::<Vec<_>>(),
+            [4, 5, 6]
+        );
+        assert!(array.index(2).is_none());
     }
 }
