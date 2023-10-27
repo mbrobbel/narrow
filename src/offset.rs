@@ -5,9 +5,13 @@ use crate::{
     buffer::{Buffer, BufferType, VecBuffer},
     nullable::Nullable,
     validity::Validity,
-    FixedSize, Length,
+    FixedSize, Index, Length,
 };
-use std::{iter, num::TryFromIntError, ops::AddAssign};
+use std::{
+    iter,
+    num::TryFromIntError,
+    ops::{AddAssign, Range, Sub},
+};
 
 /// Types representing offset values.
 ///
@@ -20,7 +24,9 @@ pub trait OffsetElement:
     + Default
     + TryFrom<usize, Error = TryFromIntError>
     + TryInto<usize, Error = TryFromIntError>
+    + Sub<Output = Self>
     + sealed::Sealed
+    + 'static
 {
     /// The unsigned variant of Self.
     type Unsigned: TryFrom<usize, Error = TryFromIntError>;
@@ -48,6 +54,7 @@ impl OffsetElement for i32 {
         i32::checked_add_unsigned(self, rhs)
     }
 }
+
 impl OffsetElement for i64 {
     type Unsigned = u64;
     fn checked_add(self, rhs: Self) -> Option<Self> {
@@ -55,6 +62,107 @@ impl OffsetElement for i64 {
     }
     fn checked_add_unsigned(self, rhs: Self::Unsigned) -> Option<Self> {
         i64::checked_add_unsigned(self, rhs)
+    }
+}
+
+/// A reference to a slot in an offset
+pub struct OffsetSlot<'a, OffsetItem: OffsetElement, Buffer: BufferType> {
+    /// The offset buffer
+    offset: &'a <Buffer as BufferType>::Buffer<OffsetItem>,
+    /// The position in the offset
+    index: usize,
+}
+
+impl<'a, OffsetItem: OffsetElement, Buffer: BufferType> OffsetSlot<'a, OffsetItem, Buffer> {
+    /// Returns the position of this slot in the buffer i.e. the index.
+    #[must_use]
+    pub fn position(&self) -> usize {
+        self.index
+    }
+
+    /// Returns the start index of this offset slot.
+    #[must_use]
+    pub fn start(&self) -> OffsetItem {
+        // Safety:
+        // - The index of an offset slot is valid by construction.
+        unsafe {
+            self.offset
+                .as_slice()
+                .index_unchecked(self.index)
+                .to_owned()
+        }
+    }
+
+    /// Returns the start index of this offset slot as usize.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the conversion of [`OffsetElement`] to [`usize`] fails.
+    #[must_use]
+    pub fn start_usize(&self) -> usize {
+        self.start().try_into().expect("convert fail")
+    }
+
+    /// Returns this offset as [`Range`].
+    #[must_use]
+    pub fn range(&self) -> Range<OffsetItem> {
+        self.start()..self.end()
+    }
+
+    /// Returns this offset as [`Range`] of usize.
+    #[must_use]
+    pub fn range_usize(&self) -> Range<usize> {
+        self.start_usize()..self.end_usize()
+    }
+
+    /// Returns the end index of this offset slot.
+    #[must_use]
+    pub fn end(&self) -> OffsetItem {
+        // Safety:
+        // - The index (+1) of an offset slot is valid by construction.
+        unsafe {
+            self.offset
+                .as_slice()
+                .index_unchecked(self.index + 1)
+                .to_owned()
+        }
+    }
+
+    /// Returns the end index of this offset slot as usize.
+    /// # Panics
+    ///
+    /// This function panics if the conversion of [`OffsetElement`] to [`usize`] fails.
+    #[must_use]
+    pub fn end_usize(&self) -> usize {
+        self.end().try_into().expect("convert fail")
+    }
+
+    /// Returns the length of this offset slot.
+    #[must_use]
+    pub fn len(&self) -> OffsetItem {
+        self.end() - self.start()
+    }
+
+    /// Returns the length of this offset slot as usize.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the conversion of [`OffsetElement`] to [`usize`] fails.
+    #[must_use]
+    pub fn len_usize(&self) -> usize {
+        self.len().try_into().expect("convert fail")
+    }
+
+    /// Returns the start and end index of this slot as tuple.
+    #[must_use]
+    pub fn tuple(&self) -> (OffsetItem, OffsetItem) {
+        (self.start(), self.end())
+    }
+
+    /// Returns the start and end index of this slot as usize tuple.
+    #[must_use]
+    pub fn tuple_usize(&self) -> (usize, usize) {
+        (self.start_usize(), self.end_usize())
     }
 }
 
@@ -215,6 +323,152 @@ where
     }
 }
 
+/// An iterator over items in an offset.
+pub struct OffsetSlice<'a, T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+{
+    /// The offset storing the values and offsets
+    offset: &'a Offset<T, NULLABLE, OffsetItem, Buffer>,
+    /// The current position
+    index: usize,
+    /// Then end of this slice
+    end: usize,
+}
+
+// TODO(mbrobbel): this is the remaining items in the iterator, maybe we want
+// this to be the original slot length?
+impl<'a, T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Length
+    for OffsetSlice<'a, T, NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+{
+    #[inline]
+    fn len(&self) -> usize {
+        self.end - self.index
+    }
+}
+
+impl<'a, T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Iterator
+    for OffsetSlice<'a, T, NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    T: Index,
+{
+    type Item = <T as Index>::Item<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        (self.index < self.end).then(|| {
+            // Safety:
+            // - Bounds checked above
+            let value = unsafe { self.offset.data.index_unchecked(self.index) };
+            self.index += 1;
+            value
+        })
+    }
+}
+
+impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Index
+    for Offset<T, false, OffsetItem, Buffer>
+{
+    type Item<'a> = OffsetSlice<'a, T, false, OffsetItem, Buffer>
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        OffsetSlice {
+            offset: self,
+            index: (*self.offsets.as_slice().get_unchecked(index))
+                .try_into()
+                .expect("offset value out of range"),
+            end: (*self.offsets.as_slice().get_unchecked(index + 1))
+                .try_into()
+                .expect("offset value out of range"),
+        }
+    }
+}
+
+impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Index
+    for Offset<T, true, OffsetItem, Buffer>
+{
+    type Item<'a> = Option<OffsetSlice<'a, T, true, OffsetItem, Buffer>>
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        // Safety:
+        // - TODO
+        let start = unsafe {
+            (*self.offsets.data.as_slice().get_unchecked(index))
+                .try_into()
+                .expect("out of bounds")
+        };
+        // Safety:
+        // - TODO
+        let end = unsafe {
+            (*self.offsets.data.as_slice().get_unchecked(index + 1))
+                .try_into()
+                .expect("out of bounds")
+        };
+        // Safety:
+        // - TODO
+        unsafe {
+            self.is_valid_unchecked(index).then_some(OffsetSlice {
+                offset: self,
+                index: start,
+                end,
+            })
+        }
+    }
+}
+
+/// An iterator over an offset.
+pub struct OffsetIter<'a, const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer: BufferType>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+{
+    /// The offset being iterated over
+    offset: &'a Offset<T, NULLABLE, OffsetItem, Buffer>,
+    /// The current position of this iterator
+    position: usize,
+}
+
+impl<'a, const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer: BufferType> Iterator
+    for OffsetIter<'a, NULLABLE, T, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Offset<T, NULLABLE, OffsetItem, Buffer>: Index,
+{
+    type Item = <Offset<T, NULLABLE, OffsetItem, Buffer> as Index>::Item<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        (self.position < self.offset.len()).then(|| {
+            // Safety:
+            // - Bounds checked above
+            let value = unsafe { self.offset.index_unchecked(self.position) };
+            self.position += 1;
+            value
+        })
+    }
+}
+
+impl<'a, const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
+    for &'a Offset<T, NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Offset<T, NULLABLE, OffsetItem, Buffer>: Index,
+{
+    type Item = <Offset<T, NULLABLE, OffsetItem, Buffer> as Index>::Item<'a>;
+    type IntoIter = OffsetIter<'a, NULLABLE, T, OffsetItem, Buffer>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        OffsetIter {
+            offset: self,
+            position: 0,
+        }
+    }
+}
+
 impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Length
     for Offset<T, false, OffsetItem, Buffer>
 {
@@ -328,6 +582,49 @@ mod tests {
         assert_eq!(offset.len(), 4);
         assert_eq!(offset.offsets.as_ref().as_slice(), &[0, 1, 1, 2, 2]);
         assert_eq!(offset.data, "ab");
+    }
+
+    #[test]
+    fn index() {
+        let input = vec![vec![1, 2, 3, 4], vec![5, 6], vec![7, 8, 9]];
+        let offset = input.into_iter().collect::<Offset<Vec<u8>>>();
+        let mut first = offset.index_checked(0);
+        assert_eq!(first.next(), Some(&1));
+        assert_eq!(first.next(), Some(&2));
+        assert_eq!(first.next(), Some(&3));
+        assert_eq!(first.next(), Some(&4));
+        assert_eq!(first.next(), None);
+
+        let input_nullable = vec![Some(vec![1, 2, 3, 4]), None, Some(vec![5, 6, 7, 8])];
+        let offset_nullable = input_nullable
+            .into_iter()
+            .collect::<Offset<Vec<u8>, true>>();
+        let first_opt = offset_nullable.index_checked(0).expect("a value");
+        assert_eq!(first_opt.copied().collect::<Vec<_>>(), [1, 2, 3, 4]);
+        assert!(offset_nullable.index_checked(1).is_none());
+    }
+
+    #[test]
+    fn into_iter() {
+        let input = vec![vec![1, 2, 3, 4], vec![5, 6], vec![7, 8, 9]];
+        let offset = input.clone().into_iter().collect::<Offset<Vec<u8>>>();
+        let mut iter = offset.into_iter();
+        assert_eq!(iter.next().expect("a value").len(), 4);
+        assert_eq!(iter.next().expect("a value").len(), 2);
+        assert_eq!(iter.next().expect("a value").len(), 3);
+        assert!(iter.next().is_none());
+
+        assert_eq!(
+            offset
+                .into_iter()
+                .map(|slice| slice.into_iter().copied().collect::<Vec<_>>())
+                .collect::<Vec<_>>(),
+            input
+        );
+        assert_eq!(
+            offset.into_iter().flatten().copied().collect::<Vec<_>>(),
+            [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        );
     }
 
     #[test]

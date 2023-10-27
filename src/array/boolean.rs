@@ -6,7 +6,7 @@ use crate::{
     buffer::{BufferRef, BufferRefMut, BufferType, VecBuffer},
     nullable::Nullable,
     validity::Validity,
-    Length,
+    Index, Length,
 };
 
 /// Array with boolean values.
@@ -85,6 +85,20 @@ where
 {
     fn from_iter<I: IntoIterator<Item = U>>(iter: I) -> Self {
         Self(iter.into_iter().collect())
+    }
+}
+
+impl<const NULLABLE: bool, Buffer: BufferType> Index for BooleanArray<NULLABLE, Buffer>
+where
+    Bitmap<Buffer>: Validity<NULLABLE>,
+    <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Index,
+{
+    type Item<'a> = <<Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as Index>::Item<'a>
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        self.0.index_unchecked(index)
     }
 }
 
@@ -204,6 +218,21 @@ mod tests {
 
         let output = array.into_iter().collect::<Vec<_>>();
         assert_eq!(input, output.as_slice());
+    }
+
+    #[test]
+    fn index() {
+        let array = [true, false, true, true].iter().collect::<BooleanArray>();
+        assert_eq!(array.index(0), Some(true));
+
+        let nullable = [Some(true), None, Some(true), Some(false)]
+            .into_iter()
+            .collect::<BooleanArray<true>>();
+        assert_eq!(nullable.index(0), Some(Some(true)));
+        assert_eq!(nullable.index(1), Some(None));
+        assert_eq!(nullable.index(2), Some(Some(true)));
+        assert_eq!(nullable.index(3), Some(Some(false)));
+        assert_eq!(nullable.index(4), None);
     }
 
     #[test]

@@ -1,6 +1,6 @@
 //! Traits for memory buffers.
 
-use crate::FixedSize;
+use crate::{FixedSize, Index, Length};
 use std::{marker::PhantomData, mem, rc::Rc, slice, sync::Arc};
 
 /// A memory buffer type constructor for Arrow data.
@@ -41,19 +41,9 @@ pub trait BufferRefMut<T: FixedSize> {
 }
 
 /// A contiguous immutable memory buffer for Arrow data.
-pub trait Buffer<T: FixedSize> {
+pub trait Buffer<T: FixedSize>: Index + Length {
     /// Extracts a slice containing the entire buffer.
     fn as_slice(&self) -> &[T];
-
-    /// Returns the number of items in the buffer.
-    fn len(&self) -> usize {
-        self.as_slice().len()
-    }
-
-    /// Returns `true` if buffer has a length of 0.
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
 
     /// Returns the contents of the entire buffer as a byte slice.
     fn as_bytes(&self) -> &[u8] {
@@ -95,19 +85,7 @@ pub trait BufferMut<T: FixedSize>: Buffer<T> {
 pub struct SingleBuffer;
 
 impl BufferType for SingleBuffer {
-    type Buffer<T: FixedSize> = T;
-}
-
-impl<T: FixedSize> Buffer<T> for T {
-    fn as_slice(&self) -> &[T] {
-        slice::from_ref(self)
-    }
-}
-
-impl<T: FixedSize> BufferMut<T> for T {
-    fn as_mut_slice(&mut self) -> &mut [T] {
-        slice::from_mut(self)
-    }
+    type Buffer<T: FixedSize> = <ArrayBuffer<1> as BufferType>::Buffer<T>;
 }
 
 /// A [`BufferType`] implementation for array.
@@ -370,12 +348,12 @@ mod tests {
 
     #[test]
     fn single() {
-        let mut single: <SingleBuffer as BufferType>::Buffer<u16> = 1234;
+        let mut single: <SingleBuffer as BufferType>::Buffer<u16> = [1234];
         assert_eq!(single.as_bytes(), [210, 4]);
         single.as_mut_bytes()[1] = 0;
         assert_eq!(single.as_bytes(), [210, 0]);
         single.as_mut_slice()[0] = 1234;
-        assert_eq!(single, 1234);
+        assert_eq!(single, [1234]);
     }
 
     #[test]

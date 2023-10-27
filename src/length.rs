@@ -21,6 +21,13 @@ impl<const N: usize, T> Length for [T; N] {
     }
 }
 
+impl<T> Length for [T] {
+    #[inline]
+    fn len(&self) -> usize {
+        <[T]>::len(self)
+    }
+}
+
 impl<T> Length for &[T] {
     #[inline]
     fn len(&self) -> usize {

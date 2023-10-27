@@ -6,7 +6,7 @@ use crate::{
     buffer::{BufferType, VecBuffer},
     nullable::Nullable,
     validity::Validity,
-    Length,
+    Index, Length,
 };
 use std::{
     iter::{self, Repeat, Take},
@@ -89,6 +89,20 @@ where
         I: IntoIterator<Item = U>,
     {
         Self(iter.into_iter().collect())
+    }
+}
+
+impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> Index for NullArray<T, NULLABLE, Buffer>
+where
+    Nulls<T>: Validity<NULLABLE>,
+    <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>: Index,
+{
+    type Item<'a> = <<Nulls<T> as Validity<NULLABLE>>::Storage<Buffer> as Index>::Item<'a>
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        self.0.index_unchecked(index)
     }
 }
 
@@ -183,6 +197,16 @@ impl<T: Unit> Extend<T> for Nulls<T> {
     }
 }
 
+impl<T: Unit> Index for Nulls<T> {
+    type Item<'a> = T
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, _index: usize) -> Self::Item<'_> {
+        T::default()
+    }
+}
+
 impl<T: Unit> IntoIterator for Nulls<T> {
     type IntoIter = Take<Repeat<T>>;
     type Item = T;
@@ -222,6 +246,10 @@ mod tests {
         let input_nullable = [Some(Foo), None, Some(Foo), Some(Foo)];
         let array_nullable = input_nullable.into_iter().collect::<NullArray<Foo, true>>();
         assert_eq!(array_nullable.len(), 4);
+        assert_eq!(array_nullable.index(0), Some(Some(Foo)));
+        assert_eq!(array_nullable.index(1), Some(None));
+        assert_eq!(array_nullable.index(2), Some(Some(Foo)));
+        assert_eq!(array_nullable.index(4), None);
         assert_eq!(
             input_nullable,
             array_nullable.into_iter().collect::<Vec<_>>().as_slice()
@@ -233,6 +261,20 @@ mod tests {
         let input = [(); 3];
         let array = input.iter().copied().collect::<NullArray>();
         assert_eq!(input, array.into_iter().collect::<Vec<_>>().as_slice());
+    }
+
+    #[test]
+    fn index() {
+        let array = [(); 1].iter().copied().collect::<NullArray>();
+        assert_eq!(array.index(0), Some(()));
+        assert_eq!(array.index(1), None);
+    }
+
+    #[test]
+    #[should_panic]
+    fn index_out_of_bounds() {
+        let array = [(); 1].iter().copied().collect::<NullArray>();
+        array.index_checked(1);
     }
 
     #[test]
