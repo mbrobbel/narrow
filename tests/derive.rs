@@ -88,10 +88,10 @@ mod tests {
                     assert_eq!(array.0 .0 .0, &[1, 3]);
                     assert_eq!(array.0 .1 .0, &[2, 4]);
                     assert_eq!(
-                        array.0 .2 .0 .0 .0.data.0.as_slice(),
+                        array.0 .2 .0 .0.data.0.as_slice(),
                         &[b'a', b's', b'd', b'f']
                     );
-                    assert_eq!(array.0 .2 .0 .0 .0.offsets.as_slice(), &[0, 2, 4]);
+                    assert_eq!(array.0 .2 .0 .0.offsets.as_slice(), &[0, 2, 4]);
 
                     let input = [
                         Bar(Foo(1, 2, "hello")),
@@ -207,10 +207,10 @@ mod tests {
                     assert_eq!(array.len(), 2);
                     assert_eq!(array.0.c.0, &[4, 2]);
                     assert_eq!(
-                        array.0.d.0.data.0 .0 .0.data.0.as_slice(),
+                        array.0.d.0.data.0 .0.data.0.as_slice(),
                         "helloworld".as_bytes()
                     );
-                    assert_eq!(array.0.d.0.data.0 .0 .0.offsets.as_ref(), &[0, 5, 5, 10]);
+                    assert_eq!(array.0.d.0.data.0 .0.offsets.as_ref(), &[0, 5, 5, 10]);
                     assert_eq!(
                         array
                             .0
@@ -218,7 +218,6 @@ mod tests {
                             .0
                             .data
                             .0
-                             .0
                              .0
                             .offsets
                             .bitmap_ref()
