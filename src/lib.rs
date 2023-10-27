@@ -71,7 +71,8 @@ pub mod buffer;
 pub mod bitmap;
 
 pub(crate) mod nullable;
-pub(crate) mod offset;
+// TODO(mbrobbel): pub(crate)
+pub mod offset;
 pub(crate) mod validity;
 
 pub mod array;
