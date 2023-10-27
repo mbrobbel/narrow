@@ -80,25 +80,13 @@ pub trait BufferMut<T: FixedSize>: Buffer<T> {
     }
 }
 
-// /// A [`BufferType`] for a single item.
-// #[derive(Clone, Copy, Debug)]
-// pub struct SingleBuffer;
+/// A [`BufferType`] for a single item.
+#[derive(Clone, Copy, Debug)]
+pub struct SingleBuffer;
 
-// impl BufferType for SingleBuffer {
-//     type Buffer<T: FixedSize> = T;
-// }
-
-// impl<T: FixedSize> Buffer<T> for T {
-//     fn as_slice(&self) -> &[T] {
-//         slice::from_ref(self)
-//     }
-// }
-
-// impl<T: FixedSize> BufferMut<T> for T {
-//     fn as_mut_slice(&mut self) -> &mut [T] {
-//         slice::from_mut(self)
-//     }
-// }
+impl BufferType for SingleBuffer {
+    type Buffer<T: FixedSize> = <ArrayBuffer<1> as BufferType>::Buffer<T>;
+}
 
 /// A [`BufferType`] implementation for array.
 ///
@@ -358,15 +346,15 @@ impl<T: FixedSize> BufferMut<T> for Rc<[T]> {
 mod tests {
     use super::*;
 
-    // #[test]
-    // fn single() {
-    //     let mut single: <SingleBuffer as BufferType>::Buffer<u16> = 1234;
-    //     assert_eq!(single.as_bytes(), [210, 4]);
-    //     single.as_mut_bytes()[1] = 0;
-    //     assert_eq!(single.as_bytes(), [210, 0]);
-    //     single.as_mut_slice()[0] = 1234;
-    //     assert_eq!(single, 1234);
-    // }
+    #[test]
+    fn single() {
+        let mut single: <SingleBuffer as BufferType>::Buffer<u16> = [1234];
+        assert_eq!(single.as_bytes(), [210, 4]);
+        single.as_mut_bytes()[1] = 0;
+        assert_eq!(single.as_bytes(), [210, 0]);
+        single.as_mut_slice()[0] = 1234;
+        assert_eq!(single, [1234]);
+    }
 
     #[test]
     fn array() {
