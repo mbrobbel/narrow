@@ -6,7 +6,9 @@ where
 unsafe impl narrow::array::Unit for Foo
 where
     Self: Debug,
-{}
+{
+    type Item = Self;
+}
 impl narrow::array::ArrayType for Foo
 where
     Self: Debug,

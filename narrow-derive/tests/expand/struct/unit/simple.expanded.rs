@@ -1,7 +1,9 @@
 struct Foo;
 /// Safety:
 /// - This is a unit struct.
-unsafe impl narrow::array::Unit for Foo {}
+unsafe impl narrow::array::Unit for Foo {
+    type Item = Self;
+}
 impl narrow::array::ArrayType for Foo {
     type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
         Foo,

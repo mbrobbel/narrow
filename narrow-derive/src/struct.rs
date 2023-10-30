@@ -126,7 +126,9 @@ impl Struct<'_> {
         let tokens = quote! {
             /// Safety:
             /// - This is a unit struct.
-            unsafe impl #impl_generics #narrow::array::Unit for #ident #ty_generics #where_clause {}
+            unsafe impl #impl_generics #narrow::array::Unit for #ident #ty_generics #where_clause {
+                type Item = Self;
+            }
         };
         parse2(tokens).expect("unit_impl")
     }
