@@ -8,7 +8,9 @@ unsafe impl<const N: bool> narrow::array::Unit for Foo<N>
 where
     Self: Sized,
     (): From<Self>,
-{}
+{
+    type Item = Self;
+}
 impl<const N: bool> narrow::array::ArrayType for Foo<N>
 where
     Self: Sized,

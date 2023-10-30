@@ -23,18 +23,19 @@ use std::{
 ///
 /// This trait is unsafe because the compiler can't verify that it only gets
 /// implemented by unit types.
-///
-/// The [Default] implementation must return the only allowed value of this unit
-/// type.
 pub unsafe trait Unit
 where
-    Self: ArrayType + Copy + Default + Send + Sync + 'static,
+    Self: Default + Sized,
 {
+    /// This is the item that is returned
+    type Item: ArrayType + Copy + From<Self> + Send + Sync + 'static;
 }
 
 // # Safety:
 // - std::mem::size_of::<()> == 0
-unsafe impl Unit for () {}
+unsafe impl Unit for () {
+    type Item = Self;
+}
 
 /// A sequence of nulls.
 pub struct NullArray<T: Unit = (), const NULLABLE: bool = false, Buffer: BufferType = VecBuffer>(
@@ -208,11 +209,11 @@ impl<T: Unit> Index for Nulls<T> {
 }
 
 impl<T: Unit> IntoIterator for Nulls<T> {
-    type IntoIter = Take<Repeat<T>>;
-    type Item = T;
+    type IntoIter = Take<Repeat<T::Item>>;
+    type Item = T::Item;
 
     fn into_iter(self) -> Self::IntoIter {
-        iter::repeat(T::default()).take(self.len)
+        iter::repeat(T::default().into()).take(self.len)
     }
 }
 
@@ -235,7 +236,9 @@ mod tests {
         struct Foo;
         /// Safety:
         /// - Foo is a unit struct.
-        unsafe impl Unit for Foo {}
+        unsafe impl Unit for Foo {
+            type Item = Self;
+        }
         impl ArrayType for Foo {
             type Array<Buffer: BufferType> = NullArray<Foo, false, Buffer>;
         }
