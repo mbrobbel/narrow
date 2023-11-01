@@ -16,22 +16,22 @@ where
     Self: Sized,
     (): From<Self>,
 {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        Foo<N>,
-        false,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<Foo<N>, false, Buffer>;
 }
 impl<const N: bool> narrow::array::ArrayType<Foo<N>> for ::std::option::Option<Foo<N>>
 where
     Self: Sized,
     (): From<Self>,
 {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        Foo<N>,
-        true,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<Foo<N>, true, Buffer>;
 }
 impl<const N: bool> narrow::array::StructArrayType for Foo<N>
 where

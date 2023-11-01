@@ -145,14 +145,14 @@ impl Struct<'_> {
         let ident = self.ident;
         let non_nullable = quote! {
             impl #impl_generics #narrow::array::ArrayType for #ident #ty_generics #where_clause {
-                type Array<Buffer: #narrow::buffer::BufferType> = #narrow::array::StructArray<#ident #ty_generics, false, Buffer>;
+                type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::OffsetElement, UnionLayout: #narrow::array::UnionType> = #narrow::array::StructArray<#ident #ty_generics, false, Buffer>;
             }
         };
         let non_nullable: ItemImpl = parse2(non_nullable).expect("array_type_impl");
 
         let nullable = quote! {
             impl #impl_generics #narrow::array::ArrayType<#ident #ty_generics> for ::std::option::Option<#ident #ty_generics> #where_clause {
-                type Array<Buffer: #narrow::buffer::BufferType> = #narrow::array::StructArray<#ident #ty_generics, true, Buffer>;
+                type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::OffsetElement, UnionLayout: #narrow::array::UnionType> = #narrow::array::StructArray<#ident #ty_generics, true, Buffer>;
             }
         };
         let nullable: ItemImpl = parse2(nullable).expect("array_type_impl");
@@ -207,7 +207,7 @@ impl Struct<'_> {
                 let field_ty = self.field_types();
                 quote!(
                     #(
-                        #field_ident: <#field_ty as #narrow::array::ArrayType>::Array<Buffer>,
+                        #field_ident: <#field_ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>,
                     )*
                 )
             }
@@ -215,7 +215,7 @@ impl Struct<'_> {
                 let field_ty = self.field_types();
                 quote!(
                     #(
-                        <#field_ty as #narrow::array::ArrayType>::Array<Buffer>,
+                        <#field_ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>,
                     )*
                 )
             }
@@ -345,7 +345,7 @@ impl Struct<'_> {
             .predicates
             .extend(
                 self.field_types()
-                    .map::<WherePredicate, _>(move |ty| parse_quote!(<#ty as #narrow::array::ArrayType>::Array<Buffer>: ::std::iter::Extend<#ty>))
+                    .map::<WherePredicate, _>(move |ty| parse_quote!(<#ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>: ::std::iter::Extend<#ty>))
             );
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
@@ -409,7 +409,7 @@ impl Struct<'_> {
             .predicates
             .extend(
                 self.field_types()
-                    .map::<WherePredicate, _>(move |ty| parse_quote!(<#ty as #narrow::array::ArrayType>::Array<Buffer>: ::std::default::Default + ::std::iter::Extend<#ty>))
+                    .map::<WherePredicate, _>(move |ty| parse_quote!(<#ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>: ::std::default::Default + ::std::iter::Extend<#ty>))
             );
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
@@ -465,7 +465,7 @@ impl Struct<'_> {
     ) -> impl Iterator<Item = WherePredicate> + '_ {
         let narrow = util::narrow();
         self.field_types()
-            .map(move |ty| parse_quote!(<#ty as #narrow::array::ArrayType>::Array<Buffer>: #bound))
+            .map(move |ty| parse_quote!(<#ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>: #bound))
     }
 }
 

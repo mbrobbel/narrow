@@ -9,11 +9,11 @@ where
     Self: Sized,
     <T as Add<Self>>::Output: Debug,
 {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        Foo<'a, T>,
-        false,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<Foo<'a, T>, false, Buffer>;
 }
 impl<'a, T: Add<Self> + narrow::array::ArrayType> narrow::array::ArrayType<Foo<'a, T>>
 for ::std::option::Option<Foo<'a, T>>
@@ -21,11 +21,11 @@ where
     Self: Sized,
     <T as Add<Self>>::Output: Debug,
 {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        Foo<'a, T>,
-        true,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<Foo<'a, T>, true, Buffer>;
 }
 impl<'a, T: Add<Self> + narrow::array::ArrayType> narrow::array::StructArrayType
 for Foo<'a, T>
@@ -40,7 +40,11 @@ struct FooArray<
     T: Add<Foo<'a, T>> + narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
 >(
-    <&'a T as narrow::array::ArrayType>::Array<Buffer>,
+    <&'a T as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >,
 )
 where
     Foo<'a, T>: Sized,
@@ -53,7 +57,11 @@ impl<
 where
     Foo<'a, T>: Sized,
     <T as Add<Foo<'a, T>>>::Output: Debug,
-    <&'a T as narrow::array::ArrayType>::Array<Buffer>: ::std::default::Default,
+    <&'a T as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::default::Default,
 {
     fn default() -> Self {
         Self(::std::default::Default::default())
@@ -67,7 +75,11 @@ impl<
 where
     Foo<'a, T>: Sized,
     <T as Add<Foo<'a, T>>>::Output: Debug,
-    <&'a T as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
+    <&'a T as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: narrow::Length,
 {
     fn len(&self) -> usize {
         self.0.len()
@@ -81,7 +93,11 @@ impl<
 where
     Self: Sized,
     <T as Add<Self>>::Output: Debug,
-    <&'a T as narrow::array::ArrayType>::Array<Buffer>: ::std::iter::Extend<&'a T>,
+    <&'a T as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::Extend<&'a T>,
 {
     fn extend<_I: ::std::iter::IntoIterator<Item = Foo<'a, T>>>(&mut self, iter: _I) {
         iter.into_iter()
@@ -100,6 +116,8 @@ where
     <T as Add<Self>>::Output: Debug,
     <&'a T as narrow::array::ArrayType>::Array<
         Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
     >: ::std::default::Default + ::std::iter::Extend<&'a T>,
 {
     fn from_iter<_I: ::std::iter::IntoIterator<Item = Foo<'a, T>>>(iter: _I) -> Self {
@@ -109,32 +127,40 @@ where
 }
 struct FooBar<T>(T);
 impl<T: narrow::array::ArrayType> narrow::array::ArrayType for FooBar<T> {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        FooBar<T>,
-        false,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<FooBar<T>, false, Buffer>;
 }
 impl<T: narrow::array::ArrayType> narrow::array::ArrayType<FooBar<T>>
 for ::std::option::Option<FooBar<T>> {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        FooBar<T>,
-        true,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<FooBar<T>, true, Buffer>;
 }
 impl<T: narrow::array::ArrayType> narrow::array::StructArrayType for FooBar<T> {
     type Array<Buffer: narrow::buffer::BufferType> = FooBarArray<T, Buffer>;
 }
 struct FooBarArray<T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType>(
-    <T as narrow::array::ArrayType>::Array<Buffer>,
+    <T as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >,
 );
 impl<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
 > ::std::default::Default for FooBarArray<T, Buffer>
 where
-    <T as narrow::array::ArrayType>::Array<Buffer>: ::std::default::Default,
+    <T as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::default::Default,
 {
     fn default() -> Self {
         Self(::std::default::Default::default())
@@ -143,7 +169,11 @@ where
 impl<T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType> narrow::Length
 for FooBarArray<T, Buffer>
 where
-    <T as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
+    <T as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: narrow::Length,
 {
     fn len(&self) -> usize {
         self.0.len()
@@ -154,7 +184,11 @@ impl<
     Buffer: narrow::buffer::BufferType,
 > ::std::iter::Extend<FooBar<T>> for FooBarArray<T, Buffer>
 where
-    <T as narrow::array::ArrayType>::Array<Buffer>: ::std::iter::Extend<T>,
+    <T as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::Extend<T>,
 {
     fn extend<_I: ::std::iter::IntoIterator<Item = FooBar<T>>>(&mut self, iter: _I) {
         iter.into_iter()
@@ -170,6 +204,8 @@ impl<
 where
     <T as narrow::array::ArrayType>::Array<
         Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
     >: ::std::default::Default + ::std::iter::Extend<T>,
 {
     fn from_iter<_I: ::std::iter::IntoIterator<Item = FooBar<T>>>(iter: _I) -> Self {
