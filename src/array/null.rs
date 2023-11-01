@@ -227,7 +227,7 @@ impl<T: Unit> Length for Nulls<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bitmap::Bitmap;
+    use crate::{array::UnionType, bitmap::Bitmap, offset::OffsetElement};
     use std::mem;
 
     #[test]
@@ -240,7 +240,8 @@ mod tests {
             type Item = Self;
         }
         impl ArrayType for Foo {
-            type Array<Buffer: BufferType> = NullArray<Foo, false, Buffer>;
+            type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+                NullArray<Foo, false, Buffer>;
         }
         let input = [Foo; 42];
         let array = input.into_iter().collect::<NullArray<Foo>>();

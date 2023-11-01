@@ -106,6 +106,11 @@ impl<T: StructArrayType, Buffer: BufferType> ValidityBitmap for StructArray<T, t
 
 #[cfg(test)]
 mod tests {
+    use crate::{
+        array::{union, UnionType},
+        offset::{self, OffsetElement},
+    };
+
     use super::*;
 
     // Definition
@@ -121,54 +126,58 @@ mod tests {
     }
     // These impls below can all be generated.
     impl<'a> ArrayType for Foo<'a> {
-        type Array<Buffer: BufferType> = StructArray<Foo<'a>, false, Buffer>;
+        type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+            StructArray<Foo<'a>, false, Buffer>;
     }
     impl<'a> ArrayType for Option<Foo<'a>> {
-        type Array<Buffer: BufferType> = StructArray<Foo<'a>, true, Buffer>;
+        type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+            StructArray<Foo<'a>, true, Buffer>;
     }
 
     struct FooArray<'a, Buffer: BufferType> {
-        a: <u32 as ArrayType>::Array<Buffer>,
-        b: <Option<()> as ArrayType>::Array<Buffer>,
-        c: <() as ArrayType>::Array<Buffer>,
-        d: <Option<[u128; 2]> as ArrayType>::Array<Buffer>,
-        e: <bool as ArrayType>::Array<Buffer>,
-        f: <&'a [u8] as ArrayType>::Array<Buffer>,
-        g: <String as ArrayType>::Array<Buffer>,
+        a: <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>,
+        b: <Option<()> as ArrayType>::Array<Buffer, offset::NA, union::NA>,
+        c: <() as ArrayType>::Array<Buffer, offset::NA, union::NA>,
+        d: <Option<[u128; 2]> as ArrayType>::Array<Buffer, offset::NA, union::NA>,
+        e: <bool as ArrayType>::Array<Buffer, offset::NA, union::NA>,
+        f: <&'a [u8] as ArrayType>::Array<Buffer, offset::NA, union::NA>,
+        g: <String as ArrayType>::Array<Buffer, offset::NA, union::NA>,
     }
 
     impl<'a, Buffer: BufferType> Default for FooArray<'a, Buffer>
     where
-        <u32 as ArrayType>::Array<Buffer>: Default,
-        <Option<()> as ArrayType>::Array<Buffer>: Default,
-        <() as ArrayType>::Array<Buffer>: Default,
-        <Option<[u128; 2]> as ArrayType>::Array<Buffer>: Default,
-        <bool as ArrayType>::Array<Buffer>: Default,
-        <&'a [u8] as ArrayType>::Array<Buffer>: Default,
-        <String as ArrayType>::Array<Buffer>: Default,
+        <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
+        <Option<()> as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
+        <() as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
+        <Option<[u128; 2]> as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
+        <bool as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
+        <&'a [u8] as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
+        <String as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
     {
         fn default() -> Self {
             Self {
-                a: <u32 as ArrayType>::Array::<Buffer>::default(),
-                b: <Option<()> as ArrayType>::Array::<Buffer>::default(),
-                c: <() as ArrayType>::Array::<Buffer>::default(),
-                d: <Option<[u128; 2]> as ArrayType>::Array::<Buffer>::default(),
-                e: <bool as ArrayType>::Array::<Buffer>::default(),
-                f: <&'a [u8] as ArrayType>::Array::<Buffer>::default(),
-                g: <String as ArrayType>::Array::<Buffer>::default(),
+                a: <u32 as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
+                b: <Option<()> as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
+                c: <() as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
+                d: <Option<[u128; 2]> as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(
+                ),
+                e: <bool as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
+                f: <&'a [u8] as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
+                g: <String as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
             }
         }
     }
 
     impl<'a, Buffer: BufferType> Extend<Foo<'a>> for FooArray<'a, Buffer>
     where
-        <u32 as ArrayType>::Array<Buffer>: Extend<u32>,
-        <Option<()> as ArrayType>::Array<Buffer>: Extend<Option<()>>,
-        <() as ArrayType>::Array<Buffer>: Extend<()>,
-        <Option<[u128; 2]> as ArrayType>::Array<Buffer>: Extend<Option<[u128; 2]>>,
-        <bool as ArrayType>::Array<Buffer>: Extend<bool>,
-        <&'a [u8] as ArrayType>::Array<Buffer>: Extend<&'a [u8]>,
-        <String as ArrayType>::Array<Buffer>: Extend<String>,
+        <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<u32>,
+        <Option<()> as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<Option<()>>,
+        <() as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<()>,
+        <Option<[u128; 2]> as ArrayType>::Array<Buffer, offset::NA, union::NA>:
+            Extend<Option<[u128; 2]>>,
+        <bool as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<bool>,
+        <&'a [u8] as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<&'a [u8]>,
+        <String as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<String>,
     {
         fn extend<I: IntoIterator<Item = Foo<'a>>>(&mut self, iter: I) {
             iter.into_iter().for_each(
@@ -195,13 +204,15 @@ mod tests {
 
     impl<'a, Buffer: BufferType> FromIterator<Foo<'a>> for FooArray<'a, Buffer>
     where
-        <u32 as ArrayType>::Array<Buffer>: Default + Extend<u32>,
-        <Option<()> as ArrayType>::Array<Buffer>: Default + Extend<Option<()>>,
-        <() as ArrayType>::Array<Buffer>: Default + Extend<()>,
-        <Option<[u128; 2]> as ArrayType>::Array<Buffer>: Default + Extend<Option<[u128; 2]>>,
-        <bool as ArrayType>::Array<Buffer>: Default + Extend<bool>,
-        <&'a [u8] as ArrayType>::Array<Buffer>: Default + Extend<&'a [u8]>,
-        <String as ArrayType>::Array<Buffer>: Default + Extend<String>,
+        <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default + Extend<u32>,
+        <Option<()> as ArrayType>::Array<Buffer, offset::NA, union::NA>:
+            Default + Extend<Option<()>>,
+        <() as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default + Extend<()>,
+        <Option<[u128; 2]> as ArrayType>::Array<Buffer, offset::NA, union::NA>:
+            Default + Extend<Option<[u128; 2]>>,
+        <bool as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default + Extend<bool>,
+        <&'a [u8] as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default + Extend<&'a [u8]>,
+        <String as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default + Extend<String>,
     {
         #[allow(clippy::many_single_char_names)]
         fn from_iter<T: IntoIterator<Item = Foo<'a>>>(iter: T) -> Self {
@@ -236,7 +247,7 @@ mod tests {
 
     impl<'a, Buffer: BufferType> Length for FooArray<'a, Buffer>
     where
-        <u32 as ArrayType>::Array<Buffer>: Length,
+        <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>: Length,
     {
         fn len(&self) -> usize {
             self.a.len()

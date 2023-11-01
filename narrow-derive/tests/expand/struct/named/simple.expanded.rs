@@ -4,34 +4,60 @@ struct Foo {
     c: Option<Vec<u8>>,
 }
 impl narrow::array::ArrayType for Foo {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        Foo,
-        false,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<Foo, false, Buffer>;
 }
 impl narrow::array::ArrayType<Foo> for ::std::option::Option<Foo> {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        Foo,
-        true,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<Foo, true, Buffer>;
 }
 impl narrow::array::StructArrayType for Foo {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<Buffer>;
 }
 struct FooArray<Buffer: narrow::buffer::BufferType> {
-    a: <u32 as narrow::array::ArrayType>::Array<Buffer>,
-    b: <bool as narrow::array::ArrayType>::Array<Buffer>,
-    c: <Option<Vec<u8>> as narrow::array::ArrayType>::Array<Buffer>,
+    a: <u32 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >,
+    b: <bool as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >,
+    c: <Option<
+        Vec<u8>,
+    > as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >,
 }
 impl<Buffer: narrow::buffer::BufferType> ::std::default::Default for FooArray<Buffer>
 where
-    <u32 as narrow::array::ArrayType>::Array<Buffer>: ::std::default::Default,
-    <bool as narrow::array::ArrayType>::Array<Buffer>: ::std::default::Default,
+    <u32 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::default::Default,
+    <bool as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::default::Default,
     <Option<
         Vec<u8>,
-    > as narrow::array::ArrayType>::Array<Buffer>: ::std::default::Default,
+    > as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::default::Default,
 {
     fn default() -> Self {
         Self {
@@ -43,9 +69,23 @@ where
 }
 impl<Buffer: narrow::buffer::BufferType> narrow::Length for FooArray<Buffer>
 where
-    <u32 as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
-    <bool as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
-    <Option<Vec<u8>> as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
+    <u32 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: narrow::Length,
+    <bool as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: narrow::Length,
+    <Option<
+        Vec<u8>,
+    > as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: narrow::Length,
 {
     fn len(&self) -> usize {
         self.a.len()
@@ -53,11 +93,23 @@ where
 }
 impl<Buffer: narrow::buffer::BufferType> ::std::iter::Extend<Foo> for FooArray<Buffer>
 where
-    <u32 as narrow::array::ArrayType>::Array<Buffer>: ::std::iter::Extend<u32>,
-    <bool as narrow::array::ArrayType>::Array<Buffer>: ::std::iter::Extend<bool>,
+    <u32 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::Extend<u32>,
+    <bool as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::Extend<bool>,
     <Option<
         Vec<u8>,
-    > as narrow::array::ArrayType>::Array<Buffer>: ::std::iter::Extend<Option<Vec<u8>>>,
+    > as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::Extend<Option<Vec<u8>>>,
 {
     fn extend<_I: ::std::iter::IntoIterator<Item = Foo>>(&mut self, iter: _I) {
         iter.into_iter()
@@ -73,14 +125,20 @@ for FooArray<Buffer>
 where
     <u32 as narrow::array::ArrayType>::Array<
         Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
     >: ::std::default::Default + ::std::iter::Extend<u32>,
     <bool as narrow::array::ArrayType>::Array<
         Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
     >: ::std::default::Default + ::std::iter::Extend<bool>,
     <Option<
         Vec<u8>,
     > as narrow::array::ArrayType>::Array<
         Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
     >: ::std::default::Default + ::std::iter::Extend<Option<Vec<u8>>>,
 {
     fn from_iter<_I: ::std::iter::IntoIterator<Item = Foo>>(iter: _I) -> Self {

@@ -37,6 +37,15 @@ pub trait OffsetElement:
     fn checked_add_unsigned(self, rhs: Self::Unsigned) -> Option<Self>;
 }
 
+/// Indicates that an [`OffsetElement`] generic is not applicable.
+///
+/// This is used instead to prevent confusion in code because we don't have default
+/// types for generic associated types.
+///
+/// This still shows up as [`i32`] in documentation but there is no way
+/// to prevent that.
+pub type NA = i32;
+
 /// Private module for a seal trait.
 mod sealed {
     /// Sealed trait to seal [`super::OffsetElement`].

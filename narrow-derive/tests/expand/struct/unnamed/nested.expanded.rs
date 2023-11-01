@@ -1,27 +1,35 @@
 struct Foo(u32);
 impl narrow::array::ArrayType for Foo {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        Foo,
-        false,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<Foo, false, Buffer>;
 }
 impl narrow::array::ArrayType<Foo> for ::std::option::Option<Foo> {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        Foo,
-        true,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<Foo, true, Buffer>;
 }
 impl narrow::array::StructArrayType for Foo {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<Buffer>;
 }
 struct FooArray<Buffer: narrow::buffer::BufferType>(
-    <u32 as narrow::array::ArrayType>::Array<Buffer>,
+    <u32 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >,
 );
 impl<Buffer: narrow::buffer::BufferType> ::std::default::Default for FooArray<Buffer>
 where
-    <u32 as narrow::array::ArrayType>::Array<Buffer>: ::std::default::Default,
+    <u32 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::default::Default,
 {
     fn default() -> Self {
         Self(::std::default::Default::default())
@@ -29,7 +37,11 @@ where
 }
 impl<Buffer: narrow::buffer::BufferType> narrow::Length for FooArray<Buffer>
 where
-    <u32 as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
+    <u32 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: narrow::Length,
 {
     fn len(&self) -> usize {
         self.0.len()
@@ -37,7 +49,11 @@ where
 }
 impl<Buffer: narrow::buffer::BufferType> ::std::iter::Extend<Foo> for FooArray<Buffer>
 where
-    <u32 as narrow::array::ArrayType>::Array<Buffer>: ::std::iter::Extend<u32>,
+    <u32 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::Extend<u32>,
 {
     fn extend<_I: ::std::iter::IntoIterator<Item = Foo>>(&mut self, iter: _I) {
         iter.into_iter()
@@ -51,6 +67,8 @@ for FooArray<Buffer>
 where
     <u32 as narrow::array::ArrayType>::Array<
         Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
     >: ::std::default::Default + ::std::iter::Extend<u32>,
 {
     fn from_iter<_I: ::std::iter::IntoIterator<Item = Foo>>(iter: _I) -> Self {
@@ -60,28 +78,36 @@ where
 }
 struct Bar(Foo);
 impl narrow::array::ArrayType for Bar {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        Bar,
-        false,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<Bar, false, Buffer>;
 }
 impl narrow::array::ArrayType<Bar> for ::std::option::Option<Bar> {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        Bar,
-        true,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<Bar, true, Buffer>;
 }
 impl narrow::array::StructArrayType for Bar {
     type Array<Buffer: narrow::buffer::BufferType> = BarArray<Buffer>;
 }
 struct BarArray<Buffer: narrow::buffer::BufferType>(
-    <Foo as narrow::array::ArrayType>::Array<Buffer>,
+    <Foo as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >,
 );
 impl<Buffer: narrow::buffer::BufferType> ::std::default::Default for BarArray<Buffer>
 where
-    <Foo as narrow::array::ArrayType>::Array<Buffer>: ::std::default::Default,
+    <Foo as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::default::Default,
 {
     fn default() -> Self {
         Self(::std::default::Default::default())
@@ -89,7 +115,11 @@ where
 }
 impl<Buffer: narrow::buffer::BufferType> narrow::Length for BarArray<Buffer>
 where
-    <Foo as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
+    <Foo as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: narrow::Length,
 {
     fn len(&self) -> usize {
         self.0.len()
@@ -97,7 +127,11 @@ where
 }
 impl<Buffer: narrow::buffer::BufferType> ::std::iter::Extend<Bar> for BarArray<Buffer>
 where
-    <Foo as narrow::array::ArrayType>::Array<Buffer>: ::std::iter::Extend<Foo>,
+    <Foo as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::Extend<Foo>,
 {
     fn extend<_I: ::std::iter::IntoIterator<Item = Bar>>(&mut self, iter: _I) {
         iter.into_iter()
@@ -111,6 +145,8 @@ for BarArray<Buffer>
 where
     <Foo as narrow::array::ArrayType>::Array<
         Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
     >: ::std::default::Default + ::std::iter::Extend<Foo>,
 {
     fn from_iter<_I: ::std::iter::IntoIterator<Item = Bar>>(iter: _I) -> Self {
