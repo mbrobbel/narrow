@@ -1,6 +1,86 @@
 #[cfg(feature = "derive")]
 mod tests {
     mod derive {
+        mod r#enum {
+            mod unit {
+                use narrow::{
+                    array::{DenseLayout, SparseLayout, UnionArray, UnionArrayType},
+                    ArrayType, Length,
+                };
+
+                #[derive(ArrayType, Clone, Copy)]
+                enum FooBar {
+                    Foo,
+                    Bar,
+                }
+
+                #[test]
+                fn from_iter() {
+                    let input = [FooBar::Foo, FooBar::Bar];
+                    let array = input
+                        .into_iter()
+                        .collect::<UnionArray<FooBar, 2, DenseLayout>>();
+                    assert_eq!(array.len(), 2);
+
+                    let array = input
+                        .into_iter()
+                        .collect::<UnionArray<FooBar, 2, SparseLayout>>();
+                    assert_eq!(array.len(), 2);
+                }
+            }
+            mod unnamed {
+                use narrow::{
+                    array::{DenseLayout, SparseLayout, UnionArray, UnionArrayType},
+                    ArrayType, Length,
+                };
+
+                #[derive(ArrayType, Clone, Copy)]
+                enum FooBar {
+                    Foo(bool),
+                    Bar(u8, u16),
+                }
+
+                #[test]
+                fn from_iter() {
+                    let input = [FooBar::Foo(true), FooBar::Bar(1, 2)];
+                    let array = input
+                        .into_iter()
+                        .collect::<UnionArray<FooBar, 2, DenseLayout>>();
+                    assert_eq!(array.len(), 2);
+
+                    let array = input
+                        .into_iter()
+                        .collect::<UnionArray<FooBar, 2, SparseLayout>>();
+                    assert_eq!(array.len(), 2);
+                }
+            }
+            mod named {
+                use narrow::{
+                    array::{DenseLayout, SparseLayout, UnionArray, UnionArrayType},
+                    ArrayType, Length,
+                };
+
+                #[derive(ArrayType, Clone, Copy)]
+                enum FooBar {
+                    Foo { a: bool },
+                    Bar { a: u8, b: u16 },
+                }
+
+                #[test]
+                fn from_iter() {
+                    let input = [FooBar::Foo { a: true }, FooBar::Bar { a: 1, b: 2 }];
+                    let array = input
+                        .into_iter()
+                        .collect::<UnionArray<FooBar, 2, DenseLayout>>();
+                    assert_eq!(array.len(), 2);
+
+                    let array = input
+                        .into_iter()
+                        .collect::<UnionArray<FooBar, 2, SparseLayout>>();
+                    assert_eq!(array.len(), 2);
+                }
+            }
+        }
         mod r#struct {
             #[cfg(not(feature = "arrow-rs"))]
             mod unit {
