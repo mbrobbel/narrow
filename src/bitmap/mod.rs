@@ -410,7 +410,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "out of bounds")]
     fn as_ref_u8_out_of_bounds() {
         let bitmap = [false, true, false, true, false, true]
             .iter()
@@ -440,7 +440,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "should be < len")]
     fn as_ref_bitslice_out_of_bounds() {
         let bitmap = [false, true, false, true, false, true]
             .iter()

@@ -51,7 +51,7 @@ where
     Bitmap<Buffer>: FromIterator<bool>,
 {
     fn from(value: StructArray<T, false, Buffer>) -> Self {
-        Self(Nullable::wrap(value.0))
+        Self(Nullable::from(value.0))
     }
 }
 

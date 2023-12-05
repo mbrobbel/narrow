@@ -1,12 +1,14 @@
 //! Array with string values.
 
+use std::str;
+
 use super::{Array, VariableSizeBinaryArray};
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
     offset::OffsetElement,
     validity::Validity,
-    Length,
+    Index, Length,
 };
 
 /// Array with string values.
@@ -138,6 +140,32 @@ where
                 .map(|x| x.map(String::into_bytes))
                 .collect(),
         )
+    }
+}
+
+impl<OffsetItem: OffsetElement, Buffer: BufferType> Index
+    for StringArray<false, OffsetItem, Buffer>
+{
+    type Item<'a> = &'a str
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        str::from_utf8_unchecked(self.0.index_unchecked(index))
+    }
+}
+
+impl<OffsetItem: OffsetElement, Buffer: BufferType> Index
+    for StringArray<true, OffsetItem, Buffer>
+{
+    type Item<'a> = Option<&'a str>
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        self.0
+            .index_unchecked(index)
+            .map(|bytes| str::from_utf8_unchecked(bytes))
     }
 }
 

@@ -81,7 +81,7 @@ where
     Bitmap<Buffer>: FromIterator<bool>,
 {
     fn from(value: FixedSizePrimitiveArray<T, false, Buffer>) -> Self {
-        Self(Nullable::wrap(value.0))
+        Self(Nullable::from(value.0))
     }
 }
 

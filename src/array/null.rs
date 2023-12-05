@@ -75,7 +75,7 @@ where
     Bitmap<Buffer>: FromIterator<bool>,
 {
     fn from(value: NullArray<T, false, Buffer>) -> Self {
-        Self(Nullable::wrap(value.0))
+        Self(Nullable::from(value.0))
     }
 }
 
@@ -275,7 +275,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "should be < len")]
     fn index_out_of_bounds() {
         let array = [(); 1].iter().copied().collect::<NullArray>();
         array.index_checked(1);

@@ -10,6 +10,9 @@ use std::collections::VecDeque;
 mod boolean;
 pub use boolean::*;
 
+mod fixed_size_list;
+pub use fixed_size_list::*;
+
 mod fixed_size_primitive;
 pub use fixed_size_primitive::*;
 
