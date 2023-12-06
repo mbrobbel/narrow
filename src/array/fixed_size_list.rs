@@ -367,5 +367,18 @@ mod tests {
                 .collect::<Vec<_>>(),
             input_nullable_string_nullable
         );
+
+        let input_nested = [[[1, 2], [3, 4], [5, 6]], [[7, 8], [9, 0], [0, 0]]];
+        let array_nested = input_nested
+            .into_iter()
+            .collect::<FixedSizeListArray<3, FixedSizeListArray<2, FixedSizePrimitiveArray<u8>>>>();
+        assert_eq!(
+            array_nested.into_iter().collect::<Vec<_>>(),
+            [
+                [[&1, &2], [&3, &4], [&5, &6]],
+                [[&7, &8], [&9, &0], [&0, &0]]
+            ]
+        );
+        assert_eq!(array_nested.0 .0 .0, [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0]);
     }
 }
