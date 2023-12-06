@@ -6,7 +6,7 @@ use crate::{
     buffer::{BufferType, VecBuffer},
     nullable::Nullable,
     validity::Validity,
-    Length,
+    Index, Length,
 };
 use std::{
     iter::{self, Repeat, Take},
@@ -15,27 +15,29 @@ use std::{
 
 /// A marker trait for unit types.
 ///
-/// It is derived automatically for types without fields that have [NullArray]
-/// as [ArrayType], and used as a trait bound on the methods that are used to
+/// It is derived automatically for types without fields that have [`NullArray`]
+/// as [`ArrayType`], and used as a trait bound on the methods that are used to
 /// support deriving [Array] for these types.
 ///
 /// # Safety
 ///
 /// This trait is unsafe because the compiler can't verify that it only gets
 /// implemented by unit types.
-///
-/// The [Default] implementation must return the only allowed value of this unit
-/// type.
 pub unsafe trait Unit
 where
-    Self: ArrayType + Copy + Default + Send + Sync + 'static,
+    Self: Default + Sized,
 {
+    /// This is the item that is returned
+    type Item: ArrayType + Copy + From<Self> + Send + Sync + 'static;
 }
 
 // # Safety:
 // - std::mem::size_of::<()> == 0
-unsafe impl Unit for () {}
+unsafe impl Unit for () {
+    type Item = Self;
+}
 
+/// A sequence of nulls.
 pub struct NullArray<T: Unit = (), const NULLABLE: bool = false, Buffer: BufferType = VecBuffer>(
     pub <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>,
 )
@@ -64,7 +66,7 @@ where
     <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>: Extend<U>,
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
-        self.0.extend(iter)
+        self.0.extend(iter);
     }
 }
 
@@ -73,7 +75,7 @@ where
     Bitmap<Buffer>: FromIterator<bool>,
 {
     fn from(value: NullArray<T, false, Buffer>) -> Self {
-        Self(Nullable::wrap(value.0))
+        Self(Nullable::from(value.0))
     }
 }
 
@@ -88,6 +90,20 @@ where
         I: IntoIterator<Item = U>,
     {
         Self(iter.into_iter().collect())
+    }
+}
+
+impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> Index for NullArray<T, NULLABLE, Buffer>
+where
+    Nulls<T>: Validity<NULLABLE>,
+    <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>: Index,
+{
+    type Item<'a> = <<Nulls<T> as Validity<NULLABLE>>::Storage<Buffer> as Index>::Item<'a>
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        self.0.index_unchecked(index)
     }
 }
 
@@ -116,6 +132,8 @@ where
 }
 
 // TODO(mbrobbel): figure out why autotrait fails here
+/// Safety:
+/// - The inner field has a `Send` bound in the where clause.
 unsafe impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> Send
     for NullArray<T, NULLABLE, Buffer>
 where
@@ -125,6 +143,8 @@ where
 }
 
 // TODO(mbrobbel): figure out why autotrait fails here
+/// Safety:
+/// - The inner field has a `Sync` bound in the where clause.
 unsafe impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> Sync
     for NullArray<T, NULLABLE, Buffer>
 where
@@ -171,16 +191,29 @@ impl<T: Unit> FromIterator<T> for Nulls<T> {
 
 impl<T: Unit> Extend<T> for Nulls<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        self.len += iter.into_iter().count();
+        self.len = self
+            .len
+            .checked_add(iter.into_iter().count())
+            .expect("len overflow");
+    }
+}
+
+impl<T: Unit> Index for Nulls<T> {
+    type Item<'a> = T
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, _index: usize) -> Self::Item<'_> {
+        T::default()
     }
 }
 
 impl<T: Unit> IntoIterator for Nulls<T> {
-    type IntoIter = Take<Repeat<T>>;
-    type Item = T;
+    type IntoIter = Take<Repeat<T::Item>>;
+    type Item = T::Item;
 
     fn into_iter(self) -> Self::IntoIter {
-        iter::repeat(T::default()).take(self.len)
+        iter::repeat(T::default().into()).take(self.len)
     }
 }
 
@@ -194,25 +227,37 @@ impl<T: Unit> Length for Nulls<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bitmap::Bitmap;
+    use crate::{array::UnionType, bitmap::Bitmap, offset::OffsetElement};
     use std::mem;
 
     #[test]
     fn unit_types() {
         #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
         struct Foo;
-        unsafe impl Unit for Foo {}
+        /// Safety:
+        /// - Foo is a unit struct.
+        unsafe impl Unit for Foo {
+            type Item = Self;
+        }
         impl ArrayType for Foo {
-            type Array<Buffer: BufferType> = NullArray<Foo, false, Buffer>;
+            type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+                NullArray<Foo, false, Buffer>;
         }
         let input = [Foo; 42];
         let array = input.into_iter().collect::<NullArray<Foo>>();
         assert_eq!(array.len(), 42);
 
-        let input = [Some(Foo), None, Some(Foo), Some(Foo)];
-        let array = input.into_iter().collect::<NullArray<Foo, true>>();
-        assert_eq!(array.len(), 4);
-        assert_eq!(input, array.into_iter().collect::<Vec<_>>().as_slice());
+        let input_nullable = [Some(Foo), None, Some(Foo), Some(Foo)];
+        let array_nullable = input_nullable.into_iter().collect::<NullArray<Foo, true>>();
+        assert_eq!(array_nullable.len(), 4);
+        assert_eq!(array_nullable.index(0), Some(Some(Foo)));
+        assert_eq!(array_nullable.index(1), Some(None));
+        assert_eq!(array_nullable.index(2), Some(Some(Foo)));
+        assert_eq!(array_nullable.index(4), None);
+        assert_eq!(
+            input_nullable,
+            array_nullable.into_iter().collect::<Vec<_>>().as_slice()
+        );
     }
 
     #[test]
@@ -220,7 +265,24 @@ mod tests {
         let input = [(); 3];
         let array = input.iter().copied().collect::<NullArray>();
         assert_eq!(input, array.into_iter().collect::<Vec<_>>().as_slice());
+    }
 
+    #[test]
+    fn index() {
+        let array = [(); 1].iter().copied().collect::<NullArray>();
+        assert_eq!(array.index(0), Some(()));
+        assert_eq!(array.index(1), None);
+    }
+
+    #[test]
+    #[should_panic(expected = "should be < len")]
+    fn index_out_of_bounds() {
+        let array = [(); 1].iter().copied().collect::<NullArray>();
+        array.index_checked(1);
+    }
+
+    #[test]
+    fn into_iter_nullable() {
         let input = [Some(()), None, Some(()), None];
         let array = input.iter().copied().collect::<NullArray<_, true>>();
         assert_eq!(array.is_valid(0), Some(true));

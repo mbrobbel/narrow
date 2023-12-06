@@ -11,7 +11,7 @@ jobs:
     name: Minimum supported Rust version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.70.0
         id: rust-toolchain
       - uses: actions/cache@v3
@@ -33,7 +33,7 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         id: rust-toolchain
       - uses: actions/cache@v3
@@ -49,13 +49,13 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-check-
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
-      - run: cargo check --all --all-features
+      - run: cargo check --all --all-targets --all-features
 
   test:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         id: rust-toolchain
       - uses: actions/cache@v3
@@ -75,14 +75,14 @@ jobs:
       - uses: dtolnay/install@master
         with:
           crate: cargo-expand
-      - run: cargo test --all --all-features
-      - run: cargo test --benches --all-features
+      - run: cargo test --all --all-targets --all-features
+      - run: cargo test --all --doc --all-features
 
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -92,7 +92,7 @@ jobs:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         id: rust-toolchain
         with:
@@ -110,13 +110,13 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-clippy-
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
-      - run: cargo clippy --all --all-features -- -Dwarnings
+      - run: cargo clippy --all --all-targets --all-features -- -Dwarnings
 
   miri:
     name: Miri
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@miri
         id: rust-toolchain
       - uses: actions/cache@v3
@@ -142,7 +142,7 @@ jobs:
       RUSTFLAGS: "-C instrument-coverage"
       RUSTDOCFLAGS: "-C instrument-coverage"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         id: rust-toolchain
         with:
@@ -163,8 +163,8 @@ jobs:
       - uses: dtolnay/install@master
         with:
           crate: cargo-expand
-      - run: cargo build --all --all-features
-      - run: cargo test --all --all-features
+      - run: cargo build --all --all-targets --all-features
+      - run: cargo test --all --all-targets --all-features
         env:
           LLVM_PROFILE_FILE: "narrow-%p-%m.profraw"
       - name: Install grcov

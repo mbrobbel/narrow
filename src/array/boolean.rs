@@ -6,7 +6,7 @@ use crate::{
     buffer::{BufferRef, BufferRefMut, BufferType, VecBuffer},
     nullable::Nullable,
     validity::Validity,
-    Length,
+    Index, Length,
 };
 
 /// Array with boolean values.
@@ -65,7 +65,7 @@ where
     <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Extend<U>,
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
-        self.0.extend(iter)
+        self.0.extend(iter);
     }
 }
 
@@ -74,7 +74,7 @@ where
     Bitmap<Buffer>: FromIterator<bool>,
 {
     fn from(value: BooleanArray<false, Buffer>) -> Self {
-        Self(Nullable::wrap(value.0))
+        Self(Nullable::from(value.0))
     }
 }
 
@@ -85,6 +85,20 @@ where
 {
     fn from_iter<I: IntoIterator<Item = U>>(iter: I) -> Self {
         Self(iter.into_iter().collect())
+    }
+}
+
+impl<const NULLABLE: bool, Buffer: BufferType> Index for BooleanArray<NULLABLE, Buffer>
+where
+    Bitmap<Buffer>: Validity<NULLABLE>,
+    <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Index,
+{
+    type Item<'a> = <<Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as Index>::Item<'a>
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        self.0.index_unchecked(index)
     }
 }
 
@@ -159,10 +173,13 @@ mod tests {
             .into_iter()
             .collect::<BooleanArray<false, BoxBuffer>>();
         assert_eq!(array.len(), 4);
-        assert_eq!(array.buffer_ref().as_ref(), [0b00001101]);
+        assert_eq!(array.buffer_ref().as_ref(), [0b0000_1101]);
         array.buffer_ref_mut()[0] = 0xff;
-        assert_eq!(array.buffer_ref().as_ref(), [0b11111111]);
+        assert_eq!(array.buffer_ref().as_ref(), [0b1111_1111]);
+    }
 
+    #[test]
+    fn from_iter_nullable() {
         let array = [Some(true), None, Some(true), Some(false)]
             .into_iter()
             .collect::<BooleanArray<true>>();
@@ -175,10 +192,10 @@ mod tests {
         assert_eq!(array.is_null(1), Some(true));
         assert_eq!(array.is_valid(2), Some(true));
         assert_eq!(array.is_valid(3), Some(true));
-        assert!(array.bitmap_ref()[0]);
-        assert!(!array.bitmap_ref()[1]);
-        assert!(array.bitmap_ref()[2]);
-        assert!(array.bitmap_ref()[3]);
+        assert_eq!(array.bitmap_ref().get(0), Some(true));
+        assert_eq!(array.bitmap_ref().get(1), Some(false));
+        assert_eq!(array.bitmap_ref().get(2), Some(true));
+        assert_eq!(array.bitmap_ref().get(3), Some(true));
         assert!(array.0.data.is_valid(4).is_none());
         assert_eq!(array.0.data.bitmap_ref().len(), array.len());
     }
@@ -187,19 +204,35 @@ mod tests {
     fn into_iter() {
         let input = [true, false, true, true];
         let array = input.iter().collect::<BooleanArray>();
-        let output = (&array).into_iter().collect::<Vec<_>>();
-        assert_eq!(input, output.as_slice());
+        assert_eq!(input, (&array).into_iter().collect::<Vec<_>>().as_slice());
 
         let output = array.into_iter().collect::<Vec<_>>();
         assert_eq!(input, output.as_slice());
+    }
 
+    #[test]
+    fn into_iter_nullable() {
         let input = [Some(true), None, Some(true), Some(false)];
         let array = input.into_iter().collect::<BooleanArray<true>>();
-        let output = (&array).into_iter().collect::<Vec<_>>();
-        assert_eq!(input, output.as_slice());
+        assert_eq!(input, (&array).into_iter().collect::<Vec<_>>().as_slice());
 
         let output = array.into_iter().collect::<Vec<_>>();
         assert_eq!(input, output.as_slice());
+    }
+
+    #[test]
+    fn index() {
+        let array = [true, false, true, true].iter().collect::<BooleanArray>();
+        assert_eq!(array.index(0), Some(true));
+
+        let nullable = [Some(true), None, Some(true), Some(false)]
+            .into_iter()
+            .collect::<BooleanArray<true>>();
+        assert_eq!(nullable.index(0), Some(Some(true)));
+        assert_eq!(nullable.index(1), Some(None));
+        assert_eq!(nullable.index(2), Some(Some(true)));
+        assert_eq!(nullable.index(3), Some(Some(false)));
+        assert_eq!(nullable.index(4), None);
     }
 
     #[test]

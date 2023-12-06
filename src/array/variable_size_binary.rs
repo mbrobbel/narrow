@@ -3,10 +3,10 @@
 use super::{Array, FixedSizePrimitiveArray, StringArray, VariableSizeListArray};
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
-    buffer::{BufferType, VecBuffer},
-    offset::OffsetElement,
+    buffer::{Buffer, BufferType, VecBuffer},
+    offset::{Offset, OffsetElement},
     validity::Validity,
-    Length,
+    Index, Length,
 };
 
 /// Variable-size binary elements.
@@ -14,20 +14,15 @@ pub struct VariableSizeBinaryArray<
     const NULLABLE: bool = false,
     OffsetItem: OffsetElement = i32,
     Buffer: BufferType = VecBuffer,
->(
-    pub  VariableSizeListArray<
-        FixedSizePrimitiveArray<u8, false, Buffer>,
-        NULLABLE,
-        OffsetItem,
-        Buffer,
-    >,
-)
+>(pub Offset<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer>)
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>;
 
+/// Variable-size binary elements, using `i32` offset values.
 pub type BinaryArray<const NULLABLE: bool = false, Buffer = VecBuffer> =
     VariableSizeBinaryArray<NULLABLE, i32, Buffer>;
 
+/// Variable-size binary elements, using `i64` offset value.
 pub type LargeBinaryArray<const NULLABLE: bool = false, Buffer = VecBuffer> =
     VariableSizeBinaryArray<NULLABLE, i64, Buffer>;
 
@@ -42,11 +37,10 @@ impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Defaul
     for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    VariableSizeListArray<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer>:
-        Default,
+    Offset<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer>: Default,
 {
     fn default() -> Self {
-        Self(Default::default())
+        Self(Offset::default())
     }
 }
 
@@ -54,11 +48,10 @@ impl<T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Ext
     for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    VariableSizeListArray<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer>:
-        Extend<T>,
+    Offset<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer>: Extend<T>,
 {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        self.0.extend(iter)
+        self.0.extend(iter);
     }
 }
 
@@ -82,7 +75,7 @@ where
             Buffer,
         >,
     ) -> Self {
-        Self(value)
+        Self(value.0)
     }
 }
 
@@ -90,15 +83,8 @@ impl<OffsetItem: OffsetElement, Buffer: BufferType>
     From<VariableSizeBinaryArray<false, OffsetItem, Buffer>>
     for VariableSizeBinaryArray<true, OffsetItem, Buffer>
 where
-    VariableSizeListArray<FixedSizePrimitiveArray<u8, false, Buffer>, false, OffsetItem, Buffer>:
-        Into<
-            VariableSizeListArray<
-                FixedSizePrimitiveArray<u8, false, Buffer>,
-                true,
-                OffsetItem,
-                Buffer,
-            >,
-        >,
+    Offset<FixedSizePrimitiveArray<u8, false, Buffer>, false, OffsetItem, Buffer>:
+        Into<Offset<FixedSizePrimitiveArray<u8, false, Buffer>, true, OffsetItem, Buffer>>,
 {
     fn from(value: VariableSizeBinaryArray<false, OffsetItem, Buffer>) -> Self {
         Self(value.0.into())
@@ -120,7 +106,7 @@ impl<T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Fro
     for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    VariableSizeListArray<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer>:
+    Offset<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer>:
         FromIterator<T>,
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
@@ -128,12 +114,75 @@ where
     }
 }
 
+impl<OffsetItem: OffsetElement, Buffer: BufferType> Index
+    for VariableSizeBinaryArray<false, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Index,
+{
+    type Item<'a> = &'a [u8]
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        let start: usize = self
+            .0
+            .offsets
+            .as_slice()
+            .index_unchecked(index)
+            .to_owned()
+            .try_into()
+            .expect("convert fail");
+        let end: usize = self
+            .0
+            .offsets
+            .as_slice()
+            .index_unchecked(index + 1)
+            .to_owned()
+            .try_into()
+            .expect("convert fail");
+        &self.0.data.0.as_slice()[start..end]
+    }
+}
+
+impl<OffsetItem: OffsetElement, Buffer: BufferType> Index
+    for VariableSizeBinaryArray<true, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Index,
+{
+    type Item<'a> = Option<&'a [u8]>
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        self.0.is_valid_unchecked(index).then(|| {
+            let start: usize = self
+                .0
+                .offsets
+                .data
+                .as_slice()
+                .index_unchecked(index)
+                .to_owned()
+                .try_into()
+                .expect("convert fail");
+            let end: usize = self
+                .0
+                .offsets
+                .data
+                .as_slice()
+                .index_unchecked(index + 1)
+                .to_owned()
+                .try_into()
+                .expect("convert fail");
+            &self.0.data.0.as_slice()[start..end]
+        })
+    }
+}
+
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Length
     for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    VariableSizeListArray<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer>:
-        Length,
+    Offset<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer>: Length,
 {
     fn len(&self) -> usize {
         self.0.len()
@@ -174,40 +223,44 @@ mod tests {
 
     #[test]
     fn from_iter() {
-        let input: [&[u8]; 4] = [&[1u8], &[2, 3], &[4, 5, 6], &[7, 8, 9, 0]];
+        let input: [&[u8]; 4] = [&[1], &[2, 3], &[4, 5, 6], &[7, 8, 9, 0]];
         let array = input
             .into_iter()
-            .map(|x| x.to_vec())
+            .map(<[u8]>::to_vec)
             .collect::<VariableSizeBinaryArray>();
         assert_eq!(array.len(), 4);
-        assert_eq!(array.0 .0.data.0, &[1, 2, 3, 4, 5, 6, 7, 8, 9, 0]);
-        assert_eq!(array.0 .0.offsets, &[0, 1, 3, 6, 10]);
+        assert_eq!(array.0.data.0, &[1, 2, 3, 4, 5, 6, 7, 8, 9, 0]);
+        assert_eq!(array.0.offsets, &[0, 1, 3, 6, 10]);
 
-        let input: [Option<&[u8]>; 4] = [Some(&[1u8]), None, Some(&[4, 5, 6]), Some(&[7, 8, 9, 0])];
+        let input_vec = vec![vec![1], vec![], vec![2, 3], vec![4]];
+        let array_vec = input_vec.into_iter().collect::<VariableSizeBinaryArray>();
+        assert_eq!(array_vec.len(), 4);
+        assert_eq!(array_vec.0.data.0, &[1, 2, 3, 4]);
+        assert_eq!(array_vec.0.offsets, &[0, 1, 1, 3, 4]);
+    }
+
+    #[test]
+    fn from_iter_nullable() {
+        let input: [Option<&[u8]>; 4] = [Some(&[1]), None, Some(&[4, 5, 6]), Some(&[7, 8, 9, 0])];
         let array = input
             .into_iter()
-            .map(|x| x.map(|x| x.to_vec()))
+            .map(|x| x.map(<[u8]>::to_vec))
             .collect::<VariableSizeBinaryArray<true>>();
         assert_eq!(array.len(), 4);
-        assert_eq!(array.0 .0.data.0, &[1, 4, 5, 6, 7, 8, 9, 0]);
-        assert_eq!(array.0 .0.offsets.as_ref(), &[0, 1, 1, 4, 8]);
-        assert_eq!(array.0 .0.offsets.bitmap_ref().buffer_ref(), &[0b00001101]);
+        assert_eq!(array.0.data.0, &[1, 4, 5, 6, 7, 8, 9, 0]);
+        assert_eq!(array.0.offsets.as_ref(), &[0, 1, 1, 4, 8]);
+        assert_eq!(array.0.offsets.bitmap_ref().buffer_ref(), &[0b000_01101]);
 
-        let input = vec![vec![1], vec![], vec![2, 3], vec![4]];
-        let array = input.into_iter().collect::<VariableSizeBinaryArray>();
-        assert_eq!(array.len(), 4);
-        assert_eq!(array.0 .0.data.0, &[1, 2, 3, 4]);
-        assert_eq!(array.0 .0.offsets, &[0, 1, 1, 3, 4]);
-
-        let input = vec![Some(vec![1]), None, Some(vec![2, 3]), Some(vec![4])];
-        let array = input.into_iter().collect::<VariableSizeBinaryArray<true>>();
-        assert_eq!(array.len(), 4);
-        assert_eq!(array.0 .0.data.0, &[1, 2, 3, 4]);
-        assert_eq!(array.0 .0.offsets.as_ref(), &[0, 1, 1, 3, 4]);
+        let input_vec = vec![Some(vec![1]), None, Some(vec![2, 3]), Some(vec![4])];
+        let array_vec = input_vec
+            .into_iter()
+            .collect::<VariableSizeBinaryArray<true>>();
+        assert_eq!(array_vec.len(), 4);
+        assert_eq!(array_vec.0.data.0, &[1, 2, 3, 4]);
+        assert_eq!(array_vec.0.offsets.as_ref(), &[0, 1, 1, 3, 4]);
         assert_eq!(
-            array
+            array_vec
                 .0
-                 .0
                 .offsets
                 .bitmap_ref()
                 .into_iter()
@@ -217,8 +270,22 @@ mod tests {
     }
 
     #[test]
+    fn index() {
+        let input: [&[u8]; 4] = [&[1], &[2, 3], &[4, 5, 6], &[7, 8, 9, 0]];
+        let array = input
+            .into_iter()
+            .map(<[u8]>::to_vec)
+            .collect::<VariableSizeBinaryArray>();
+        assert_eq!(array.index_checked(0), &[1]);
+        assert_eq!(array.index_checked(1), &[2, 3]);
+        assert_eq!(array.index_checked(2), &[4, 5, 6]);
+        assert_eq!(array.index_checked(3), &[7, 8, 9, 0]);
+        assert!(array.index(4).is_none());
+    }
+
+    #[test]
     fn convert() {
-        let input = vec![Some("a".to_string()), None, Some("b".to_string())];
+        let input = vec![Some("a".to_owned()), None, Some("b".to_owned())];
         let array = input.into_iter().collect::<StringArray<true>>();
         let variable_size_binary: VariableSizeBinaryArray<true> = array.into();
         assert_eq!(variable_size_binary.len(), 3);

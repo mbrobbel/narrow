@@ -1,20 +1,22 @@
 pub struct Foo<const N: usize = 42>;
 /// Safety:
 /// - This is a unit struct.
-unsafe impl<const N: usize> narrow::array::Unit for Foo<N> {}
+unsafe impl<const N: usize> narrow::array::Unit for Foo<N> {
+    type Item = Self;
+}
 impl<const N: usize> narrow::array::ArrayType for Foo<N> {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        Foo<N>,
-        false,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<Foo<N>, false, Buffer>;
 }
 impl<const N: usize> narrow::array::ArrayType<Foo<N>> for ::std::option::Option<Foo<N>> {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        Foo<N>,
-        true,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<Foo<N>, true, Buffer>;
 }
 impl<const N: usize> narrow::array::StructArrayType for Foo<N> {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<N, Buffer>;

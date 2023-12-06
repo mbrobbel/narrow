@@ -36,6 +36,7 @@ pub trait FixedSize:
     const SIZE: usize = mem::size_of::<Self>();
 }
 
+/// Private module for [`sealed::Sealed`] trait.
 mod sealed {
     /// Used to seal [super::FixedSize].
     pub trait Sealed {}

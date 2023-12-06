@@ -1,3 +1,5 @@
+//! Iterators for bitmaps.
+
 use std::{
     iter::{Skip, Take},
     slice,
@@ -34,6 +36,10 @@ mod tests {
                 .collect::<Vec<bool>>(),
             input
         );
+    }
+
+    #[test]
+    fn additional_bits() {
         let input = [false, true];
         assert_eq!(
             input
@@ -43,6 +49,10 @@ mod tests {
                 .collect::<Vec<bool>>(),
             [false, true, false, false, false, false, false, false]
         );
+    }
+
+    #[test]
+    fn all_bits() {
         let input = [true, true, false, true, false, true, true, true];
         assert_eq!(
             input

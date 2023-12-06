@@ -1,33 +1,65 @@
 struct Bar(u8, u16, u32, u64);
 impl narrow::array::ArrayType for Bar {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        Bar,
-        false,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<Bar, false, Buffer>;
 }
 impl narrow::array::ArrayType<Bar> for ::std::option::Option<Bar> {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        Bar,
-        true,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<Bar, true, Buffer>;
 }
 impl narrow::array::StructArrayType for Bar {
     type Array<Buffer: narrow::buffer::BufferType> = BarArray<Buffer>;
 }
 struct BarArray<Buffer: narrow::buffer::BufferType>(
-    <u8 as narrow::array::ArrayType>::Array<Buffer>,
-    <u16 as narrow::array::ArrayType>::Array<Buffer>,
-    <u32 as narrow::array::ArrayType>::Array<Buffer>,
-    <u64 as narrow::array::ArrayType>::Array<Buffer>,
+    <u8 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >,
+    <u16 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >,
+    <u32 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >,
+    <u64 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >,
 );
 impl<Buffer: narrow::buffer::BufferType> ::std::default::Default for BarArray<Buffer>
 where
-    <u8 as narrow::array::ArrayType>::Array<Buffer>: ::std::default::Default,
-    <u16 as narrow::array::ArrayType>::Array<Buffer>: ::std::default::Default,
-    <u32 as narrow::array::ArrayType>::Array<Buffer>: ::std::default::Default,
-    <u64 as narrow::array::ArrayType>::Array<Buffer>: ::std::default::Default,
+    <u8 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::default::Default,
+    <u16 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::default::Default,
+    <u32 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::default::Default,
+    <u64 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::default::Default,
 {
     fn default() -> Self {
         Self(
@@ -40,10 +72,26 @@ where
 }
 impl<Buffer: narrow::buffer::BufferType> narrow::Length for BarArray<Buffer>
 where
-    <u8 as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
-    <u16 as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
-    <u32 as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
-    <u64 as narrow::array::ArrayType>::Array<Buffer>: narrow::Length,
+    <u8 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: narrow::Length,
+    <u16 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: narrow::Length,
+    <u32 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: narrow::Length,
+    <u64 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: narrow::Length,
 {
     fn len(&self) -> usize {
         self.0.len()
@@ -51,10 +99,26 @@ where
 }
 impl<Buffer: narrow::buffer::BufferType> ::std::iter::Extend<Bar> for BarArray<Buffer>
 where
-    <u8 as narrow::array::ArrayType>::Array<Buffer>: ::std::iter::Extend<u8>,
-    <u16 as narrow::array::ArrayType>::Array<Buffer>: ::std::iter::Extend<u16>,
-    <u32 as narrow::array::ArrayType>::Array<Buffer>: ::std::iter::Extend<u32>,
-    <u64 as narrow::array::ArrayType>::Array<Buffer>: ::std::iter::Extend<u64>,
+    <u8 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::Extend<u8>,
+    <u16 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::Extend<u16>,
+    <u32 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::Extend<u32>,
+    <u64 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::Extend<u64>,
 {
     fn extend<_I: ::std::iter::IntoIterator<Item = Bar>>(&mut self, iter: _I) {
         iter.into_iter()
@@ -71,15 +135,23 @@ for BarArray<Buffer>
 where
     <u8 as narrow::array::ArrayType>::Array<
         Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
     >: ::std::default::Default + ::std::iter::Extend<u8>,
     <u16 as narrow::array::ArrayType>::Array<
         Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
     >: ::std::default::Default + ::std::iter::Extend<u16>,
     <u32 as narrow::array::ArrayType>::Array<
         Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
     >: ::std::default::Default + ::std::iter::Extend<u32>,
     <u64 as narrow::array::ArrayType>::Array<
         Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
     >: ::std::default::Default + ::std::iter::Extend<u64>,
 {
     fn from_iter<_I: ::std::iter::IntoIterator<Item = Bar>>(iter: _I) -> Self {

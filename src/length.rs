@@ -21,6 +21,13 @@ impl<const N: usize, T> Length for [T; N] {
     }
 }
 
+impl<T> Length for [T] {
+    #[inline]
+    fn len(&self) -> usize {
+        <[T]>::len(self)
+    }
+}
+
 impl<T> Length for &[T] {
     #[inline]
     fn len(&self) -> usize {
@@ -84,9 +91,6 @@ impl Length for String {
 
 impl<T: Length> Length for Option<T> {
     fn len(&self) -> usize {
-        match self {
-            Some(item) => item.len(),
-            None => 0,
-        }
+        self.as_ref().map_or(0, Length::len)
     }
 }

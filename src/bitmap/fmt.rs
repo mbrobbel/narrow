@@ -14,7 +14,9 @@ impl Display for BitsDisplay<'_> {
     }
 }
 
+/// Display a buffer of bytes as bits.
 pub(super) trait BitsDisplayExt {
+    /// Returns a wrapper around a buffer of bytes that implements `Display`.
     fn bits_display(&self) -> BitsDisplay<'_>;
 }
 
@@ -34,7 +36,7 @@ mod tests {
     #[test]
     fn bits_display() {
         assert_eq!(
-            format!("{}", &[1u8, 2, 3, 4, u8::MAX].bits_display()),
+            format!("{}", &[1, 2, 3, 4, u8::MAX].bits_display()),
             "[\"00000001\", \"00000010\", \"00000011\", \"00000100\", \"11111111\"]"
         );
     }

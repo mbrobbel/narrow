@@ -11,7 +11,7 @@ jobs:
     name: Rustdoc
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         id: rust-toolchain
       - uses: actions/cache@v3
@@ -27,7 +27,7 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-docs-
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
-      - run: cargo doc --no-deps
+      - run: cargo doc --no-deps --all --all-features --document-private-items
       - run: chmod -c -R +rX "target/doc"
       - run: echo "<meta http-equiv=refresh content=0;url=narrow>" > target/doc/index.html
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main'

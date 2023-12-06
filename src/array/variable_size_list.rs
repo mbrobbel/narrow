@@ -1,11 +1,14 @@
-use super::Array;
+//!Array with variable-size list elements.
+
 use crate::{
+    array::Array,
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
     offset::{Offset, OffsetElement},
     validity::Validity,
-    Length,
+    Index, Length,
 };
+use std::fmt::{Debug, Formatter, Result};
 
 /// Array with variable-size list elements.
 pub struct VariableSizeListArray<
@@ -24,6 +27,19 @@ where
 {
 }
 
+impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Debug
+    for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
+where
+    Offset<T, NULLABLE, OffsetItem, Buffer>: Debug,
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        f.debug_tuple("VariableSizeListArray")
+            .field(&self.0)
+            .finish()
+    }
+}
+
 impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Default
     for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
 where
@@ -31,7 +47,7 @@ where
     Offset<T, NULLABLE, OffsetItem, Buffer>: Default,
 {
     fn default() -> Self {
-        Self(Default::default())
+        Self(Offset::default())
     }
 }
 
@@ -42,7 +58,7 @@ where
     Offset<T, NULLABLE, OffsetItem, Buffer>: Extend<U>,
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
-        self.0.extend(iter)
+        self.0.extend(iter);
     }
 }
 
@@ -65,6 +81,21 @@ where
 {
     fn from_iter<I: IntoIterator<Item = U>>(iter: I) -> Self {
         Self(iter.into_iter().collect())
+    }
+}
+
+impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Index
+    for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Offset<T, NULLABLE, OffsetItem, Buffer>: Index,
+{
+    type Item<'a> = <Offset<T, NULLABLE, OffsetItem, Buffer> as Index>::Item<'a>
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        self.0.index_unchecked(index)
     }
 }
 
@@ -118,19 +149,25 @@ mod tests {
             .collect::<VariableSizeListArray<FixedSizePrimitiveArray<u8>>>();
         assert_eq!(array.0.data.0, &[1, 2, 3, 4]);
         assert_eq!(array.0.offsets, &[0, 1, 3, 4]);
+    }
 
+    #[test]
+    fn from_iter_nullable() {
         let input = vec![Some(vec![1]), None, Some(vec![2, 3]), Some(vec![4])];
         let array = input
             .into_iter()
             .collect::<VariableSizeListArray<FixedSizePrimitiveArray<u8>, true>>();
         assert_eq!(array.len(), 4);
         assert_eq!(array.0.data.0, &[1, 2, 3, 4]);
-        assert!(array.0.offsets.bitmap_ref().is_valid(0).unwrap());
-        assert!(array.0.offsets.bitmap_ref().is_null(1).unwrap());
-        assert!(array.0.offsets.bitmap_ref().is_valid(2).unwrap());
-        assert!(array.0.offsets.bitmap_ref().is_valid(3).unwrap());
+        assert_eq!(array.0.offsets.bitmap_ref().is_valid(0), Some(true));
+        assert_eq!(array.0.offsets.bitmap_ref().is_null(1), Some(true));
+        assert_eq!(array.0.offsets.bitmap_ref().is_valid(2), Some(true));
+        assert_eq!(array.0.offsets.bitmap_ref().is_valid(3), Some(true));
         assert_eq!(array.0.offsets.as_ref().as_slice(), &[0, 1, 1, 3, 4]);
+    }
 
+    #[test]
+    fn from_iter_nested() {
         let input = vec![vec![vec![1, 2, 3], vec![1, 2, 3]], vec![vec![4, 5, 6]]];
         let array = input
             .into_iter()
@@ -139,18 +176,21 @@ mod tests {
         assert_eq!(array.0.offsets, &[0, 2, 3]);
         assert_eq!(array.0.data.0.offsets, &[0, 3, 6, 9]);
 
-        let input = vec![vec![
+        let input_3 = vec![vec![
             vec![vec![1, 2, 3], vec![1, 2, 3]],
             vec![vec![4, 5, 6]],
         ]];
-        let array = input.into_iter().collect::<VariableSizeListArray<
+        let array_3 = input_3.into_iter().collect::<VariableSizeListArray<
             VariableSizeListArray<VariableSizeListArray<FixedSizePrimitiveArray<u8>>>,
         >>();
-        assert_eq!(array.0.data.0.data.0.data.0, &[1, 2, 3, 1, 2, 3, 4, 5, 6]);
-        assert_eq!(array.0.offsets, &[0, 2]);
-        assert_eq!(array.0.data.0.offsets, &[0, 2, 3]);
-        assert_eq!(array.0.data.0.data.0.offsets, &[0, 3, 6, 9]);
+        assert_eq!(array_3.0.data.0.data.0.data.0, &[1, 2, 3, 1, 2, 3, 4, 5, 6]);
+        assert_eq!(array_3.0.offsets, &[0, 2]);
+        assert_eq!(array_3.0.data.0.offsets, &[0, 2, 3]);
+        assert_eq!(array_3.0.data.0.data.0.offsets, &[0, 3, 6, 9]);
+    }
 
+    #[test]
+    fn from_iter_nested_nullable() {
         let input = vec![
             None,
             Some(vec![
@@ -176,7 +216,7 @@ mod tests {
         assert_eq!(array.0.data.0.data.0.is_null(0), Some(true));
         assert_eq!(array.0.data.0.data.0.is_valid(1), Some(true));
 
-        let input = vec![
+        let input_3 = vec![
             None,
             Some(vec![
                 None,
@@ -188,7 +228,7 @@ mod tests {
                 Some(vec![None, Some(vec![None, Some(5), Some(6)])]),
             ]),
         ];
-        let array = input.into_iter().collect::<VariableSizeListArray<
+        let array_3 = input_3.into_iter().collect::<VariableSizeListArray<
             VariableSizeListArray<
                 VariableSizeListArray<FixedSizePrimitiveArray<u8, true>, true>,
                 true,
@@ -196,7 +236,7 @@ mod tests {
             true,
         >>();
         assert_eq!(
-            array.0.data.0.data.0.data.0.as_ref(),
+            array_3.0.data.0.data.0.data.0.as_ref(),
             &[
                 u8::default(),
                 2,
@@ -209,18 +249,47 @@ mod tests {
                 6
             ]
         );
-        assert_eq!(array.0.offsets.as_ref(), &[0, 0, 3]);
-        assert_eq!(array.0.data.0.offsets.as_ref(), &[0, 0, 3, 5]);
-        assert_eq!(array.0.data.0.data.0.offsets.as_ref(), &[0, 0, 3, 6, 6, 9]);
-        assert_eq!(array.is_null(0), Some(true));
-        assert_eq!(array.is_valid(1), Some(true));
-        assert_eq!(array.0.data.is_null(0), Some(true));
-        assert_eq!(array.0.data.is_valid(1), Some(true));
-        assert_eq!(array.0.data.0.data.is_null(0), Some(true));
-        assert_eq!(array.0.data.0.data.is_valid(1), Some(true));
-        assert_eq!(array.0.data.0.data.0.is_null(0), Some(true));
-        assert_eq!(array.0.data.0.data.0.is_valid(1), Some(true));
-        assert_eq!(array.0.data.0.data.0.data.0.is_null(0), Some(true));
-        assert_eq!(array.0.data.0.data.0.data.0.is_valid(1), Some(true));
+        assert_eq!(array_3.0.offsets.as_ref(), &[0, 0, 3]);
+        assert_eq!(array_3.0.data.0.offsets.as_ref(), &[0, 0, 3, 5]);
+        assert_eq!(
+            array_3.0.data.0.data.0.offsets.as_ref(),
+            &[0, 0, 3, 6, 6, 9]
+        );
+        assert_eq!(array_3.is_null(0), Some(true));
+        assert_eq!(array_3.is_valid(1), Some(true));
+        assert_eq!(array_3.0.data.is_null(0), Some(true));
+        assert_eq!(array_3.0.data.is_valid(1), Some(true));
+        assert_eq!(array_3.0.data.0.data.is_null(0), Some(true));
+        assert_eq!(array_3.0.data.0.data.is_valid(1), Some(true));
+        assert_eq!(array_3.0.data.0.data.0.is_null(0), Some(true));
+        assert_eq!(array_3.0.data.0.data.0.is_valid(1), Some(true));
+        assert_eq!(array_3.0.data.0.data.0.data.0.is_null(0), Some(true));
+        assert_eq!(array_3.0.data.0.data.0.data.0.is_valid(1), Some(true));
+    }
+
+    #[test]
+    fn index() {
+        let input = vec![vec![vec![1, 2, 3], vec![1, 2, 3]], vec![vec![4, 5, 6]]];
+        let array = input
+            .into_iter()
+            .collect::<VariableSizeListArray<VariableSizeListArray<FixedSizePrimitiveArray<u8>>>>();
+        assert_eq!(
+            array
+                .index_checked(0)
+                .flatten()
+                .copied()
+                .collect::<Vec<_>>(),
+            [1, 2, 3, 1, 2, 3]
+        );
+        assert_eq!(
+            array
+                .index_checked(1)
+                .next()
+                .expect("a value")
+                .copied()
+                .collect::<Vec<_>>(),
+            [4, 5, 6]
+        );
+        assert!(array.index(2).is_none());
     }
 }

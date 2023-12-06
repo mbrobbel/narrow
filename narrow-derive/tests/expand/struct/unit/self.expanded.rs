@@ -6,26 +6,28 @@ where
 unsafe impl narrow::array::Unit for Foo
 where
     Self: Debug,
-{}
+{
+    type Item = Self;
+}
 impl narrow::array::ArrayType for Foo
 where
     Self: Debug,
 {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        Foo,
-        false,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<Foo, false, Buffer>;
 }
 impl narrow::array::ArrayType<Foo> for ::std::option::Option<Foo>
 where
     Self: Debug,
 {
-    type Array<Buffer: narrow::buffer::BufferType> = narrow::array::StructArray<
-        Foo,
-        true,
-        Buffer,
-    >;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::UnionType,
+    > = narrow::array::StructArray<Foo, true, Buffer>;
 }
 impl narrow::array::StructArrayType for Foo
 where

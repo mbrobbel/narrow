@@ -28,13 +28,19 @@ pub trait ValidityBitmap: BitmapRef {
     /// Returns the number of null elements.
     #[inline]
     fn null_count(&self) -> usize {
-        self.bitmap_ref().len() - self.valid_count()
+        self.bitmap_ref()
+            .len()
+            .checked_sub(self.valid_count())
+            .expect("null count underflow")
     }
 
     /// Returns `true` if the element at position `index` is valid.
     #[inline]
     fn is_valid(&self, index: usize) -> Option<bool> {
-        (index < self.bitmap_ref().len()).then(|| unsafe { self.is_valid_unchecked(index) })
+        (index < self.bitmap_ref().len()).then(||
+            // Safety:
+            // - Bound checked
+            unsafe { self.is_valid_unchecked(index) })
     }
 
     /// Returns `true` if the element at position `index` is valid, without
@@ -54,7 +60,7 @@ pub trait ValidityBitmap: BitmapRef {
     fn valid_count(&self) -> usize {
         (0..self.bitmap_ref().len())
             .filter(|&index|
-                // Safety
+                // Safety:
                 // - The index is always in range by iterating over the range
                 //   with length upper bound.
                 unsafe { self.is_valid_unchecked(index) })

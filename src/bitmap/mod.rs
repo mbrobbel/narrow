@@ -2,13 +2,13 @@
 
 use crate::{
     buffer::{Buffer, BufferMut, BufferRef, BufferRefMut, BufferType, VecBuffer},
-    Length,
+    Index, Length,
 };
 use std::{
     any,
     borrow::Borrow,
     fmt::{Debug, Formatter, Result},
-    ops::Index,
+    ops,
 };
 
 mod iter;
@@ -68,7 +68,6 @@ impl<Buffer: BufferType> Bitmap<Buffer> {
     ///
     /// Caller must ensure that the buffer contains enough bytes for the
     /// specified number of bits including the offset.
-    #[cfg(feature = "unsafe")]
     pub unsafe fn from_raw_parts(
         buffer: <Buffer as BufferType>::Buffer<u8>,
         bits: usize,
@@ -86,7 +85,7 @@ impl<Buffer: BufferType> Bitmap<Buffer> {
     #[inline]
     pub fn get(&self, index: usize) -> Option<bool> {
         (index < self.len()).then(||
-            // Safety
+            // Safety:
             // - Bound checked
             unsafe { self.get_unchecked(index) })
     }
@@ -115,35 +114,36 @@ impl<Buffer: BufferType> Bitmap<Buffer> {
     /// inspecting the raw byte buffer.
     #[inline]
     pub fn trailing_bits(&self) -> usize {
-        let trailing_bits = (self.offset + self.bits) % 8;
-        if trailing_bits != 0 {
-            8 - trailing_bits
-        } else {
+        let trailing_bits = self.bit_index(self.bits);
+        if trailing_bits == 0 {
             0
+        } else {
+            8 - trailing_bits
         }
     }
 
     /// Returns the bit index for the element at the provided index.
-    /// See [Bitmap::byte_index].
+    /// See [`Bitmap::byte_index`].
     #[inline]
     pub fn bit_index(&self, index: usize) -> usize {
         (self.offset + index) % 8
     }
 
     /// Returns the byte index for the element at the provided index.
-    /// See [Bitmap::bit_index].
+    /// See [`Bitmap::bit_index`].
     #[inline]
     pub fn byte_index(&self, index: usize) -> usize {
         (self.offset + index) / 8
     }
 
-    /// Returns a [Bitmap] with `len` bits set.
+    /// Returns a [`Bitmap`] with `len` bits set.
+    #[must_use]
     pub fn new_valid(len: usize) -> Self
     where
         Self: FromIterator<bool>,
     {
         // TODO: optimize
-        Bitmap::from_iter(std::iter::repeat(true).take(len))
+        std::iter::repeat(true).take(len).collect::<Self>()
     }
 }
 
@@ -199,7 +199,7 @@ where
         I: IntoIterator<Item = T>,
     {
         let mut additional_bits = 0;
-        let mut iter = iter.into_iter().inspect(|_| {
+        let mut items = iter.into_iter().inspect(|_| {
             additional_bits += 1;
         });
 
@@ -208,7 +208,7 @@ where
             let last_byte_index = self.byte_index(self.bits);
             let last_byte = &mut self.buffer.as_mut_slice()[last_byte_index];
             for bit_position in 8 - trailing_bits..8 {
-                if let Some(x) = iter.next() {
+                if let Some(x) = items.next() {
                     if *x.borrow() {
                         *last_byte |= 1 << bit_position;
                     }
@@ -216,7 +216,7 @@ where
             }
         }
 
-        self.buffer.extend(iter.bit_packed());
+        self.buffer.extend(items.bit_packed());
         self.bits += additional_bits;
     }
 }
@@ -246,10 +246,21 @@ where
     }
 }
 
-impl<Buffer: BufferType> Index<usize> for Bitmap<Buffer> {
+impl<Buffer: BufferType> Index for Bitmap<Buffer> {
+    type Item<'a> = bool
+    where
+        Self: 'a;
+
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        self.get_unchecked(index)
+    }
+}
+
+impl<Buffer: BufferType> ops::Index<usize> for Bitmap<Buffer> {
     type Output = bool;
 
     fn index(&self, index: usize) -> &Self::Output {
+        /// Panic when out of bounds.
         #[cold]
         #[inline(never)]
         fn assert_failed(index: usize, len: usize) -> ! {
@@ -263,9 +274,10 @@ impl<Buffer: BufferType> Index<usize> for Bitmap<Buffer> {
 
         // Safety:
         // - Bounds checked above.
-        match unsafe { self.get_unchecked(index) } {
-            true => &true,
-            false => &false,
+        if unsafe { self.get_unchecked(index) } {
+            &true
+        } else {
+            &false
         }
     }
 }
@@ -316,29 +328,30 @@ mod tests {
     use std::mem;
 
     #[test]
-    #[cfg(feature = "unsafe")]
     fn offset_byte_slice() {
         let mut bitmap = [true; 32].iter().collect::<Bitmap>();
-        // "unset" first byte
+        // "unset" last byte
         let slice = bitmap.buffer_ref_mut();
-        slice[0] = 0;
+        slice[3] = 0;
         // "construct" new bitmap with last byte sliced off
-        let bitmap_slice = unsafe { Bitmap::<SliceBuffer>::from_raw_parts(&slice[..3], 24, 0) };
-        assert!(!bitmap_slice.into_iter().all(|x| x));
+        // Safety:
+        // - There are 24 bits in vec.
+        let bitmap_sliced = unsafe { Bitmap::<SliceBuffer>::from_raw_parts(&slice[..3], 24, 0) };
+        assert!(bitmap_sliced.all_valid());
     }
 
     #[test]
-    #[cfg(feature = "unsafe")]
     fn offset_bit_slice() {
         use crate::buffer::ArrayBuffer;
-
-        let bitmap = unsafe { Bitmap::<ArrayBuffer<1>>::from_raw_parts([0b10100000u8], 3, 4) };
+        // Safety:
+        // - 1 byte has 3 bits.
+        let bitmap = unsafe { Bitmap::<ArrayBuffer<1>>::from_raw_parts([0b1010_0000], 3, 4) };
         assert_eq!(bitmap.len(), 3);
         assert_eq!(bitmap.leading_bits(), 4);
         assert_eq!(bitmap.trailing_bits(), 1);
-        assert!(!bitmap.get(0).unwrap());
-        assert!(bitmap.get(1).unwrap());
-        assert!(!bitmap.get(2).unwrap());
+        assert_eq!(bitmap.get(0), Some(false));
+        assert_eq!(bitmap.get(1), Some(true));
+        assert_eq!(bitmap.get(2), Some(false));
         assert_eq!((&bitmap).into_iter().filter(|x| !x).count(), 2);
         assert_eq!((&bitmap).into_iter().filter(|x| *x).count(), 1);
         assert_eq!(
@@ -348,34 +361,35 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "unsafe")]
     fn offset_byte_vec() {
         let mut bitmap = [true; 32].iter().collect::<Bitmap>();
-        // "unset" first byte
+        // "unset" last byte
         let vec: &mut Vec<u8> = bitmap.buffer_ref_mut();
-        vec[0] = 0;
+        vec[3] = 0;
         // "construct" new bitmap with last byte sliced off
+        // Safety:
+        // - There are 24 bits in vec.
         let bitmap_sliced = unsafe { Bitmap::<SliceBuffer>::from_raw_parts(&vec[..3], 24, 0) };
-        assert!(!bitmap_sliced.into_iter().all(|x| x));
+        assert!(bitmap_sliced.all_valid());
     }
 
     #[test]
     fn from_slice() {
         let bitmap = Bitmap::<SliceBuffer> {
             bits: 5,
-            buffer: &[42u8],
+            buffer: &[42_u8],
             offset: 0,
         };
         let slice: &[u8] = bitmap.buffer_ref();
         assert_eq!(&slice[0], &42);
-        let mut bitmap = Bitmap::<ArrayBuffer<1>> {
+        let mut bitmap_22 = Bitmap::<ArrayBuffer<1>> {
             bits: 5,
-            buffer: [22u8],
+            buffer: [22_u8],
             offset: 0,
         };
-        let slice: &mut [u8] = bitmap.buffer_ref_mut();
-        slice[0] += 20;
-        assert_eq!(&slice[0], &42);
+        let slice_22: &mut [u8] = bitmap_22.buffer_ref_mut();
+        slice_22[0] += 20;
+        assert_eq!(&slice_22[0], &42);
     }
 
     #[test]
@@ -396,7 +410,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "out of bounds")]
     fn as_ref_u8_out_of_bounds() {
         let bitmap = [false, true, false, true, false, true]
             .iter()
@@ -426,9 +440,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "should be < len")]
     fn as_ref_bitslice_out_of_bounds() {
-        let bitmap = vec![false, true, false, true, false, true]
+        let bitmap = [false, true, false, true, false, true]
             .iter()
             .collect::<Bitmap>();
         let _ = bitmap[bitmap.bits];
@@ -436,13 +450,11 @@ mod tests {
 
     #[test]
     fn count() {
-        let vec = vec![false, true, false, true, false, true];
+        let vec = [false, true, false, true, false, true];
         let bitmap = vec.iter().collect::<Bitmap>();
         assert_eq!(bitmap.len(), 6);
         assert!(!bitmap.is_empty());
-        vec.iter()
-            .zip(bitmap.into_iter())
-            .for_each(|(a, b)| assert_eq!(*a, b));
+        vec.iter().zip(bitmap).for_each(|(a, b)| assert_eq!(*a, b));
     }
 
     #[test]

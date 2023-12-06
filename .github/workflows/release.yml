@@ -13,7 +13,7 @@ jobs:
     outputs:
       skip: ${{ steps.changelog.outputs.skip }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
@@ -32,7 +32,7 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
       - run: cargo install cargo-smart-release@0.20.0 --locked || true
-      - run: cargo check --all --all-features
+      - run: cargo check --all --all-targets --all-features
       - id: changelog
         run: cargo changelog --no-preview narrow narrow-derive || echo "skip=true" >> "$GITHUB_OUTPUT"
 
@@ -43,10 +43,10 @@ jobs:
   #   concurrency: release
   #   if: needs.changelog.outputs.skip != 'true'
   #   environment:
-  #     name: crates.io
+  #     name: crates-io
   #     url: https://crates.io/crates/narrow/${{ steps.version.outputs.version }}
   #   steps:
-  #     - uses: actions/checkout@v3
+  #     - uses: actions/checkout@v4
   #       with:
   #         fetch-depth: 0
   #         token: ${{ secrets.PAT }}
