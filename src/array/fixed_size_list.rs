@@ -61,14 +61,31 @@ where
     }
 }
 
-impl<U, const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType> Extend<U>
-    for FixedSizeListArray<N, T, NULLABLE, Buffer>
+impl<U, const N: usize, T: Array, Buffer: BufferType> Extend<[U; N]>
+    for FixedSizeListArray<N, T, false, Buffer>
 where
-    T: Validity<NULLABLE>,
-    <T as Validity<NULLABLE>>::Storage<Buffer>: Extend<U>,
+    T: Extend<U>,
 {
-    fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
-        self.0.extend(iter);
+    fn extend<I: IntoIterator<Item = [U; N]>>(&mut self, iter: I) {
+        self.0.extend(iter.into_iter().flatten());
+    }
+}
+
+impl<U, const N: usize, T: Array, Buffer: BufferType> Extend<Option<[U; N]>>
+    for FixedSizeListArray<N, T, true, Buffer>
+where
+    [U; N]: Default,
+    T: Extend<U>,
+    Bitmap<Buffer>: Extend<bool>,
+{
+    fn extend<I: IntoIterator<Item = Option<[U; N]>>>(&mut self, iter: I) {
+        self.0.data.extend(
+            iter.into_iter()
+                .inspect(|opt| {
+                    self.0.validity.extend(iter::once(opt.is_some()));
+                })
+                .flat_map(Option::unwrap_or_default),
+        );
     }
 }
 
@@ -157,6 +174,7 @@ where
                 (start_index..end_index)
                     .enumerate()
                     .for_each(|(array_index, child_index)| {
+                        // Here we need to index in the data
                         data[array_index].write(self.0.data.index_unchecked(child_index));
                     });
                 // https://github.com/rust-lang/rust/issues/61956
@@ -164,6 +182,53 @@ where
             };
             data
         })
+    }
+}
+
+/// An iterator over fixed-size lists in a [`FixedSizeListArray`].
+pub struct FixedSizeListIter<'a, const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType>
+where
+    T: Validity<NULLABLE>,
+{
+    /// Reference to the array.
+    array: &'a FixedSizeListArray<N, T, NULLABLE, Buffer>,
+    /// Current index.
+    index: usize,
+}
+
+impl<'a, const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType> Iterator
+    for FixedSizeListIter<'a, N, T, NULLABLE, Buffer>
+where
+    T: Validity<NULLABLE>,
+    FixedSizeListArray<N, T, NULLABLE, Buffer>: Length + Index,
+{
+    type Item = <FixedSizeListArray<N, T, NULLABLE, Buffer> as Index>::Item<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.array
+            .index(self.index)
+            .into_iter()
+            .inspect(|_| {
+                self.index += 1;
+            })
+            .next()
+    }
+}
+
+impl<'a, const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType> IntoIterator
+    for &'a FixedSizeListArray<N, T, NULLABLE, Buffer>
+where
+    FixedSizeListArray<N, T, NULLABLE, Buffer>: Index + Length,
+    T: Validity<NULLABLE>,
+{
+    type Item = <FixedSizeListArray<N, T, NULLABLE, Buffer> as Index>::Item<'a>;
+    type IntoIter = FixedSizeListIter<'a, N, T, NULLABLE, Buffer>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        FixedSizeListIter {
+            array: self,
+            index: 0,
+        }
     }
 }
 
@@ -262,5 +327,45 @@ mod tests {
             Some(Some([None, Some("world")]))
         );
         assert_eq!(array_nullable_string_nullable.index(3), None);
+    }
+
+    #[test]
+    fn into_iter() {
+        let input = [[1_u8, 2], [3, 4]];
+        let array = input
+            .into_iter()
+            .collect::<FixedSizeListArray<2, FixedSizePrimitiveArray<u8>>>();
+        assert_eq!(array.into_iter().collect::<Vec<_>>(), [[&1, &2], [&3, &4]]);
+
+        let input_string = [["hello", "world"], ["!", "!"]];
+        let array_string = input_string
+            .into_iter()
+            .collect::<FixedSizeListArray<2, StringArray>>();
+        assert_eq!(array_string.into_iter().collect::<Vec<_>>(), input_string);
+
+        let input_nullable_string = [Some(["hello", "world"]), None];
+        let array_nullable_string = input_nullable_string
+            .into_iter()
+            .collect::<FixedSizeListArray<2, StringArray, true>>();
+        assert_eq!(
+            array_nullable_string.into_iter().collect::<Vec<_>>(),
+            input_nullable_string
+        );
+
+        let input_nullable_string_nullable = [
+            Some([Some("hello"), None]),
+            None,
+            Some([None, Some("world")]),
+        ];
+        let array_nullable_string_nullable = input_nullable_string_nullable
+            .into_iter()
+            .collect::<FixedSizeListArray<2, StringArray<true>, true>>(
+        );
+        assert_eq!(
+            array_nullable_string_nullable
+                .into_iter()
+                .collect::<Vec<_>>(),
+            input_nullable_string_nullable
+        );
     }
 }
