@@ -23,13 +23,11 @@ pub struct Nullable<T, Buffer: BufferType = VecBuffer> {
     pub(crate) validity: Bitmap<Buffer>,
 }
 
-impl<T, Buffer: BufferType> Nullable<T, Buffer> {
-    /// Adds a validity bitmap to `T`, with all bits set.
-    pub(crate) fn wrap(data: T) -> Self
-    where
-        T: Length,
-        Bitmap<Buffer>: FromIterator<bool>,
-    {
+impl<T: Length, Buffer: BufferType> From<T> for Nullable<T, Buffer>
+where
+    Bitmap<Buffer>: FromIterator<bool>,
+{
+    fn from(data: T) -> Self {
         let validity = Bitmap::new_valid(data.len());
         Self { data, validity }
     }
@@ -285,7 +283,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "should be < len")]
     fn index_checked() {
         let input = [Some(1), None];
         let nullable = input.into_iter().collect::<Nullable<Vec<_>>>();

@@ -10,6 +10,9 @@ use std::collections::VecDeque;
 mod boolean;
 pub use boolean::*;
 
+mod fixed_size_list;
+pub use fixed_size_list::*;
+
 mod fixed_size_primitive;
 pub use fixed_size_primitive::*;
 
@@ -111,11 +114,21 @@ impl_array_type!(Option<()>, NullArray<(), true, Buffer>);
 
 impl<T: FixedSize, const N: usize> ArrayType for [T; N] {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        FixedSizePrimitiveArray<[T; N], false, Buffer>;
+        FixedSizeListArray<
+            N,
+            <T as ArrayType>::Array<Buffer, OffsetItem, UnionLayout>,
+            false,
+            Buffer,
+        >;
 }
 impl<T: FixedSize, const N: usize> ArrayType for Option<[T; N]> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        FixedSizePrimitiveArray<[T; N], true, Buffer>;
+        FixedSizeListArray<
+            N,
+            <T as ArrayType>::Array<Buffer, OffsetItem, UnionLayout>,
+            true,
+            Buffer,
+        >;
 }
 
 impl ArrayType for str {
