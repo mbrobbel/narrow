@@ -207,7 +207,7 @@ mod tests {
                 .collect::<FixedSizePrimitiveArray<_>>();
             assert_eq!(array_array.0.as_slice(), &[[1, 2], [3, 4]]);
             assert_eq!(<_ as Buffer<u8>>::as_bytes(&array_array.0), &[1, 2, 3, 4]);
-        }
+        };
     }
 
     #[test]
@@ -235,7 +235,7 @@ mod tests {
                 .into_iter()
                 .collect::<FixedSizePrimitiveArray<_>>();
             assert_eq!(array_array.into_iter().collect::<Vec<_>>(), input_array);
-        }
+        };
     }
 
     #[test]
@@ -258,7 +258,7 @@ mod tests {
                 .into_iter()
                 .collect::<FixedSizePrimitiveArray<_>>();
             assert_eq!(array_array.len(), input_array.as_slice().len());
-        }
+        };
 
         let input_nullable = [Some(1_u64), None, Some(3), Some(4)];
         let array_nullable = input_nullable
