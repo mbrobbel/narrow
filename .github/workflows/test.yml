@@ -14,6 +14,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         id: rust-toolchain
+      - uses: dtolnay/install@master
+        with:
+          crate: cargo-expand
       - uses: actions/cache@v3
         with:
           path: |
