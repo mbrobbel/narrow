@@ -34,10 +34,14 @@ type_def!(Int8Array, i8);
 type_def!(Int16Array, i16);
 type_def!(Int32Array, i32);
 type_def!(Int64Array, i64);
+#[cfg(not(feature = "arrow-rs"))]
+type_def!(Int128Array, i128);
 type_def!(Uint8Array, u8);
 type_def!(Uint16Array, u16);
 type_def!(Uint32Array, u32);
 type_def!(Uint64Array, u64);
+#[cfg(not(feature = "arrow-rs"))]
+type_def!(Uint128Array, u128);
 
 type_def!(IsizeArray, isize);
 type_def!(UsizeArray, usize);
@@ -195,12 +199,15 @@ mod tests {
         assert_eq!(array.0.as_slice(), &[1, 2, 3, 4]);
         assert_eq!(array.0.as_slice(), array.0.as_bytes());
 
-        let input_array = [[1_u8, 2], [3, 4]];
-        let array_array = input_array
-            .into_iter()
-            .collect::<FixedSizePrimitiveArray<_>>();
-        assert_eq!(array_array.0.as_slice(), &[[1, 2], [3, 4]]);
-        assert_eq!(<_ as Buffer<u8>>::as_bytes(&array_array.0), &[1, 2, 3, 4]);
+        #[cfg(not(feature = "arrow-rs"))]
+        {
+            let input_array = [[1_u8, 2], [3, 4]];
+            let array_array = input_array
+                .into_iter()
+                .collect::<FixedSizePrimitiveArray<_>>();
+            assert_eq!(array_array.0.as_slice(), &[[1, 2], [3, 4]]);
+            assert_eq!(<_ as Buffer<u8>>::as_bytes(&array_array.0), &[1, 2, 3, 4]);
+        }
     }
 
     #[test]
@@ -221,11 +228,14 @@ mod tests {
         let array = input.into_iter().collect::<FixedSizePrimitiveArray<_>>();
         assert_eq!(array.into_iter().collect::<Vec<_>>(), input);
 
-        let input_array = [[1_u8, 2], [3, 4]];
-        let array_array = input_array
-            .into_iter()
-            .collect::<FixedSizePrimitiveArray<_>>();
-        assert_eq!(array_array.into_iter().collect::<Vec<_>>(), input_array);
+        #[cfg(not(feature = "arrow-rs"))]
+        {
+            let input_array = [[1_u8, 2], [3, 4]];
+            let array_array = input_array
+                .into_iter()
+                .collect::<FixedSizePrimitiveArray<_>>();
+            assert_eq!(array_array.into_iter().collect::<Vec<_>>(), input_array);
+        }
     }
 
     #[test]
@@ -241,11 +251,14 @@ mod tests {
         let array = input.into_iter().collect::<FixedSizePrimitiveArray<_>>();
         assert_eq!(array.len(), input.as_slice().len());
 
-        let input_array = [[1_u8, 2], [3, 4]];
-        let array_array = input_array
-            .into_iter()
-            .collect::<FixedSizePrimitiveArray<_>>();
-        assert_eq!(array_array.len(), input_array.as_slice().len());
+        #[cfg(not(feature = "arrow-rs"))]
+        {
+            let input_array = [[1_u8, 2], [3, 4]];
+            let array_array = input_array
+                .into_iter()
+                .collect::<FixedSizePrimitiveArray<_>>();
+            assert_eq!(array_array.len(), input_array.as_slice().len());
+        }
 
         let input_nullable = [Some(1_u64), None, Some(3), Some(4)];
         let array_nullable = input_nullable

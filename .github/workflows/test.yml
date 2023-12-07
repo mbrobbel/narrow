@@ -7,6 +7,31 @@ permissions:
   contents: read
 
 jobs:
+  minimal:
+    name: Minimal
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        id: rust-toolchain
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-minimal-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-minimal-
+            ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
+            ${{ runner.os }}-cargo-
+      - run: cargo check --workspace --all-targets --no-default-features
+      - run: cargo test --workspace --all-targets --no-default-features
+      - run: cargo test --workspace --doc --no-default-features
+      - run: cargo clippy --workspace --all-targets --no-default-features -- -Dwarnings
+
   msrv:
     name: Minimum supported Rust version
     runs-on: ubuntu-latest
@@ -27,8 +52,9 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-msrv-
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
-      - run: cargo check --all --all-features
-
+      - run: cargo check --workspace --all-targets --all-features
+      - run: cargo test --all --all-targets --all-features
+      - run: cargo test --all --doc --all-features
   check:
     name: Check
     runs-on: ubuntu-latest
@@ -75,8 +101,8 @@ jobs:
       - uses: dtolnay/install@master
         with:
           crate: cargo-expand
-      - run: cargo test --all --all-targets --all-features
-      - run: cargo test --all --doc --all-features
+      - run: cargo test --workspace --all-targets --all-features
+      - run: cargo test --workspace --doc --all-features
 
   rustfmt:
     name: Rustfmt
@@ -110,7 +136,7 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-clippy-
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
-      - run: cargo clippy --all --all-targets --all-features -- -Dwarnings
+      - run: cargo clippy --workspace --all-targets --all-features -- -Dwarnings
 
   miri:
     name: Miri
@@ -133,7 +159,7 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
       - run: cargo miri setup
-      - run: cargo miri test --all-features
+      - run: cargo miri test --workspace --all-targets --all-features
 
   coverage:
     name: Coverage
@@ -163,8 +189,8 @@ jobs:
       - uses: dtolnay/install@master
         with:
           crate: cargo-expand
-      - run: cargo build --all --all-targets --all-features
-      - run: cargo test --all --all-targets --all-features
+      - run: cargo build --workspace --all-targets --all-features
+      - run: cargo test --workspace --all-targets --all-features
         env:
           LLVM_PROFILE_FILE: "narrow-%p-%m.profraw"
       - name: Install grcov

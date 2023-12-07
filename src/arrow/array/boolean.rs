@@ -1,3 +1,5 @@
+//! Interop with `arrow-rs` boolean array.
+
 use crate::{array::BooleanArray, bitmap::Bitmap, buffer::BufferType};
 use arrow_buffer::{BooleanBuffer, NullBuffer};
 
@@ -31,15 +33,15 @@ mod tests {
         let input = [true, false, true, true];
         let array = input.into_iter().collect::<BooleanArray>();
         assert_eq!(array.len(), 4);
-        let array: arrow_array::BooleanArray = array.into();
-        assert_eq!(array.len(), 4);
+        let array_arrow: arrow_array::BooleanArray = array.into();
+        assert_eq!(array_arrow.len(), 4);
 
-        let input = [Some(true), None, Some(false)];
-        let array = input.into_iter().collect::<BooleanArray<true>>();
-        assert_eq!(array.len(), 3);
-        assert_eq!(array.null_count(), 1);
-        let array: arrow_array::BooleanArray = array.into();
-        assert_eq!(array.len(), 3);
-        assert_eq!(array.null_count(), 1);
+        let input_nullable = [Some(true), None, Some(false)];
+        let array_nullable = input_nullable.into_iter().collect::<BooleanArray<true>>();
+        assert_eq!(array_nullable.len(), 3);
+        assert_eq!(array_nullable.null_count(), 1);
+        let array_arrow_nullable: arrow_array::BooleanArray = array_nullable.into();
+        assert_eq!(array_arrow_nullable.len(), 3);
+        assert_eq!(array_arrow_nullable.null_count(), 1);
     }
 }

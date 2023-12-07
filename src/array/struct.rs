@@ -119,7 +119,7 @@ mod tests {
         a: u32,
         b: Option<()>,
         c: (),
-        d: Option<[u128; 2]>,
+        d: Option<[u64; 2]>,
         e: bool,
         f: &'a [u8],
         g: String,
@@ -138,7 +138,7 @@ mod tests {
         a: <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>,
         b: <Option<()> as ArrayType>::Array<Buffer, offset::NA, union::NA>,
         c: <() as ArrayType>::Array<Buffer, offset::NA, union::NA>,
-        d: <Option<[u128; 2]> as ArrayType>::Array<Buffer, offset::NA, union::NA>,
+        d: <Option<[u64; 2]> as ArrayType>::Array<Buffer, offset::NA, union::NA>,
         e: <bool as ArrayType>::Array<Buffer, offset::NA, union::NA>,
         f: <&'a [u8] as ArrayType>::Array<Buffer, offset::NA, union::NA>,
         g: <String as ArrayType>::Array<Buffer, offset::NA, union::NA>,
@@ -149,7 +149,7 @@ mod tests {
         <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
         <Option<()> as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
         <() as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
-        <Option<[u128; 2]> as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
+        <Option<[u64; 2]> as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
         <bool as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
         <&'a [u8] as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
         <String as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
@@ -159,7 +159,7 @@ mod tests {
                 a: <u32 as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
                 b: <Option<()> as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
                 c: <() as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
-                d: <Option<[u128; 2]> as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(
+                d: <Option<[u64; 2]> as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(
                 ),
                 e: <bool as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
                 f: <&'a [u8] as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
@@ -173,8 +173,8 @@ mod tests {
         <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<u32>,
         <Option<()> as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<Option<()>>,
         <() as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<()>,
-        <Option<[u128; 2]> as ArrayType>::Array<Buffer, offset::NA, union::NA>:
-            Extend<Option<[u128; 2]>>,
+        <Option<[u64; 2]> as ArrayType>::Array<Buffer, offset::NA, union::NA>:
+            Extend<Option<[u64; 2]>>,
         <bool as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<bool>,
         <&'a [u8] as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<&'a [u8]>,
         <String as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<String>,
@@ -208,8 +208,8 @@ mod tests {
         <Option<()> as ArrayType>::Array<Buffer, offset::NA, union::NA>:
             Default + Extend<Option<()>>,
         <() as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default + Extend<()>,
-        <Option<[u128; 2]> as ArrayType>::Array<Buffer, offset::NA, union::NA>:
-            Default + Extend<Option<[u128; 2]>>,
+        <Option<[u64; 2]> as ArrayType>::Array<Buffer, offset::NA, union::NA>:
+            Default + Extend<Option<[u64; 2]>>,
         <bool as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default + Extend<bool>,
         <&'a [u8] as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default + Extend<&'a [u8]>,
         <String as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default + Extend<String>,
