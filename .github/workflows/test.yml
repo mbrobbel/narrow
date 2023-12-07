@@ -165,8 +165,8 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
       - run: cargo miri setup
-      - run: cargo miri test --workspace --no-default-features
-      - run: cargo miri test --workspace --all-features
+      - run: cargo miri test --no-default-features
+      - run: cargo miri test --all-features
 
   coverage:
     name: Coverage
