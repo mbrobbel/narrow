@@ -58,14 +58,17 @@ where
     }
 }
 
-impl<'a, OffsetItem: OffsetElement, Buffer: BufferType> Extend<Option<&'a str>>
+impl<'a, T: ?Sized, OffsetItem: OffsetElement, Buffer: BufferType> Extend<Option<&'a T>>
     for StringArray<true, OffsetItem, Buffer>
 where
+    T: AsRef<str>,
     VariableSizeBinaryArray<true, OffsetItem, Buffer>: Extend<Option<&'a [u8]>>,
 {
-    fn extend<I: IntoIterator<Item = Option<&'a str>>>(&mut self, iter: I) {
-        self.0
-            .extend(iter.into_iter().map(|opt| opt.map(str::as_bytes)));
+    fn extend<I: IntoIterator<Item = Option<&'a T>>>(&mut self, iter: I) {
+        self.0.extend(
+            iter.into_iter()
+                .map(|opt| opt.map(|item| item.as_ref().as_bytes())),
+        );
     }
 }
 
@@ -101,23 +104,33 @@ where
     }
 }
 
-impl<'a, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<&'a str>
+impl<'a, T: ?Sized, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<&'a T>
     for StringArray<false, OffsetItem, Buffer>
 where
+    T: AsRef<str>,
     VariableSizeBinaryArray<false, OffsetItem, Buffer>: FromIterator<&'a [u8]>,
 {
-    fn from_iter<I: IntoIterator<Item = &'a str>>(iter: I) -> Self {
-        Self(iter.into_iter().map(str::as_bytes).collect())
+    fn from_iter<I: IntoIterator<Item = &'a T>>(iter: I) -> Self {
+        Self(
+            iter.into_iter()
+                .map(|item| item.as_ref().as_bytes())
+                .collect(),
+        )
     }
 }
 
-impl<'a, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<Option<&'a str>>
+impl<'a, T: ?Sized, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<Option<&'a T>>
     for StringArray<true, OffsetItem, Buffer>
 where
+    T: AsRef<str>,
     VariableSizeBinaryArray<true, OffsetItem, Buffer>: FromIterator<Option<&'a [u8]>>,
 {
-    fn from_iter<I: IntoIterator<Item = Option<&'a str>>>(iter: I) -> Self {
-        Self(iter.into_iter().map(|x| x.map(str::as_bytes)).collect())
+    fn from_iter<I: IntoIterator<Item = Option<&'a T>>>(iter: I) -> Self {
+        Self(
+            iter.into_iter()
+                .map(|x| x.map(|item| item.as_ref().as_bytes()))
+                .collect(),
+        )
     }
 }
 
