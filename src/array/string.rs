@@ -46,23 +46,15 @@ where
     }
 }
 
-impl<'a, OffsetItem: OffsetElement, Buffer: BufferType> Extend<&'a str>
+impl<'a, T: ?Sized, OffsetItem: OffsetElement, Buffer: BufferType> Extend<&'a T>
     for StringArray<false, OffsetItem, Buffer>
 where
+    T: AsRef<str>,
     VariableSizeBinaryArray<false, OffsetItem, Buffer>: Extend<&'a [u8]>,
 {
-    fn extend<I: IntoIterator<Item = &'a str>>(&mut self, iter: I) {
-        self.0.extend(iter.into_iter().map(str::as_bytes));
-    }
-}
-
-impl<'a, OffsetItem: OffsetElement, Buffer: BufferType> Extend<&'a &'a str>
-    for StringArray<false, OffsetItem, Buffer>
-where
-    VariableSizeBinaryArray<false, OffsetItem, Buffer>: Extend<&'a [u8]>,
-{
-    fn extend<I: IntoIterator<Item = &'a &'a str>>(&mut self, iter: I) {
-        self.0.extend(iter.into_iter().map(|str| str.as_bytes()));
+    fn extend<I: IntoIterator<Item = &'a T>>(&mut self, iter: I) {
+        self.0
+            .extend(iter.into_iter().map(|item| item.as_ref().as_bytes()));
     }
 }
 
