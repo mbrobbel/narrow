@@ -24,7 +24,7 @@ macro_rules! arrow_array_convert {
         {
             type Array = arrow_array::PrimitiveArray<$primitive_type>;
 
-            fn as_field(&self, name: &str) -> arrow_schema::Field {
+            fn as_field(name: &str) -> arrow_schema::Field {
                 Field::new(name, DataType::$data_type, NULLABLE)
             }
         }

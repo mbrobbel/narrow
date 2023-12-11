@@ -12,6 +12,10 @@ license.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+default = ["arrow-rs"]
+arrow-rs = []
+
 [lib]
 proc-macro = true
 

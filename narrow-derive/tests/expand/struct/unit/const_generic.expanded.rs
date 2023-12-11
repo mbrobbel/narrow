@@ -21,6 +21,23 @@ impl<const N: usize> narrow::array::ArrayType<Foo<N>> for ::std::option::Option<
 impl<const N: usize> narrow::array::StructArrayType for Foo<N> {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<N, Buffer>;
 }
+impl<
+    const N: usize,
+    Buffer: narrow::buffer::BufferType,
+> narrow::arrow::StructArrayTypeFields for FooArray<N, Buffer> {
+    fn fields() -> ::arrow_schema::Fields {
+        ::arrow_schema::Fields::from([])
+    }
+}
+impl<
+    const N: usize,
+    Buffer: narrow::buffer::BufferType,
+> ::std::convert::From<FooArray<N, Buffer>>
+for ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>> {
+    fn from(value: FooArray<N, Buffer>) -> Self {
+        ::alloc::vec::Vec::new()
+    }
+}
 pub struct FooArray<const N: usize, Buffer: narrow::buffer::BufferType>(
     narrow::array::NullArray<Foo<N>, false, Buffer>,
 );

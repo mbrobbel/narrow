@@ -35,6 +35,68 @@ where
 {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<'a, T, Buffer>;
 }
+impl<
+    'a,
+    T: Add<Foo<'a, T>> + narrow::array::ArrayType,
+    Buffer: narrow::buffer::BufferType,
+> narrow::arrow::StructArrayTypeFields for FooArray<'a, T, Buffer>
+where
+    Foo<'a, T>: Sized,
+    <T as Add<Foo<'a, T>>>::Output: Debug,
+    <&'a T as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: narrow::arrow::ArrowArray,
+{
+    fn fields() -> ::arrow_schema::Fields {
+        ::arrow_schema::Fields::from([
+            ::std::sync::Arc::new(
+                <<&'a T as ::narrow::array::ArrayType>::Array<
+                    Buffer,
+                    narrow::offset::NA,
+                    narrow::array::union::NA,
+                > as narrow::arrow::ArrowArray>::as_field("_0"),
+            ),
+        ])
+    }
+}
+impl<
+    'a,
+    T: Add<Foo<'a, T>> + narrow::array::ArrayType,
+    Buffer: narrow::buffer::BufferType,
+> ::std::convert::From<FooArray<'a, T, Buffer>>
+for ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>
+where
+    Foo<'a, T>: Sized,
+    <T as Add<Foo<'a, T>>>::Output: Debug,
+    <&'a T as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::convert::Into<
+        <<&'a T as narrow::array::ArrayType>::Array<
+            Buffer,
+            narrow::offset::NA,
+            narrow::array::union::NA,
+        > as narrow::arrow::ArrowArray>::Array,
+    >,
+{
+    fn from(value: FooArray<'a, T, Buffer>) -> Self {
+        <[_]>::into_vec(
+            #[rustc_box]
+            ::alloc::boxed::Box::new([
+                ::std::sync::Arc::<
+                    <<&'a T as narrow::array::ArrayType>::Array<
+                        Buffer,
+                        narrow::offset::NA,
+                        narrow::array::union::NA,
+                    > as narrow::arrow::ArrowArray>::Array,
+                >::new(value.0.into()),
+            ]),
+        )
+    }
+}
 struct FooArray<
     'a,
     T: Add<Foo<'a, T>> + narrow::array::ArrayType,
@@ -143,6 +205,62 @@ for ::std::option::Option<FooBar<T>> {
 }
 impl<T: narrow::array::ArrayType> narrow::array::StructArrayType for FooBar<T> {
     type Array<Buffer: narrow::buffer::BufferType> = FooBarArray<T, Buffer>;
+}
+impl<
+    T: narrow::array::ArrayType,
+    Buffer: narrow::buffer::BufferType,
+> narrow::arrow::StructArrayTypeFields for FooBarArray<T, Buffer>
+where
+    <T as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: narrow::arrow::ArrowArray,
+{
+    fn fields() -> ::arrow_schema::Fields {
+        ::arrow_schema::Fields::from([
+            ::std::sync::Arc::new(
+                <<T as ::narrow::array::ArrayType>::Array<
+                    Buffer,
+                    narrow::offset::NA,
+                    narrow::array::union::NA,
+                > as narrow::arrow::ArrowArray>::as_field("_0"),
+            ),
+        ])
+    }
+}
+impl<
+    T: narrow::array::ArrayType,
+    Buffer: narrow::buffer::BufferType,
+> ::std::convert::From<FooBarArray<T, Buffer>>
+for ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>
+where
+    <T as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::convert::Into<
+        <<T as narrow::array::ArrayType>::Array<
+            Buffer,
+            narrow::offset::NA,
+            narrow::array::union::NA,
+        > as narrow::arrow::ArrowArray>::Array,
+    >,
+{
+    fn from(value: FooBarArray<T, Buffer>) -> Self {
+        <[_]>::into_vec(
+            #[rustc_box]
+            ::alloc::boxed::Box::new([
+                ::std::sync::Arc::<
+                    <<T as narrow::array::ArrayType>::Array<
+                        Buffer,
+                        narrow::offset::NA,
+                        narrow::array::union::NA,
+                    > as narrow::arrow::ArrowArray>::Array,
+                >::new(value.0.into()),
+            ]),
+        )
+    }
 }
 struct FooBarArray<T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType>(
     <T as narrow::array::ArrayType>::Array<

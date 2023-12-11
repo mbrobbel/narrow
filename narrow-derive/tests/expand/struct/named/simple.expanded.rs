@@ -20,6 +20,127 @@ impl narrow::array::ArrayType<Foo> for ::std::option::Option<Foo> {
 impl narrow::array::StructArrayType for Foo {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<Buffer>;
 }
+impl<Buffer: narrow::buffer::BufferType> narrow::arrow::StructArrayTypeFields
+for FooArray<Buffer>
+where
+    <u32 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: narrow::arrow::ArrowArray,
+    <bool as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: narrow::arrow::ArrowArray,
+    <Option<
+        Vec<u8>,
+    > as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: narrow::arrow::ArrowArray,
+{
+    fn fields() -> ::arrow_schema::Fields {
+        ::arrow_schema::Fields::from([
+            ::std::sync::Arc::new(
+                <<u32 as ::narrow::array::ArrayType>::Array<
+                    Buffer,
+                    narrow::offset::NA,
+                    narrow::array::union::NA,
+                > as narrow::arrow::ArrowArray>::as_field("a"),
+            ),
+            ::std::sync::Arc::new(
+                <<bool as ::narrow::array::ArrayType>::Array<
+                    Buffer,
+                    narrow::offset::NA,
+                    narrow::array::union::NA,
+                > as narrow::arrow::ArrowArray>::as_field("b"),
+            ),
+            ::std::sync::Arc::new(
+                <<Option<
+                    Vec<u8>,
+                > as ::narrow::array::ArrayType>::Array<
+                    Buffer,
+                    narrow::offset::NA,
+                    narrow::array::union::NA,
+                > as narrow::arrow::ArrowArray>::as_field("c"),
+            ),
+        ])
+    }
+}
+impl<Buffer: narrow::buffer::BufferType> ::std::convert::From<FooArray<Buffer>>
+for ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>
+where
+    <u32 as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::convert::Into<
+        <<u32 as narrow::array::ArrayType>::Array<
+            Buffer,
+            narrow::offset::NA,
+            narrow::array::union::NA,
+        > as narrow::arrow::ArrowArray>::Array,
+    >,
+    <bool as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::convert::Into<
+        <<bool as narrow::array::ArrayType>::Array<
+            Buffer,
+            narrow::offset::NA,
+            narrow::array::union::NA,
+        > as narrow::arrow::ArrowArray>::Array,
+    >,
+    <Option<
+        Vec<u8>,
+    > as narrow::array::ArrayType>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::convert::Into<
+        <<Option<
+            Vec<u8>,
+        > as narrow::array::ArrayType>::Array<
+            Buffer,
+            narrow::offset::NA,
+            narrow::array::union::NA,
+        > as narrow::arrow::ArrowArray>::Array,
+    >,
+{
+    fn from(value: FooArray<Buffer>) -> Self {
+        <[_]>::into_vec(
+            #[rustc_box]
+            ::alloc::boxed::Box::new([
+                ::std::sync::Arc::<
+                    <<u32 as narrow::array::ArrayType>::Array<
+                        Buffer,
+                        narrow::offset::NA,
+                        narrow::array::union::NA,
+                    > as narrow::arrow::ArrowArray>::Array,
+                >::new(value.a.into()),
+                ::std::sync::Arc::<
+                    <<bool as narrow::array::ArrayType>::Array<
+                        Buffer,
+                        narrow::offset::NA,
+                        narrow::array::union::NA,
+                    > as narrow::arrow::ArrowArray>::Array,
+                >::new(value.b.into()),
+                ::std::sync::Arc::<
+                    <<Option<
+                        Vec<u8>,
+                    > as narrow::array::ArrayType>::Array<
+                        Buffer,
+                        narrow::offset::NA,
+                        narrow::array::union::NA,
+                    > as narrow::arrow::ArrowArray>::Array,
+                >::new(value.c.into()),
+            ]),
+        )
+    }
+}
 struct FooArray<Buffer: narrow::buffer::BufferType> {
     a: <u32 as narrow::array::ArrayType>::Array<
         Buffer,

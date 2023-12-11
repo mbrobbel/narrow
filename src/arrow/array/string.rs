@@ -23,7 +23,7 @@ where
 {
     type Array = arrow_array::GenericStringArray<OffsetItem>;
 
-    fn as_field(&self, name: &str) -> arrow_schema::Field {
+    fn as_field(name: &str) -> arrow_schema::Field {
         Field::new(name, DataType::Utf8, NULLABLE)
     }
 }

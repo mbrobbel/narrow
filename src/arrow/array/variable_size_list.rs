@@ -27,10 +27,10 @@ where
 {
     type Array = arrow_array::GenericListArray<OffsetItem>;
 
-    fn as_field(&self, name: &str) -> arrow_schema::Field {
+    fn as_field(name: &str) -> arrow_schema::Field {
         Field::new(
             name,
-            DataType::List(Arc::new(self.0.data.as_field("item"))),
+            DataType::List(Arc::new(T::as_field("item"))),
             NULLABLE,
         )
     }
@@ -62,11 +62,11 @@ where
 {
     fn from(value: VariableSizeListArray<T, false, OffsetItem, Buffer>) -> Self {
         arrow_array::GenericListArray::new(
-            Arc::new(value.0.data.as_field("item")),
+            Arc::new(T::as_field("item")),
             // Safety:
             // - The narrow offfset buffer contains valid offset data
             unsafe { OffsetBuffer::new_unchecked(value.0.offsets.into()) },
-            value.0.data.into_array_ref(),
+            Arc::<<T as ArrowArray>::Array>::new(value.0.data.into()),
             None,
         )
     }
@@ -82,11 +82,11 @@ where
 {
     fn from(value: VariableSizeListArray<T, true, OffsetItem, Buffer>) -> Self {
         arrow_array::GenericListArray::new(
-            Arc::new(value.0.data.as_field("item")),
+            Arc::new(T::as_field("item")),
             // Safety:
             // - The narrow offfset buffer contains valid offset data
             unsafe { OffsetBuffer::new_unchecked(value.0.offsets.data.into()) },
-            value.0.data.into_array_ref(),
+            Arc::<<T as ArrowArray>::Array>::new(value.0.data.into()),
             Some(value.0.offsets.validity.into()),
         )
     }

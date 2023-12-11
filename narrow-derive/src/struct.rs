@@ -4,8 +4,7 @@ use quote::{format_ident, quote, ToTokens, TokenStreamExt};
 use std::iter::{Enumerate, Map};
 use syn::{
     parse2, parse_quote, punctuated, token::Paren, visit_mut::VisitMut, DeriveInput, Field, Fields,
-    File, Generics, Ident, Index, ItemImpl, ItemStruct, Type, TypeParamBound, Visibility,
-    WherePredicate,
+    Generics, Ident, Index, ItemImpl, ItemStruct, Type, TypeParamBound, Visibility, WherePredicate,
 };
 
 pub(super) fn derive(input: &DeriveInput, fields: &Fields) -> TokenStream {
@@ -22,6 +21,12 @@ pub(super) fn derive(input: &DeriveInput, fields: &Fields) -> TokenStream {
 
     // Generate the StructArrayType impl.
     let struct_array_type_impl = input.struct_array_type_impl();
+
+    // Optionally generate the StructArrayTypeFields impl.
+    let struct_array_type_fields_impl = input.struct_array_type_fields_impl();
+
+    // Optionally generates the conversion to vec of array refs
+    let struct_array_into_array_refs = input.struct_array_into_array_refs();
 
     // Generate the array wrapper struct definition.
     let array_struct_def = input.array_struct_def();
@@ -44,6 +49,10 @@ pub(super) fn derive(input: &DeriveInput, fields: &Fields) -> TokenStream {
         #array_type_impl
 
         #struct_array_type_impl
+
+        #struct_array_type_fields_impl
+
+        #struct_array_into_array_refs
 
         #array_struct_def
 
@@ -164,7 +173,7 @@ impl Struct<'_> {
     }
 
     /// Add an `StructArrayType` implementation for the derive input.
-    fn struct_array_type_impl(&self) -> File {
+    fn struct_array_type_impl(&self) -> ItemImpl {
         let narrow = util::narrow();
 
         // Generics
@@ -186,6 +195,111 @@ impl Struct<'_> {
             }
         };
         parse2(tokens).expect("struct_array_type_impl")
+    }
+
+    /// Add an `StructArrayTypeFields` implementation for the derive input.
+    fn struct_array_type_fields_impl(&self) -> ItemImpl {
+        let narrow = util::narrow();
+
+        // Generics
+        let mut generics = self.generics.clone();
+        SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
+        AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
+            .visit_generics_mut(&mut generics);
+        generics
+            .make_where_clause()
+            .predicates
+            .extend(self.where_predicate_fields(parse_quote!(#narrow::arrow::ArrowArray)));
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+        // Fields
+        let field_ident = self.field_idents().map(|ident| ident.to_string());
+        let field_ty = self.field_types();
+        let fields = quote!(
+            #(
+                ::std::sync::Arc::new(<<#field_ty as ::narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as #narrow::arrow::ArrowArray>::as_field(#field_ident)),
+            )*
+        );
+
+        let ident = self.array_struct_ident();
+        let tokens = quote!(
+            impl #impl_generics #narrow::arrow::StructArrayTypeFields for #ident #ty_generics #where_clause {
+                fn fields() -> ::arrow_schema::Fields {
+                    ::arrow_schema::Fields::from([
+                        #fields
+                    ])
+                }
+            }
+        );
+        parse2(tokens).expect("struct_array_type_fields_impl")
+    }
+
+    /// Add an `Into` implementation for the array to convert to a vec of array refs
+    fn struct_array_into_array_refs(&self) -> ItemImpl {
+        let narrow = util::narrow();
+
+        // Generics
+        let mut generics = self.generics.clone();
+        SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
+        AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
+            .visit_generics_mut(&mut generics);
+        generics
+            .make_where_clause()
+            .predicates
+            .extend(self.where_predicate_fields_arrow_array_into());
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+        // Fields
+        let field_ty = self.field_types();
+        let field_arrays = match self.fields {
+            Fields::Named(_) => {
+                let field_ident = self.field_idents();
+                quote!(
+                    #(
+                        ::std::sync::Arc::<
+                            <<#field_ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as #narrow::arrow::ArrowArray>::Array
+                        >::new(value.#field_ident.into()),
+                    )*
+                )
+            }
+            Fields::Unnamed(_) => {
+                let field_idx = self
+                    .fields
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, _)| Index::from(idx));
+                quote!(
+                    #(
+                        ::std::sync::Arc::<
+                            <<#field_ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as #narrow::arrow::ArrowArray>::Array
+                        >::new(value.#field_idx.into()),
+                    )*
+                )
+            }
+            Fields::Unit => {
+                quote!(
+                    #(
+                        ::std::sync::Arc::<
+                            <<#field_ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as #narrow::arrow::ArrowArray>::Array
+                        >::new(value.0.into())
+                    )*
+                )
+            }
+        };
+
+        let ident = self.array_struct_ident();
+        let tokens = quote!(
+            impl #impl_generics ::std::convert::From<#ident #ty_generics> for ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>> #where_clause  {
+                fn from(value: #ident #ty_generics) -> Self {
+                    vec![
+                        #field_arrays
+                    ]
+                }
+            }
+        );
+        parse2(tokens).expect("struct_array_into_array_refs")
     }
 
     /// Returns the struct definition of the Array wrapper struct.
@@ -466,6 +580,18 @@ impl Struct<'_> {
         let narrow = util::narrow();
         self.field_types()
             .map(move |ty| parse_quote!(<#ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>: #bound))
+    }
+
+    fn where_predicate_fields_arrow_array_into(&self) -> impl Iterator<Item = WherePredicate> + '_ {
+        let narrow = util::narrow();
+        self.field_types()
+            .map(move |ty| parse_quote!(
+                <#ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>:
+                    ::std::convert::Into<
+                    <<#ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>
+                    as #narrow::arrow::ArrowArray>::Array
+                >
+            ))
     }
 }
 
