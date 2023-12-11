@@ -14,7 +14,7 @@ pub trait StructArrayType: ArrayType {
     /// The array type that stores items of this struct. Note this differs from
     /// the [`ArrayType`] array because that wraps this array. Also note that this
     /// has no [`Array`] bound.
-    type Array<Buffer: BufferType>;
+    type Array<Buffer: BufferType>; // into<fields> this then requires all arraytype impls to provide a field
 }
 
 /// Array for product types.

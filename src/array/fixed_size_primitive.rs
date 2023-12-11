@@ -3,7 +3,7 @@
 use super::Array;
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
-    buffer::{BufferType, VecBuffer},
+    buffer::{Buffer, BufferType, VecBuffer},
     nullable::Nullable,
     validity::Validity,
     FixedSize, Index, Length,
@@ -54,6 +54,13 @@ impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType> Array
 where
     <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
 {
+}
+
+// todo(mbrobbel): buffer_ref traits?
+impl<T: FixedSize, Buffer: BufferType> AsRef<[T]> for FixedSizePrimitiveArray<T, false, Buffer> {
+    fn as_ref(&self) -> &[T] {
+        self.0.as_slice()
+    }
 }
 
 impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType> Default

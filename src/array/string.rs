@@ -56,6 +56,16 @@ where
     }
 }
 
+impl<'a, OffsetItem: OffsetElement, Buffer: BufferType> Extend<&'a &'a str>
+    for StringArray<false, OffsetItem, Buffer>
+where
+    VariableSizeBinaryArray<false, OffsetItem, Buffer>: Extend<&'a [u8]>,
+{
+    fn extend<I: IntoIterator<Item = &'a &'a str>>(&mut self, iter: I) {
+        self.0.extend(iter.into_iter().map(|str| str.as_bytes()));
+    }
+}
+
 impl<'a, OffsetItem: OffsetElement, Buffer: BufferType> Extend<Option<&'a str>>
     for StringArray<true, OffsetItem, Buffer>
 where

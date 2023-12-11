@@ -29,17 +29,26 @@ categories.workspace = true
 
 [features]
 default = ["arrow-rs", "derive"]
-arrow-rs = ["dep:arrow-array", "dep:arrow-buffer"]
+arrow-rs = ["dep:arrow-array", "dep:arrow-buffer", "dep:arrow-schema"]
 derive = ["dep:narrow-derive"]
 
 [dependencies]
-arrow-array = { version = "49.0.0", optional = true }
-arrow-buffer = { version = "49.0.0", optional = true }
+# arrow-array = { version = "49.0.0", optional = true }
+# arrow-buffer = { version = "49.0.0", optional = true }
+# arrow-schema = { version = "49.0.0", optional = true }
+arrow-array = { git = "https://github.com/apache/arrow-rs", branch = "master", optional = true }
+arrow-buffer = { git = "https://github.com/apache/arrow-rs", branch = "master", optional = true }
+arrow-schema = { git = "https://github.com/apache/arrow-rs", branch = "master", optional = true }
 narrow-derive = { path = "narrow-derive", version = "^0.3.4", optional = true }
 
 [dev-dependencies]
+# arrow-cast = { version = "49.0.0", default-features = false, features = ["prettyprint"] }
+arrow-cast = { git = "https://github.com/apache/arrow-rs", branch = "master", default-features = false, features = ["prettyprint"] }
+bytes = "1.5.0"
 criterion = { version = "0.5.1", default-features = false }
 rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
+parquet = { git = "https://github.com/apache/arrow-rs", branch = "master", features = ["arrow"] }
+# parquet = { version = "49.0.0", default-features = false, features = ["arrow"] }
 
 [profile.bench]
 lto = true
@@ -48,3 +57,7 @@ codegen-units = 1
 [[bench]]
 name = "narrow"
 harness = false
+
+# [[example]]
+# name = "parquet"
+# required-features = ["arrow-rs", "derive"]
