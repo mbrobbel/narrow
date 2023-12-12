@@ -94,14 +94,20 @@ impl_array_type!(u64, FixedSizePrimitiveArray<u64, false, Buffer>);
 impl_array_type!(Option<u64>, FixedSizePrimitiveArray<u64, true, Buffer>);
 impl_array_type!(i64, FixedSizePrimitiveArray<i64, false, Buffer>);
 impl_array_type!(Option<i64>, FixedSizePrimitiveArray<i64, true, Buffer>);
+#[cfg(not(feature = "arrow-rs"))]
 impl_array_type!(u128, FixedSizePrimitiveArray<u128, false, Buffer>);
+#[cfg(not(feature = "arrow-rs"))]
 impl_array_type!(Option<u128>, FixedSizePrimitiveArray<u128, true, Buffer>);
 impl_array_type!(i128, FixedSizePrimitiveArray<i128, false, Buffer>);
 impl_array_type!(Option<i128>, FixedSizePrimitiveArray<i128, true, Buffer>);
 
+#[cfg(not(feature = "arrow-rs"))]
 impl_array_type!(usize, FixedSizePrimitiveArray<usize, false, Buffer>);
+#[cfg(not(feature = "arrow-rs"))]
 impl_array_type!(Option<usize>, FixedSizePrimitiveArray<usize, true, Buffer>);
+#[cfg(not(feature = "arrow-rs"))]
 impl_array_type!(isize, FixedSizePrimitiveArray<isize, false, Buffer>);
+#[cfg(not(feature = "arrow-rs"))]
 impl_array_type!(Option<isize>, FixedSizePrimitiveArray<isize, true, Buffer>);
 
 impl_array_type!(f32, FixedSizePrimitiveArray<f32, false, Buffer>);

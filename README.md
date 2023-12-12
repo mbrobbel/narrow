@@ -16,7 +16,7 @@ This crate provides types to support reading and writing instances of abstract d
 
 ## Minimum supported Rust version
 
-The minimum supported Rust version for this crate is Rust 1.67.0.
+The minimum supported Rust version for this crate is Rust 1.70.0.
 
 ## License
 

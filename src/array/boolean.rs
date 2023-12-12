@@ -13,7 +13,7 @@ use crate::{
 ///
 /// Values are stored using single bits in a [Bitmap].
 pub struct BooleanArray<const NULLABLE: bool = false, Buffer: BufferType = VecBuffer>(
-    <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>,
+    pub(crate) <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>,
 )
 where
     Bitmap<Buffer>: Validity<NULLABLE>;

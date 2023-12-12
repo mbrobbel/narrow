@@ -42,14 +42,14 @@ pub trait BitmapRefMut: BitmapRef {
 // todo(mb): implement ops
 pub struct Bitmap<Buffer: BufferType = VecBuffer> {
     /// The bits are stored in this buffer of bytes.
-    buffer: <Buffer as BufferType>::Buffer<u8>,
+    pub(crate) buffer: <Buffer as BufferType>::Buffer<u8>,
 
     /// The number of bits stored in the bitmap.
-    bits: usize,
+    pub(crate) bits: usize,
 
     /// An offset (in number of bits) in the buffer. This enables zero-copy
     /// slicing of the bitmap on non-byte boundaries.
-    offset: usize,
+    pub(crate) offset: usize,
 }
 
 impl<Buffer: BufferType> BitmapRef for Bitmap<Buffer> {

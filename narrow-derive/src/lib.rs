@@ -12,7 +12,8 @@ const CRATE: &str = "narrow";
 
 static NARROW: Lazy<String> = Lazy::new(|| match proc_macro_crate::crate_name(CRATE) {
     Ok(found) => match found {
-        FoundCrate::Itself => "crate".to_string(),
+        // Requires `extern crate self as narrow`
+        FoundCrate::Itself => CRATE.to_string(),
         FoundCrate::Name(name) => name,
     },
     _ => CRATE.to_string(),

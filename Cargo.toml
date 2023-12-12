@@ -1,7 +1,7 @@
 [workspace.package]
 authors = ["Matthijs Brobbel <m1brobbel@gmail.com>"]
 edition = "2021"
-rust-version = "1.67.0"
+rust-version = "1.70.0"
 description = "An implementation of Apache Arrow"
 readme = "README.md"
 repository = "https://github.com/mbrobbel/narrow"
@@ -29,14 +29,21 @@ categories.workspace = true
 
 [features]
 default = []
+arrow-rs = ["dep:arrow-array", "dep:arrow-buffer", "dep:arrow-schema", "narrow-derive?/arrow-rs"]
 derive = ["dep:narrow-derive"]
 
 [dependencies]
+arrow-array = { git = "https://github.com/apache/arrow-rs", rev = "7fd2d42", optional = true }
+arrow-buffer = { git = "https://github.com/apache/arrow-rs", rev = "7fd2d42", optional = true }
+arrow-schema = { git = "https://github.com/apache/arrow-rs", rev = "7fd2d42", optional = true }
 narrow-derive = { path = "narrow-derive", version = "^0.3.4", optional = true }
 
 [dev-dependencies]
+arrow-cast = { git = "https://github.com/apache/arrow-rs", rev = "7fd2d42", default-features = false, features = ["prettyprint"] }
+bytes = "1.5.0"
 criterion = { version = "0.5.1", default-features = false }
 rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
+parquet = { git = "https://github.com/apache/arrow-rs", rev = "7fd2d42", features = ["arrow"] }
 
 [profile.bench]
 lto = true
@@ -45,3 +52,7 @@ codegen-units = 1
 [[bench]]
 name = "narrow"
 harness = false
+
+[[example]]
+name = "parquet"
+required-features = ["arrow-rs", "derive"]
