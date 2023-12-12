@@ -35,24 +35,6 @@ where
 {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<Buffer>;
 }
-impl<Buffer: narrow::buffer::BufferType> narrow::arrow::StructArrayTypeFields
-for FooArray<Buffer>
-where
-    Foo: Debug,
-{
-    fn fields() -> ::arrow_schema::Fields {
-        ::arrow_schema::Fields::from([])
-    }
-}
-impl<Buffer: narrow::buffer::BufferType> ::std::convert::From<FooArray<Buffer>>
-for ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>
-where
-    Foo: Debug,
-{
-    fn from(value: FooArray<Buffer>) -> Self {
-        ::alloc::vec::Vec::new()
-    }
-}
 struct FooArray<Buffer: narrow::buffer::BufferType>(
     narrow::array::NullArray<Foo, false, Buffer>,
 )

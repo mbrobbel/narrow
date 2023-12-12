@@ -29,7 +29,7 @@ categories.workspace = true
 
 [features]
 default = ["arrow-rs", "derive"]
-arrow-rs = ["dep:arrow-array", "dep:arrow-buffer", "dep:arrow-schema", "narrow-derive/arrow-rs"]
+arrow-rs = ["dep:arrow-array", "dep:arrow-buffer", "dep:arrow-schema", "narrow-derive?/arrow-rs"]
 derive = ["dep:narrow-derive"]
 
 [dependencies]
@@ -59,6 +59,6 @@ codegen-units = 1
 name = "narrow"
 harness = false
 
-# [[example]]
-# name = "parquet"
-# required-features = ["arrow-rs", "derive"]
+[[example]]
+name = "parquet"
+required-features = ["arrow-rs", "derive"]

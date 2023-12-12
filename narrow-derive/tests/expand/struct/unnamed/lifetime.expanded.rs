@@ -17,64 +17,6 @@ for ::std::option::Option<Foo<'a, T>> {
 impl<'a, T: narrow::array::ArrayType> narrow::array::StructArrayType for Foo<'a, T> {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<'a, T, Buffer>;
 }
-impl<
-    'a,
-    T: narrow::array::ArrayType,
-    Buffer: narrow::buffer::BufferType,
-> narrow::arrow::StructArrayTypeFields for FooArray<'a, T, Buffer>
-where
-    <&'a T as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >: narrow::arrow::ArrowArray,
-{
-    fn fields() -> ::arrow_schema::Fields {
-        ::arrow_schema::Fields::from([
-            ::std::sync::Arc::new(
-                <<&'a T as ::narrow::array::ArrayType>::Array<
-                    Buffer,
-                    narrow::offset::NA,
-                    narrow::array::union::NA,
-                > as narrow::arrow::ArrowArray>::as_field("_0"),
-            ),
-        ])
-    }
-}
-impl<
-    'a,
-    T: narrow::array::ArrayType,
-    Buffer: narrow::buffer::BufferType,
-> ::std::convert::From<FooArray<'a, T, Buffer>>
-for ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>
-where
-    <&'a T as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >: ::std::convert::Into<
-        <<&'a T as narrow::array::ArrayType>::Array<
-            Buffer,
-            narrow::offset::NA,
-            narrow::array::union::NA,
-        > as narrow::arrow::ArrowArray>::Array,
-    >,
-{
-    fn from(value: FooArray<'a, T, Buffer>) -> Self {
-        <[_]>::into_vec(
-            #[rustc_box]
-            ::alloc::boxed::Box::new([
-                ::std::sync::Arc::<
-                    <<&'a T as narrow::array::ArrayType>::Array<
-                        Buffer,
-                        narrow::offset::NA,
-                        narrow::array::union::NA,
-                    > as narrow::arrow::ArrowArray>::Array,
-                >::new(value.0.into()),
-            ]),
-        )
-    }
-}
 struct FooArray<'a, T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType>(
     <&'a T as narrow::array::ArrayType>::Array<
         Buffer,

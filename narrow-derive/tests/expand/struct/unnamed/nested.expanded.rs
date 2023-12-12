@@ -16,57 +16,6 @@ impl narrow::array::ArrayType<Foo> for ::std::option::Option<Foo> {
 impl narrow::array::StructArrayType for Foo {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<Buffer>;
 }
-impl<Buffer: narrow::buffer::BufferType> narrow::arrow::StructArrayTypeFields
-for FooArray<Buffer>
-where
-    <u32 as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >: narrow::arrow::ArrowArray,
-{
-    fn fields() -> ::arrow_schema::Fields {
-        ::arrow_schema::Fields::from([
-            ::std::sync::Arc::new(
-                <<u32 as ::narrow::array::ArrayType>::Array<
-                    Buffer,
-                    narrow::offset::NA,
-                    narrow::array::union::NA,
-                > as narrow::arrow::ArrowArray>::as_field("_0"),
-            ),
-        ])
-    }
-}
-impl<Buffer: narrow::buffer::BufferType> ::std::convert::From<FooArray<Buffer>>
-for ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>
-where
-    <u32 as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >: ::std::convert::Into<
-        <<u32 as narrow::array::ArrayType>::Array<
-            Buffer,
-            narrow::offset::NA,
-            narrow::array::union::NA,
-        > as narrow::arrow::ArrowArray>::Array,
-    >,
-{
-    fn from(value: FooArray<Buffer>) -> Self {
-        <[_]>::into_vec(
-            #[rustc_box]
-            ::alloc::boxed::Box::new([
-                ::std::sync::Arc::<
-                    <<u32 as narrow::array::ArrayType>::Array<
-                        Buffer,
-                        narrow::offset::NA,
-                        narrow::array::union::NA,
-                    > as narrow::arrow::ArrowArray>::Array,
-                >::new(value.0.into()),
-            ]),
-        )
-    }
-}
 struct FooArray<Buffer: narrow::buffer::BufferType>(
     <u32 as narrow::array::ArrayType>::Array<
         Buffer,
@@ -144,57 +93,6 @@ impl narrow::array::ArrayType<Bar> for ::std::option::Option<Bar> {
 }
 impl narrow::array::StructArrayType for Bar {
     type Array<Buffer: narrow::buffer::BufferType> = BarArray<Buffer>;
-}
-impl<Buffer: narrow::buffer::BufferType> narrow::arrow::StructArrayTypeFields
-for BarArray<Buffer>
-where
-    <Foo as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >: narrow::arrow::ArrowArray,
-{
-    fn fields() -> ::arrow_schema::Fields {
-        ::arrow_schema::Fields::from([
-            ::std::sync::Arc::new(
-                <<Foo as ::narrow::array::ArrayType>::Array<
-                    Buffer,
-                    narrow::offset::NA,
-                    narrow::array::union::NA,
-                > as narrow::arrow::ArrowArray>::as_field("_0"),
-            ),
-        ])
-    }
-}
-impl<Buffer: narrow::buffer::BufferType> ::std::convert::From<BarArray<Buffer>>
-for ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>
-where
-    <Foo as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >: ::std::convert::Into<
-        <<Foo as narrow::array::ArrayType>::Array<
-            Buffer,
-            narrow::offset::NA,
-            narrow::array::union::NA,
-        > as narrow::arrow::ArrowArray>::Array,
-    >,
-{
-    fn from(value: BarArray<Buffer>) -> Self {
-        <[_]>::into_vec(
-            #[rustc_box]
-            ::alloc::boxed::Box::new([
-                ::std::sync::Arc::<
-                    <<Foo as narrow::array::ArrayType>::Array<
-                        Buffer,
-                        narrow::offset::NA,
-                        narrow::array::union::NA,
-                    > as narrow::arrow::ArrowArray>::Array,
-                >::new(value.0.into()),
-            ]),
-        )
-    }
 }
 struct BarArray<Buffer: narrow::buffer::BufferType>(
     <Foo as narrow::array::ArrayType>::Array<
