@@ -28,28 +28,22 @@ keywords.workspace = true
 categories.workspace = true
 
 [features]
-default = ["arrow-rs", "derive"]
+default = []
 arrow-rs = ["dep:arrow-array", "dep:arrow-buffer", "dep:arrow-schema", "narrow-derive?/arrow-rs"]
 derive = ["dep:narrow-derive"]
 
 [dependencies]
-# arrow-array = { version = "49.0.0", optional = true }
-# arrow-buffer = { version = "49.0.0", optional = true }
-# arrow-schema = { version = "49.0.0", optional = true }
-arrow-array = { git = "https://github.com/mbrobbel/arrow-rs", branch = "buffer-builder-scalar-buffer", optional = true }
-# arrow-buffer = { git = "https://github.com/apache/arrow-rs", branch = "master", optional = true }
-arrow-buffer = { git = "https://github.com/mbrobbel/arrow-rs", branch = "buffer-builder-scalar-buffer", optional = true }
-arrow-schema = { git = "https://github.com/mbrobbel/arrow-rs", branch = "buffer-builder-scalar-buffer", optional = true }
+arrow-array = { git = "https://github.com/apache/arrow-rs", rev = "7fd2d42", optional = true }
+arrow-buffer = { git = "https://github.com/apache/arrow-rs", rev = "7fd2d42", optional = true }
+arrow-schema = { git = "https://github.com/apache/arrow-rs", rev = "7fd2d42", optional = true }
 narrow-derive = { path = "narrow-derive", version = "^0.3.4", optional = true }
 
 [dev-dependencies]
-# arrow-cast = { version = "49.0.0", default-features = false, features = ["prettyprint"] }
-arrow-cast = { git = "https://github.com/mbrobbel/arrow-rs", branch = "buffer-builder-scalar-buffer", default-features = false, features = ["prettyprint"] }
+arrow-cast = { git = "https://github.com/apache/arrow-rs", rev = "7fd2d42", default-features = false, features = ["prettyprint"] }
 bytes = "1.5.0"
 criterion = { version = "0.5.1", default-features = false }
 rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
-parquet = { git = "https://github.com/mbrobbel/arrow-rs", branch = "buffer-builder-scalar-buffer", features = ["arrow"] }
-# parquet = { version = "49.0.0", default-features = false, features = ["arrow"] }
+parquet = { git = "https://github.com/apache/arrow-rs", rev = "7fd2d42", features = ["arrow"] }
 
 [profile.bench]
 lto = true
