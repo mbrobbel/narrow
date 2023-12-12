@@ -121,6 +121,28 @@ where
     }
 }
 
+impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType>
+    From<StructArray<T, NULLABLE, Buffer>> for arrow_array::RecordBatch
+where
+    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    arrow_array::StructArray: From<StructArray<T, NULLABLE, Buffer>>,
+{
+    fn from(value: StructArray<T, NULLABLE, Buffer>) -> Self {
+        Self::from(arrow_array::StructArray::from(value))
+    }
+}
+
+impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> From<arrow_array::RecordBatch>
+    for StructArray<T, NULLABLE, Buffer>
+where
+    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    Self: From<arrow_array::StructArray>,
+{
+    fn from(value: arrow_array::RecordBatch) -> Self {
+        Self::from(arrow_array::StructArray::from(value))
+    }
+}
+
 #[cfg(test)]
 mod tests {
 

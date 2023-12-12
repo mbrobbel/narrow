@@ -40,8 +40,7 @@ fn main() {
         .into_iter()
         .collect::<StructArray<Foo, false, ArrowBufferBuilder>>();
 
-    let arrow_struct_array = arrow_array::StructArray::from(narrow_array);
-    let record_batch = RecordBatch::from(arrow_struct_array);
+    let record_batch = RecordBatch::from(narrow_array);
     pretty::print_batches(&[record_batch.clone()]).unwrap();
 
     let mut buffer = Vec::new();
