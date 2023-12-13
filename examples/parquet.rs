@@ -16,6 +16,7 @@ fn main() {
         d: String,
         e: Option<Vec<Option<bool>>>,
         f: Bar,
+        g: [u8; 8],
     }
     let input = [
         Foo {
@@ -25,6 +26,7 @@ fn main() {
             d: "hello world!".to_string(),
             e: Some(vec![Some(true), None]),
             f: Bar(Some(true)),
+            g: [1, 2, 3, 4, 5, 6, 7, 8],
         },
         Foo {
             a: 42,
@@ -33,6 +35,7 @@ fn main() {
             d: "narrow".to_string(),
             e: None,
             f: Bar(None),
+            g: [9, 10, 11, 12, 13, 14, 15, 16],
         },
     ];
 

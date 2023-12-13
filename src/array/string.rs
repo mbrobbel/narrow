@@ -184,6 +184,53 @@ impl<OffsetItem: OffsetElement, Buffer: BufferType> Index
     }
 }
 
+/// An iterator over strings in a [`StringArray`].
+pub struct StringIter<'a, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+{
+    /// Reference to the array.
+    array: &'a StringArray<NULLABLE, OffsetItem, Buffer>,
+    /// Current index.
+    index: usize,
+}
+
+impl<'a, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Iterator
+    for StringIter<'a, NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    StringArray<NULLABLE, OffsetItem, Buffer>: Length + Index,
+{
+    type Item = <StringArray<NULLABLE, OffsetItem, Buffer> as Index>::Item<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.array
+            .index(self.index)
+            .into_iter()
+            .inspect(|_| {
+                self.index += 1;
+            })
+            .next()
+    }
+}
+
+impl<'a, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
+    for &'a StringArray<NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    StringArray<NULLABLE, OffsetItem, Buffer>: Index + Length,
+{
+    type Item = <StringArray<NULLABLE, OffsetItem, Buffer> as Index>::Item<'a>;
+    type IntoIter = StringIter<'a, NULLABLE, OffsetItem, Buffer>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        StringIter {
+            array: self,
+            index: 0,
+        }
+    }
+}
+
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Length
     for StringArray<NULLABLE, OffsetItem, Buffer>
 where
@@ -232,7 +279,6 @@ mod tests {
         let input = ["1", "23", "456", "7890"];
         let array = input
             .into_iter()
-            .map(ToOwned::to_owned)
             .collect::<<String as ArrayType>::Array<VecBuffer, i64, union::NA>>();
         assert_eq!(array.len(), 4);
         assert_eq!(array.0 .0.data.0, b"1234567890");
@@ -246,13 +292,7 @@ mod tests {
 
     #[test]
     fn from_iter_nullable() {
-        let input = vec![
-            Some("a".to_owned()),
-            None,
-            Some("sd".to_owned()),
-            Some("f".to_owned()),
-            None,
-        ];
+        let input = vec![Some("a"), None, Some("sd"), Some("f"), None];
         let array = input.into_iter().collect::<StringArray<true>>();
         assert_eq!(array.len(), 5);
         assert_eq!(array.is_valid(0), Some(true));
@@ -266,6 +306,23 @@ mod tests {
         assert_eq!(
             array.bitmap_ref().into_iter().collect::<Vec<_>>(),
             &[true, false, true, true, false]
+        );
+    }
+
+    #[test]
+    fn into_iter() {
+        let input = ["1", "23", "456", "7890"];
+        let array = input.into_iter().collect::<StringArray>();
+        assert_eq!(array.into_iter().collect::<Vec<_>>(), input);
+
+        let input_nullable = vec![Some("a"), None, Some("sd"), Some("f"), None];
+        let array_nullable = input_nullable
+            .clone()
+            .into_iter()
+            .collect::<StringArray<true>>();
+        assert_eq!(
+            array_nullable.into_iter().collect::<Vec<_>>(),
+            input_nullable
         );
     }
 
