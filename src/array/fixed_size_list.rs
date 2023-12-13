@@ -21,7 +21,7 @@ pub struct FixedSizeListArray<
     T: Array,
     const NULLABLE: bool = false,
     Buffer: BufferType = VecBuffer,
->(<T as Validity<NULLABLE>>::Storage<Buffer>)
+>(pub(crate) <T as Validity<NULLABLE>>::Storage<Buffer>)
 where
     T: Validity<NULLABLE>;
 
