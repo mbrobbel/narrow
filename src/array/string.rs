@@ -312,7 +312,7 @@ mod tests {
     #[test]
     fn into_iter() {
         let input = ["1", "23", "456", "7890"];
-        let array = input.clone().into_iter().collect::<StringArray>();
+        let array = input.into_iter().collect::<StringArray>();
         assert_eq!(array.into_iter().collect::<Vec<_>>(), input);
 
         let input_nullable = vec![Some("a"), None, Some("sd"), Some("f"), None];
