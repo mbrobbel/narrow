@@ -2,7 +2,11 @@ fn main() {
     use arrow_array::RecordBatch;
     use arrow_cast::pretty;
     use bytes::Bytes;
-    use narrow::{array::StructArray, arrow::buffer_builder::ArrowBufferBuilder, ArrayType};
+    use narrow::{
+        array::StructArray,
+        arrow::{buffer_builder::ArrowBufferBuilder, scalar_buffer::ArrowScalarBuffer},
+        ArrayType,
+    };
     use parquet::arrow::{arrow_reader::ParquetRecordBatchReader, ArrowWriter};
 
     #[derive(ArrayType, Default)]
@@ -44,6 +48,7 @@ fn main() {
         .collect::<StructArray<Foo, false, ArrowBufferBuilder>>();
 
     let record_batch = RecordBatch::from(narrow_array);
+    println!("From narrow StructArray to Arrow RecordBatch");
     pretty::print_batches(&[record_batch.clone()]).unwrap();
 
     let mut buffer = Vec::new();
@@ -53,6 +58,15 @@ fn main() {
 
     let mut reader = ParquetRecordBatchReader::try_new(Bytes::from(buffer), 1024).unwrap();
     let read = reader.next().unwrap().unwrap();
+    println!("From Arrow RecordBatch to Parquet and back to Arrow RecordBatch");
     pretty::print_batches(&[read.clone()]).unwrap();
-    assert_eq!(record_batch, read);
+    assert_eq!(record_batch, read.clone());
+
+    let round_trip: StructArray<Foo, false, ArrowScalarBuffer> = read.into();
+    let arrow_struct_array_round_trip = arrow_array::StructArray::from(round_trip);
+    let record_batch_round_trip = arrow_array::RecordBatch::from(arrow_struct_array_round_trip);
+    println!(
+        "From Arrow RecordBatch (via Parquet) to narrow StructArray and back to Arrow RecordBatch"
+    );
+    pretty::print_batches(&[record_batch_round_trip]).unwrap();
 }

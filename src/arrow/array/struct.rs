@@ -146,12 +146,13 @@ where
 #[cfg(test)]
 mod tests {
 
-    use arrow_array::Array as _;
+    use arrow_array::{cast::AsArray, types::UInt32Type, Array as _};
 
     use crate::{
         array::union::{self, UnionType},
         array::ArrayType,
-        arrow::buffer_builder::ArrowBufferBuilder,
+        arrow::{buffer_builder::ArrowBufferBuilder, scalar_buffer::ArrowScalarBuffer},
+        buffer::Buffer,
         offset::{self, OffsetElement},
     };
 
@@ -220,6 +221,19 @@ mod tests {
             >::new(value.a.into())]
         }
     }
+    impl<Buffer: BufferType> From<Vec<Arc<dyn arrow_array::Array>>> for FooArray<Buffer>
+    where
+        <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>: From<Arc<dyn arrow_array::Array>>,
+    {
+        fn from(value: Vec<Arc<dyn arrow_array::Array>>) -> Self {
+            let mut arrays = value.into_iter();
+            let result = Self {
+                a: arrays.next().expect("an array").into(),
+            };
+            assert!(arrays.next().is_none());
+            result
+        }
+    }
 
     #[test]
     fn from() {
@@ -236,5 +250,65 @@ mod tests {
         assert_eq!(struct_array_arrow_nullable.len(), 2);
         assert!(struct_array_arrow_nullable.is_valid(0));
         assert!(struct_array_arrow_nullable.is_null(1));
+        assert_eq!(
+            struct_array_arrow_nullable
+                .column(0)
+                .as_primitive::<UInt32Type>()
+                .values()
+                .as_slice(),
+            [1234, u32::default()]
+        );
+
+        // And convert back
+        let roundtrip: StructArray<Foo, true, ArrowScalarBuffer> =
+            struct_array_arrow_nullable.into();
+        assert_eq!(roundtrip.0.data.a.0, [1234, u32::default()]);
+    }
+
+    #[test]
+    #[should_panic(expected = "expected array with a null buffer")]
+    fn into_nullable() {
+        let struct_array = [Foo { a: 1 }, Foo { a: 2 }]
+            .into_iter()
+            .collect::<StructArray<Foo, false, ArrowBufferBuilder>>();
+        let struct_array_arrow = arrow_array::StructArray::from(struct_array);
+        let _ = StructArray::<Foo, true, ArrowScalarBuffer>::from(struct_array_arrow);
+    }
+
+    #[test]
+    #[should_panic(expected = "expected array without a null buffer")]
+    fn into_non_nullable() {
+        let struct_array_nullable = [Some(Foo { a: 1234 }), None]
+            .into_iter()
+            .collect::<StructArray<Foo, true, ArrowBufferBuilder>>();
+        let struct_array_arrow_nullable = arrow_array::StructArray::from(struct_array_nullable);
+        let _ = StructArray::<Foo, false, ArrowScalarBuffer>::from(struct_array_arrow_nullable);
+    }
+
+    #[test]
+    fn into() {
+        let struct_array = [Foo { a: 1 }, Foo { a: 2 }]
+            .into_iter()
+            .collect::<StructArray<Foo, false, ArrowBufferBuilder>>();
+        let struct_array_arrow = arrow_array::StructArray::from(struct_array);
+        assert_eq!(
+            StructArray::<Foo, false, ArrowScalarBuffer>::from(struct_array_arrow)
+                .0
+                .a
+                .0,
+            [1, 2]
+        );
+        let struct_array_nullable = [Some(Foo { a: 1234 }), None]
+            .into_iter()
+            .collect::<StructArray<Foo, true, ArrowBufferBuilder>>();
+        let struct_array_arrow_nullable = arrow_array::StructArray::from(struct_array_nullable);
+        assert_eq!(
+            StructArray::<Foo, true, ArrowScalarBuffer>::from(struct_array_arrow_nullable)
+                .0
+                .data
+                .a
+                .0,
+            [1234, u32::default()]
+        );
     }
 }

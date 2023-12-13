@@ -28,6 +28,9 @@ pub(super) fn derive(input: &DeriveInput, fields: &Fields) -> TokenStream {
     // Optionally generates the conversion to vec of array refs
     let struct_array_into_array_refs = input.struct_array_into_array_refs();
 
+    // Optionally generates the conversion from vec of array refs
+    let struct_array_from_array_refs = input.struct_array_from_array_refs();
+
     // Generate the array wrapper struct definition.
     let array_struct_def = input.array_struct_def();
 
@@ -53,6 +56,8 @@ pub(super) fn derive(input: &DeriveInput, fields: &Fields) -> TokenStream {
         #struct_array_type_fields_impl
 
         #struct_array_into_array_refs
+
+        #struct_array_from_array_refs
 
         #array_struct_def
 
@@ -302,6 +307,63 @@ impl Struct<'_> {
             }
         };
         parse2(tokens).expect("struct_array_into_array_refs")
+    }
+
+    /// Add an `From` implementation for the array to convert from a vec of array refs
+    fn struct_array_from_array_refs(&self) -> ItemImpl {
+        let narrow = util::narrow();
+
+        // Generics
+        let mut generics = self.generics.clone();
+        SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
+        AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
+            .visit_generics_mut(&mut generics);
+        generics
+            .make_where_clause()
+            .predicates
+            .extend(self.where_predicate_fields(parse_quote!(
+                ::std::convert::From<::std::sync::Arc<dyn ::arrow_array::Array>>
+            )));
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+        // Fields
+        let field_arrays = self.surround_with_delimiters(match self.fields {
+            Fields::Named(_) => {
+                let field_ident = self.field_idents();
+                quote!(
+                    #(
+                        #field_ident: arrays.next().expect("array").into(),
+                    )*
+                )
+            }
+            Fields::Unnamed(_) => {
+                let field = std::iter::repeat(quote!(arrays.next().expect("array").into()))
+                    .take(self.fields.len());
+                quote!(
+                    #(
+                        #field,
+                    )*
+                )
+            }
+            Fields::Unit => {
+                quote!(arrays.next().expect("array").into())
+            }
+        });
+
+        let ident = self.array_struct_ident();
+        let tokens = quote! {
+            #[cfg(feature = "arrow-rs")]
+            impl #impl_generics ::std::convert::From<::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>> for #ident #ty_generics #where_clause  {
+                fn from(value: ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>) -> Self {
+                    let mut arrays = value.into_iter();
+                    let result = Self #field_arrays;
+                    assert!(arrays.next().is_none());
+                    result
+                }
+            }
+        };
+        parse2(tokens).expect("struct_array_from_array_refs")
     }
 
     /// Returns the struct definition of the Array wrapper struct.
