@@ -133,9 +133,11 @@ where
 
 #[cfg(test)]
 mod tests {
+    use arrow_array::types::UInt32Type;
+
     use crate::{
         array::{StringArray, Uint32Array},
-        arrow::scalar_buffer::ArrowScalarBuffer,
+        arrow::buffer::scalar_buffer::ArrowScalarBuffer,
     };
 
     use super::*;
@@ -181,62 +183,79 @@ mod tests {
         );
     }
 
-    // #[test]
-    // #[should_panic(expected = "expected array with a null buffer")]
-    // fn into_nullable() {
-    //     let primitive_array = INPUT
-    //         .into_iter()
-    //         .collect::<arrow_array::PrimitiveArray<UInt32Type>>();
-    //     let _ = FixedSizePrimitiveArray::<
-    //         u32,
-    //         true,
-    //         crate::arrow::buffer::scalar_buffer::ArrowScalarBuffer,
-    //     >::from(primitive_array);
-    // }
+    #[test]
+    #[should_panic(expected = "expected array with a null buffer")]
+    fn into_nullable() {
+        let fixed_size_list_array =
+            arrow_array::FixedSizeListArray::from_iter_primitive::<UInt32Type, _, _>(
+                INPUT
+                    .into_iter()
+                    .map(|opt| opt.into_iter().map(Option::Some))
+                    .map(Option::Some),
+                2,
+            );
+        let _ = FixedSizeListArray::<
+            2,
+            Uint32Array<false, ArrowScalarBuffer>,
+            true,
+            ArrowScalarBuffer,
+        >::from(fixed_size_list_array);
+    }
 
-    // #[test]
-    // #[should_panic(expected = "expected array without a null buffer")]
-    // fn into_non_nullable() {
-    //     let primitive_array_nullable = INPUT_NULLABLE
-    //         .into_iter()
-    //         .collect::<arrow_array::PrimitiveArray<UInt16Type>>();
-    //     let _ = FixedSizePrimitiveArray::<
-    //         u16,
-    //         false,
-    //         crate::arrow::buffer::scalar_buffer::ArrowScalarBuffer,
-    //     >::from(primitive_array_nullable);
-    // }
+    #[test]
+    #[should_panic(expected = "expected array without a null buffer")]
+    fn into_non_nullable() {
+        let fixed_size_list_array_nullable =
+            arrow_array::FixedSizeListArray::from_iter_primitive::<UInt32Type, _, _>(
+                vec![Some(vec![Some(0), Some(1), Some(2)]), None],
+                3,
+            );
+        let _ = FixedSizeListArray::<
+            3,
+            Uint32Array<false, ArrowScalarBuffer>,
+            false,
+            ArrowScalarBuffer,
+        >::from(fixed_size_list_array_nullable);
+    }
 
     #[test]
     fn into() {
-        // let primitive_array = INPUT
-        //     .into_iter()
-        //     .collect::<arrow_array::PrimitiveArray<UInt32Type>>();
-        // assert_eq!(
-        //     FixedSizePrimitiveArray::<
-        //         u32,
-        //         false,
-        //         crate::arrow::buffer::scalar_buffer::ArrowScalarBuffer,
-        //     >::from(primitive_array)
-        //     .into_iter()
-        //     .copied()
-        //     .collect::<Vec<_>>(),
-        //     INPUT
-        // );
+        let fixed_size_list_array =
+            arrow_array::FixedSizeListArray::from_iter_primitive::<UInt32Type, _, _>(
+                INPUT
+                    .into_iter()
+                    .map(|opt| opt.into_iter().map(Option::Some))
+                    .map(Option::Some),
+                2,
+            );
+        assert_eq!(
+            FixedSizeListArray::<2,
+                Uint32Array<false, ArrowScalarBuffer>,
+                false,
+                ArrowScalarBuffer,
+            >::from(fixed_size_list_array)
+            .into_iter()
+            .flatten()
+            .copied()
+            .collect::<Vec<_>>(),
+            INPUT.into_iter().flatten().collect::<Vec<_>>()
+        );
 
-        // let primitive_array_nullable = INPUT_NULLABLE
-        //     .into_iter()
-        //     .collect::<arrow_array::PrimitiveArray<UInt16Type>>();
-        // assert_eq!(
-        //     FixedSizePrimitiveArray::<
-        //         u16,
-        //         true,
-        //         crate::arrow::buffer::scalar_buffer::ArrowScalarBuffer,
-        //     >::from(primitive_array_nullable)
-        //     .into_iter()
-        //     .map(|opt| opt.copied())
-        //     .collect::<Vec<_>>(),
-        //     INPUT_NULLABLE
-        // );
+        let fixed_size_list_array_nullable_input = INPUT_NULLABLE
+            .into_iter()
+            .collect::<FixedSizeListArray<2, StringArray, true>>();
+        let fixed_size_list_array_nullable =
+            arrow_array::FixedSizeListArray::from(fixed_size_list_array_nullable_input);
+        assert_eq!(
+            FixedSizeListArray::<
+                2,
+                StringArray<false, i32, ArrowScalarBuffer>,
+                true,
+                ArrowScalarBuffer,
+            >::from(fixed_size_list_array_nullable)
+            .into_iter()
+            .collect::<Vec<_>>(),
+            INPUT_NULLABLE
+        );
     }
 }
