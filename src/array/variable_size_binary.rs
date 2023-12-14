@@ -31,6 +31,7 @@ impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Array
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
 {
+    type Item = Vec<u8>;
 }
 
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Default

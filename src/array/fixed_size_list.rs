@@ -13,7 +13,7 @@ use crate::{
     Index, Length,
 };
 
-use super::Array;
+use super::{Array, NullableItem};
 
 /// Array with fixed-size sequences of elements.
 pub struct FixedSizeListArray<
@@ -25,12 +25,30 @@ pub struct FixedSizeListArray<
 where
     T: Validity<NULLABLE>;
 
+// NullableItem
 impl<const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType> Array
     for FixedSizeListArray<N, T, NULLABLE, Buffer>
 where
     T: Validity<NULLABLE>,
+    [<T as Array>::Item; N]: NullableItem<NULLABLE>,
 {
+    type Item = <[<T as Array>::Item; N] as NullableItem<NULLABLE>>::Item;
 }
+
+// impl<const N: usize, T: Array, Buffer: BufferType> Array
+//     for FixedSizeListArray<N, T, false, Buffer>
+// // where
+// // T: Validity<NULLABLE>,
+// {
+//     type Item = [<T as Array>::Item; N];
+// }
+// impl<const N: usize, T: Array, Buffer: BufferType> Array
+//     for FixedSizeListArray<N, T, true, Buffer>
+// // where
+// // T: Validity<NULLABLE>,
+// {
+//     type Item = Option<[<T as Array>::Item; N]>;
+// }
 
 impl<const N: usize, T: Array, Buffer: BufferType> BitmapRef
     for FixedSizeListArray<N, T, true, Buffer>

@@ -54,6 +54,7 @@ impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType> Array
 where
     <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
 {
+    type Item = T;
 }
 
 // todo(mbrobbel): buffer_ref traits?

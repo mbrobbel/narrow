@@ -1,3 +1,7 @@
+use std::time::Duration;
+
+use uuid::Uuid;
+
 fn main() {
     use arrow_array::RecordBatch;
     use arrow_cast::pretty;
@@ -21,6 +25,8 @@ fn main() {
         e: Option<Vec<Option<bool>>>,
         f: Bar,
         g: [u8; 8],
+        h: Uuid,
+        i: Duration,
     }
     let input = [
         Foo {
@@ -31,6 +37,8 @@ fn main() {
             e: Some(vec![Some(true), None]),
             f: Bar(Some(true)),
             g: [1, 2, 3, 4, 5, 6, 7, 8],
+            h: Uuid::max(),
+            i: Duration::from_secs(1234),
         },
         Foo {
             a: 42,
@@ -40,6 +48,8 @@ fn main() {
             e: None,
             f: Bar(None),
             g: [9, 10, 11, 12, 13, 14, 15, 16],
+            h: Uuid::nil(),
+            i: Duration::from_nanos(1234),
         },
     ];
 
@@ -62,11 +72,19 @@ fn main() {
     pretty::print_batches(&[read.clone()]).unwrap();
     assert_eq!(record_batch, read.clone());
 
-    let round_trip: StructArray<Foo, false, ArrowScalarBuffer> = read.into();
-    let arrow_struct_array_round_trip = arrow_array::StructArray::from(round_trip);
-    let record_batch_round_trip = arrow_array::RecordBatch::from(arrow_struct_array_round_trip);
     println!(
         "From Arrow RecordBatch (via Parquet) to narrow StructArray and back to Arrow RecordBatch"
     );
+    let round_trip: StructArray<Foo, false, ArrowScalarBuffer> = read.into();
+    println!(
+        "Extract field `h` as Uuids: {:?}",
+        round_trip.0.h.into_iter().collect::<Box<[Uuid]>>()
+    );
+    println!(
+        "Extract field `i` as Durations: {:?}",
+        round_trip.0.i.into_iter().collect::<Box<[Duration]>>()
+    );
+    let arrow_struct_array_round_trip = arrow_array::StructArray::from(round_trip);
+    let record_batch_round_trip = arrow_array::RecordBatch::from(arrow_struct_array_round_trip);
     pretty::print_batches(&[record_batch_round_trip]).unwrap();
 }

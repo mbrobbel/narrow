@@ -18,9 +18,23 @@ pub struct BooleanArray<const NULLABLE: bool = false, Buffer: BufferType = VecBu
 where
     Bitmap<Buffer>: Validity<NULLABLE>;
 
-impl<const NULLABLE: bool, Buffer: BufferType> Array for BooleanArray<NULLABLE, Buffer> where
-    Bitmap<Buffer>: Validity<NULLABLE>
+// impl ArrayType for bool {
+//     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+//         BooleanArray<false, Buffer>;
+// }
+// default_logical_array!(bool);
+// default_logical_array!(Option<bool>);
+
+// impl ArrayType for Option<bool> {
+//     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+//         BooleanArray<true, Buffer>;
+// }
+
+impl<const NULLABLE: bool, Buffer: BufferType> Array for BooleanArray<NULLABLE, Buffer>
+where
+    Bitmap<Buffer>: Validity<NULLABLE>,
 {
+    type Item = bool;
 }
 
 impl<const NULLABLE: bool, Buffer: BufferType> BufferRef<u8> for BooleanArray<NULLABLE, Buffer>

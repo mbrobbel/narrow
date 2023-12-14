@@ -44,9 +44,11 @@ pub struct NullArray<T: Unit = (), const NULLABLE: bool = false, Buffer: BufferT
 where
     Nulls<T>: Validity<NULLABLE>;
 
-impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> Array for NullArray<T, NULLABLE, Buffer> where
-    Nulls<T>: Validity<NULLABLE>
+impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> Array for NullArray<T, NULLABLE, Buffer>
+where
+    Nulls<T>: Validity<NULLABLE>,
 {
+    type Item = T;
 }
 
 impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> Default for NullArray<T, NULLABLE, Buffer>

@@ -6,7 +6,7 @@ use arrow_buffer::NullBuffer;
 use arrow_schema::{DataType, Field};
 
 use crate::{
-    array::{Array, FixedSizeListArray},
+    array::{Array, FixedSizeListArray, NullableItem},
     arrow::ArrowArray,
     bitmap::Bitmap,
     buffer::BufferType,
@@ -18,6 +18,7 @@ impl<const N: usize, T: ArrowArray, const NULLABLE: bool, Buffer: BufferType> Ar
     for FixedSizeListArray<N, T, NULLABLE, Buffer>
 where
     T: Validity<NULLABLE>,
+    [<T as Array>::Item; N]: NullableItem<NULLABLE>,
 {
     type Array = arrow_array::FixedSizeListArray;
 

@@ -3,9 +3,11 @@
 use crate::{
     buffer::BufferType,
     offset::{self, OffsetElement},
-    FixedSize,
 };
 use std::collections::VecDeque;
+
+mod logical;
+pub use logical::*;
 
 mod boolean;
 pub use boolean::*;
@@ -35,7 +37,22 @@ mod variable_size_list;
 pub use variable_size_list::*;
 
 /// Types that store their data in Arrow arrays.
-pub trait Array {}
+pub trait Array {
+    /// The items stored in this array.
+    type Item;
+}
+
+/// as
+pub trait NullableItem<const NULLABLE: bool> {
+    /// a
+    type Item;
+}
+impl<T> NullableItem<false> for T {
+    type Item = T;
+}
+impl<T> NullableItem<true> for T {
+    type Item = Option<T>;
+}
 
 /// Types that can be stored in Arrow arrays.
 // Note: the generic `T` is required to allow impls on foreign wrappers e.g.
@@ -72,6 +89,23 @@ macro_rules! impl_array_type {
             type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
                 $array;
         }
+        // default_logical_array!($ty);
+        // impl LogicalArrayType for $ty {
+        //     type LogicalArray<
+        //         Buffer: BufferType,
+        //         OffsetItem: OffsetElement,
+        //         UnionLayout: UnionType,
+        //     > = $array;
+        //     fn convert_into<
+        //         Buffer: BufferType,
+        //         OffsetItem: OffsetElement,
+        //         UnionLayout: UnionType,
+        //     >(
+        //         self,
+        //     ) -> <Self::Array<Buffer, OffsetItem, UnionLayout> as Array>::Item {
+        //         self
+        //     }
+        // }
     };
 }
 
@@ -118,7 +152,7 @@ impl_array_type!(Option<f64>, FixedSizePrimitiveArray<f64, true, Buffer>);
 impl_array_type!((), NullArray<(), false, Buffer>);
 impl_array_type!(Option<()>, NullArray<(), true, Buffer>);
 
-impl<T: FixedSize, const N: usize> ArrayType for [T; N] {
+impl<T: ArrayType, const N: usize> ArrayType for [T; N] {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         FixedSizeListArray<
             N,
@@ -127,7 +161,7 @@ impl<T: FixedSize, const N: usize> ArrayType for [T; N] {
             Buffer,
         >;
 }
-impl<T: FixedSize, const N: usize> ArrayType for Option<[T; N]> {
+impl<T: ArrayType, const N: usize> ArrayType for Option<[T; N]> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         FixedSizeListArray<
             N,

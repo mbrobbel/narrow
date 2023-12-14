@@ -33,6 +33,7 @@ impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Array
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
 {
+    type Item = String;
 }
 
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Default

@@ -31,6 +31,7 @@ impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> Array
 where
     <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
 {
+    type Item = T;
 }
 
 impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> Default

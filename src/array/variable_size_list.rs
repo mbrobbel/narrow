@@ -25,6 +25,7 @@ impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferTy
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
 {
+    type Item = Vec<<T as Array>::Item>;
 }
 
 impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Debug
