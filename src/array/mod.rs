@@ -3,7 +3,6 @@
 use crate::{
     buffer::BufferType,
     offset::{self, OffsetElement},
-    FixedSize,
 };
 use std::collections::VecDeque;
 
@@ -118,7 +117,7 @@ impl_array_type!(Option<f64>, FixedSizePrimitiveArray<f64, true, Buffer>);
 impl_array_type!((), NullArray<(), false, Buffer>);
 impl_array_type!(Option<()>, NullArray<(), true, Buffer>);
 
-impl<T: FixedSize, const N: usize> ArrayType for [T; N] {
+impl<T: ArrayType, const N: usize> ArrayType for [T; N] {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         FixedSizeListArray<
             N,
@@ -127,7 +126,7 @@ impl<T: FixedSize, const N: usize> ArrayType for [T; N] {
             Buffer,
         >;
 }
-impl<T: FixedSize, const N: usize> ArrayType for Option<[T; N]> {
+impl<T: ArrayType, const N: usize> ArrayType for Option<[T; N]> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         FixedSizeListArray<
             N,
