@@ -78,6 +78,8 @@ pub(crate) mod validity;
 
 pub mod array;
 
+pub mod logical;
+
 #[cfg(feature = "arrow-rs")]
 pub mod arrow;
 

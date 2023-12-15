@@ -11,13 +11,14 @@ use crate::{
     bitmap::Bitmap,
     buffer::BufferType,
     nullable::Nullable,
-    validity::Validity,
+    validity::{Nullability, Validity},
 };
 
 impl<const N: usize, T: ArrowArray, const NULLABLE: bool, Buffer: BufferType> ArrowArray
     for FixedSizeListArray<N, T, NULLABLE, Buffer>
 where
     T: Validity<NULLABLE>,
+    [<T as Array>::Item; N]: Nullability<NULLABLE>,
 {
     type Array = arrow_array::FixedSizeListArray;
 

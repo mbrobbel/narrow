@@ -23,3 +23,18 @@ impl<T> Validity<false> for T {
 impl<T> Validity<true> for T {
     type Storage<Buffer: BufferType> = Nullable<T, Buffer>;
 }
+
+/// Nullability trait for nullable and non-nullable items.
+pub trait Nullability<const NULLABLE: bool> {
+    /// The item, `T` when `NULLABLE` is false, `Option<Item>` when
+    /// `NULLABLE` is true.
+    type Item;
+}
+
+impl<T> Nullability<false> for T {
+    type Item = T;
+}
+
+impl<T> Nullability<true> for T {
+    type Item = Option<T>;
+}

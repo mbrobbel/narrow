@@ -13,7 +13,7 @@ use crate::{
     buffer::BufferType,
     nullable::Nullable,
     offset::{Offset, OffsetElement},
-    validity::Validity,
+    validity::{Nullability, Validity},
 };
 
 impl<
@@ -24,6 +24,7 @@ impl<
     > ArrowArray for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Vec<T>: Nullability<NULLABLE>,
 {
     type Array = arrow_array::GenericListArray<OffsetItem>;
 

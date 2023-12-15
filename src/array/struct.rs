@@ -5,7 +5,7 @@ use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
     nullable::Nullable,
-    validity::Validity,
+    validity::{Nullability, Validity},
     Length,
 };
 
@@ -30,7 +30,9 @@ impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> Array
     for StructArray<T, NULLABLE, Buffer>
 where
     <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    T: Nullability<NULLABLE>,
 {
+    type Item = <T as Nullability<NULLABLE>>::Item;
 }
 
 impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> Default

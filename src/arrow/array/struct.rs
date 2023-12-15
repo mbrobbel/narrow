@@ -11,7 +11,7 @@ use crate::{
     bitmap::Bitmap,
     buffer::BufferType,
     nullable::Nullable,
-    validity::Validity,
+    validity::{Nullability, Validity},
 };
 
 /// Arrow schema interop trait for the fields of a struct array type.
@@ -24,6 +24,7 @@ impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> ArrowArray
     for StructArray<T, NULLABLE, Buffer>
 where
     <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE> + StructArrayTypeFields,
+    T: Nullability<NULLABLE>,
 {
     type Array = arrow_array::StructArray;
 

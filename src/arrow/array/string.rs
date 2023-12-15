@@ -13,13 +13,14 @@ use crate::{
     buffer::BufferType,
     nullable::Nullable,
     offset::{Offset, OffsetElement},
-    validity::Validity,
+    validity::{Nullability, Validity},
 };
 
 impl<const NULLABLE: bool, OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
     ArrowArray for StringArray<NULLABLE, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    String: Nullability<NULLABLE>,
 {
     type Array = arrow_array::GenericStringArray<OffsetItem>;
 

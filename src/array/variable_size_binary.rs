@@ -5,7 +5,7 @@ use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{Buffer, BufferType, VecBuffer},
     offset::{Offset, OffsetElement},
-    validity::Validity,
+    validity::{Nullability, Validity},
     Index, Length,
 };
 
@@ -30,7 +30,9 @@ impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Array
     for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Vec<u8>: Nullability<NULLABLE>,
 {
+    type Item = <Vec<u8> as Nullability<NULLABLE>>::Item;
 }
 
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Default
