@@ -191,6 +191,18 @@ pub struct Offset<
         <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<NULLABLE>>::Storage<Buffer>,
 }
 
+impl<const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer: BufferType>
+    Offset<T, NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Offset<T, NULLABLE, OffsetItem, Buffer>: Index,
+{
+    /// Returns an iteratover over the offset items in this [`Offset`].
+    pub fn iter(&self) -> OffsetIter<'_, NULLABLE, T, OffsetItem, Buffer> {
+        <&Self as IntoIterator>::into_iter(self)
+    }
+}
+
 impl<T: Default, OffsetItem: OffsetElement, Buffer: BufferType> Default
     for Offset<T, false, OffsetItem, Buffer>
 where
