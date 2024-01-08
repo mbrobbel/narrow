@@ -61,6 +61,11 @@ impl<Buffer: BufferType> BitmapRef for Bitmap<Buffer> {
 }
 
 impl<Buffer: BufferType> Bitmap<Buffer> {
+    /// Returns an iterator over the bits in this [`Bitmap`].
+    pub fn iter(&self) -> BitmapIter<'_> {
+        <&Self as IntoIterator>::into_iter(self)
+    }
+
     /// Forms a Bitmap from a buffer, a number of bits and an offset (in
     /// bits).
     ///
