@@ -49,6 +49,19 @@ type_def!(UsizeArray, usize);
 type_def!(Float32Array, f32);
 type_def!(Float64Array, f64);
 
+impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType>
+    FixedSizePrimitiveArray<T, NULLABLE, Buffer>
+where
+    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
+    for<'a> &'a <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>:
+        IntoIterator,
+{
+    /// Returns an iterator over the items in this [`FixedSizePrimitiveArray`].
+    pub fn iter(&self) -> <&'_ <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer> as IntoIterator>::IntoIter{
+        <&Self as IntoIterator>::into_iter(self)
+    }
+}
+
 impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType> Array
     for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
 where
