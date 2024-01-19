@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
         id: rust-toolchain
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/bin/
@@ -52,7 +52,7 @@ jobs:
   #         token: ${{ secrets.PAT }}
   #     - uses: dtolnay/rust-toolchain@stable
   #       id: rust-toolchain
-  #     - uses: actions/cache@v3
+  #     - uses: actions/cache@v4
   #       with:
   #         path: |
   #           ~/.cargo/bin/
