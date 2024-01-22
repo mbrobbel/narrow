@@ -1,5 +1,417 @@
 
 
+## v0.4.0 (2024-01-22)
+
+### Chore
+
+ - <csr-id-58c2d4ef568a50dd642a515dbf6fdcdf3cc2f46c/> bump proc-macro-crate from 3.0.0 to 3.1.0
+   Bumps [proc-macro-crate](https://github.com/bkchr/proc-macro-crate) from
+   3.0.0 to 3.1.0.
+   <details>
+   <summary>Release notes</summary>
+   <p><em>Sourced from <a
+   href="https://github.com/bkchr/proc-macro-crate/releases">proc-macro-crate's
+   releases</a>.</em></p>
+   <blockquote>
+   <h2>v3.0.1</h2>
+   <h2>What's Changed</h2>
+   <ul>
+   <li>Support workspace dependencies in the root crate of a workspace by
+   <a href="https://github.com/Waridley"><code>@​Waridley</code></a> in <a
+   href="https://redirect.github.com/bkchr/proc-macro-crate/pull/46">bkchr/proc-macro-crate#46</a></li>
+   <li>Release 3.0.1 by <a
+   href="https://github.com/bkchr"><code>@​bkchr</code></a> in <a
+   href="https://redirect.github.com/bkchr/proc-macro-crate/pull/49">bkchr/proc-macro-crate#49</a></li>
+   </ul>
+   <h2>New Contributors</h2>
+   <ul>
+   <li><a href="https://github.com/Waridley"><code>@​Waridley</code></a>
+   made their first contribution in <a
+   href="https://redirect.github.com/bkchr/proc-macro-crate/pull/46">bkchr/proc-macro-crate#46</a></li>
+   </ul>
+   <p><strong>Full Changelog</strong>: <a
+   href="https://github.com/bkchr/proc-macro-crate/compare/v3.0.0...v3.0.1">https://github.com/bkchr/proc-macro-crate/compare/v3.0.0...v3.0.1</a></p>
+   </blockquote>
+   </details>
+   <details>
+   <summary>Commits</summary>
+   <ul>
+   <li>See full diff in <a
+   href="https://github.com/bkchr/proc-macro-crate/commits">compare
+   view</a></li>
+   </ul>
+   </details>
+   <br />
+   
+   
+   [![Dependabot compatibility
+   score](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=proc-macro-crate&package-manager=cargo&previous-version=3.0.0&new-version=3.1.0)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)
+   
+   Dependabot will resolve any conflicts with this PR as long as you don't
+   alter it yourself. You can also trigger a rebase manually by commenting
+   `@dependabot rebase`.
+ - <csr-id-076bbaa04be20ddce0172d8647265ff891f51c9a/> bump syn from 2.0.43 to 2.0.48
+ - <csr-id-96ad8bc02c76271c7517f98b2abac886a0313ff3/> bump proc-macro-crate from 2.0.1 to 3.0.0
+   Bumps [proc-macro-crate](https://github.com/bkchr/proc-macro-crate) from
+   2.0.1 to 3.0.0.
+   <details>
+   <summary>Commits</summary>
+   <ul>
+   <li>See full diff in <a
+   href="https://github.com/bkchr/proc-macro-crate/commits">compare
+   view</a></li>
+   </ul>
+   </details>
+   <br />
+   
+   
+   [![Dependabot compatibility
+   score](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=proc-macro-crate&package-manager=cargo&previous-version=2.0.1&new-version=3.0.0)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)
+   
+   Dependabot will resolve any conflicts with this PR as long as you don't
+   alter it yourself. You can also trigger a rebase manually by commenting
+   `@dependabot rebase`.
+ - <csr-id-59b4d8e2b65173b2782d8822f513534126983ecc/> bump quote from 1.0.33 to 1.0.35
+   Bumps [quote](https://github.com/dtolnay/quote) from 1.0.33 to 1.0.35.
+   <details>
+   <summary>Release notes</summary>
+   <p><em>Sourced from <a
+   href="https://github.com/dtolnay/quote/releases">quote's
+   releases</a>.</em></p>
+   <blockquote>
+   <h2>1.0.35</h2>
+   <ul>
+   <li>Update proc-macro2 to fix caching issue when using a rustc-wrapper
+   such as sccache</li>
+   </ul>
+   <h2>1.0.34</h2>
+   <ul>
+   <li>Documentation improvements</li>
+   </ul>
+   </blockquote>
+   </details>
+   <details>
+   <summary>Commits</summary>
+   <ul>
+   <li><a
+   href="https://github.com/dtolnay/quote/commit/b01743f24cb5b19f96a3eac6bce0e7aee10f6199"><code>b01743f</code></a>
+   Release 1.0.35</li>
+   <li><a
+   href="https://github.com/dtolnay/quote/commit/57851d785ab07056319265bac889716958d2e980"><code>57851d7</code></a>
+   Pull in proc-macro2 sccache fix</li>
+   <li><a
+   href="https://github.com/dtolnay/quote/commit/c777ce6fc1e009e5289970b5261dd53984b5a2a9"><code>c777ce6</code></a>
+   Release 1.0.34</li>
+   <li><a
+   href="https://github.com/dtolnay/quote/commit/e9cb3c25f30c5b5aa7c1fb0e245564502817e087"><code>e9cb3c2</code></a>
+   Pull in proc-macro2 build script improvement</li>
+   <li><a
+   href="https://github.com/dtolnay/quote/commit/f8fc16dc18046b0458c01b5615989a0c889bad57"><code>f8fc16d</code></a>
+   Test docs.rs documentation build in CI</li>
+   <li><a
+   href="https://github.com/dtolnay/quote/commit/3a9d31fd45831d66315eed6959462fe578667fb3"><code>3a9d31f</code></a>
+   Update actions/checkout@v3 -&gt; v4</li>
+   <li><a
+   href="https://github.com/dtolnay/quote/commit/fe2dec4258201ae0304a4bd3eb7fde3fca6b0b5a"><code>fe2dec4</code></a>
+   Merge pull request <a
+   href="https://redirect.github.com/dtolnay/quote/issues/262">#262</a>
+   from dtolnay/syn2</li>
+   <li><a
+   href="https://github.com/dtolnay/quote/commit/5d33628e9879a811e634be702ee75daf9c5db2e9"><code>5d33628</code></a>
+   Update syn 1.0 link to syn 2.0</li>
+   <li>See full diff in <a
+   href="https://github.com/dtolnay/quote/compare/1.0.33...1.0.35">compare
+   view</a></li>
+   </ul>
+   </details>
+   <br />
+   
+   
+   [![Dependabot compatibility
+   score](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=quote&package-manager=cargo&previous-version=1.0.33&new-version=1.0.35)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)
+   
+   Dependabot will resolve any conflicts with this PR as long as you don't
+   alter it yourself. You can also trigger a rebase manually by commenting
+   `@dependabot rebase`.
+ - <csr-id-6f7e170dd7a1f6c7a7ef531f3b4e0fbac8d64595/> bump syn from 2.0.41 to 2.0.43
+   Bumps [syn](https://github.com/dtolnay/syn) from 2.0.41 to 2.0.43.
+   <details>
+   <summary>Release notes</summary>
+   <p><em>Sourced from <a
+   href="https://github.com/dtolnay/syn/releases">syn's
+   releases</a>.</em></p>
+   <blockquote>
+   <h2>2.0.43</h2>
+   <ul>
+   <li>Insert trailing comma if not already present when printing a 1-tuple
+   in pattern position (<a
+   href="https://redirect.github.com/dtolnay/syn/issues/1553">#1553</a>)</li>
+   </ul>
+   <h2>2.0.42</h2>
+   <ul>
+   <li>Documentation improvements</li>
+   </ul>
+   </blockquote>
+   </details>
+   <details>
+   <summary>Commits</summary>
+   <ul>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/95ee05214030f936b8db3ee295188d5dc2c89621"><code>95ee052</code></a>
+   Release 2.0.43</li>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/7383e81b1ab6f9983692ebd9d6caa54aeff8fb85"><code>7383e81</code></a>
+   Merge pull request <a
+   href="https://redirect.github.com/dtolnay/syn/issues/1559">#1559</a>
+   from dtolnay/pattuple</li>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/712fde5a6fce0e7bee3615ab5c7545ce442bf034"><code>712fde5</code></a>
+   Fix ToTokens for PatTuple to insert trailing comma</li>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/ed9b94e3395cffb33db4254439e23dbc3a2e9e43"><code>ed9b94e</code></a>
+   Merge pull request <a
+   href="https://redirect.github.com/dtolnay/syn/issues/1558">#1558</a>
+   from dtolnay/tupletests</li>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/ec8517b33c137c48c38b74ba5be21815763a50f5"><code>ec8517b</code></a>
+   Add tuple comma tests</li>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/3cf16c76bdbe4e16261a167592a77edab853c6aa"><code>3cf16c7</code></a>
+   Merge pull request <a
+   href="https://redirect.github.com/dtolnay/syn/issues/1557">#1557</a>
+   from dtolnay/snapshotparsequote</li>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/553549ff12358a6ad95baaed2601a9dab541d693"><code>553549f</code></a>
+   Generalize snapshot parsing to types that do not implement Parse</li>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/f9ad833e4a77c61003861f4e14d16b10b9708f9e"><code>f9ad833</code></a>
+   Merge pull request <a
+   href="https://redirect.github.com/dtolnay/syn/issues/1556">#1556</a>
+   from dtolnay/punctuatedsnapshot</li>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/131b40ba2904ec8755bb34466f369072dc34d588"><code>131b40b</code></a>
+   Debug impl for punctuated::Pairs superseded by Punctuated</li>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/3f12d652a8871955a7e27e0369933288bc387dd5"><code>3f12d65</code></a>
+   Include punctuation tokens in snapshot tests containing Punctuated</li>
+   <li>Additional commits viewable in <a
+   href="https://github.com/dtolnay/syn/compare/2.0.41...2.0.43">compare
+   view</a></li>
+   </ul>
+   </details>
+   <br />
+   
+   
+   [![Dependabot compatibility
+   score](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=syn&package-manager=cargo&previous-version=2.0.41&new-version=2.0.43)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)
+   
+   Dependabot will resolve any conflicts with this PR as long as you don't
+   alter it yourself. You can also trigger a rebase manually by commenting
+   `@dependabot rebase`.
+ - <csr-id-a633d1e958d6c5abc19445c5579415186b4b7d5a/> bump syn from 2.0.40 to 2.0.41
+   Bumps [syn](https://github.com/dtolnay/syn) from 2.0.40 to 2.0.41.
+   <details>
+   <summary>Release notes</summary>
+   <p><em>Sourced from <a
+   href="https://github.com/dtolnay/syn/releases">syn's
+   releases</a>.</em></p>
+   <blockquote>
+   <h2>2.0.41</h2>
+   <ul>
+   <li>Support parsing syn::Field in <code>parse_quote!</code> (<a
+   href="https://redirect.github.com/dtolnay/syn/issues/1548">#1548</a>)</li>
+   </ul>
+   </blockquote>
+   </details>
+   <details>
+   <summary>Commits</summary>
+   <ul>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/63b17012ab20ff72f3e49aaf821719a866b1a352"><code>63b1701</code></a>
+   Release 2.0.41</li>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/920ab7d6a061921d03541d86d7ac8daaf864bb7b"><code>920ab7d</code></a>
+   Merge pull request <a
+   href="https://redirect.github.com/dtolnay/syn/issues/1548">#1548</a>
+   from dtolnay/parsequotefield</li>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/5e1592408c3bcda68db10cd054f9d87e9e480f9b"><code>5e15924</code></a>
+   Test parse_quote implementation for Field</li>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/c268c6793f8a71ac2f3e8ee80201701e4352b407"><code>c268c67</code></a>
+   Support parsing Field in parse_quote</li>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/2ab0f6ae4b47d133c828d9123e86a50565a95447"><code>2ab0f6a</code></a>
+   Merge pull request <a
+   href="https://redirect.github.com/dtolnay/syn/issues/1547">#1547</a>
+   from dtolnay/testparsequote</li>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/46172a41a478920ff23c9e370a5b922fa984829d"><code>46172a4</code></a>
+   Add parse_quote tests</li>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/0fcdad044f330f4c32e2f3b1230271669d1951ea"><code>0fcdad0</code></a>
+   Support punctuated Pairs iterator in snapshot tests</li>
+   <li><a
+   href="https://github.com/dtolnay/syn/commit/06161ba80283edf6f741dfc86c91f6985297d168"><code>06161ba</code></a>
+   Update test suite to nightly-2023-12-12</li>
+   <li>See full diff in <a
+   href="https://github.com/dtolnay/syn/compare/2.0.40...2.0.41">compare
+   view</a></li>
+   </ul>
+   </details>
+   <br />
+   
+   
+   [![Dependabot compatibility
+   score](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=syn&package-manager=cargo&previous-version=2.0.40&new-version=2.0.41)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)
+   
+   Dependabot will resolve any conflicts with this PR as long as you don't
+   alter it yourself. You can also trigger a rebase manually by commenting
+   `@dependabot rebase`.
+ - <csr-id-07b50e1a853def2917466c40d557f6842493ee06/> bump syn from 2.0.40 to 2.0.41
+   Bumps [syn](https://github.com/dtolnay/syn) from 2.0.40 to 2.0.41.
+   - [Release notes](https://github.com/dtolnay/syn/releases)
+   - [Commits](https://github.com/dtolnay/syn/compare/2.0.40...2.0.41)
+   
+   ---
+   updated-dependencies:
+   - dependency-name: syn
+     dependency-type: direct:production
+     update-type: version-update:semver-patch
+   ...
+ - <csr-id-2591773eefe84f87086991ba1ecd136727510d93/> update proc-macro-crate requirement from 1.3.1 to 2.0.0
+   Updates the requirements on
+   [proc-macro-crate](https://github.com/bkchr/proc-macro-crate) to permit
+   the latest version.
+   <details>
+   <summary>Release notes</summary>
+   <p><em>Sourced from <a
+   href="https://github.com/bkchr/proc-macro-crate/releases">proc-macro-crate's
+   releases</a>.</em></p>
+   <blockquote>
+   <h2>v2.0.0</h2>
+   <h2>What's Changed</h2>
+   <ul>
+   <li>Release 2.0.0 by <a
+   href="https://github.com/bkchr"><code>@​bkchr</code></a> in <a
+   href="https://redirect.github.com/bkchr/proc-macro-crate/pull/39">bkchr/proc-macro-crate#39</a></li>
+   </ul>
+   <p><strong>Full Changelog</strong>: <a
+   href="https://github.com/bkchr/proc-macro-crate/compare/v1.3.1...v2.0.0">https://github.com/bkchr/proc-macro-crate/compare/v1.3.1...v2.0.0</a></p>
+   </blockquote>
+   </details>
+   <details>
+   <summary>Commits</summary>
+   <ul>
+   <li><a
+   href="https://github.com/bkchr/proc-macro-crate/commit/cc100ed2bc1ac9bb81812fd435a43e2ef023f355"><code>cc100ed</code></a>
+   Merge pull request <a
+   href="https://redirect.github.com/bkchr/proc-macro-crate/issues/39">#39</a>
+   from bkchr/bkchr-2.0.0</li>
+   <li><a
+   href="https://github.com/bkchr/proc-macro-crate/commit/39a7c1844fc4d73ef397a7e8d9419f1f3381aa44"><code>39a7c18</code></a>
+   Release 2.0.0</li>
+   <li>See full diff in <a
+   href="https://github.com/bkchr/proc-macro-crate/compare/v1.3.1...v2.0.0">compare
+   view</a></li>
+   </ul>
+   </details>
+   <br />
+   
+   
+   Dependabot will resolve any conflicts with this PR as long as you don't
+   alter it yourself. You can also trigger a rebase manually by commenting
+   `@dependabot rebase`.
+ - <csr-id-c8ee8130ea92642c8a575100fd0dcd78cb88b24a/> update proc-macro-crate requirement from 1.3.1 to 2.0.0
+   Updates the requirements on [proc-macro-crate](https://github.com/bkchr/proc-macro-crate) to permit the latest version.
+   - [Release notes](https://github.com/bkchr/proc-macro-crate/releases)
+   - [Commits](https://github.com/bkchr/proc-macro-crate/compare/v1.3.1...v2.0.0)
+   
+   ---
+   updated-dependencies:
+   - dependency-name: proc-macro-crate
+     dependency-type: direct:production
+   ...
+
+### New Features
+
+ - <csr-id-fcb49b34bcadbdd6e1e51534ae1b94a6b896c8c6/> convert `StructArray` from `arrow_array::StructArray`
+   This enables roundtripping through a parquet file.
+ - <csr-id-b4c49b09601a23df564157f9df6de12ac692142b/> convert `StructArray` from `arrow_array::StructArray`
+
+### New Features (BREAKING)
+
+ - <csr-id-374aedf4a7e5b875516f11fb03544d3470d4ae19/> add `arrow-rs` features for buffer and array interop
+   Adds interop with `arrow-rs`. The added `parquet` example demonstrates
+   what this enables.
+ - <csr-id-3b60bbe4dadd67917e07ee22f2cadc91be47e0fa/> add `OffsetElement` and `UnionType` to the `Array` GAT of `ArrayType`
+   This adds generics for offset element type (`i32` or `i64`) and union
+   layout (sparse or dense) to the `Array` type constructor of the
+   `ArrayType` trait.
+   
+   This is not ideal without default types for the generics in a generic
+   associated type, but the alternatives are worse (making `ArrayType`
+   generic over these types with defaults).
+ - <csr-id-a3613c534c43ff51e4a163a20d90e6d24168d6a3/> add `OffsetElement` and `UnionType` to the `Array` GAT of `ArrayType`
+ - <csr-id-7db53c26d3b6a9666f1dc1a91ee298384c273a02/> add item associated type to `Unit` trait
+   To support using `NullArray` for unit variants of enums in
+   `UnionArrays`, this adds an `Item` associated type to the `Unit` trait,
+   which converts into the type implementing `Unit`, allowing code
+   generation of types for unit enum variants which implement `Unit` and
+   convert to instances of the variants of the original enum.
+ - <csr-id-3a7f327f6d2ecce592a3f0abeb6d2ce9fdb57aed/> add item associated type to `Unit` trait
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 22 commits contributed to the release over the course of 110 calendar days.
+ - 173 days passed between releases.
+ - 16 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 11 unique issues were worked on: [#100](https://github.com/mbrobbel/narrow/issues/100), [#106](https://github.com/mbrobbel/narrow/issues/106), [#108](https://github.com/mbrobbel/narrow/issues/108), [#109](https://github.com/mbrobbel/narrow/issues/109), [#118](https://github.com/mbrobbel/narrow/issues/118), [#119](https://github.com/mbrobbel/narrow/issues/119), [#129](https://github.com/mbrobbel/narrow/issues/129), [#132](https://github.com/mbrobbel/narrow/issues/132), [#135](https://github.com/mbrobbel/narrow/issues/135), [#137](https://github.com/mbrobbel/narrow/issues/137), [#139](https://github.com/mbrobbel/narrow/issues/139)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#100](https://github.com/mbrobbel/narrow/issues/100)**
+    - Add `arrow-rs` features for buffer and array interop ([`374aedf`](https://github.com/mbrobbel/narrow/commit/374aedf4a7e5b875516f11fb03544d3470d4ae19))
+ * **[#106](https://github.com/mbrobbel/narrow/issues/106)**
+    - Update proc-macro-crate requirement from 1.3.1 to 2.0.0 ([`2591773`](https://github.com/mbrobbel/narrow/commit/2591773eefe84f87086991ba1ecd136727510d93))
+ * **[#108](https://github.com/mbrobbel/narrow/issues/108)**
+    - Add item associated type to `Unit` trait ([`7db53c2`](https://github.com/mbrobbel/narrow/commit/7db53c26d3b6a9666f1dc1a91ee298384c273a02))
+ * **[#109](https://github.com/mbrobbel/narrow/issues/109)**
+    - Add `OffsetElement` and `UnionType` to the `Array` GAT of `ArrayType` ([`3b60bbe`](https://github.com/mbrobbel/narrow/commit/3b60bbe4dadd67917e07ee22f2cadc91be47e0fa))
+ * **[#118](https://github.com/mbrobbel/narrow/issues/118)**
+    - Convert `StructArray` from `arrow_array::StructArray` ([`fcb49b3`](https://github.com/mbrobbel/narrow/commit/fcb49b34bcadbdd6e1e51534ae1b94a6b896c8c6))
+ * **[#119](https://github.com/mbrobbel/narrow/issues/119)**
+    - Bump syn from 2.0.40 to 2.0.41 ([`a633d1e`](https://github.com/mbrobbel/narrow/commit/a633d1e958d6c5abc19445c5579415186b4b7d5a))
+ * **[#129](https://github.com/mbrobbel/narrow/issues/129)**
+    - Bump syn from 2.0.41 to 2.0.43 ([`6f7e170`](https://github.com/mbrobbel/narrow/commit/6f7e170dd7a1f6c7a7ef531f3b4e0fbac8d64595))
+ * **[#132](https://github.com/mbrobbel/narrow/issues/132)**
+    - Bump quote from 1.0.33 to 1.0.35 ([`59b4d8e`](https://github.com/mbrobbel/narrow/commit/59b4d8e2b65173b2782d8822f513534126983ecc))
+ * **[#135](https://github.com/mbrobbel/narrow/issues/135)**
+    - Bump proc-macro-crate from 2.0.1 to 3.0.0 ([`96ad8bc`](https://github.com/mbrobbel/narrow/commit/96ad8bc02c76271c7517f98b2abac886a0313ff3))
+ * **[#137](https://github.com/mbrobbel/narrow/issues/137)**
+    - Bump syn from 2.0.43 to 2.0.48 ([`076bbaa`](https://github.com/mbrobbel/narrow/commit/076bbaa04be20ddce0172d8647265ff891f51c9a))
+ * **[#139](https://github.com/mbrobbel/narrow/issues/139)**
+    - Bump proc-macro-crate from 3.0.0 to 3.1.0 ([`58c2d4e`](https://github.com/mbrobbel/narrow/commit/58c2d4ef568a50dd642a515dbf6fdcdf3cc2f46c))
+ * **Uncategorized**
+    - Bump syn from 2.0.40 to 2.0.41 ([`07b50e1`](https://github.com/mbrobbel/narrow/commit/07b50e1a853def2917466c40d557f6842493ee06))
+    - Convert `StructArray` from `arrow_array::StructArray` ([`b4c49b0`](https://github.com/mbrobbel/narrow/commit/b4c49b09601a23df564157f9df6de12ac692142b))
+    - Use `apache/arrow-rs` instead of fork and update default features ([`eb7edbb`](https://github.com/mbrobbel/narrow/commit/eb7edbb5e5cf9361be5414cf634913c78cf712f5))
+    - Fix build issues ([`fefa1bc`](https://github.com/mbrobbel/narrow/commit/fefa1bc666f019071063037055845df456b6967a))
+    - Add parquet example ([`094f3a0`](https://github.com/mbrobbel/narrow/commit/094f3a0cc51916d3c8d7bcec11b778a6ed46769c))
+    - Split out implementations and add more tests ([`ea99db7`](https://github.com/mbrobbel/narrow/commit/ea99db71a558f3397a5aa169f95860bfae92d0dd))
+    - Merge branch 'main' into arrow-array ([`8ee0a2c`](https://github.com/mbrobbel/narrow/commit/8ee0a2cdf0ccac0299dae175c79a3730e440a55f))
+    - Add `OffsetElement` and `UnionType` to the `Array` GAT of `ArrayType` ([`a3613c5`](https://github.com/mbrobbel/narrow/commit/a3613c534c43ff51e4a163a20d90e6d24168d6a3))
+    - Add item associated type to `Unit` trait ([`3a7f327`](https://github.com/mbrobbel/narrow/commit/3a7f327f6d2ecce592a3f0abeb6d2ce9fdb57aed))
+    - Merge branch 'main' into index-fixed-size ([`70742d6`](https://github.com/mbrobbel/narrow/commit/70742d6dbf4a13b4af2ca25c938b131330d0caf8))
+    - Update proc-macro-crate requirement from 1.3.1 to 2.0.0 ([`c8ee813`](https://github.com/mbrobbel/narrow/commit/c8ee8130ea92642c8a575100fd0dcd78cb88b24a))
+</details>
+
 ## v0.3.4 (2023-08-01)
 
 ### Bug Fixes
@@ -8,23 +420,23 @@
    ```rust
    #[derive(ArrayType, Default)]
    struct Bar<T> {
-       a: u32,
-       b: Option<bool>,
-       c: T,
+   a: u32,
+   b: Option<bool>,
+   c: T,
    }
    
    let input = [
-       Some(Bar {
-           a: 1,
-           b: Some(false),
-           c: None,
-       }),
-       None,
-       Some(Bar {
-           a: 2,
-           b: None,
-           c: Some(()),
-       }),
+   Some(Bar {
+   a: 1,
+   b: Some(false),
+   c: None,
+   }),
+   None,
+   Some(Bar {
+   a: 2,
+   b: None,
+   c: Some(()),
+   }),
    ];
    
    let array = input.into_iter().collect::<StructArray<Bar<_>, true>>();
@@ -38,8 +450,8 @@
    
    let bool_array = &array.0.as_ref().b;
    assert_eq!(
-       bool_array.into_iter().collect::<Vec<_>>(),
-       &[Some(false), None, None]
+   bool_array.into_iter().collect::<Vec<_>>(),
+   &[Some(false), None, None]
    );
    
    let null_array = &array.0.as_ref().c;
@@ -48,12 +460,12 @@
    assert_eq!(null_array.is_valid(2), Some(true));
    
    let input = [
-       Some(Bar {
-           a: 1,
-           b: None,
-           c: false,
-       }),
-       None,
+   Some(Bar {
+   a: 1,
+   b: None,
+   c: false,
+   }),
+   None,
    ];
    let array = input.into_iter().collect::<StructArray<Bar<_>, true>>();
    assert_eq!(array.len(), 2);
@@ -63,7 +475,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 3 commits contributed to the release over the course of 4 calendar days.
+ - 4 commits contributed to the release over the course of 4 calendar days.
  - 4 days passed between releases.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#82](https://github.com/mbrobbel/narrow/issues/82)
@@ -77,6 +489,7 @@
  * **[#82](https://github.com/mbrobbel/narrow/issues/82)**
     - `ArrayType` derive for named structs ([`8fb5f2f`](https://github.com/mbrobbel/narrow/commit/8fb5f2f5b2559a5c77efc7193514befad815cddb))
  * **Uncategorized**
+    - Release narrow-derive v0.3.4, narrow v0.3.4 ([`73f61e8`](https://github.com/mbrobbel/narrow/commit/73f61e85159cd480417373987e1e0af33e392141))
     - Consolidate the common items for the different field types ([`427bebb`](https://github.com/mbrobbel/narrow/commit/427bebbd80dadead8260440b02ec283e29cc58ef))
     - Add derive support for named structs ([`538c16c`](https://github.com/mbrobbel/narrow/commit/538c16c1e47673b0a924e3fd9b3208e00ead36ec))
 </details>
