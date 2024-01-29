@@ -5,7 +5,7 @@ use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
     offset::{Offset, OffsetElement},
-    validity::Validity,
+    validity::{Nullability, Validity},
     Index, Length,
 };
 use std::fmt::{Debug, Formatter, Result};
@@ -24,7 +24,9 @@ impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferTy
     for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Vec<T>: Nullability<NULLABLE>,
 {
+    type Item = <Vec<T> as Nullability<NULLABLE>>::Item;
 }
 
 impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Debug

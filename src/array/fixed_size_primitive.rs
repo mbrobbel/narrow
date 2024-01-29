@@ -5,7 +5,7 @@ use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{Buffer, BufferType, VecBuffer},
     nullable::Nullable,
-    validity::Validity,
+    validity::{Nullability, Validity},
     FixedSize, Index, Length,
 };
 use std::{ops, slice::SliceIndex};
@@ -66,7 +66,9 @@ impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType> Array
     for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
 where
     <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
+    T: Nullability<NULLABLE>,
 {
+    type Item = <T as Nullability<NULLABLE>>::Item;
 }
 
 // todo(mbrobbel): buffer_ref traits?

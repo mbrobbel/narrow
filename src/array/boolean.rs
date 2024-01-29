@@ -5,7 +5,7 @@ use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferRef, BufferRefMut, BufferType, VecBuffer},
     nullable::Nullable,
-    validity::Validity,
+    validity::{Nullability, Validity},
     Index, Length,
 };
 
@@ -32,9 +32,12 @@ where
     }
 }
 
-impl<const NULLABLE: bool, Buffer: BufferType> Array for BooleanArray<NULLABLE, Buffer> where
-    Bitmap<Buffer>: Validity<NULLABLE>
+impl<const NULLABLE: bool, Buffer: BufferType> Array for BooleanArray<NULLABLE, Buffer>
+where
+    Bitmap<Buffer>: Validity<NULLABLE>,
+    bool: Nullability<NULLABLE>,
 {
+    type Item = <bool as Nullability<NULLABLE>>::Item;
 }
 
 impl<const NULLABLE: bool, Buffer: BufferType> BufferRef<u8> for BooleanArray<NULLABLE, Buffer>

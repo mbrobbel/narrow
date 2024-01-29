@@ -34,7 +34,10 @@ mod variable_size_list;
 pub use variable_size_list::*;
 
 /// Types that store their data in Arrow arrays.
-pub trait Array {}
+pub trait Array {
+    /// The items stored in this array.
+    type Item;
+}
 
 /// Types that can be stored in Arrow arrays.
 // Note: the generic `T` is required to allow impls on foreign wrappers e.g.

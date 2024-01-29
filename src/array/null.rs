@@ -5,7 +5,7 @@ use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
     nullable::Nullable,
-    validity::Validity,
+    validity::{Nullability, Validity},
     Index, Length,
 };
 use std::{
@@ -44,9 +44,12 @@ pub struct NullArray<T: Unit = (), const NULLABLE: bool = false, Buffer: BufferT
 where
     Nulls<T>: Validity<NULLABLE>;
 
-impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> Array for NullArray<T, NULLABLE, Buffer> where
-    Nulls<T>: Validity<NULLABLE>
+impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> Array for NullArray<T, NULLABLE, Buffer>
+where
+    Nulls<T>: Validity<NULLABLE>,
+    T: Nullability<NULLABLE>,
 {
+    type Item = <T as Nullability<NULLABLE>>::Item;
 }
 
 impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> Default for NullArray<T, NULLABLE, Buffer>

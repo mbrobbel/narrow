@@ -3,8 +3,12 @@
 use std::sync::Arc;
 
 use crate::{
-    array::BooleanArray, arrow::ArrowArray, bitmap::Bitmap, buffer::BufferType, nullable::Nullable,
-    validity::Validity,
+    array::BooleanArray,
+    arrow::ArrowArray,
+    bitmap::Bitmap,
+    buffer::BufferType,
+    nullable::Nullable,
+    validity::{Nullability, Validity},
 };
 use arrow_buffer::{BooleanBuffer, NullBuffer};
 use arrow_schema::{DataType, Field};
@@ -12,6 +16,7 @@ use arrow_schema::{DataType, Field};
 impl<const NULLABLE: bool, Buffer: BufferType> ArrowArray for BooleanArray<NULLABLE, Buffer>
 where
     Bitmap<Buffer>: Validity<NULLABLE>,
+    bool: Nullability<NULLABLE>,
 {
     type Array = arrow_array::BooleanArray;
 

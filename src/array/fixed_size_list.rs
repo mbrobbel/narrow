@@ -9,7 +9,7 @@ use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferMut, BufferType, VecBuffer},
     nullable::Nullable,
-    validity::Validity,
+    validity::{Nullability, Validity},
     Index, Length,
 };
 
@@ -41,7 +41,9 @@ impl<const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType> Array
     for FixedSizeListArray<N, T, NULLABLE, Buffer>
 where
     T: Validity<NULLABLE>,
+    [<T as Array>::Item; N]: Nullability<NULLABLE>,
 {
+    type Item = <[<T as Array>::Item; N] as Nullability<NULLABLE>>::Item;
 }
 
 impl<const N: usize, T: Array, Buffer: BufferType> BitmapRef

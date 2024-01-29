@@ -35,12 +35,14 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = []
 arrow-rs = ["dep:arrow-array", "dep:arrow-buffer", "dep:arrow-schema", "narrow-derive?/arrow-rs"]
 derive = ["dep:narrow-derive"]
+uuid = ["dep:uuid"]
 
 [dependencies]
 arrow-array = { version = "50.0.0", optional = true }
 arrow-buffer = { version = "50.0.0", optional = true }
 arrow-schema = { version = "50.0.0", optional = true }
 narrow-derive = { path = "narrow-derive", version = "^0.4.0", optional = true }
+uuid = { version = "1.7.0", optional = true }
 
 [dev-dependencies]
 arrow-cast = { version = "50.0.0", default-features = false, features = ["prettyprint"] }
@@ -48,6 +50,7 @@ bytes = "1.5.0"
 criterion = { version = "0.5.1", default-features = false }
 rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
 parquet = { version = "50.0.0", default-features = false, features = ["arrow"] }
+uuid = "1.7.0"
 
 [profile.bench]
 lto = true

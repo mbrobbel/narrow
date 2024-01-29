@@ -8,6 +8,7 @@ fn main() {
         ArrayType,
     };
     use parquet::arrow::{arrow_reader::ParquetRecordBatchReader, ArrowWriter};
+    use uuid::Uuid;
 
     #[derive(ArrayType, Default)]
     struct Bar(Option<bool>);
@@ -21,6 +22,7 @@ fn main() {
         e: Option<Vec<Option<bool>>>,
         f: Bar,
         g: [u8; 8],
+        h: Uuid,
     }
     let input = [
         Foo {
@@ -31,6 +33,7 @@ fn main() {
             e: Some(vec![Some(true), None]),
             f: Bar(Some(true)),
             g: [1, 2, 3, 4, 5, 6, 7, 8],
+            h: Uuid::from_u128(1234),
         },
         Foo {
             a: 42,
@@ -40,6 +43,7 @@ fn main() {
             e: None,
             f: Bar(None),
             g: [9, 10, 11, 12, 13, 14, 15, 16],
+            h: Uuid::from_u128(42),
         },
     ];
 

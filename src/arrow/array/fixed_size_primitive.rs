@@ -10,8 +10,13 @@ use arrow_buffer::{NullBuffer, ScalarBuffer};
 use arrow_schema::{DataType, Field};
 
 use crate::{
-    array::FixedSizePrimitiveArray, arrow::ArrowArray, bitmap::Bitmap, buffer::BufferType,
-    nullable::Nullable, validity::Validity, FixedSize,
+    array::FixedSizePrimitiveArray,
+    arrow::ArrowArray,
+    bitmap::Bitmap,
+    buffer::BufferType,
+    nullable::Nullable,
+    validity::{Nullability, Validity},
+    FixedSize,
 };
 
 /// Create the `ArrowArray` impl and required conversions.
@@ -21,6 +26,7 @@ macro_rules! arrow_array_convert {
             for FixedSizePrimitiveArray<$ty, NULLABLE, Buffer>
         where
             <Buffer as BufferType>::Buffer<$ty>: Validity<NULLABLE>,
+            $ty: Nullability<NULLABLE>,
         {
             type Array = arrow_array::PrimitiveArray<$primitive_type>;
 
