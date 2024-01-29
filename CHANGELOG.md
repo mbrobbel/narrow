@@ -1,6 +1,34 @@
 
 
+## v0.4.1 (2024-01-29)
+
+### New Features
+
+ - <csr-id-e576ed3a4964a50a850610b881d455319b76fe76/> `LogicalArray` to support logical types
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 6 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#124](https://github.com/mbrobbel/narrow/issues/124)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#124](https://github.com/mbrobbel/narrow/issues/124)**
+    - `LogicalArray` to support logical types ([`e576ed3`](https://github.com/mbrobbel/narrow/commit/e576ed3a4964a50a850610b881d455319b76fe76))
+</details>
+
 ## v0.4.0 (2024-01-22)
+
+<csr-id-117a4f383870446e39ad5cb3593e56f6dda09ca1/>
+<csr-id-11c8970d7e3335914f7eb511e3b115ff2edd0de2/>
 
 ### Chore
 

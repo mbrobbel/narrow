@@ -1,6 +1,41 @@
 
 
+## v0.4.1 (2024-01-29)
+
+### Chore
+
+ - <csr-id-8be7a6ce7c0939e756fdc2303b73fe9b6cd69fec/> bump proc-macro2 from 1.0.76 to 1.0.78
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release over the course of 6 calendar days.
+ - 6 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#142](https://github.com/mbrobbel/narrow/issues/142)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#142](https://github.com/mbrobbel/narrow/issues/142)**
+    - Bump proc-macro2 from 1.0.76 to 1.0.78 ([`8be7a6c`](https://github.com/mbrobbel/narrow/commit/8be7a6ce7c0939e756fdc2303b73fe9b6cd69fec))
+</details>
+
 ## v0.4.0 (2024-01-22)
+
+<csr-id-58c2d4ef568a50dd642a515dbf6fdcdf3cc2f46c/>
+<csr-id-076bbaa04be20ddce0172d8647265ff891f51c9a/>
+<csr-id-96ad8bc02c76271c7517f98b2abac886a0313ff3/>
+<csr-id-59b4d8e2b65173b2782d8822f513534126983ecc/>
+<csr-id-6f7e170dd7a1f6c7a7ef531f3b4e0fbac8d64595/>
+<csr-id-a633d1e958d6c5abc19445c5579415186b4b7d5a/>
+<csr-id-07b50e1a853def2917466c40d557f6842493ee06/>
+<csr-id-2591773eefe84f87086991ba1ecd136727510d93/>
+<csr-id-c8ee8130ea92642c8a575100fd0dcd78cb88b24a/>
 
 ### Chore
 
@@ -365,7 +400,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 22 commits contributed to the release over the course of 110 calendar days.
+ - 23 commits contributed to the release over the course of 110 calendar days.
  - 173 days passed between releases.
  - 16 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 11 unique issues were worked on: [#100](https://github.com/mbrobbel/narrow/issues/100), [#106](https://github.com/mbrobbel/narrow/issues/106), [#108](https://github.com/mbrobbel/narrow/issues/108), [#109](https://github.com/mbrobbel/narrow/issues/109), [#118](https://github.com/mbrobbel/narrow/issues/118), [#119](https://github.com/mbrobbel/narrow/issues/119), [#129](https://github.com/mbrobbel/narrow/issues/129), [#132](https://github.com/mbrobbel/narrow/issues/132), [#135](https://github.com/mbrobbel/narrow/issues/135), [#137](https://github.com/mbrobbel/narrow/issues/137), [#139](https://github.com/mbrobbel/narrow/issues/139)
@@ -399,6 +434,7 @@
  * **[#139](https://github.com/mbrobbel/narrow/issues/139)**
     - Bump proc-macro-crate from 3.0.0 to 3.1.0 ([`58c2d4e`](https://github.com/mbrobbel/narrow/commit/58c2d4ef568a50dd642a515dbf6fdcdf3cc2f46c))
  * **Uncategorized**
+    - Release narrow-derive v0.4.0, narrow v0.4.0, safety bump narrow v0.4.0 ([`f7fb751`](https://github.com/mbrobbel/narrow/commit/f7fb7517a48e695ece33e7beca472ee925fb0859))
     - Bump syn from 2.0.40 to 2.0.41 ([`07b50e1`](https://github.com/mbrobbel/narrow/commit/07b50e1a853def2917466c40d557f6842493ee06))
     - Convert `StructArray` from `arrow_array::StructArray` ([`b4c49b0`](https://github.com/mbrobbel/narrow/commit/b4c49b09601a23df564157f9df6de12ac692142b))
     - Use `apache/arrow-rs` instead of fork and update default features ([`eb7edbb`](https://github.com/mbrobbel/narrow/commit/eb7edbb5e5cf9361be5414cf634913c78cf712f5))
