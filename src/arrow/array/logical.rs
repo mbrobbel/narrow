@@ -1,3 +1,5 @@
+//! Interop with [`arrow-rs`] arrays for logical arrays.
+
 use std::sync::Arc;
 
 use crate::{
