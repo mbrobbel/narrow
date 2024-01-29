@@ -1,5 +1,141 @@
 
 
+## v0.4.0 (2024-01-22)
+
+### Chore
+
+ - <csr-id-117a4f383870446e39ad5cb3593e56f6dda09ca1/> fix clippy 1.75.0 warnings
+   Fixes new 1.75.0 clippy warnings.
+ - <csr-id-11c8970d7e3335914f7eb511e3b115ff2edd0de2/> enable more lints
+
+### New Features
+
+ - <csr-id-fcb49b34bcadbdd6e1e51534ae1b94a6b896c8c6/> convert `StructArray` from `arrow_array::StructArray`
+   This enables roundtripping through a parquet file.
+ - <csr-id-b4c49b09601a23df564157f9df6de12ac692142b/> convert `StructArray` from `arrow_array::StructArray`
+ - <csr-id-b5210c7a558d4c665a93f609d26d5882f17a3970/> add `arrow-rs` interop support for `FixedSizeListArray`
+   Adds support for interop between `narrow::array::FixedSizeListArray` and
+   `arrow_array::FixedSizeListArray`.
+ - <csr-id-b4d403802f3321875762486f2fb90d34b424fe56/> add `arrow-rs` interop support for `FixedSizeListArray`
+ - <csr-id-e84f00ce5c12c27bee0d53cf46c94b86af55f184/> add `FixedSizeListArray`
+ - <csr-id-bfc13993867f3e2bb496cd28e850c2cca64746e2/> add non-nullable to nullable conversion
+
+### Bug Fixes
+
+ - <csr-id-fabc404518bc639c0d84ca499b112b70fc4362b5/> bound on `ArrayType` implementation for arrays
+   The `FixedSize` bound was used when arrays were stored in
+   `FixedSizePrimitiveArray`.
+ - <csr-id-54eda3c6d9938a28103efb379324292cda5f389f/> clippy warning
+ - <csr-id-59cdb4af4b72656d21c9bfeac9d61c1c3dfe0e0d/> remove comment
+ - <csr-id-b6b922c7b9948fcab9491d0ca739879863f6473c/> remove `FixedSize` impl for tuple
+ - <csr-id-10aacdf0ee143770f9f0c09134e6b7e865358fd8/> offset extend impl for nullable data
+   For nullable data it should also flatten the option iterator.
+ - <csr-id-60fb809c72704657cd5bf850f3f43c2f468beb7a/> offset extend impl for nullable data
+
+### New Features (BREAKING)
+
+ - <csr-id-374aedf4a7e5b875516f11fb03544d3470d4ae19/> add `arrow-rs` features for buffer and array interop
+   Adds interop with `arrow-rs`. The added `parquet` example demonstrates
+   what this enables.
+ - <csr-id-36b2343fb7b95d38e71147031b700c97e273df18/> add `FixedSizeListArray`
+ - <csr-id-3b60bbe4dadd67917e07ee22f2cadc91be47e0fa/> add `OffsetElement` and `UnionType` to the `Array` GAT of `ArrayType`
+   This adds generics for offset element type (`i32` or `i64`) and union
+   layout (sparse or dense) to the `Array` type constructor of the
+   `ArrayType` trait.
+   
+   This is not ideal without default types for the generics in a generic
+   associated type, but the alternatives are worse (making `ArrayType`
+   generic over these types with defaults).
+ - <csr-id-a3613c534c43ff51e4a163a20d90e6d24168d6a3/> add `OffsetElement` and `UnionType` to the `Array` GAT of `ArrayType`
+ - <csr-id-7db53c26d3b6a9666f1dc1a91ee298384c273a02/> add item associated type to `Unit` trait
+   To support using `NullArray` for unit variants of enums in
+   `UnionArrays`, this adds an `Item` associated type to the `Unit` trait,
+   which converts into the type implementing `Unit`, allowing code
+   generation of types for unit enum variants which implement `Unit` and
+   convert to instances of the variants of the original enum.
+ - <csr-id-3a7f327f6d2ecce592a3f0abeb6d2ce9fdb57aed/> add item associated type to `Unit` trait
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 52 commits contributed to the release over the course of 173 calendar days.
+ - 173 days passed between releases.
+ - 20 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 11 unique issues were worked on: [#100](https://github.com/mbrobbel/narrow/issues/100), [#102](https://github.com/mbrobbel/narrow/issues/102), [#107](https://github.com/mbrobbel/narrow/issues/107), [#108](https://github.com/mbrobbel/narrow/issues/108), [#109](https://github.com/mbrobbel/narrow/issues/109), [#110](https://github.com/mbrobbel/narrow/issues/110), [#117](https://github.com/mbrobbel/narrow/issues/117), [#118](https://github.com/mbrobbel/narrow/issues/118), [#123](https://github.com/mbrobbel/narrow/issues/123), [#136](https://github.com/mbrobbel/narrow/issues/136), [#98](https://github.com/mbrobbel/narrow/issues/98)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#100](https://github.com/mbrobbel/narrow/issues/100)**
+    - Add `arrow-rs` features for buffer and array interop ([`374aedf`](https://github.com/mbrobbel/narrow/commit/374aedf4a7e5b875516f11fb03544d3470d4ae19))
+ * **[#102](https://github.com/mbrobbel/narrow/issues/102)**
+    - Add non-nullable to nullable conversion ([`bfc1399`](https://github.com/mbrobbel/narrow/commit/bfc13993867f3e2bb496cd28e850c2cca64746e2))
+ * **[#107](https://github.com/mbrobbel/narrow/issues/107)**
+    - Add `Index` trait ([`fa91089`](https://github.com/mbrobbel/narrow/commit/fa91089d342713d6bf9b678811184cdc8a9962a1))
+ * **[#108](https://github.com/mbrobbel/narrow/issues/108)**
+    - Add item associated type to `Unit` trait ([`7db53c2`](https://github.com/mbrobbel/narrow/commit/7db53c26d3b6a9666f1dc1a91ee298384c273a02))
+ * **[#109](https://github.com/mbrobbel/narrow/issues/109)**
+    - Add `OffsetElement` and `UnionType` to the `Array` GAT of `ArrayType` ([`3b60bbe`](https://github.com/mbrobbel/narrow/commit/3b60bbe4dadd67917e07ee22f2cadc91be47e0fa))
+ * **[#110](https://github.com/mbrobbel/narrow/issues/110)**
+    - Add `FixedSizeListArray` ([`36b2343`](https://github.com/mbrobbel/narrow/commit/36b2343fb7b95d38e71147031b700c97e273df18))
+ * **[#117](https://github.com/mbrobbel/narrow/issues/117)**
+    - Add `arrow-rs` interop support for `FixedSizeListArray` ([`b5210c7`](https://github.com/mbrobbel/narrow/commit/b5210c7a558d4c665a93f609d26d5882f17a3970))
+ * **[#118](https://github.com/mbrobbel/narrow/issues/118)**
+    - Convert `StructArray` from `arrow_array::StructArray` ([`fcb49b3`](https://github.com/mbrobbel/narrow/commit/fcb49b34bcadbdd6e1e51534ae1b94a6b896c8c6))
+ * **[#123](https://github.com/mbrobbel/narrow/issues/123)**
+    - Bound on `ArrayType` implementation for arrays ([`fabc404`](https://github.com/mbrobbel/narrow/commit/fabc404518bc639c0d84ca499b112b70fc4362b5))
+ * **[#136](https://github.com/mbrobbel/narrow/issues/136)**
+    - Fix clippy 1.75.0 warnings ([`117a4f3`](https://github.com/mbrobbel/narrow/commit/117a4f383870446e39ad5cb3593e56f6dda09ca1))
+ * **[#98](https://github.com/mbrobbel/narrow/issues/98)**
+    - Offset extend impl for nullable data ([`10aacdf`](https://github.com/mbrobbel/narrow/commit/10aacdf0ee143770f9f0c09134e6b7e865358fd8))
+ * **Uncategorized**
+    - Convert `StructArray` from `arrow_array::StructArray` ([`b4c49b0`](https://github.com/mbrobbel/narrow/commit/b4c49b09601a23df564157f9df6de12ac692142b))
+    - Add missing tests ([`6c703bd`](https://github.com/mbrobbel/narrow/commit/6c703bd829f73ebffdb0bba17e22c9b6d145d112))
+    - Clippy warning ([`54eda3c`](https://github.com/mbrobbel/narrow/commit/54eda3c6d9938a28103efb379324292cda5f389f))
+    - Add `arrow-rs` interop support for `FixedSizeListArray` ([`b4d4038`](https://github.com/mbrobbel/narrow/commit/b4d403802f3321875762486f2fb90d34b424fe56))
+    - Add direct `RecordBatch` conversion for `StructArray` ([`8f0c5b2`](https://github.com/mbrobbel/narrow/commit/8f0c5b23ddc769dddb7e3c7b762a06d4528603fa))
+    - Remove a comment ([`d9c076f`](https://github.com/mbrobbel/narrow/commit/d9c076f727fd2ba3554002cf12d1785654b4f2a8))
+    - Add parquet example ([`094f3a0`](https://github.com/mbrobbel/narrow/commit/094f3a0cc51916d3c8d7bcec11b778a6ed46769c))
+    - Generalize more string array methods ([`bc0f459`](https://github.com/mbrobbel/narrow/commit/bc0f4595a6177ff8a7869bbc77d53cec3a839a12))
+    - Generalize stringarray extend impl ([`66b4970`](https://github.com/mbrobbel/narrow/commit/66b497031f655497b203b06bb8fcf30439a8f71a))
+    - Split out implementations and add more tests ([`ea99db7`](https://github.com/mbrobbel/narrow/commit/ea99db71a558f3397a5aa169f95860bfae92d0dd))
+    - Fix some clippy warnings ([`25c7367`](https://github.com/mbrobbel/narrow/commit/25c7367b5eb2ada1a2ae5b3fad4c695e9956fa3e))
+    - Change interaction with `ArrowNativeType` ([`6c43438`](https://github.com/mbrobbel/narrow/commit/6c4343880fc55c9191fee30c96a3ecf5c513622e))
+    - Merge branch 'main' into arrow-array ([`8ee0a2c`](https://github.com/mbrobbel/narrow/commit/8ee0a2cdf0ccac0299dae175c79a3730e440a55f))
+    - Add nested test ([`63c6e8d`](https://github.com/mbrobbel/narrow/commit/63c6e8df8df779940fab20a1c418e275732ba5d2))
+    - Add `IntoIterator` implementation, change `ArrayType` for `[T: FixedSize; N]` ([`b631643`](https://github.com/mbrobbel/narrow/commit/b6316436287a64547e32942eef117fbba8283b14))
+    - Add `FixedSizeListArray` ([`e84f00c`](https://github.com/mbrobbel/narrow/commit/e84f00ce5c12c27bee0d53cf46c94b86af55f184))
+    - Add `OffsetElement` and `UnionType` to the `Array` GAT of `ArrayType` ([`a3613c5`](https://github.com/mbrobbel/narrow/commit/a3613c534c43ff51e4a163a20d90e6d24168d6a3))
+    - Add item associated type to `Unit` trait ([`3a7f327`](https://github.com/mbrobbel/narrow/commit/3a7f327f6d2ecce592a3f0abeb6d2ce9fdb57aed))
+    - Fix docs ([`d440189`](https://github.com/mbrobbel/narrow/commit/d440189b39aae772c8e85c691fd3c5fd84897529))
+    - Use `ArrayBuffer<1>` for `SingleBuffer` ([`34db73e`](https://github.com/mbrobbel/narrow/commit/34db73e1bdf43ae3d65f53278edbdb2386586704))
+    - Add indexing to `Offset` ([`a84ee37`](https://github.com/mbrobbel/narrow/commit/a84ee37861584d9e4d8d54d29c1826180f597c26))
+    - Add `Index` trait ([`97747b5`](https://github.com/mbrobbel/narrow/commit/97747b5d2620d1ce14e26b0c2b3e01dcd8d27b91))
+    - Remove comment ([`59cdb4a`](https://github.com/mbrobbel/narrow/commit/59cdb4af4b72656d21c9bfeac9d61c1c3dfe0e0d))
+    - Enable more lints ([`11c8970`](https://github.com/mbrobbel/narrow/commit/11c8970d7e3335914f7eb511e3b115ff2edd0de2))
+    - Merge branch 'main' into arrow-array ([`8ddf760`](https://github.com/mbrobbel/narrow/commit/8ddf7602a212a597ab2b59f37873cb8dc8c7d214))
+    - Add non-nullable to nullable conversion ([`11f75e0`](https://github.com/mbrobbel/narrow/commit/11f75e05af187c7f17bf63b44c7ae03e4c78cf3d))
+    - Add `BooleanArray` conversion ([`21547b1`](https://github.com/mbrobbel/narrow/commit/21547b16b5823c67c81471c9cdc4cfda0137963d))
+    - Rename feature to `arrow-rs` ([`afbb962`](https://github.com/mbrobbel/narrow/commit/afbb9624ba0307c60f0e8ec828e2efe5c37967ea))
+    - Move `arrow-rs` interop to `arrow` module ([`e39ad3b`](https://github.com/mbrobbel/narrow/commit/e39ad3b169c620524a31a8d652203065e2bddfad))
+    - Fix warning ([`c5c09f0`](https://github.com/mbrobbel/narrow/commit/c5c09f0b311f054a3f604664ac3539db70f40351))
+    - Merge branch 'main' into arrow-array ([`42ba214`](https://github.com/mbrobbel/narrow/commit/42ba2140040bde130feb58278fc0b0a9ca6465f8))
+    - Remove `FixedSize` impl for tuple ([`b6b922c`](https://github.com/mbrobbel/narrow/commit/b6b922c7b9948fcab9491d0ca739879863f6473c))
+    - Implicit conversion to `ArrowBuffer` from `VecBuffer` is now supported ([`9494ce2`](https://github.com/mbrobbel/narrow/commit/9494ce2f8bf9058e9981f1c1bda0561f93e4f317))
+    - Merge branch 'main' into arrow-array ([`bdb17bc`](https://github.com/mbrobbel/narrow/commit/bdb17bc66b570dc0bada75273604425e046b156c))
+    - Add `BufferType` implementation for `arrow_buffer::ScalarBuffer` ([`44e3567`](https://github.com/mbrobbel/narrow/commit/44e35671a0935ad82c10b93960c8667af09d5dc8))
+    - Make conversion generic over buffer type ([`e2b40f1`](https://github.com/mbrobbel/narrow/commit/e2b40f1c10c41132a764d3a67342d0afa9abf44f))
+    - Add `arrow-array` feature for zero-copy array interop ([`26e746c`](https://github.com/mbrobbel/narrow/commit/26e746cb40da0a90cb8311a3e4108256f57859b9))
+    - Use `BufferBuilder` abstraction ([`7b5dab9`](https://github.com/mbrobbel/narrow/commit/7b5dab923acb8ed8656bc6567a6a0615bbedcf43))
+    - Offset extend impl for nullable data ([`60fb809`](https://github.com/mbrobbel/narrow/commit/60fb809c72704657cd5bf850f3f43c2f468beb7a))
+    - Some fixes and tests ([`3cfe877`](https://github.com/mbrobbel/narrow/commit/3cfe877c2db7c29a9ec91f02e34102f12c1e1588))
+    - Setup `arrow-buffer` interop ([`4d0d333`](https://github.com/mbrobbel/narrow/commit/4d0d33390521c369f26f9aa2940f13c6266d0ad7))
+</details>
+
 ## v0.3.4 (2023-08-01)
 
 ### Bug Fixes
@@ -8,23 +144,23 @@
    ```rust
    #[derive(ArrayType, Default)]
    struct Bar<T> {
-       a: u32,
-       b: Option<bool>,
-       c: T,
+   a: u32,
+   b: Option<bool>,
+   c: T,
    }
    
    let input = [
-       Some(Bar {
-           a: 1,
-           b: Some(false),
-           c: None,
-       }),
-       None,
-       Some(Bar {
-           a: 2,
-           b: None,
-           c: Some(()),
-       }),
+   Some(Bar {
+   a: 1,
+   b: Some(false),
+   c: None,
+   }),
+   None,
+   Some(Bar {
+   a: 2,
+   b: None,
+   c: Some(()),
+   }),
    ];
    
    let array = input.into_iter().collect::<StructArray<Bar<_>, true>>();
@@ -38,8 +174,8 @@
    
    let bool_array = &array.0.as_ref().b;
    assert_eq!(
-       bool_array.into_iter().collect::<Vec<_>>(),
-       &[Some(false), None, None]
+   bool_array.into_iter().collect::<Vec<_>>(),
+   &[Some(false), None, None]
    );
    
    let null_array = &array.0.as_ref().c;
@@ -48,12 +184,12 @@
    assert_eq!(null_array.is_valid(2), Some(true));
    
    let input = [
-       Some(Bar {
-           a: 1,
-           b: None,
-           c: false,
-       }),
-       None,
+   Some(Bar {
+   a: 1,
+   b: None,
+   c: false,
+   }),
+   None,
    ];
    let array = input.into_iter().collect::<StructArray<Bar<_>, true>>();
    assert_eq!(array.len(), 2);

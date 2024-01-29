@@ -18,6 +18,20 @@ pub struct BooleanArray<const NULLABLE: bool = false, Buffer: BufferType = VecBu
 where
     Bitmap<Buffer>: Validity<NULLABLE>;
 
+impl<const NULLABLE: bool, Buffer: BufferType> BooleanArray<NULLABLE, Buffer>
+where
+    Bitmap<Buffer>: Validity<NULLABLE>,
+    for<'a> &'a <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: IntoIterator,
+{
+    /// Returns an iterator over the boolean items in this [`BooleanArray`].
+    pub fn iter(
+        &self,
+    ) -> <&'_ <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as IntoIterator>::IntoIter
+    {
+        <&Self as IntoIterator>::into_iter(self)
+    }
+}
+
 impl<const NULLABLE: bool, Buffer: BufferType> Array for BooleanArray<NULLABLE, Buffer>
 where
     Bitmap<Buffer>: Validity<NULLABLE>,

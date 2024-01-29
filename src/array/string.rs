@@ -28,6 +28,18 @@ pub type Utf8Array<const NULLABLE: bool = false, Buffer = VecBuffer> =
 pub type LargeUtf8Array<const NULLABLE: bool = false, Buffer = VecBuffer> =
     StringArray<NULLABLE, i64, Buffer>;
 
+impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType>
+    StringArray<NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    StringArray<NULLABLE, OffsetItem, Buffer>: Index + Length,
+{
+    /// Returns an iterator over the items in this [`StringArray`].
+    pub fn iter(&self) -> StringIter<'_, NULLABLE, OffsetItem, Buffer> {
+        <&Self as IntoIterator>::into_iter(self)
+    }
+}
+
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Array
     for StringArray<NULLABLE, OffsetItem, Buffer>
 where

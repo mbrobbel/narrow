@@ -25,6 +25,18 @@ pub struct FixedSizeListArray<
 where
     T: Validity<NULLABLE>;
 
+impl<const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType>
+    FixedSizeListArray<N, T, NULLABLE, Buffer>
+where
+    T: Validity<NULLABLE>,
+    FixedSizeListArray<N, T, NULLABLE, Buffer>: Index + Length,
+{
+    /// Returns an iterator over items in this [`FixedSizeListArray`].
+    pub fn iter(&self) -> FixedSizeListIter<'_, N, T, NULLABLE, Buffer> {
+        <&Self as IntoIterator>::into_iter(self)
+    }
+}
+
 impl<const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType> Array
     for FixedSizeListArray<N, T, NULLABLE, Buffer>
 where
