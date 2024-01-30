@@ -22,15 +22,6 @@ pub(super) fn derive(input: &DeriveInput, fields: &Fields) -> TokenStream {
     // Generate the StructArrayType impl.
     let struct_array_type_impl = input.struct_array_type_impl();
 
-    // Optionally generate the StructArrayTypeFields impl.
-    let struct_array_type_fields_impl = input.struct_array_type_fields_impl();
-
-    // Optionally generates the conversion to vec of array refs
-    let struct_array_into_array_refs = input.struct_array_into_array_refs();
-
-    // Optionally generates the conversion from vec of array refs
-    let struct_array_from_array_refs = input.struct_array_from_array_refs();
-
     // Generate the array wrapper struct definition.
     let array_struct_def = input.array_struct_def();
 
@@ -46,18 +37,12 @@ pub(super) fn derive(input: &DeriveInput, fields: &Fields) -> TokenStream {
     // Generate the FromIterator implementation.
     let array_from_iter_impl = input.array_from_iter_impl();
 
-    quote! {
+    let tokens = quote! {
         #unit_impl
 
         #array_type_impl
 
         #struct_array_type_impl
-
-        #struct_array_type_fields_impl
-
-        #struct_array_into_array_refs
-
-        #struct_array_from_array_refs
 
         #array_struct_def
 
@@ -68,7 +53,31 @@ pub(super) fn derive(input: &DeriveInput, fields: &Fields) -> TokenStream {
         #array_extend_impl
 
         #array_from_iter_impl
+    };
+
+    #[cfg(feature = "arrow-rs")]
+    {
+        // Optionally generate the StructArrayTypeFields impl.
+        let struct_array_type_fields_impl = input.struct_array_type_fields_impl();
+
+        // Optionally generates the conversion to vec of array refs
+        let struct_array_into_array_refs = input.struct_array_into_array_refs();
+
+        // Optionally generates the conversion from vec of array refs
+        let struct_array_from_array_refs = input.struct_array_from_array_refs();
+
+        quote! {
+            #tokens
+
+            #struct_array_type_fields_impl
+
+            #struct_array_into_array_refs
+
+            #struct_array_from_array_refs
+        }
     }
+    #[cfg(not(feature = "arrow-rs"))]
+    tokens
 }
 
 type FieldIdents<'a> = Map<Enumerate<punctuated::Iter<'a, Field>>, fn((usize, &Field)) -> Ident>;
@@ -203,6 +212,7 @@ impl Struct<'_> {
     }
 
     /// Add an `StructArrayTypeFields` implementation for the derive input.
+    #[cfg(feature = "arrow-rs")]
     fn struct_array_type_fields_impl(&self) -> ItemImpl {
         let narrow = util::narrow();
 
@@ -229,7 +239,6 @@ impl Struct<'_> {
 
         let ident = self.array_struct_ident();
         let tokens = quote! {
-            #[cfg(feature = "arrow-rs")]
             impl #impl_generics #narrow::arrow::StructArrayTypeFields for #ident #ty_generics #where_clause {
                 fn fields() -> ::arrow_schema::Fields {
                     ::arrow_schema::Fields::from([
@@ -242,6 +251,7 @@ impl Struct<'_> {
     }
 
     /// Add an `Into` implementation for the array to convert to a vec of array refs
+    #[cfg(feature = "arrow-rs")]
     fn struct_array_into_array_refs(&self) -> ItemImpl {
         let narrow = util::narrow();
 
@@ -297,7 +307,6 @@ impl Struct<'_> {
 
         let ident = self.array_struct_ident();
         let tokens = quote! {
-            #[cfg(feature = "arrow-rs")]
             impl #impl_generics ::std::convert::From<#ident #ty_generics> for ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>> #where_clause  {
                 fn from(value: #ident #ty_generics) -> Self {
                     vec![
@@ -310,6 +319,7 @@ impl Struct<'_> {
     }
 
     /// Add an `From` implementation for the array to convert from a vec of array refs
+    #[cfg(feature = "arrow-rs")]
     fn struct_array_from_array_refs(&self) -> ItemImpl {
         let narrow = util::narrow();
 
@@ -350,10 +360,8 @@ impl Struct<'_> {
                 quote!(arrays.next().expect("array").into())
             }
         });
-
         let ident = self.array_struct_ident();
         let tokens = quote! {
-            #[cfg(feature = "arrow-rs")]
             impl #impl_generics ::std::convert::From<::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>> for #ident #ty_generics #where_clause  {
                 fn from(value: ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>) -> Self {
                     let mut arrays = value.into_iter();
@@ -646,6 +654,7 @@ impl Struct<'_> {
             .map(move |ty| parse_quote!(<#ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>: #bound))
     }
 
+    #[cfg(feature = "arrow-rs")]
     fn where_predicate_fields_arrow_array_into(&self) -> impl Iterator<Item = WherePredicate> + '_ {
         let narrow = util::narrow();
         self.field_types()

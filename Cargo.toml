@@ -62,4 +62,4 @@ harness = false
 
 [[example]]
 name = "parquet"
-required-features = ["arrow-rs", "derive"]
+required-features = ["arrow-rs", "derive", "uuid"]
