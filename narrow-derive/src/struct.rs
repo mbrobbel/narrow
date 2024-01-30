@@ -227,16 +227,19 @@ impl Struct<'_> {
             )*
         );
 
-        let ident = self.array_struct_ident();
-        let tokens = quote! {
-            #[cfg(feature = "arrow-rs")]
-            impl #impl_generics #narrow::arrow::StructArrayTypeFields for #ident #ty_generics #where_clause {
-                fn fields() -> ::arrow_schema::Fields {
-                    ::arrow_schema::Fields::from([
-                        #fields
-                    ])
+        let tokens = if cfg!(feature = "arrow-rs") {
+            let ident = self.array_struct_ident();
+            quote! {
+                impl #impl_generics #narrow::arrow::StructArrayTypeFields for #ident #ty_generics #where_clause {
+                    fn fields() -> ::arrow_schema::Fields {
+                        ::arrow_schema::Fields::from([
+                            #fields
+                        ])
+                    }
                 }
             }
+        } else {
+            quote! {}
         };
         parse2(tokens).expect("struct_array_type_fields_impl")
     }
@@ -295,16 +298,19 @@ impl Struct<'_> {
             }
         };
 
-        let ident = self.array_struct_ident();
-        let tokens = quote! {
-            #[cfg(feature = "arrow-rs")]
-            impl #impl_generics ::std::convert::From<#ident #ty_generics> for ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>> #where_clause  {
-                fn from(value: #ident #ty_generics) -> Self {
-                    vec![
-                        #field_arrays
-                    ]
+        let tokens = if cfg!(feature = "arrow-rs") {
+            let ident = self.array_struct_ident();
+            quote! {
+                impl #impl_generics ::std::convert::From<#ident #ty_generics> for ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>> #where_clause  {
+                    fn from(value: #ident #ty_generics) -> Self {
+                        vec![
+                            #field_arrays
+                        ]
+                    }
                 }
             }
+        } else {
+            quote! {}
         };
         parse2(tokens).expect("struct_array_into_array_refs")
     }
@@ -351,17 +357,20 @@ impl Struct<'_> {
             }
         });
 
-        let ident = self.array_struct_ident();
-        let tokens = quote! {
-            #[cfg(feature = "arrow-rs")]
-            impl #impl_generics ::std::convert::From<::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>> for #ident #ty_generics #where_clause  {
-                fn from(value: ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>) -> Self {
-                    let mut arrays = value.into_iter();
-                    let result = Self #field_arrays;
-                    assert!(arrays.next().is_none());
-                    result
+        let tokens = if cfg!(feature = "arrow-rs") {
+            let ident = self.array_struct_ident();
+            quote! {
+                impl #impl_generics ::std::convert::From<::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>> for #ident #ty_generics #where_clause  {
+                    fn from(value: ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>) -> Self {
+                        let mut arrays = value.into_iter();
+                        let result = Self #field_arrays;
+                        assert!(arrays.next().is_none());
+                        result
+                    }
                 }
             }
+        } else {
+            quote! {}
         };
         parse2(tokens).expect("struct_array_from_array_refs")
     }
