@@ -49,7 +49,7 @@ impl<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>
     }
 }
 
-/// An array for Uuid items.
+/// An array for [`Uuid`] items.
 #[allow(unused)]
 pub type UuidArray<const NULLABLE: bool = false, Buffer = crate::buffer::VecBuffer> =
     LogicalArray<Uuid, NULLABLE, Buffer, crate::offset::NA, crate::array::union::NA>;
