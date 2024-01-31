@@ -1,6 +1,33 @@
 
 
+## v0.4.2 (2024-01-31)
+
+### Bug Fixes
+
+ - <csr-id-f118208f4151266865b3481286725df43d8cbb39/> use `narrow-derive` crate feature instead of compiled crate feature
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 day passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#143](https://github.com/mbrobbel/narrow/issues/143)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#143](https://github.com/mbrobbel/narrow/issues/143)**
+    - Use `narrow-derive` crate feature instead of compiled crate feature ([`f118208`](https://github.com/mbrobbel/narrow/commit/f118208f4151266865b3481286725df43d8cbb39))
+</details>
+
 ## v0.4.1 (2024-01-29)
+
+<csr-id-8be7a6ce7c0939e756fdc2303b73fe9b6cd69fec/>
 
 ### Chore
 
@@ -10,8 +37,8 @@
 
 <csr-read-only-do-not-edit/>
 
- - 1 commit contributed to the release over the course of 6 calendar days.
- - 6 days passed between releases.
+ - 2 commits contributed to the release over the course of 7 calendar days.
+ - 7 days passed between releases.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#142](https://github.com/mbrobbel/narrow/issues/142)
 
@@ -23,6 +50,8 @@
 
  * **[#142](https://github.com/mbrobbel/narrow/issues/142)**
     - Bump proc-macro2 from 1.0.76 to 1.0.78 ([`8be7a6c`](https://github.com/mbrobbel/narrow/commit/8be7a6ce7c0939e756fdc2303b73fe9b6cd69fec))
+ * **Uncategorized**
+    - Release narrow-derive v0.4.1, narrow v0.4.1 ([`d48d5f1`](https://github.com/mbrobbel/narrow/commit/d48d5f1231802cbb7cd3f746ba1411d011795e55))
 </details>
 
 ## v0.4.0 (2024-01-22)

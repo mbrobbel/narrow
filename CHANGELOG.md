@@ -1,5 +1,30 @@
 
 
+## v0.4.2 (2024-01-31)
+
+### Documentation
+
+ - <csr-id-d0276bcb145826120d731ec9fcac2771025a499d/> update `UuidArray`'s documentation
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 day passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#144](https://github.com/mbrobbel/narrow/issues/144)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#144](https://github.com/mbrobbel/narrow/issues/144)**
+    - Update `UuidArray`'s documentation ([`d0276bc`](https://github.com/mbrobbel/narrow/commit/d0276bcb145826120d731ec9fcac2771025a499d))
+</details>
+
 ## v0.4.1 (2024-01-29)
 
 ### New Features
@@ -11,7 +36,7 @@
 <csr-read-only-do-not-edit/>
 
  - 1 commit contributed to the release.
- - 6 days passed between releases.
+ - 7 days passed between releases.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#124](https://github.com/mbrobbel/narrow/issues/124)
 
