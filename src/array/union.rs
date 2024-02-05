@@ -95,6 +95,7 @@ impl<
 where
     for<'a> i8: From<&'a T>,
 {
+    type Item = T;
 }
 
 impl<
@@ -340,6 +341,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "derive")]
     #[allow(clippy::too_many_lines)]
     fn with_multiple_fields() {
         use crate::{offset, Length};
