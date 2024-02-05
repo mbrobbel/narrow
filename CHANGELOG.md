@@ -1,5 +1,30 @@
 
 
+## v0.4.3 (2024-02-05)
+
+### New Features
+
+ - <csr-id-645514bed37dc9329a1673a60cff353664a90ef3/> add `UnionArray`
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 5 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#146](https://github.com/mbrobbel/narrow/issues/146)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#146](https://github.com/mbrobbel/narrow/issues/146)**
+    - Add `UnionArray` ([`645514b`](https://github.com/mbrobbel/narrow/commit/645514bed37dc9329a1673a60cff353664a90ef3))
+</details>
+
 ## v0.4.2 (2024-01-31)
 
 ### Documentation
