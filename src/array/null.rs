@@ -28,7 +28,7 @@ where
     Self: Default + Sized,
 {
     /// This is the item that is returned
-    type Item: ArrayType + Clone + From<Self> + Send + Sync + 'static;
+    type Item: ArrayType + Copy + From<Self> + Send + Sync + 'static;
 }
 
 // # Safety:
