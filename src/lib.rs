@@ -86,3 +86,7 @@ pub mod arrow;
 // Re-export `narrow_derive` macros when the `derive` feature is enabled.
 #[cfg(feature = "derive")]
 pub use narrow_derive::ArrayType;
+
+// This allows using the `ArrayType` derive macro in tests.
+#[cfg(all(test, feature = "derive"))]
+extern crate self as narrow;

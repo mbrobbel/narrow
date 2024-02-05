@@ -344,8 +344,7 @@ mod tests {
     #[cfg(feature = "derive")]
     #[allow(clippy::too_many_lines)]
     fn with_multiple_fields() {
-        use crate::{offset, Length};
-        use narrow_derive::ArrayType;
+        use crate::{offset, ArrayType, Length};
 
         #[derive(Clone)]
         enum Foo {
