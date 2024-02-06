@@ -1,5 +1,29 @@
 
 
+## v0.5.0 (2024-02-06)
+
+### New Features (BREAKING)
+
+ - <csr-id-a2276a006e5b08348cbc57b5870968b90738caa8/> add parquet write support for `UnionArray`
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#149](https://github.com/mbrobbel/narrow/issues/149)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#149](https://github.com/mbrobbel/narrow/issues/149)**
+    - Add parquet write support for `UnionArray` ([`a2276a0`](https://github.com/mbrobbel/narrow/commit/a2276a006e5b08348cbc57b5870968b90738caa8))
+</details>
+
 ## v0.4.4 (2024-02-06)
 
 ### New Features

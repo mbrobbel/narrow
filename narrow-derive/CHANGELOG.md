@@ -1,5 +1,35 @@
 
 
+## v0.5.0 (2024-02-06)
+
+### Bug Fixes
+
+ - <csr-id-561de43892e561ec5c6db539654a19ec3e6caf38/> use fully qualified syntax for `VARIANTS` const in `ArrayType` impl
+
+### New Features (BREAKING)
+
+ - <csr-id-a2276a006e5b08348cbc57b5870968b90738caa8/> add parquet write support for `UnionArray`
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 2 commits contributed to the release.
+ - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 2 unique issues were worked on: [#148](https://github.com/mbrobbel/narrow/issues/148), [#149](https://github.com/mbrobbel/narrow/issues/149)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#148](https://github.com/mbrobbel/narrow/issues/148)**
+    - Use fully qualified syntax for `VARIANTS` const in `ArrayType` impl ([`561de43`](https://github.com/mbrobbel/narrow/commit/561de43892e561ec5c6db539654a19ec3e6caf38))
+ * **[#149](https://github.com/mbrobbel/narrow/issues/149)**
+    - Add parquet write support for `UnionArray` ([`a2276a0`](https://github.com/mbrobbel/narrow/commit/a2276a006e5b08348cbc57b5870968b90738caa8))
+</details>
+
 ## v0.4.3 (2024-02-05)
 
 ### New Features
@@ -10,7 +40,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 1 commit contributed to the release.
+ - 2 commits contributed to the release.
  - 5 days passed between releases.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#146](https://github.com/mbrobbel/narrow/issues/146)
@@ -23,6 +53,8 @@
 
  * **[#146](https://github.com/mbrobbel/narrow/issues/146)**
     - Add `UnionArray` ([`645514b`](https://github.com/mbrobbel/narrow/commit/645514bed37dc9329a1673a60cff353664a90ef3))
+ * **Uncategorized**
+    - Release narrow-derive v0.4.3, narrow v0.4.3 ([`3927d2c`](https://github.com/mbrobbel/narrow/commit/3927d2ccdcc336696524e7dc225201cc0dda0234))
 </details>
 
 ## v0.4.2 (2024-01-31)
