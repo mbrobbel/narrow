@@ -183,6 +183,7 @@ pub struct Nulls<T: Unit> {
 }
 
 impl<T: Unit> Nulls<T> {
+    #[cfg(feature = "arrow-rs")]
     /// Constructs a Nulls from a given length.
     pub(crate) fn new(len: usize) -> Self {
         Self {
