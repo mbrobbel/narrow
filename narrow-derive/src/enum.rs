@@ -242,6 +242,8 @@ impl<'a> Enum<'a> {
     fn variant_struct_defs(&self) -> TokenStream {
         let narrow = util::narrow();
 
+        let vis = self.vis;
+
         self.variant_fields()
             .zip(self.variant_helper_idents_idents())
             .zip(self.variant_helper_generics())
@@ -253,7 +255,7 @@ impl<'a> Enum<'a> {
                         let field_ty = named.named.iter().map(|field| &field.ty);
                         quote! {
                             #[derive(#narrow::ArrayType, Default)]
-                            struct #ident #impl_generics #where_clause {
+                            #vis struct #ident #impl_generics #where_clause {
                                 #(
                                     #field_ident: #field_ty,
                                 )*
@@ -264,7 +266,7 @@ impl<'a> Enum<'a> {
                         let field_ty = unnamed.unnamed.iter().map(|field| &field.ty);
                         quote! {
                             #[derive(#narrow::ArrayType, Default)]
-                            struct #ident #impl_generics(
+                            #vis struct #ident #impl_generics(
                                 #(
                                     #field_ty,
                                 )*
