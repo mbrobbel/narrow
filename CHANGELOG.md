@@ -1,5 +1,29 @@
 
 
+## v0.4.4 (2024-02-06)
+
+### New Features
+
+ - <csr-id-02c54a7dc49da3e1adcabdad63b22fca2e8fa2c9/> add `arrow` `NullArray` interop
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#147](https://github.com/mbrobbel/narrow/issues/147)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#147](https://github.com/mbrobbel/narrow/issues/147)**
+    - Add `arrow` `NullArray` interop ([`02c54a7`](https://github.com/mbrobbel/narrow/commit/02c54a7dc49da3e1adcabdad63b22fca2e8fa2c9))
+</details>
+
 ## v0.4.3 (2024-02-05)
 
 ### New Features
