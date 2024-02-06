@@ -3,7 +3,7 @@
 //! [`arrow-rs`]: https://crates.io/crates/arrow
 
 mod array;
-pub use array::StructArrayTypeFields;
+pub use array::{StructArrayTypeFields, UnionArrayTypeFields};
 
 mod buffer;
 pub use buffer::*;

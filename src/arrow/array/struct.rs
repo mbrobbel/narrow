@@ -50,6 +50,17 @@ where
     }
 }
 
+impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType>
+    From<StructArray<T, NULLABLE, Buffer>> for Arc<dyn arrow_array::Array>
+where
+    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    arrow_array::StructArray: From<StructArray<T, NULLABLE, Buffer>>,
+{
+    fn from(value: StructArray<T, NULLABLE, Buffer>) -> Self {
+        Arc::new(arrow_array::StructArray::from(value))
+    }
+}
+
 impl<T: StructArrayType, Buffer: BufferType> From<StructArray<T, false, Buffer>>
     for arrow_array::StructArray
 where
@@ -62,7 +73,6 @@ where
         unsafe {
             arrow_array::StructArray::new_unchecked(
                 <<T as StructArrayType>::Array<Buffer> as StructArrayTypeFields>::fields(),
-                // value.0.into_arrays(),
                 value.0.into(),
                 None,
             )

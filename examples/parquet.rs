@@ -3,7 +3,7 @@ fn main() {
     use arrow_cast::pretty;
     use bytes::Bytes;
     use narrow::{
-        array::StructArray,
+        array::{DenseLayout, SparseLayout, StructArray},
         arrow::{buffer_builder::ArrowBufferBuilder, scalar_buffer::ArrowScalarBuffer},
         ArrayType,
     };
@@ -12,6 +12,18 @@ fn main() {
 
     #[derive(ArrayType, Default)]
     struct Bar(Option<bool>);
+
+    #[derive(ArrayType, Default)]
+    enum FooBar {
+        #[default]
+        Foo,
+        Bar(bool),
+        Baz {
+            a: u8,
+            b: u16,
+            c: u32,
+        },
+    }
 
     #[derive(ArrayType, Default)]
     struct Foo {
@@ -23,6 +35,7 @@ fn main() {
         f: Bar,
         g: [u8; 8],
         h: Uuid,
+        i: FooBar,
     }
     let input = [
         Foo {
@@ -34,6 +47,7 @@ fn main() {
             f: Bar(Some(true)),
             g: [1, 2, 3, 4, 5, 6, 7, 8],
             h: Uuid::from_u128(1234),
+            i: FooBar::Bar(true),
         },
         Foo {
             a: 42,
@@ -44,6 +58,7 @@ fn main() {
             f: Bar(None),
             g: [9, 10, 11, 12, 13, 14, 15, 16],
             h: Uuid::from_u128(42),
+            i: FooBar::Baz { a: 1, b: 2, c: 42 },
         },
     ];
 
