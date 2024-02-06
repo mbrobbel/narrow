@@ -79,7 +79,7 @@ jobs:
             --no-changelog-preview \
             --verbose \
             --execute \
-            narrow
+            narrow narrow-derive
       - id: version
         env:
           GH_TOKEN: ${{ secrets.PAT }}

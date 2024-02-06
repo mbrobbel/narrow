@@ -1,5 +1,7 @@
 //! Array for sum types.
 
+use std::iter;
+
 use crate::{
     buffer::{BufferType, VecBuffer},
     offset::{self, OffsetElement},
@@ -42,9 +44,9 @@ impl UnionType for SparseLayout {
 /// This is used instead to prevent confusion in code because we don't have default
 /// types for generic associated types.
 ///
-/// This still shows up as [`DenseLayout`] in documentation but there is no way
+/// This still shows up as [`SparseLayout`] in documentation but there is no way
 /// to prevent that.
-pub type NA = DenseLayout;
+pub type NA = SparseLayout;
 
 /// Union array types.
 pub trait UnionArrayType<const VARIANTS: usize>
@@ -81,7 +83,7 @@ pub struct UnionArray<
     UnionLayout: UnionType = DenseLayout,
     Buffer: BufferType = VecBuffer,
     OffsetItem: OffsetElement = offset::NA,
->(<UnionLayout as UnionType>::Array<T, VARIANTS, Buffer, OffsetItem>)
+>(pub(crate) <UnionLayout as UnionType>::Array<T, VARIANTS, Buffer, OffsetItem>)
 where
     for<'a> i8: From<&'a T>;
 
@@ -96,6 +98,38 @@ where
     for<'a> i8: From<&'a T>,
 {
     type Item = T;
+}
+
+impl<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        UnionLayout: UnionType,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+    > Default for UnionArray<T, VARIANTS, UnionLayout, Buffer, OffsetItem>
+where
+    for<'a> i8: From<&'a T>,
+    <UnionLayout as UnionType>::Array<T, VARIANTS, Buffer, OffsetItem>: Default,
+{
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
+impl<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        UnionLayout: UnionType,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+    > Extend<T> for UnionArray<T, VARIANTS, UnionLayout, Buffer, OffsetItem>
+where
+    for<'a> i8: From<&'a T>,
+    <UnionLayout as UnionType>::Array<T, VARIANTS, Buffer, OffsetItem>: Extend<T>,
+{
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        self.0.extend(iter);
+    }
 }
 
 impl<
@@ -146,6 +180,27 @@ pub struct DenseUnionArray<
     pub types: Int8Array<false, Buffer>,
     /// The offsets in the variant arrays
     pub offsets: Int32Array<false, Buffer>,
+}
+
+impl<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+    > Default for DenseUnionArray<T, VARIANTS, Buffer, OffsetItem>
+where
+    for<'a> i8: From<&'a T>,
+    <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, DenseLayout>: Default,
+    Int8Array<false, Buffer>: Default,
+    Int32Array<false, Buffer>: Default,
+{
+    fn default() -> Self {
+        Self {
+            variants: Default::default(),
+            types: Int8Array::default(),
+            offsets: Int32Array::default(),
+        }
+    }
 }
 
 impl<
@@ -207,6 +262,44 @@ pub struct SparseUnionArray<
     pub variants: <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, SparseLayout>,
     /// The types field encodes the variants
     pub types: Int8Array<false, Buffer>,
+}
+
+impl<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+    > Default for SparseUnionArray<T, VARIANTS, Buffer, OffsetItem>
+where
+    for<'a> i8: From<&'a T>,
+    <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, SparseLayout>: Default,
+    Int8Array<false, Buffer>: Default,
+{
+    fn default() -> Self {
+        Self {
+            variants: Default::default(),
+            types: Int8Array::default(),
+        }
+    }
+}
+
+impl<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+    > Extend<T> for SparseUnionArray<T, VARIANTS, Buffer, OffsetItem>
+where
+    for<'a> i8: From<&'a T>,
+    <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, SparseLayout>: Extend<T>,
+    Int8Array<false, Buffer>: Extend<i8>,
+{
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        iter.into_iter().for_each(|item| {
+            self.types.extend(iter::once(i8::from(&item)));
+            self.variants.extend(iter::once(item));
+        });
+    }
 }
 
 impl<

@@ -34,13 +34,21 @@ where
     }
 }
 
+impl<T: Unit, Buffer: BufferType> From<NullArray<T, false, Buffer>> for Arc<dyn arrow_array::Array>
+where
+    arrow_array::NullArray: From<NullArray<T, false, Buffer>>,
+{
+    fn from(value: NullArray<T, false, Buffer>) -> Self {
+        Arc::new(arrow_array::NullArray::from(value))
+    }
+}
+
 impl<T: Unit, Buffer: BufferType> From<NullArray<T, false, Buffer>> for arrow_array::NullArray {
     fn from(value: NullArray<T, false, Buffer>) -> Self {
         arrow_array::NullArray::new(value.len())
     }
 }
 
-/// Panics when there are nulls
 impl<T: Unit, Buffer: BufferType> From<arrow_array::NullArray> for NullArray<T, false, Buffer> {
     fn from(value: arrow_array::NullArray) -> Self {
         NullArray(Nulls::new(value.len()))
