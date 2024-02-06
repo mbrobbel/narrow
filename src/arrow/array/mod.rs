@@ -7,4 +7,5 @@ mod string;
 mod r#struct;
 pub use r#struct::StructArrayTypeFields;
 mod logical;
+mod null;
 mod variable_size_list;
