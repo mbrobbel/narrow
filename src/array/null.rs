@@ -39,7 +39,7 @@ unsafe impl Unit for () {
 
 /// A sequence of nulls.
 pub struct NullArray<T: Unit = (), const NULLABLE: bool = false, Buffer: BufferType = VecBuffer>(
-    pub <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>,
+    pub(crate) <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>,
 )
 where
     Nulls<T>: Validity<NULLABLE>;
@@ -180,6 +180,17 @@ pub struct Nulls<T: Unit> {
 
     /// Covariant over `T`
     _ty: PhantomData<fn() -> T>,
+}
+
+impl<T: Unit> Nulls<T> {
+    #[cfg(feature = "arrow-rs")]
+    /// Constructs a Nulls from a given length.
+    pub(crate) fn new(len: usize) -> Self {
+        Self {
+            len,
+            _ty: PhantomData,
+        }
+    }
 }
 
 impl<T: Unit> FromIterator<T> for Nulls<T> {
