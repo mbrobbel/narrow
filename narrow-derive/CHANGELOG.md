@@ -1,5 +1,29 @@
 
 
+## v0.5.1 (2024-02-06)
+
+### Bug Fixes
+
+ - <csr-id-7791cfd356ed7606bd615009a4dcd274c1d7ed97/> fix visibility of generated variant struct definitions
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#150](https://github.com/mbrobbel/narrow/issues/150)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#150](https://github.com/mbrobbel/narrow/issues/150)**
+    - Fix visibility of generated variant struct definitions ([`7791cfd`](https://github.com/mbrobbel/narrow/commit/7791cfd356ed7606bd615009a4dcd274c1d7ed97))
+</details>
+
 ## v0.5.0 (2024-02-06)
 
 ### Bug Fixes
@@ -14,7 +38,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 2 commits contributed to the release.
+ - 3 commits contributed to the release.
  - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 2 unique issues were worked on: [#148](https://github.com/mbrobbel/narrow/issues/148), [#149](https://github.com/mbrobbel/narrow/issues/149)
 
@@ -28,6 +52,8 @@
     - Use fully qualified syntax for `VARIANTS` const in `ArrayType` impl ([`561de43`](https://github.com/mbrobbel/narrow/commit/561de43892e561ec5c6db539654a19ec3e6caf38))
  * **[#149](https://github.com/mbrobbel/narrow/issues/149)**
     - Add parquet write support for `UnionArray` ([`a2276a0`](https://github.com/mbrobbel/narrow/commit/a2276a006e5b08348cbc57b5870968b90738caa8))
+ * **Uncategorized**
+    - Release narrow-derive v0.5.0, narrow v0.5.0, safety bump narrow v0.5.0 ([`c33b9ba`](https://github.com/mbrobbel/narrow/commit/c33b9bab6835e71a47909f073e4fa422fec34633))
 </details>
 
 ## v0.4.3 (2024-02-05)
