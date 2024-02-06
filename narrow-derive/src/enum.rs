@@ -616,9 +616,10 @@ impl<'a> Enum<'a> {
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
         let ident = self.ident;
+        let variants = Literal::usize_unsuffixed(self.variants.len());
         let tokens = quote! {
             impl #impl_generics #narrow::array::ArrayType for #ident #ty_generics #where_clause {
-                type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::OffsetElement, UnionLayout: #narrow::array::UnionType> = #narrow::array::UnionArray<Self, { Self::VARIANTS }, UnionLayout, Buffer>;
+                type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::OffsetElement, UnionLayout: #narrow::array::UnionType> = #narrow::array::UnionArray<Self, { <Self as #narrow::array::UnionArrayType<#variants>>::VARIANTS }, UnionLayout, Buffer>;
             }
         };
         parse2(tokens).expect("array_type_impl")

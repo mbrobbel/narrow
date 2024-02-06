@@ -259,7 +259,12 @@ impl<T: narrow::array::ArrayType> narrow::array::ArrayType for Foo<T> {
         Buffer: narrow::buffer::BufferType,
         OffsetItem: narrow::offset::OffsetElement,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::UnionArray<Self, { Self::VARIANTS }, UnionLayout, Buffer>;
+    > = narrow::array::UnionArray<
+        Self,
+        { <Self as narrow::array::UnionArrayType<3>>::VARIANTS },
+        UnionLayout,
+        Buffer,
+    >;
 }
 #[automatically_derived]
 impl<T: ::core::clone::Clone> ::core::clone::Clone for Foo<T> {

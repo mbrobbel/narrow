@@ -4,7 +4,7 @@ mod tests {
         mod r#enum {
             mod unit {
                 use narrow::{
-                    array::{DenseLayout, SparseLayout, UnionArray, UnionArrayType},
+                    array::{DenseLayout, SparseLayout, UnionArray},
                     ArrayType, Length,
                 };
 
@@ -30,7 +30,7 @@ mod tests {
             }
             mod unnamed {
                 use narrow::{
-                    array::{DenseLayout, SparseLayout, UnionArray, UnionArrayType},
+                    array::{DenseLayout, SparseLayout, UnionArray},
                     ArrayType, Length,
                 };
 
@@ -56,7 +56,7 @@ mod tests {
             }
             mod named {
                 use narrow::{
-                    array::{DenseLayout, SparseLayout, UnionArray, UnionArrayType},
+                    array::{DenseLayout, SparseLayout, UnionArray},
                     ArrayType, Length,
                 };
 

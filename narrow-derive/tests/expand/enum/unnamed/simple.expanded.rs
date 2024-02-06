@@ -172,5 +172,10 @@ impl narrow::array::ArrayType for FooBar {
         Buffer: narrow::buffer::BufferType,
         OffsetItem: narrow::offset::OffsetElement,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::UnionArray<Self, { Self::VARIANTS }, UnionLayout, Buffer>;
+    > = narrow::array::UnionArray<
+        Self,
+        { <Self as narrow::array::UnionArrayType<2>>::VARIANTS },
+        UnionLayout,
+        Buffer,
+    >;
 }
