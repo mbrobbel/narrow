@@ -634,6 +634,7 @@ dependencies = [
  "narrow-derive",
  "parquet",
  "rand",
+ "rustversion",
  "uuid",
 ]
 

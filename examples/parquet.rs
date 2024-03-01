@@ -1,3 +1,4 @@
+#[rustversion::attr(nightly, allow(non_local_definitions))]
 fn main() {
     use arrow_array::RecordBatch;
     use arrow_cast::pretty;
