@@ -141,7 +141,7 @@ where
 #[cfg(feature = "derive")]
 mod tests {
     use super::*;
-    use crate::array::{DenseLayout, SparseLayout};
+    use crate::array::DenseLayout;
     use crate::arrow::buffer_builder::ArrowBufferBuilder;
     use arrow_array::Array;
 

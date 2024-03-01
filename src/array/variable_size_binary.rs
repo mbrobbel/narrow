@@ -217,10 +217,7 @@ impl<OffsetItem: OffsetElement, Buffer: BufferType> ValidityBitmap
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        bitmap::{Bitmap, BitmapRef},
-        buffer::BufferRef,
-    };
+    use crate::buffer::BufferRef;
     use std::mem;
 
     #[test]

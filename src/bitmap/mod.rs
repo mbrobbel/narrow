@@ -327,7 +327,7 @@ impl<Buffer: BufferType> ValidityBitmap for Bitmap<Buffer> {}
 
 #[cfg(test)]
 mod tests {
-    use crate::buffer::{ArrayBuffer, BoxBuffer, BufferRefMut, SliceBuffer};
+    use crate::buffer::{ArrayBuffer, BoxBuffer, SliceBuffer};
 
     use super::*;
     use std::mem;

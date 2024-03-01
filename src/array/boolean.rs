@@ -178,10 +178,7 @@ impl<Buffer: BufferType> ValidityBitmap for BooleanArray<true, Buffer> {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        bitmap::{BitmapRef, ValidityBitmap},
-        buffer::{BoxBuffer, BufferRefMut},
-    };
+    use crate::buffer::BoxBuffer;
     use std::mem;
 
     #[test]

@@ -537,7 +537,6 @@ impl<T, OffsetItem: OffsetElement, Buffer: BufferType> ValidityBitmap
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bitmap::{BitmapRef, ValidityBitmap};
 
     #[test]
     fn default() {

@@ -337,7 +337,7 @@ where
 mod tests {
     use super::*;
     use crate::array::Uint32Array;
-    use std::{iter, iter::Extend, marker::PhantomData};
+    use std::marker::PhantomData;
 
     #[test]
     fn simple() {

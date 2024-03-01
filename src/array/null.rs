@@ -241,7 +241,7 @@ impl<T: Unit> Length for Nulls<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{array::UnionType, bitmap::Bitmap, offset::OffsetElement};
+    use crate::{array::UnionType, offset::OffsetElement};
     use std::mem;
 
     #[test]
