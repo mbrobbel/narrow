@@ -49,12 +49,6 @@ pub trait Index: Length {
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_>;
 }
 
-/// Index operation for mutable access to values in a collection.
-pub trait IndexMut: Index {
-    /// Returns a mutable reference to the value at given index.
-    fn index_mut(&mut self, index: usize) -> &mut Self::Item<'_>;
-}
-
 impl<T> Index for Vec<T> {
     type Item<'a> = &'a T
     where
