@@ -1,5 +1,30 @@
 
 
+## v0.5.1 (2024-03-01)
+
+### Chore
+
+ - <csr-id-89ea9fccaccd7592e6e52cc72c022032ae0ff020/> remove unused `IndexMut` trait
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 23 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#155](https://github.com/mbrobbel/narrow/issues/155)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#155](https://github.com/mbrobbel/narrow/issues/155)**
+    - Remove unused `IndexMut` trait ([`89ea9fc`](https://github.com/mbrobbel/narrow/commit/89ea9fccaccd7592e6e52cc72c022032ae0ff020))
+</details>
+
 ## v0.5.0 (2024-02-06)
 
 ### New Features (BREAKING)
