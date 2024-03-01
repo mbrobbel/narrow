@@ -138,10 +138,7 @@ impl<T: Array, OffsetItem: OffsetElement, Buffer: BufferType> ValidityBitmap
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        array::FixedSizePrimitiveArray,
-        bitmap::{BitmapRef, ValidityBitmap},
-    };
+    use crate::array::FixedSizePrimitiveArray;
 
     #[test]
     fn from_iter() {

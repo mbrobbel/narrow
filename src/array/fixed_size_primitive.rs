@@ -208,10 +208,7 @@ impl<T: FixedSize, Buffer: BufferType> ValidityBitmap for FixedSizePrimitiveArra
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        bitmap::Bitmap,
-        buffer::{Buffer, BufferRef, BufferRefMut},
-    };
+    use crate::buffer::{BufferRef, BufferRefMut};
     use std::mem;
 
     #[test]

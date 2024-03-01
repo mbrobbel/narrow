@@ -284,7 +284,6 @@ mod tests {
     use super::*;
     use crate::{
         array::{union, ArrayType},
-        bitmap::BitmapRef,
         buffer::BufferRef,
     };
 

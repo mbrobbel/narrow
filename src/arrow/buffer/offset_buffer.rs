@@ -35,10 +35,7 @@ where
 #[cfg(test)]
 mod tests {
 
-    use crate::{
-        array::FixedSizePrimitiveArray, arrow::buffer::scalar_buffer::ArrowScalarBuffer,
-        buffer::ArcBuffer,
-    };
+    use crate::{arrow::buffer::scalar_buffer::ArrowScalarBuffer, buffer::ArcBuffer};
 
     use super::*;
 

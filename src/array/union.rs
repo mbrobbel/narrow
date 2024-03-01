@@ -337,9 +337,10 @@ where
 mod tests {
     use super::*;
     use crate::array::Uint32Array;
-    use std::{iter, iter::Extend, marker::PhantomData};
+    use std::marker::PhantomData;
 
     #[test]
+    #[rustversion::attr(nightly, allow(non_local_definitions))]
     fn simple() {
         enum Foo {
             Bar(i32),
@@ -436,6 +437,7 @@ mod tests {
     #[test]
     #[cfg(feature = "derive")]
     #[allow(clippy::too_many_lines)]
+    #[rustversion::attr(nightly, allow(non_local_definitions))]
     fn with_multiple_fields() {
         use crate::{offset, ArrayType, Length};
 
@@ -608,6 +610,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "derive")]
+    #[rustversion::attr(nightly, allow(non_local_definitions))]
     fn derive() {
         use crate::ArrayType;
 
