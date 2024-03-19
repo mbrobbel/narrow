@@ -59,7 +59,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d390feeb7f21b78ec997a4081a025baef1e2e0d6069e181939b61864c9779609"
 dependencies = [
  "ahash",
- "arrow-buffer",
+ "arrow-buffer 50.0.0",
  "arrow-data",
  "arrow-schema",
  "chrono",
@@ -80,13 +80,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "arrow-buffer"
+version = "51.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d0a2432f0cba5692bf4cb757469c66791394bac9ec7ce63c1afe74744c37b27"
+dependencies = [
+ "bytes",
+ "half 2.3.1",
+ "num",
+]
+
+[[package]]
 name = "arrow-cast"
 version = "50.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e448e5dd2f4113bf5b74a1f26531708f5edcacc77335b7066f9398f4bcf4cdef"
 dependencies = [
  "arrow-array",
- "arrow-buffer",
+ "arrow-buffer 50.0.0",
  "arrow-data",
  "arrow-schema",
  "arrow-select",
@@ -104,7 +115,7 @@ version = "50.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67d644b91a162f3ad3135ce1184d0a31c28b816a581e08f29e8e9277a574c64e"
 dependencies = [
- "arrow-buffer",
+ "arrow-buffer 50.0.0",
  "arrow-schema",
  "half 2.3.1",
  "num",
@@ -117,7 +128,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03dea5e79b48de6c2e04f03f62b0afea7105be7b77d134f6c5414868feefb80d"
 dependencies = [
  "arrow-array",
- "arrow-buffer",
+ "arrow-buffer 50.0.0",
  "arrow-cast",
  "arrow-data",
  "arrow-schema",
@@ -138,7 +149,7 @@ checksum = "1ce20973c1912de6514348e064829e50947e35977bb9d7fb637dc99ea9ffd78c"
 dependencies = [
  "ahash",
  "arrow-array",
- "arrow-buffer",
+ "arrow-buffer 50.0.0",
  "arrow-data",
  "arrow-schema",
  "num",
@@ -626,7 +637,7 @@ name = "narrow"
 version = "0.5.0"
 dependencies = [
  "arrow-array",
- "arrow-buffer",
+ "arrow-buffer 51.0.0",
  "arrow-cast",
  "arrow-schema",
  "bytes",
@@ -756,7 +767,7 @@ checksum = "547b92ebf0c1177e3892f44c8f79757ee62e678d564a9834189725f2c5b7a750"
 dependencies = [
  "ahash",
  "arrow-array",
- "arrow-buffer",
+ "arrow-buffer 50.0.0",
  "arrow-cast",
  "arrow-data",
  "arrow-ipc",
