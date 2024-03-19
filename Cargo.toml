@@ -47,7 +47,7 @@ arrow-array = { version = "50.0.0", optional = true }
 arrow-buffer = { version = "50.0.0", optional = true }
 arrow-schema = { version = "50.0.0", optional = true }
 narrow-derive = { path = "narrow-derive", version = "^0.5.0", optional = true }
-uuid = { version = "1.7.0", optional = true }
+uuid = { version = "1.8.0", optional = true }
 
 [dev-dependencies]
 arrow-cast = { version = "50.0.0", default-features = false, features = [
@@ -58,7 +58,7 @@ criterion = { version = "0.5.1", default-features = false }
 rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
 rustversion = "1.0.14"
 parquet = { version = "50.0.0", default-features = false, features = ["arrow"] }
-uuid = "1.7.0"
+uuid = "1.8.0"
 
 [profile.bench]
 lto = true
