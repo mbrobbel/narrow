@@ -45,7 +45,7 @@ uuid = ["dep:uuid"]
 [dependencies]
 arrow-array = { version = "50.0.0", optional = true }
 arrow-buffer = { version = "50.0.0", optional = true }
-arrow-schema = { version = "50.0.0", optional = true }
+arrow-schema = { version = "51.0.0", optional = true }
 narrow-derive = { path = "narrow-derive", version = "^0.5.0", optional = true }
 uuid = { version = "1.8.0", optional = true }
 
