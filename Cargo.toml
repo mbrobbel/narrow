@@ -50,7 +50,7 @@ narrow-derive = { path = "narrow-derive", version = "^0.5.0", optional = true }
 uuid = { version = "1.8.0", optional = true }
 
 [dev-dependencies]
-arrow-cast = { version = "50.0.0", default-features = false, features = [
+arrow-cast = { version = "51.0.0", default-features = false, features = [
     "prettyprint",
 ] }
 bytes = "1.5.0"
