@@ -14,6 +14,10 @@ use crate::{
 /// Uuid support via logical arrays.
 pub mod uuid;
 
+#[cfg(feature = "chrono")]
+/// Chrono support via logical arrays.
+pub mod chrono;
+
 /// Types that can be stored in Arrow arrays, but require mapping via
 /// [`LogicalArray`].
 ///
