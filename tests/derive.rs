@@ -82,7 +82,6 @@ mod tests {
             }
         }
         mod r#struct {
-            #[cfg(not(feature = "arrow-rs"))]
             mod unit {
                 use narrow::{
                     array::{StructArray, VariableSizeListArray},
@@ -145,7 +144,6 @@ mod tests {
                 }
             }
 
-            #[cfg(not(feature = "arrow-rs"))]
             mod unnamed {
                 use narrow::{
                     array::{StructArray, VariableSizeListArray},
@@ -223,7 +221,6 @@ mod tests {
                 }
             }
 
-            #[cfg(not(feature = "arrow-rs"))]
             mod named {
                 use narrow::{
                     array::{StructArray, VariableSizeListArray},

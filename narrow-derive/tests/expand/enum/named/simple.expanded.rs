@@ -5,7 +5,7 @@ enum FooBar {
     FooBar { foo: String, bar: Option<u8> },
 }
 impl ::std::convert::From<&FooBar> for ::std::primitive::i8 {
-    fn from(value: &FooBar) -> i8 {
+    fn from(value: &FooBar) -> ::std::primitive::i8 {
         match *value {
             FooBar::Unit => 0,
             FooBar::Foo { .. } => 1,

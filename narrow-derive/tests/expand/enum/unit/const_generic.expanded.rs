@@ -3,7 +3,7 @@ enum FooBar<const X: bool> {
     Bar,
 }
 impl<const X: bool> ::std::convert::From<&FooBar<X>> for ::std::primitive::i8 {
-    fn from(value: &FooBar<X>) -> i8 {
+    fn from(value: &FooBar<X>) -> ::std::primitive::i8 {
         match *value {
             FooBar::Foo => 0,
             FooBar::Bar => 1,

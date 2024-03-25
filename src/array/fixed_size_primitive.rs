@@ -8,7 +8,11 @@ use crate::{
     validity::{Nullability, Validity},
     FixedSize, Index, Length,
 };
-use std::{ops, slice::SliceIndex};
+use std::{
+    fmt::{Debug, Formatter, Result},
+    ops,
+    slice::SliceIndex,
+};
 
 /// Array with primitive values.
 pub struct FixedSizePrimitiveArray<
@@ -75,6 +79,19 @@ where
 impl<T: FixedSize, Buffer: BufferType> AsRef<[T]> for FixedSizePrimitiveArray<T, false, Buffer> {
     fn as_ref(&self) -> &[T] {
         self.0.as_slice()
+    }
+}
+
+impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType> Debug
+    for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
+where
+    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
+    <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>: Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        f.debug_tuple("FixedSizePrimitiveArray")
+            .field(&self.0)
+            .finish()
     }
 }
 
@@ -200,6 +217,31 @@ impl<T: FixedSize, Buffer: BufferType> BitmapRef for FixedSizePrimitiveArray<T, 
 impl<T: FixedSize, Buffer: BufferType> BitmapRefMut for FixedSizePrimitiveArray<T, true, Buffer> {
     fn bitmap_ref_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
         self.0.bitmap_ref_mut()
+    }
+}
+
+impl<T: FixedSize, Buffer: BufferType> PartialEq for FixedSizePrimitiveArray<T, false, Buffer> {
+    fn eq(&self, _other: &Self) -> bool {
+        todo!()
+    }
+}
+
+impl<T: FixedSize, Buffer: BufferType> PartialEq<[T]> for FixedSizePrimitiveArray<T, false, Buffer>
+where
+    <Buffer as BufferType>::Buffer<T>: PartialEq<[T]>,
+{
+    fn eq(&self, other: &[T]) -> bool {
+        self.0.eq(other)
+    }
+}
+
+impl<T: FixedSize, Buffer: BufferType> PartialEq<[Option<T>]>
+    for FixedSizePrimitiveArray<T, true, Buffer>
+where
+    for<'a> &'a Self: IntoIterator<Item = Option<T>>,
+{
+    fn eq(&self, other: &[Option<T>]) -> bool {
+        self.len() == other.len() && self.into_iter().zip(other).all(|(a, &b)| a == b)
     }
 }
 

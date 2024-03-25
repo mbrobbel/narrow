@@ -8,7 +8,6 @@ use arrow_schema::{DataType, Field};
 
 use crate::{
     array::{Array, VariableSizeListArray},
-    arrow::ArrowArray,
     bitmap::Bitmap,
     buffer::BufferType,
     nullable::Nullable,
@@ -17,11 +16,11 @@ use crate::{
 };
 
 impl<
-        T: ArrowArray,
+        T: crate::arrow::Array,
         const NULLABLE: bool,
         OffsetItem: OffsetElement + OffsetSizeTrait,
         Buffer: BufferType,
-    > ArrowArray for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
+    > crate::arrow::Array for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
     Vec<T>: Nullability<NULLABLE>,
@@ -54,12 +53,46 @@ where
     }
 }
 
-impl<T: Array + ArrowArray, OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
-    From<VariableSizeListArray<T, false, OffsetItem, Buffer>>
+impl<
+        T: Array + crate::arrow::Array,
+        OffsetItem: OffsetElement + OffsetSizeTrait,
+        Buffer: BufferType,
+    > From<VariableSizeListArray<T, false, OffsetItem, Buffer>> for Arc<dyn arrow_array::Array>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
+    <T as crate::arrow::Array>::Array: From<T> + 'static,
+{
+    fn from(value: VariableSizeListArray<T, false, OffsetItem, Buffer>) -> Self {
+        let array: arrow_array::GenericListArray<OffsetItem> = value.into();
+        Arc::new(array)
+    }
+}
+
+impl<
+        T: Array + crate::arrow::Array,
+        OffsetItem: OffsetElement + OffsetSizeTrait,
+        Buffer: BufferType,
+    > From<VariableSizeListArray<T, true, OffsetItem, Buffer>> for Arc<dyn arrow_array::Array>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
+    Bitmap<Buffer>: Into<NullBuffer>,
+    <T as crate::arrow::Array>::Array: From<T> + 'static,
+{
+    fn from(value: VariableSizeListArray<T, true, OffsetItem, Buffer>) -> Self {
+        let array: arrow_array::GenericListArray<OffsetItem> = value.into();
+        Arc::new(array)
+    }
+}
+
+impl<
+        T: Array + crate::arrow::Array,
+        OffsetItem: OffsetElement + OffsetSizeTrait,
+        Buffer: BufferType,
+    > From<VariableSizeListArray<T, false, OffsetItem, Buffer>>
     for arrow_array::GenericListArray<OffsetItem>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
-    <T as ArrowArray>::Array: From<T> + 'static,
+    <T as crate::arrow::Array>::Array: From<T> + 'static,
 {
     fn from(value: VariableSizeListArray<T, false, OffsetItem, Buffer>) -> Self {
         arrow_array::GenericListArray::new(
@@ -67,19 +100,22 @@ where
             // Safety:
             // - The narrow offfset buffer contains valid offset data
             unsafe { OffsetBuffer::new_unchecked(value.0.offsets.into()) },
-            Arc::<<T as ArrowArray>::Array>::new(value.0.data.into()),
+            Arc::<<T as crate::arrow::Array>::Array>::new(value.0.data.into()),
             None,
         )
     }
 }
 
-impl<T: Array + ArrowArray, OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
-    From<VariableSizeListArray<T, true, OffsetItem, Buffer>>
+impl<
+        T: Array + crate::arrow::Array,
+        OffsetItem: OffsetElement + OffsetSizeTrait,
+        Buffer: BufferType,
+    > From<VariableSizeListArray<T, true, OffsetItem, Buffer>>
     for arrow_array::GenericListArray<OffsetItem>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
     Bitmap<Buffer>: Into<NullBuffer>,
-    <T as ArrowArray>::Array: From<T> + 'static,
+    <T as crate::arrow::Array>::Array: From<T> + 'static,
 {
     fn from(value: VariableSizeListArray<T, true, OffsetItem, Buffer>) -> Self {
         arrow_array::GenericListArray::new(
@@ -87,7 +123,7 @@ where
             // Safety:
             // - The narrow offfset buffer contains valid offset data
             unsafe { OffsetBuffer::new_unchecked(value.0.offsets.data.into()) },
-            Arc::<<T as ArrowArray>::Array>::new(value.0.data.into()),
+            Arc::<<T as crate::arrow::Array>::Array>::new(value.0.data.into()),
             Some(value.0.offsets.validity.into()),
         )
     }
@@ -147,7 +183,7 @@ mod tests {
 
     use crate::{
         array::{StringArray, Uint16Array, VariableSizeListArray},
-        arrow::scalar_buffer::ArrowScalarBuffer,
+        arrow::buffer::ScalarBuffer,
         Length,
     };
 
@@ -179,12 +215,8 @@ mod tests {
                 .map(|opt| opt.iter().copied().map(Option::Some))
                 .map(Option::Some),
         );
-        let _: VariableSizeListArray<
-            Uint16Array<false, ArrowScalarBuffer>,
-            true,
-            i32,
-            ArrowScalarBuffer,
-        > = list_array.into();
+        let _: VariableSizeListArray<Uint16Array<false, ScalarBuffer>, true, i32, ScalarBuffer> =
+            list_array.into();
     }
 
     #[test]
@@ -205,10 +237,10 @@ mod tests {
         });
         let list_array_nullable = list_builder.finish();
         let _: VariableSizeListArray<
-            StringArray<false, i32, ArrowScalarBuffer>,
+            StringArray<false, i32, ScalarBuffer>,
             false,
             i32,
-            ArrowScalarBuffer,
+            ScalarBuffer,
         > = list_array_nullable.into();
     }
 
@@ -220,12 +252,8 @@ mod tests {
                 .map(|opt| opt.iter().copied().map(Option::Some))
                 .map(Option::Some),
         );
-        let _: VariableSizeListArray<
-            Uint16Array<false, ArrowScalarBuffer>,
-            false,
-            i32,
-            ArrowScalarBuffer,
-        > = list_array.into();
+        let _: VariableSizeListArray<Uint16Array<false, ScalarBuffer>, false, i32, ScalarBuffer> =
+            list_array.into();
 
         let mut list_builder =
             ListBuilder::with_capacity(StringBuilder::new(), INPUT_NULLABLE.len());
@@ -242,10 +270,10 @@ mod tests {
         });
         let list_array_nullable = list_builder.finish();
         let _: VariableSizeListArray<
-            StringArray<false, i32, ArrowScalarBuffer>,
+            StringArray<false, i32, ScalarBuffer>,
             true,
             i32,
-            ArrowScalarBuffer,
+            ScalarBuffer,
         > = list_array_nullable.into();
     }
 }

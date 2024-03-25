@@ -5,7 +5,7 @@ enum FooBar {
     Bar,
 }
 impl ::std::convert::From<&FooBar> for ::std::primitive::i8 {
-    fn from(value: &FooBar) -> i8 {
+    fn from(value: &FooBar) -> ::std::primitive::i8 {
         match *value {
             FooBar::Foo => 0,
             FooBar::FoO => 1,

@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use crate::{
     array::{NullArray, Nulls, Unit},
-    arrow::ArrowArray,
     buffer::BufferType,
     validity::{Nullability, Validity},
     Length,
@@ -12,7 +11,7 @@ use crate::{
 use arrow_array::Array;
 use arrow_schema::{DataType, Field};
 
-impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> ArrowArray
+impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> crate::arrow::Array
     for NullArray<T, NULLABLE, Buffer>
 where
     T: Nullability<NULLABLE>,
@@ -83,11 +82,9 @@ mod tests {
     fn into() {
         let null_array = arrow_array::NullArray::new(INPUT.len());
         assert_eq!(
-            NullArray::<(), false, crate::arrow::buffer::scalar_buffer::ArrowScalarBuffer>::from(
-                null_array
-            )
-            .into_iter()
-            .collect::<Vec<_>>(),
+            NullArray::<(), false, crate::arrow::buffer::ScalarBuffer>::from(null_array)
+                .into_iter()
+                .collect::<Vec<_>>(),
             INPUT
         );
     }

@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use crate::{
     array::UnionType,
-    arrow::ArrowArray,
     buffer::BufferType,
     logical::{LogicalArray, LogicalArrayType},
     offset::OffsetElement,
@@ -17,17 +16,17 @@ impl<
         Buffer: BufferType,
         OffsetItem: OffsetElement,
         UnionLayout: UnionType,
-    > ArrowArray for LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
+    > crate::arrow::Array for LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
 where
     <T as LogicalArrayType>::Array<Buffer, OffsetItem, UnionLayout>:
-        Validity<NULLABLE> + ArrowArray,
+        Validity<NULLABLE> + crate::arrow::Array,
     T: Nullability<NULLABLE>,
 {
     type Array =
-        <<T as LogicalArrayType>::Array<Buffer, OffsetItem, UnionLayout> as ArrowArray>::Array;
+        <<T as LogicalArrayType>::Array<Buffer, OffsetItem, UnionLayout> as crate::arrow::Array>::Array;
 
     fn as_field(name: &str) -> arrow_schema::Field {
-        <<T as LogicalArrayType>::Array<Buffer, OffsetItem, UnionLayout> as ArrowArray>::as_field(
+        <<T as LogicalArrayType>::Array<Buffer, OffsetItem, UnionLayout> as crate::arrow::Array>::as_field(
             name,
         )
     }
@@ -47,6 +46,23 @@ where
 {
     fn from(value: Arc<dyn arrow_array::Array>) -> Self {
         Self(value.into())
+    }
+}
+
+impl<
+        T: LogicalArrayType,
+        const NULLABLE: bool,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
+    > From<LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>>
+    for Arc<dyn arrow_array::Array>
+where
+    <T as LogicalArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>,
+    <<T as LogicalArrayType>::Array<Buffer, OffsetItem, UnionLayout> as Validity<NULLABLE>>::Storage<Buffer>: Into<Arc<dyn arrow_array::Array>>,
+{
+    fn from(value: LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>) -> Self {
+        Arc::new(value.0.into())
     }
 }
 

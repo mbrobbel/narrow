@@ -12,7 +12,7 @@ where
     T: Default,
     Self: Clone,
 {
-    fn from(value: &FooBar<T>) -> i8 {
+    fn from(value: &FooBar<T>) -> ::std::primitive::i8 {
         match *value {
             FooBar::Foo => 0,
             FooBar::Bar(..) => 1,
