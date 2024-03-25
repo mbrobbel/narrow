@@ -20,9 +20,9 @@ use crate::{
     FixedSize, Length,
 };
 
-/// Mapping between [`FixedSize`] types and [`ArrowPrimitiveType`].
+/// Mapping between [`FixedSize`] types and [`arrow_array::types::ArrowPrimitiveType`].
 pub trait FixedSizeExt: FixedSize {
-    /// The corresponding [`ArrowPrimitiveType`] for a [`FixedSize`] type.
+    /// The corresponding [`arrow_array::types::ArrowPrimitiveType`] for a [`FixedSize`] type.
     type ArrowPrimitiveType: arrow_array::types::ArrowPrimitiveType;
 }
 
