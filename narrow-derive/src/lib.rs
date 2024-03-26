@@ -3,7 +3,7 @@ use proc_macro::TokenStream;
 use proc_macro_crate::FoundCrate;
 use syn::{parse_macro_input, DataEnum, DataStruct, DataUnion, DeriveInput};
 
-mod r#enum;
+// mod r#enum;
 mod r#struct;
 mod union;
 mod util;
@@ -27,7 +27,7 @@ pub fn derive_array_type(input: TokenStream) -> TokenStream {
 
     match input.data {
         syn::Data::Struct(DataStruct { ref fields, .. }) => r#struct::derive(&input, fields),
-        syn::Data::Enum(DataEnum { ref variants, .. }) => r#enum::derive(&input, variants),
+        syn::Data::Enum(DataEnum { ref variants, .. }) => todo!(), // r#enum::derive(&input, variants),
         syn::Data::Union(DataUnion { ref fields, .. }) => union::derive(&input, fields),
     }
     .into()

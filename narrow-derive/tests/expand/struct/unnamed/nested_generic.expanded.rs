@@ -3,7 +3,7 @@ struct Foo<T>(
 )
 where
     T: Copy;
-impl<T: narrow::array::ArrayType> narrow::array::ArrayType for Foo<T>
+impl<T: narrow::array::ArrayType<T>> narrow::array::ArrayType<Foo<T>> for Foo<T>
 where
     T: Copy,
 {
@@ -13,7 +13,7 @@ where
         UnionLayout: narrow::array::UnionType,
     > = narrow::array::StructArray<Foo<T>, false, Buffer>;
 }
-impl<T: narrow::array::ArrayType> narrow::array::ArrayType<Foo<T>>
+impl<T: narrow::array::ArrayType<T>> narrow::array::ArrayType<Foo<T>>
 for ::std::option::Option<Foo<T>>
 where
     T: Copy,
@@ -24,28 +24,28 @@ where
         UnionLayout: narrow::array::UnionType,
     > = narrow::array::StructArray<Foo<T>, true, Buffer>;
 }
-impl<T: narrow::array::ArrayType> narrow::array::StructArrayType for Foo<T>
+impl<T: narrow::array::ArrayType<T>> narrow::array::StructArrayType for Foo<T>
 where
     T: Copy,
 {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<T, Buffer>;
 }
-struct FooArray<T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType>(
-    <T as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >,
+struct FooArray<T: narrow::array::ArrayType<T>, Buffer: narrow::buffer::BufferType>(
+    <T as narrow::array::ArrayType<
+        T,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>,
 )
 where
     T: Copy;
 impl<
-    T: narrow::array::ArrayType,
+    T: narrow::array::ArrayType<T>,
     Buffer: narrow::buffer::BufferType,
 > ::std::default::Default for FooArray<T, Buffer>
 where
     T: Copy,
-    <T as narrow::array::ArrayType>::Array<
+    <T as narrow::array::ArrayType<
+        T,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,
@@ -55,27 +55,27 @@ where
         Self(::std::default::Default::default())
     }
 }
-impl<T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType> narrow::Length
+impl<T: narrow::array::ArrayType<T>, Buffer: narrow::buffer::BufferType> narrow::Length
 for FooArray<T, Buffer>
 where
     T: Copy,
-    <T as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >: narrow::Length,
+    <T as narrow::array::ArrayType<
+        T,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: narrow::Length,
 {
     fn len(&self) -> usize {
         self.0.len()
     }
 }
 impl<
-    T: narrow::array::ArrayType,
+    T: narrow::array::ArrayType<T>,
     Buffer: narrow::buffer::BufferType,
 > ::std::iter::Extend<Foo<T>> for FooArray<T, Buffer>
 where
     T: Copy,
-    <T as narrow::array::ArrayType>::Array<
+    <T as narrow::array::ArrayType<
+        T,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,
@@ -89,12 +89,14 @@ where
     }
 }
 impl<
-    T: narrow::array::ArrayType,
+    T: narrow::array::ArrayType<T>,
     Buffer: narrow::buffer::BufferType,
 > ::std::iter::FromIterator<Foo<T>> for FooArray<T, Buffer>
 where
     T: Copy,
-    <T as narrow::array::ArrayType>::Array<
+    <T as narrow::array::ArrayType<
+        T,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,
@@ -106,14 +108,15 @@ where
     }
 }
 struct Bar<'a, T>(&'a Foo<T>);
-impl<'a, T: narrow::array::ArrayType> narrow::array::ArrayType for Bar<'a, T> {
+impl<'a, T: narrow::array::ArrayType<T>> narrow::array::ArrayType<Bar<'a, T>>
+for Bar<'a, T> {
     type Array<
         Buffer: narrow::buffer::BufferType,
         OffsetItem: narrow::offset::OffsetElement,
         UnionLayout: narrow::array::UnionType,
     > = narrow::array::StructArray<Bar<'a, T>, false, Buffer>;
 }
-impl<'a, T: narrow::array::ArrayType> narrow::array::ArrayType<Bar<'a, T>>
+impl<'a, T: narrow::array::ArrayType<T>> narrow::array::ArrayType<Bar<'a, T>>
 for ::std::option::Option<Bar<'a, T>> {
     type Array<
         Buffer: narrow::buffer::BufferType,
@@ -121,27 +124,27 @@ for ::std::option::Option<Bar<'a, T>> {
         UnionLayout: narrow::array::UnionType,
     > = narrow::array::StructArray<Bar<'a, T>, true, Buffer>;
 }
-impl<'a, T: narrow::array::ArrayType> narrow::array::StructArrayType for Bar<'a, T> {
+impl<'a, T: narrow::array::ArrayType<T>> narrow::array::StructArrayType for Bar<'a, T> {
     type Array<Buffer: narrow::buffer::BufferType> = BarArray<'a, T, Buffer>;
 }
-struct BarArray<'a, T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType>(
+struct BarArray<'a, T: narrow::array::ArrayType<T>, Buffer: narrow::buffer::BufferType>(
     <&'a Foo<
         T,
-    > as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >,
+    > as narrow::array::ArrayType<
+        &'a Foo<T>,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>,
 );
 impl<
     'a,
-    T: narrow::array::ArrayType,
+    T: narrow::array::ArrayType<T>,
     Buffer: narrow::buffer::BufferType,
 > ::std::default::Default for BarArray<'a, T, Buffer>
 where
     <&'a Foo<
         T,
-    > as narrow::array::ArrayType>::Array<
+    > as narrow::array::ArrayType<
+        &'a Foo<T>,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,
@@ -151,16 +154,17 @@ where
         Self(::std::default::Default::default())
     }
 }
-impl<'a, T: narrow::array::ArrayType, Buffer: narrow::buffer::BufferType> narrow::Length
-for BarArray<'a, T, Buffer>
+impl<
+    'a,
+    T: narrow::array::ArrayType<T>,
+    Buffer: narrow::buffer::BufferType,
+> narrow::Length for BarArray<'a, T, Buffer>
 where
     <&'a Foo<
         T,
-    > as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >: narrow::Length,
+    > as narrow::array::ArrayType<
+        &'a Foo<T>,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: narrow::Length,
 {
     fn len(&self) -> usize {
         self.0.len()
@@ -168,13 +172,15 @@ where
 }
 impl<
     'a,
-    T: narrow::array::ArrayType,
+    T: narrow::array::ArrayType<T>,
     Buffer: narrow::buffer::BufferType,
 > ::std::iter::Extend<Bar<'a, T>> for BarArray<'a, T, Buffer>
 where
     <&'a Foo<
         T,
-    > as narrow::array::ArrayType>::Array<
+    > as narrow::array::ArrayType<
+        &'a Foo<T>,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,
@@ -189,13 +195,15 @@ where
 }
 impl<
     'a,
-    T: narrow::array::ArrayType,
+    T: narrow::array::ArrayType<T>,
     Buffer: narrow::buffer::BufferType,
 > ::std::iter::FromIterator<Bar<'a, T>> for BarArray<'a, T, Buffer>
 where
     <&'a Foo<
         T,
-    > as narrow::array::ArrayType>::Array<
+    > as narrow::array::ArrayType<
+        &'a Foo<T>,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,
@@ -207,7 +215,7 @@ where
     }
 }
 struct FooBar<'a>(Bar<'a, u32>);
-impl<'a> narrow::array::ArrayType for FooBar<'a> {
+impl<'a> narrow::array::ArrayType<FooBar<'a>> for FooBar<'a> {
     type Array<
         Buffer: narrow::buffer::BufferType,
         OffsetItem: narrow::offset::OffsetElement,
@@ -228,11 +236,9 @@ struct FooBarArray<'a, Buffer: narrow::buffer::BufferType>(
     <Bar<
         'a,
         u32,
-    > as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >,
+    > as narrow::array::ArrayType<
+        Bar<'a, u32>,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>,
 );
 impl<'a, Buffer: narrow::buffer::BufferType> ::std::default::Default
 for FooBarArray<'a, Buffer>
@@ -240,7 +246,9 @@ where
     <Bar<
         'a,
         u32,
-    > as narrow::array::ArrayType>::Array<
+    > as narrow::array::ArrayType<
+        Bar<'a, u32>,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,
@@ -255,11 +263,9 @@ where
     <Bar<
         'a,
         u32,
-    > as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >: narrow::Length,
+    > as narrow::array::ArrayType<
+        Bar<'a, u32>,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: narrow::Length,
 {
     fn len(&self) -> usize {
         self.0.len()
@@ -271,7 +277,9 @@ where
     <Bar<
         'a,
         u32,
-    > as narrow::array::ArrayType>::Array<
+    > as narrow::array::ArrayType<
+        Bar<'a, u32>,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,
@@ -290,7 +298,9 @@ where
     <Bar<
         'a,
         u32,
-    > as narrow::array::ArrayType>::Array<
+    > as narrow::array::ArrayType<
+        Bar<'a, u32>,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,

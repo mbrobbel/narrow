@@ -67,7 +67,7 @@ where
 pub trait EnumVariant<const INDEX: usize>: Sized {
     /// The data for this variant. It must be an `ArrayType` because it is stored in an array.
     /// And it must implement `Into<Self>` (this is taking the data and wrapping it in the original enum variant).
-    type Data: ArrayType + Default;
+    type Data: ArrayType<Self::Data> + Default;
 
     /// Wraps the data in the original enum variant
     fn from_data(value: Self::Data) -> Self;
@@ -435,7 +435,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "derive")]
+    #[cfg(feature = "derive--")]
     #[allow(clippy::too_many_lines)]
     #[rustversion::attr(nightly, allow(non_local_definitions))]
     fn with_multiple_fields() {
@@ -503,21 +503,24 @@ mod tests {
         }
 
         struct FooArray<Buffer: BufferType, UnionLayout: UnionType> {
-            unit: <<Foo as EnumVariant<0>>::Data as ArrayType>::Array<
-                Buffer,
-                offset::NA,
-                UnionLayout,
-            >,
-            unnamed: <<Foo as EnumVariant<1>>::Data as ArrayType>::Array<
-                Buffer,
-                offset::NA,
-                UnionLayout,
-            >,
-            named: <<Foo as EnumVariant<2>>::Data as ArrayType>::Array<
-                Buffer,
-                offset::NA,
-                UnionLayout,
-            >,
+            unit:
+                <<Foo as EnumVariant<0>>::Data as ArrayType<<Foo as EnumVariant<0>>::Data>>::Array<
+                    Buffer,
+                    offset::NA,
+                    UnionLayout,
+                >,
+            unnamed:
+                <<Foo as EnumVariant<1>>::Data as ArrayType<<Foo as EnumVariant<1>>::Data>>::Array<
+                    Buffer,
+                    offset::NA,
+                    UnionLayout,
+                >,
+            named:
+                <<Foo as EnumVariant<2>>::Data as ArrayType<<Foo as EnumVariant<2>>::Data>>::Array<
+                    Buffer,
+                    offset::NA,
+                    UnionLayout,
+                >,
         }
 
         impl UnionArrayType<3> for Foo {
@@ -527,12 +530,21 @@ mod tests {
 
         impl<Buffer: BufferType, UnionLayout: UnionType> Default for FooArray<Buffer, UnionLayout>
         where
-            <<Foo as EnumVariant<0>>::Data as ArrayType>::Array<Buffer, offset::NA, UnionLayout>:
-                Default,
-            <<Foo as EnumVariant<1>>::Data as ArrayType>::Array<Buffer, offset::NA, UnionLayout>:
-                Default,
-            <<Foo as EnumVariant<2>>::Data as ArrayType>::Array<Buffer, offset::NA, UnionLayout>:
-                Default,
+            <<Foo as EnumVariant<0>>::Data as ArrayType<<Foo as EnumVariant<0>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                UnionLayout,
+            >: Default,
+            <<Foo as EnumVariant<1>>::Data as ArrayType<<Foo as EnumVariant<1>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                UnionLayout,
+            >: Default,
+            <<Foo as EnumVariant<2>>::Data as ArrayType<<Foo as EnumVariant<2>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                UnionLayout,
+            >: Default,
         {
             fn default() -> Self {
                 #[allow(clippy::default_trait_access)]
@@ -546,12 +558,21 @@ mod tests {
 
         impl<Buffer: BufferType> Extend<Foo> for FooArray<Buffer, DenseLayout>
         where
-            <<Foo as EnumVariant<0>>::Data as ArrayType>::Array<Buffer, offset::NA, DenseLayout>:
-                Extend<()>,
-            <<Foo as EnumVariant<1>>::Data as ArrayType>::Array<Buffer, offset::NA, DenseLayout>:
-                Extend<FooVariantUnnamed>,
-            <<Foo as EnumVariant<2>>::Data as ArrayType>::Array<Buffer, offset::NA, DenseLayout>:
-                Extend<FooVariantNamed>,
+            <<Foo as EnumVariant<0>>::Data as ArrayType<<Foo as EnumVariant<0>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                DenseLayout,
+            >: Extend<()>,
+            <<Foo as EnumVariant<1>>::Data as ArrayType<<Foo as EnumVariant<1>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                DenseLayout,
+            >: Extend<FooVariantUnnamed>,
+            <<Foo as EnumVariant<2>>::Data as ArrayType<<Foo as EnumVariant<2>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                DenseLayout,
+            >: Extend<FooVariantNamed>,
         {
             fn extend<T: IntoIterator<Item = Foo>>(&mut self, iter: T) {
                 iter.into_iter().for_each(|item| match item {
@@ -564,12 +585,21 @@ mod tests {
 
         impl<Buffer: BufferType> Extend<Foo> for FooArray<Buffer, SparseLayout>
         where
-            <<Foo as EnumVariant<0>>::Data as ArrayType>::Array<Buffer, offset::NA, DenseLayout>:
-                Extend<()>,
-            <<Foo as EnumVariant<1>>::Data as ArrayType>::Array<Buffer, offset::NA, DenseLayout>:
-                Extend<FooVariantUnnamed>,
-            <<Foo as EnumVariant<2>>::Data as ArrayType>::Array<Buffer, offset::NA, DenseLayout>:
-                Extend<FooVariantNamed>,
+            <<Foo as EnumVariant<0>>::Data as ArrayType<<Foo as EnumVariant<0>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                DenseLayout,
+            >: Extend<()>,
+            <<Foo as EnumVariant<1>>::Data as ArrayType<<Foo as EnumVariant<1>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                DenseLayout,
+            >: Extend<FooVariantUnnamed>,
+            <<Foo as EnumVariant<2>>::Data as ArrayType<<Foo as EnumVariant<2>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                DenseLayout,
+            >: Extend<FooVariantNamed>,
         {
             fn extend<T: IntoIterator<Item = Foo>>(&mut self, iter: T) {
                 iter.into_iter().for_each(|item| match item {
@@ -609,7 +639,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "derive")]
+    #[cfg(feature = "derive----")]
     #[rustversion::attr(nightly, allow(non_local_definitions))]
     fn derive() {
         use crate::ArrayType;

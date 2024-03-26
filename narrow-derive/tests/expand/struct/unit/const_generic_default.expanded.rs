@@ -4,7 +4,7 @@ pub struct Foo<const N: usize = 42>;
 unsafe impl<const N: usize> narrow::array::Unit for Foo<N> {
     type Item = Self;
 }
-impl<const N: usize> narrow::array::ArrayType for Foo<N> {
+impl<const N: usize> narrow::array::ArrayType<Foo<N>> for Foo<N> {
     type Array<
         Buffer: narrow::buffer::BufferType,
         OffsetItem: narrow::offset::OffsetElement,

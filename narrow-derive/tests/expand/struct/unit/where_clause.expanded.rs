@@ -11,7 +11,7 @@ where
 {
     type Item = Self;
 }
-impl<const N: bool> narrow::array::ArrayType for Foo<N>
+impl<const N: bool> narrow::array::ArrayType<Foo<N>> for Foo<N>
 where
     Self: Sized,
     (): From<Self>,

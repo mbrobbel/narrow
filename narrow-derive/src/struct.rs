@@ -1,4 +1,6 @@
-use crate::util::{self, AddTypeParam, AddTypeParamBound, SelfReplace};
+use crate::util::{
+    self, AddTypeParam, AddTypeParamBound, AddTypeParamBoundWithSelf, DropOuterParam, SelfReplace,
+};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
 use std::iter::{Enumerate, Map};
@@ -132,6 +134,18 @@ impl Struct<'_> {
         self.fields.iter().map(|Field { ty, .. }| ty)
     }
 
+    fn field_types_drop_option(&self) -> impl Iterator<Item = Type> + '_ {
+        self.fields
+            .iter()
+            .clone()
+            .map(|Field { ty, .. }| ty)
+            .map(|ty| {
+                let mut ty = ty.clone();
+                DropOuterParam.visit_type_mut(&mut ty);
+                ty.clone()
+            })
+    }
+
     fn field_idents(&self) -> FieldIdents {
         self.fields
             .iter()
@@ -162,12 +176,12 @@ impl Struct<'_> {
 
         // Generics
         let mut generics = self.generics.clone();
-        AddTypeParamBound(Struct::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParamBoundWithSelf(Struct::array_type_bound()).visit_generics_mut(&mut generics);
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
         let ident = self.ident;
         let non_nullable = quote! {
-            impl #impl_generics #narrow::array::ArrayType for #ident #ty_generics #where_clause {
+            impl #impl_generics #narrow::array::ArrayType<#ident #ty_generics> for #ident #ty_generics #where_clause {
                 type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::OffsetElement, UnionLayout: #narrow::array::UnionType> = #narrow::array::StructArray<#ident #ty_generics, false, Buffer>;
             }
         };
@@ -192,7 +206,7 @@ impl Struct<'_> {
 
         // Generics
         let mut generics = self.generics.clone();
-        AddTypeParamBound(Struct::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParamBoundWithSelf(Struct::array_type_bound()).visit_generics_mut(&mut generics);
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
         // Array generics
@@ -214,12 +228,14 @@ impl Struct<'_> {
     /// Add an `StructArrayTypeFields` implementation for the derive input.
     #[cfg(feature = "arrow-rs")]
     fn struct_array_type_fields_impl(&self) -> ItemImpl {
+        use crate::util::DropOuterParam;
+
         let narrow = util::narrow();
 
         // Generics
         let mut generics = self.generics.clone();
         SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
-        AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParamBoundWithSelf(Self::array_type_bound()).visit_generics_mut(&mut generics);
         // AddTypeParamBound(Self::arrow_array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
@@ -259,7 +275,7 @@ impl Struct<'_> {
         // Generics
         let mut generics = self.generics.clone();
         SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
-        AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParamBoundWithSelf(Self::array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
         generics
@@ -316,7 +332,7 @@ impl Struct<'_> {
         // Generics
         let mut generics = self.generics.clone();
         SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
-        AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParamBoundWithSelf(Self::array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
         generics
@@ -371,7 +387,7 @@ impl Struct<'_> {
         // Generics
         let mut generics = self.generics.clone();
         SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
-        AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParamBoundWithSelf(Self::array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
         let (impl_generics, _, where_clause) = generics.split_for_impl();
@@ -381,17 +397,19 @@ impl Struct<'_> {
             Fields::Named(_) => {
                 let field_ident = self.field_idents();
                 let field_ty = self.field_types();
+                let field_ty_drop = self.field_types_drop_option();
                 quote!(
                     #(
-                        #field_ident: <#field_ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>,
+                        #field_ident: <#field_ty as #narrow::array::ArrayType<#field_ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>,
                     )*
                 )
             }
             Fields::Unnamed(_) => {
                 let field_ty = self.field_types();
+                let field_ty_drop = self.field_types_drop_option();
                 quote!(
                     #(
-                        <#field_ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>,
+                        <#field_ty as #narrow::array::ArrayType<#field_ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>,
                     )*
                 )
             }
@@ -423,7 +441,7 @@ impl Struct<'_> {
         // Generics
         let mut generics = self.generics.clone();
         SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
-        AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParamBoundWithSelf(Self::array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
         generics
@@ -472,7 +490,7 @@ impl Struct<'_> {
         // Generics
         let mut generics = self.generics.clone();
         SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
-        AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParamBoundWithSelf(Self::array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
         // For the impl it would also work to just have a Length bound of the first field.
@@ -513,15 +531,15 @@ impl Struct<'_> {
 
         // Array generics
         let mut generics = self.generics.clone();
-        AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParamBoundWithSelf(Self::array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
         generics
             .make_where_clause()
             .predicates
             .extend(
-                self.field_types()
-                    .map::<WherePredicate, _>(move |ty| parse_quote!(<#ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>: ::std::iter::Extend<#ty>))
+                self.field_types().zip(self.field_types_drop_option())
+                    .map::<WherePredicate, _>(move |(ty, ty_drop)| parse_quote!(<#ty as #narrow::array::ArrayType<#ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>: ::std::iter::Extend<#ty>))
             );
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
@@ -577,15 +595,15 @@ impl Struct<'_> {
 
         // Array generics
         let mut generics = self.generics.clone();
-        AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParamBoundWithSelf(Self::array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
         generics
             .make_where_clause()
             .predicates
             .extend(
-                self.field_types()
-                    .map::<WherePredicate, _>(move |ty| parse_quote!(<#ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>: ::std::default::Default + ::std::iter::Extend<#ty>))
+                self.field_types().zip(self.field_types_drop_option())
+                    .map::<WherePredicate, _>(move |(ty, ty_drop)| parse_quote!(<#ty as #narrow::array::ArrayType<#ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>: ::std::default::Default + ::std::iter::Extend<#ty>))
             );
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
@@ -640,8 +658,8 @@ impl Struct<'_> {
         bound: TypeParamBound,
     ) -> impl Iterator<Item = WherePredicate> + '_ {
         let narrow = util::narrow();
-        self.field_types()
-            .map(move |ty| parse_quote!(<#ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>: #bound))
+        self.field_types().zip(self.field_types_drop_option())
+            .map(move |(ty, ty_drop)| parse_quote!(<#ty as #narrow::array::ArrayType<#ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>: #bound))
     }
 
     #[cfg(feature = "arrow-rs")]

@@ -365,7 +365,7 @@ impl<'a> Enum<'a> {
         let tokens = quote!(
             #vis struct #ident #impl_generics (
                 #(
-                  <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType>::Array<Buffer, OffsetItem, UnionLayout>,
+                  <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<Buffer, OffsetItem, UnionLayout>,
                 )*
             ) #where_clause;
         );
@@ -396,7 +396,7 @@ impl<'a> Enum<'a> {
                 self.variant_indices()
                     .map::<WherePredicate, _>(|idx|
                         parse_quote!(
-                            <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType>::Array<Buffer, OffsetItem, UnionLayout>
+                            <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<Buffer, OffsetItem, UnionLayout>
                         : ::std::default::Default)
                     )
             );
@@ -448,7 +448,7 @@ impl<'a> Enum<'a> {
             .predicates
             .extend(
                 self.variant_indices().zip(struct_defs).map::<WherePredicate, _>(|(idx, struct_def)|{
-                    parse_quote!(<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType>::Array<Buffer, OffsetItem, #narrow::array::DenseLayout>: ::std::iter::Extend<#struct_def>)
+                    parse_quote!(<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<Buffer, OffsetItem, #narrow::array::DenseLayout>: ::std::iter::Extend<#struct_def>)
                 })
             );
         let (impl_generics, _, where_clause) = generics.split_for_impl();
@@ -536,7 +536,7 @@ impl<'a> Enum<'a> {
             .predicates
             .extend(
                 self.variant_indices().zip(struct_defs).map::<WherePredicate, _>(|(idx, struct_def)|{
-                    parse_quote!(<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType>::Array<Buffer, OffsetItem, #narrow::array::SparseLayout>: ::std::iter::Extend<#struct_def>)
+                    parse_quote!(<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<Buffer, OffsetItem, #narrow::array::SparseLayout>: ::std::iter::Extend<#struct_def>)
                 })
             );
         let (impl_generics, _, where_clause) = generics.split_for_impl();
@@ -644,7 +644,7 @@ impl<'a> Enum<'a> {
         let ident = self.ident;
         let variants = Literal::usize_unsuffixed(self.variants.len());
         let tokens = quote! {
-            impl #impl_generics #narrow::array::ArrayType for #ident #ty_generics #where_clause {
+            impl #impl_generics #narrow::array::ArrayType<#ident #ty_generics> for #ident #ty_generics #where_clause {
                 type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::OffsetElement, UnionLayout: #narrow::array::UnionType> = #narrow::array::UnionArray<Self, { <Self as #narrow::array::UnionArrayType<#variants>>::VARIANTS }, UnionLayout, Buffer>;
             }
         };

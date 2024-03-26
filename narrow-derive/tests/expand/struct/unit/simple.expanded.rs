@@ -4,7 +4,7 @@ struct Foo;
 unsafe impl narrow::array::Unit for Foo {
     type Item = Self;
 }
-impl narrow::array::ArrayType for Foo {
+impl narrow::array::ArrayType<Foo> for Foo {
     type Array<
         Buffer: narrow::buffer::BufferType,
         OffsetItem: narrow::offset::OffsetElement,

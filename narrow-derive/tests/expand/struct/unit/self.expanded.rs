@@ -9,7 +9,7 @@ where
 {
     type Item = Self;
 }
-impl narrow::array::ArrayType for Foo
+impl narrow::array::ArrayType<Foo> for Foo
 where
     Self: Debug,
 {

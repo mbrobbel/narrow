@@ -8,34 +8,36 @@ use crate::{
 
 use super::{LogicalArray, LogicalArrayType};
 
-impl ArrayType for Uuid {
+impl ArrayType<Uuid> for Uuid {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         LogicalArray<Uuid, false, Buffer, OffsetItem, UnionLayout>;
 }
 
-impl ArrayType for Option<Uuid> {
+impl ArrayType<Uuid> for Option<Uuid> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         LogicalArray<Uuid, true, Buffer, OffsetItem, UnionLayout>;
 }
 
-impl LogicalArrayType for Uuid {
+impl LogicalArrayType<Uuid> for Uuid {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         FixedSizeListArray<16, FixedSizePrimitiveArray<u8, false, Buffer>, false, Buffer>;
 
     fn convert<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>(
         self,
-    ) -> <<Self as LogicalArrayType>::Array<Buffer, OffsetItem, UnionLayout> as Array>::Item {
+    ) -> <<Self as LogicalArrayType<Uuid>>::Array<Buffer, OffsetItem, UnionLayout> as Array>::Item
+    {
         self.into_bytes()
     }
 }
 
-impl LogicalArrayType for Option<Uuid> {
+impl LogicalArrayType<Uuid> for Option<Uuid> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         FixedSizeListArray<16, FixedSizePrimitiveArray<u8, false, Buffer>, true, Buffer>;
 
     fn convert<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>(
         self,
-    ) -> <<Self as LogicalArrayType>::Array<Buffer, OffsetItem, UnionLayout> as Array>::Item {
+    ) -> <<Self as LogicalArrayType<Uuid>>::Array<Buffer, OffsetItem, UnionLayout> as Array>::Item
+    {
         self.map(Uuid::into_bytes)
     }
 }

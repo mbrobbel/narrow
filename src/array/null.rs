@@ -28,7 +28,7 @@ where
     Self: Default + Sized,
 {
     /// This is the item that is returned
-    type Item: ArrayType + Copy + From<Self> + Send + Sync + 'static;
+    type Item: ArrayType<Self> + Copy + From<Self> + Send + Sync + 'static;
 }
 
 // # Safety:
@@ -253,7 +253,7 @@ mod tests {
         unsafe impl Unit for Foo {
             type Item = Self;
         }
-        impl ArrayType for Foo {
+        impl ArrayType<Self> for Foo {
             type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
                 NullArray<Foo, false, Buffer>;
         }

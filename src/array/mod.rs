@@ -42,7 +42,7 @@ pub trait Array {
 /// Types that can be stored in Arrow arrays.
 // Note: the generic `T` is required to allow impls on foreign wrappers e.g.
 // Option. (https://rust-lang.github.io/rfcs/2451-re-rebalancing-coherence.html)
-pub trait ArrayType<T: ?Sized = Self> {
+pub trait ArrayType<T: ?Sized> {
     /// The [`Array`] type for these items.
     ///
     /// It is generic over:
@@ -62,15 +62,36 @@ pub trait ArrayType<T: ?Sized = Self> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>: Array;
 }
 
-impl<T: ArrayType + ?Sized> ArrayType for &T {
-    type Array<Buffer: BufferType, OfsetItem: OffsetElement, UnionLayout: UnionType> =
-        <T as ArrayType>::Array<Buffer, OfsetItem, UnionLayout>;
-}
+// impl<T: ArrayType<U> + ?Sized, U> ArrayType<U> for &T {
+//     type Array<Buffer: BufferType, OfsetItem: OffsetElement, UnionLayout: UnionType> =
+//         <T as ArrayType<U>>::Array<Buffer, OfsetItem, UnionLayout>;
+// }
+
+// impl<'a, T: ArrayType<&'a T> + ?Sized> ArrayType<&'a T> for T {
+//     type Array<Buffer: BufferType, OfsetItem: OffsetElement, UnionLayout: UnionType> =
+//         <T as ArrayType<&'a T>>::Array<Buffer, OfsetItem, UnionLayout>;
+// }
+
+// impl<'a, T: ArrayType<T> + ?Sized> ArrayType<T> for &'a T {
+//     type Array<Buffer: BufferType, OfsetItem: OffsetElement, UnionLayout: UnionType> =
+//         <T as ArrayType<T>>::Array<Buffer, OfsetItem, UnionLayout>;
+// }
+
+// impl<'a, T: ArrayType<&'a T> + ?Sized> ArrayType<&'a T> for &'a T {
+//     type Array<Buffer: BufferType, OfsetItem: OffsetElement, UnionLayout: UnionType> =
+//         <T as ArrayType<&'a T>>::Array<Buffer, OfsetItem, UnionLayout>;
+// }
 
 /// Implement [`ArrayType`] for `ty` using `array`.
 macro_rules! impl_array_type {
     ($ty:ty, $array:ty) => {
-        impl ArrayType for $ty {
+        impl ArrayType<$ty> for $ty {
+            type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+                $array;
+        }
+    };
+    ($ty:ty, $array:ty, $inner:ty) => {
+        impl ArrayType<$inner> for $ty {
             type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
                 $array;
         }
@@ -78,139 +99,156 @@ macro_rules! impl_array_type {
 }
 
 impl_array_type!(bool, BooleanArray<false, Buffer>);
-impl_array_type!(Option<bool>, BooleanArray<true, Buffer>);
+impl_array_type!(Option<bool>, BooleanArray<true, Buffer>, bool);
 
 impl_array_type!(u8, FixedSizePrimitiveArray<u8, false, Buffer>);
-impl_array_type!(Option<u8>, FixedSizePrimitiveArray<u8, true, Buffer>);
+impl_array_type!(Option<u8>, FixedSizePrimitiveArray<u8, true, Buffer>, u8);
 impl_array_type!(i8, FixedSizePrimitiveArray<i8, false, Buffer>);
-impl_array_type!(Option<i8>, FixedSizePrimitiveArray<i8, true, Buffer>);
+impl_array_type!(Option<i8>, FixedSizePrimitiveArray<i8, true, Buffer>, i8);
 impl_array_type!(u16, FixedSizePrimitiveArray<u16, false, Buffer>);
-impl_array_type!(Option<u16>, FixedSizePrimitiveArray<u16, true, Buffer>);
+impl_array_type!(Option<u16>, FixedSizePrimitiveArray<u16, true, Buffer>, u16);
 impl_array_type!(i16, FixedSizePrimitiveArray<i16, false, Buffer>);
-impl_array_type!(Option<i16>, FixedSizePrimitiveArray<i16, true, Buffer>);
+impl_array_type!(Option<i16>, FixedSizePrimitiveArray<i16, true, Buffer>, i16);
 impl_array_type!(u32, FixedSizePrimitiveArray<u32, false, Buffer>);
-impl_array_type!(Option<u32>, FixedSizePrimitiveArray<u32, true, Buffer>);
+impl_array_type!(Option<u32>, FixedSizePrimitiveArray<u32, true, Buffer>, u32);
 impl_array_type!(i32, FixedSizePrimitiveArray<i32, false, Buffer>);
-impl_array_type!(Option<i32>, FixedSizePrimitiveArray<i32, true, Buffer>);
+impl_array_type!(Option<i32>, FixedSizePrimitiveArray<i32, true, Buffer>, i32);
 impl_array_type!(u64, FixedSizePrimitiveArray<u64, false, Buffer>);
-impl_array_type!(Option<u64>, FixedSizePrimitiveArray<u64, true, Buffer>);
+impl_array_type!(Option<u64>, FixedSizePrimitiveArray<u64, true, Buffer>, u64);
 impl_array_type!(i64, FixedSizePrimitiveArray<i64, false, Buffer>);
-impl_array_type!(Option<i64>, FixedSizePrimitiveArray<i64, true, Buffer>);
+impl_array_type!(Option<i64>, FixedSizePrimitiveArray<i64, true, Buffer>, i64);
 #[cfg(not(feature = "arrow-rs"))]
 impl_array_type!(u128, FixedSizePrimitiveArray<u128, false, Buffer>);
 #[cfg(not(feature = "arrow-rs"))]
-impl_array_type!(Option<u128>, FixedSizePrimitiveArray<u128, true, Buffer>);
+impl_array_type!(Option<u128>, FixedSizePrimitiveArray<u128, true, Buffer>, u128);
 impl_array_type!(i128, FixedSizePrimitiveArray<i128, false, Buffer>);
-impl_array_type!(Option<i128>, FixedSizePrimitiveArray<i128, true, Buffer>);
+impl_array_type!(Option<i128>, FixedSizePrimitiveArray<i128, true, Buffer>, i128);
 
 #[cfg(not(feature = "arrow-rs"))]
 impl_array_type!(usize, FixedSizePrimitiveArray<usize, false, Buffer>);
 #[cfg(not(feature = "arrow-rs"))]
-impl_array_type!(Option<usize>, FixedSizePrimitiveArray<usize, true, Buffer>);
+impl_array_type!(Option<usize>, FixedSizePrimitiveArray<usize, true, Buffer>, usize);
 #[cfg(not(feature = "arrow-rs"))]
 impl_array_type!(isize, FixedSizePrimitiveArray<isize, false, Buffer>);
 #[cfg(not(feature = "arrow-rs"))]
-impl_array_type!(Option<isize>, FixedSizePrimitiveArray<isize, true, Buffer>);
+impl_array_type!(Option<isize>, FixedSizePrimitiveArray<isize, true, Buffer>, isize);
 
 impl_array_type!(f32, FixedSizePrimitiveArray<f32, false, Buffer>);
-impl_array_type!(Option<f32>, FixedSizePrimitiveArray<f32, true, Buffer>);
+impl_array_type!(Option<f32>, FixedSizePrimitiveArray<f32, true, Buffer>, f32);
 impl_array_type!(f64, FixedSizePrimitiveArray<f64, false, Buffer>);
-impl_array_type!(Option<f64>, FixedSizePrimitiveArray<f64, true, Buffer>);
+impl_array_type!(Option<f64>, FixedSizePrimitiveArray<f64, true, Buffer>, f64);
 
 impl_array_type!((), NullArray<(), false, Buffer>);
-impl_array_type!(Option<()>, NullArray<(), true, Buffer>);
+impl_array_type!(Option<()>, NullArray<(), true, Buffer>, ());
 
-impl<T: ArrayType, const N: usize> ArrayType for [T; N] {
+impl<T: ArrayType<T>, const N: usize> ArrayType<[T; N]> for [T; N] {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         FixedSizeListArray<
             N,
-            <T as ArrayType>::Array<Buffer, OffsetItem, UnionLayout>,
+            <T as ArrayType<T>>::Array<Buffer, OffsetItem, UnionLayout>,
             false,
             Buffer,
         >;
 }
-impl<T: ArrayType, const N: usize> ArrayType for Option<[T; N]> {
+impl<T: ArrayType<T>, const N: usize> ArrayType<[T; N]> for Option<[T; N]> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         FixedSizeListArray<
             N,
-            <T as ArrayType>::Array<Buffer, OffsetItem, UnionLayout>,
+            <T as ArrayType<T>>::Array<Buffer, OffsetItem, UnionLayout>,
             true,
             Buffer,
         >;
 }
 
-impl ArrayType for str {
+impl ArrayType<str> for str {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         StringArray<false, OffsetItem, Buffer>;
 }
-impl<'a> ArrayType for Option<&'a str> {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        StringArray<true, OffsetItem, Buffer>;
-}
-impl ArrayType for String {
+impl<'a> ArrayType<&'a str> for &'a str {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         StringArray<false, OffsetItem, Buffer>;
 }
-impl ArrayType for Option<String> {
+impl<'a> ArrayType<&'a str> for Option<&'a str> {
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+        StringArray<true, OffsetItem, Buffer>;
+}
+impl ArrayType<String> for String {
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+        StringArray<false, OffsetItem, Buffer>;
+}
+impl ArrayType<String> for Option<String> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         StringArray<true, OffsetItem, Buffer>;
 }
 
-impl<'a, T: ArrayType> ArrayType for &'a [T] {
+impl<'a, T: ArrayType<T>> ArrayType<&'a [T]> for &'a [T] {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         VariableSizeListArray<
-            <T as ArrayType>::Array<Buffer, offset::NA, union::NA>,
+            <T as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
             false,
             OffsetItem,
             Buffer,
         >;
 }
-impl<'a, T: ArrayType> ArrayType for Option<&'a [T]> {
+impl<'a, T: ArrayType<T>> ArrayType<&'a [T]> for Option<&'a [T]> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         VariableSizeListArray<
-            <T as ArrayType>::Array<Buffer, offset::NA, union::NA>,
+            <T as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
             true,
             OffsetItem,
             Buffer,
         >;
 }
-impl<T: ArrayType> ArrayType for Vec<T> {
+impl<T: ArrayType<T>> ArrayType<Vec<T>> for Vec<T> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         VariableSizeListArray<
-            <T as ArrayType>::Array<Buffer, offset::NA, union::NA>,
+            <T as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
             false,
             OffsetItem,
             Buffer,
         >;
 }
-impl<T: ArrayType> ArrayType for Option<Vec<T>> {
+impl<T: ArrayType<T>> ArrayType<Vec<T>> for Option<Vec<T>> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         VariableSizeListArray<
-            <T as ArrayType>::Array<Buffer, offset::NA, union::NA>,
+            <T as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
             true,
             OffsetItem,
             Buffer,
         >;
 }
-impl<T: ArrayType> ArrayType for VecDeque<T> {
+impl<T: ArrayType<T>> ArrayType<Vec<Option<T>>> for Option<Vec<Option<T>>>
+where
+    Option<T>: ArrayType<T>,
+{
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         VariableSizeListArray<
-            <T as ArrayType>::Array<Buffer, offset::NA, union::NA>,
-            false,
-            OffsetItem,
-            Buffer,
-        >;
-}
-impl<T: ArrayType> ArrayType for Option<VecDeque<T>> {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        VariableSizeListArray<
-            <T as ArrayType>::Array<Buffer, offset::NA, union::NA>,
+            <Option<T> as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
             true,
             OffsetItem,
             Buffer,
         >;
 }
 
-impl<T> ArrayType for PhantomData<T> {
+impl<T: ArrayType<T>> ArrayType<VecDeque<T>> for VecDeque<T> {
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+        VariableSizeListArray<
+            <T as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
+            false,
+            OffsetItem,
+            Buffer,
+        >;
+}
+impl<T: ArrayType<T>> ArrayType<VecDeque<T>> for Option<VecDeque<T>> {
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+        VariableSizeListArray<
+            <T as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
+            true,
+            OffsetItem,
+            Buffer,
+        >;
+}
+
+impl<T> ArrayType<PhantomData<T>> for PhantomData<T> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> = NullArray;
 }
