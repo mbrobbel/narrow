@@ -1,13 +1,13 @@
 //! Interop with [`arrow-rs`] null buffer for bitmaps.
 
-use crate::{arrow::buffer::Buffer, bitmap::Bitmap, buffer::BufferType, Length};
+use crate::{bitmap::Bitmap, buffer::BufferType, Length};
 
 impl<Buffer: BufferType> From<Bitmap<Buffer>> for arrow_buffer::BooleanBuffer
 where
-    <Buffer as BufferType>::Buffer<u8>: crate::arrow::buffer::Buffer<u8>,
+    <Buffer as BufferType>::Buffer<u8>: Into<arrow_buffer::Buffer>,
 {
     fn from(value: Bitmap<Buffer>) -> Self {
-        Self::new(value.buffer.into_buffer(), value.offset, value.bits)
+        Self::new(value.buffer.into(), value.offset, value.bits)
     }
 }
 
