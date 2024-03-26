@@ -7,6 +7,7 @@ use crate::{
 };
 use std::{
     borrow::Borrow,
+    fmt::{Debug, Formatter, Result},
     iter::{Map, Zip},
 };
 
@@ -74,6 +75,15 @@ where
 
     fn buffer_ref_mut(&mut self) -> &mut Self::BufferMut {
         &mut self.data
+    }
+}
+
+impl<T: Debug, Buffer: BufferType> Debug for Nullable<T, Buffer> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        f.debug_struct("Nullable")
+            .field("data", &self.data)
+            .field("validity", &self.validity)
+            .finish()
     }
 }
 
@@ -206,6 +216,25 @@ where
 impl<T, Buffer: BufferType> Length for Nullable<T, Buffer> {
     fn len(&self) -> usize {
         self.validity.len()
+    }
+}
+
+impl<T, Buffer: BufferType> PartialEq for Nullable<T, Buffer>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.len() == other.len() && self.data == other.data && self.validity == other.validity
+    }
+}
+
+impl<T: IntoIterator<Item = U>, U: PartialEq, Buffer: BufferType> PartialEq<[Option<U>]>
+    for Nullable<T, Buffer>
+where
+    for<'a> &'a Self: IntoIterator<Item = Option<U>>,
+{
+    fn eq(&self, other: &[Option<U>]) -> bool {
+        self.len() == other.len() && self.into_iter().zip(other).all(|(a, b)| &a == b)
     }
 }
 

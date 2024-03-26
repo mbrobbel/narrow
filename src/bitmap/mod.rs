@@ -171,6 +171,19 @@ where
     }
 }
 
+impl<Buffer: BufferType> Clone for Bitmap<Buffer>
+where
+    <Buffer as BufferType>::Buffer<u8>: Clone,
+{
+    fn clone(&self) -> Self {
+        Bitmap {
+            buffer: self.buffer.clone(),
+            bits: self.bits,
+            offset: self.offset,
+        }
+    }
+}
+
 impl<Buffer: BufferType> Debug for Bitmap<Buffer> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         f.debug_struct(&format!("Bitmap<{}>", any::type_name::<Buffer>()))
@@ -320,6 +333,12 @@ where
 impl<Buffer: BufferType> Length for Bitmap<Buffer> {
     fn len(&self) -> usize {
         self.bits
+    }
+}
+
+impl<Buffer: BufferType> PartialEq for Bitmap<Buffer> {
+    fn eq(&self, other: &Self) -> bool {
+        self.len() == other.len() && self.iter().zip(other).all(|(a, b)| a == b)
     }
 }
 

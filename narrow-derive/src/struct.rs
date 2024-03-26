@@ -220,12 +220,13 @@ impl Struct<'_> {
         let mut generics = self.generics.clone();
         SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
         AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        // AddTypeParamBound(Self::arrow_array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
         generics
             .make_where_clause()
             .predicates
-            .extend(self.where_predicate_fields(parse_quote!(#narrow::arrow::ArrowArray)));
+            .extend(self.where_predicate_fields(parse_quote!(#narrow::arrow::Array)));
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
         // Fields
@@ -233,7 +234,7 @@ impl Struct<'_> {
         let field_ty = self.field_types();
         let fields = quote!(
             #(
-                ::std::sync::Arc::new(<<#field_ty as ::narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as #narrow::arrow::ArrowArray>::as_field(#field_ident)),
+                ::std::sync::Arc::new(<<#field_ty as ::narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as #narrow::arrow::Array>::as_field(#field_ident)),
             )*
         );
 
@@ -268,15 +269,12 @@ impl Struct<'_> {
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
         // Fields
-        let field_ty = self.field_types();
         let field_arrays = match self.fields {
             Fields::Named(_) => {
                 let field_ident = self.field_idents();
                 quote!(
                     #(
-                        ::std::sync::Arc::<
-                            <<#field_ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as #narrow::arrow::ArrowArray>::Array
-                        >::new(value.#field_ident.into()),
+                        value.#field_ident.into(),
                     )*
                 )
             }
@@ -288,20 +286,12 @@ impl Struct<'_> {
                     .map(|(idx, _)| Index::from(idx));
                 quote!(
                     #(
-                        ::std::sync::Arc::<
-                            <<#field_ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as #narrow::arrow::ArrowArray>::Array
-                        >::new(value.#field_idx.into()),
+                        value.#field_idx.into(),
                     )*
                 )
             }
             Fields::Unit => {
-                quote!(
-                    #(
-                        ::std::sync::Arc::<
-                            <<#field_ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as #narrow::arrow::ArrowArray>::Array
-                        >::new(value.0.into())
-                    )*
-                )
+                quote!(value.0.into())
             }
         };
 
@@ -656,15 +646,21 @@ impl Struct<'_> {
 
     #[cfg(feature = "arrow-rs")]
     fn where_predicate_fields_arrow_array_into(&self) -> impl Iterator<Item = WherePredicate> + '_ {
-        let narrow = util::narrow();
+        // self.field_types()
+        //     .map(move |ty| {
+        //         let narrow = util::narrow();
+        //         parse_quote!(
+        //         <#ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>: #narrow::arrow::Array
+        //     )}).chain(
         self.field_types()
-            .map(move |ty| parse_quote!(
+            .map(move |ty| {
+                let narrow = util::narrow();
+                parse_quote!(
                 <#ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>:
                     ::std::convert::Into<
-                    <<#ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>
-                    as #narrow::arrow::ArrowArray>::Array
-                >
-            ))
+                        ::std::sync::Arc<dyn ::arrow_array::Array>
+                    >
+            )})
     }
 }
 

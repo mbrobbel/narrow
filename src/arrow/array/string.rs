@@ -8,7 +8,6 @@ use arrow_schema::{DataType, Field};
 
 use crate::{
     array::{FixedSizePrimitiveArray, StringArray, VariableSizeBinaryArray},
-    arrow::ArrowArray,
     bitmap::Bitmap,
     buffer::BufferType,
     nullable::Nullable,
@@ -17,7 +16,7 @@ use crate::{
 };
 
 impl<const NULLABLE: bool, OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
-    ArrowArray for StringArray<NULLABLE, OffsetItem, Buffer>
+    crate::arrow::Array for StringArray<NULLABLE, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
     String: Nullability<NULLABLE>,
@@ -43,17 +42,42 @@ where
 }
 
 impl<OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
+    From<StringArray<false, OffsetItem, Buffer>> for Arc<dyn arrow_array::Array>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
+    FixedSizePrimitiveArray<u8, false, Buffer>: Into<arrow_buffer::ScalarBuffer<u8>>,
+{
+    fn from(value: StringArray<false, OffsetItem, Buffer>) -> Self {
+        let array: arrow_array::GenericStringArray<OffsetItem> = value.into();
+        Arc::new(array)
+    }
+}
+
+impl<OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
+    From<StringArray<true, OffsetItem, Buffer>> for Arc<dyn arrow_array::Array>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
+    FixedSizePrimitiveArray<u8, false, Buffer>: Into<arrow_buffer::ScalarBuffer<u8>>,
+    Bitmap<Buffer>: Into<NullBuffer>,
+{
+    fn from(value: StringArray<true, OffsetItem, Buffer>) -> Self {
+        let array: arrow_array::GenericStringArray<OffsetItem> = value.into();
+        Arc::new(array)
+    }
+}
+
+impl<OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
     From<StringArray<false, OffsetItem, Buffer>> for arrow_array::GenericStringArray<OffsetItem>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
-    FixedSizePrimitiveArray<u8, false, Buffer>: Into<arrow_buffer::Buffer>,
+    FixedSizePrimitiveArray<u8, false, Buffer>: Into<arrow_buffer::ScalarBuffer<u8>>,
 {
     fn from(value: StringArray<false, OffsetItem, Buffer>) -> Self {
         arrow_array::GenericStringArray::new(
             // Safety:
             // - The narrow offfset buffer contains valid offset data
             unsafe { OffsetBuffer::new_unchecked(value.0 .0.offsets.into()) },
-            value.0 .0.data.into(),
+            value.0 .0.data.into().into_inner(),
             None,
         )
     }
@@ -63,7 +87,7 @@ impl<OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
     From<StringArray<true, OffsetItem, Buffer>> for arrow_array::GenericStringArray<OffsetItem>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
-    FixedSizePrimitiveArray<u8, false, Buffer>: Into<arrow_buffer::Buffer>,
+    FixedSizePrimitiveArray<u8, false, Buffer>: Into<arrow_buffer::ScalarBuffer<u8>>,
     Bitmap<Buffer>: Into<NullBuffer>,
 {
     fn from(value: StringArray<true, OffsetItem, Buffer>) -> Self {
@@ -71,7 +95,7 @@ where
             // Safety:
             // - The narrow offfset buffer contains valid offset data
             unsafe { OffsetBuffer::new_unchecked(value.0 .0.offsets.data.into()) },
-            value.0 .0.data.into(),
+            value.0 .0.data.into().into_inner(),
             Some(value.0 .0.offsets.validity.into()),
         )
     }
@@ -81,7 +105,7 @@ where
 impl<OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
     From<arrow_array::GenericStringArray<OffsetItem>> for StringArray<false, OffsetItem, Buffer>
 where
-    FixedSizePrimitiveArray<u8, false, Buffer>: From<arrow_buffer::Buffer>,
+    FixedSizePrimitiveArray<u8, false, Buffer>: From<ScalarBuffer<u8>>,
     <Buffer as BufferType>::Buffer<OffsetItem>: From<ScalarBuffer<OffsetItem>>,
 {
     fn from(value: arrow_array::GenericStringArray<OffsetItem>) -> Self {
@@ -89,7 +113,7 @@ where
         match nulls_opt {
             Some(_) => panic!("expected array without a null buffer"),
             None => StringArray(VariableSizeBinaryArray(Offset {
-                data: values.into(),
+                data: ScalarBuffer::from(values).into(),
                 offsets: offsets.into_inner().into(),
             })),
         }
@@ -100,7 +124,7 @@ where
 impl<OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
     From<arrow_array::GenericStringArray<OffsetItem>> for StringArray<true, OffsetItem, Buffer>
 where
-    FixedSizePrimitiveArray<u8, false, Buffer>: From<arrow_buffer::Buffer>,
+    FixedSizePrimitiveArray<u8, false, Buffer>: From<ScalarBuffer<u8>>,
     <Buffer as BufferType>::Buffer<OffsetItem>: From<ScalarBuffer<OffsetItem>>,
     Bitmap<Buffer>: From<NullBuffer>,
 {
@@ -108,7 +132,7 @@ where
         let (offsets, values, nulls_opt) = value.into_parts();
         match nulls_opt {
             Some(null_buffer) => StringArray(VariableSizeBinaryArray(Offset {
-                data: values.into(),
+                data: ScalarBuffer::from(values).into(),
                 offsets: Nullable {
                     data: offsets.into_inner().into(),
                     validity: null_buffer.into(),
@@ -123,7 +147,7 @@ where
 mod tests {
     use std::i64;
 
-    use crate::{array::StringArray, arrow::scalar_buffer::ArrowScalarBuffer};
+    use crate::array::StringArray;
 
     const INPUT: [&str; 3] = ["hello", "world", "!"];
     const INPUT_NULLABLE: [Option<&str>; 3] = [Some("hello"), None, Some("!")];
@@ -158,7 +182,7 @@ mod tests {
             .map(ToOwned::to_owned)
             .map(Option::Some)
             .collect::<arrow_array::StringArray>();
-        let _: StringArray<true, i32, ArrowScalarBuffer> = string_array.into();
+        let _: StringArray<true, i32, crate::arrow::buffer::ScalarBuffer> = string_array.into();
     }
 
     #[test]
@@ -167,7 +191,8 @@ mod tests {
         let string_array_nullable = INPUT_NULLABLE
             .into_iter()
             .collect::<arrow_array::StringArray>();
-        let _: StringArray<false, i32, ArrowScalarBuffer> = string_array_nullable.into();
+        let _: StringArray<false, i32, crate::arrow::buffer::ScalarBuffer> =
+            string_array_nullable.into();
     }
 
     #[test]
@@ -177,13 +202,14 @@ mod tests {
             .map(ToOwned::to_owned)
             .map(Option::Some)
             .collect::<arrow_array::StringArray>();
-        let _: StringArray<false, i32, ArrowScalarBuffer> = string_array.into();
+        let _: StringArray<false, i32, crate::arrow::buffer::ScalarBuffer> = string_array.into();
         // todo(mbrobbel): intoiterator for stringarray
 
         let string_array_nullable = INPUT_NULLABLE
             .into_iter()
             .collect::<arrow_array::StringArray>();
-        let _: StringArray<true, i32, ArrowScalarBuffer> = string_array_nullable.into();
+        let _: StringArray<true, i32, crate::arrow::buffer::ScalarBuffer> =
+            string_array_nullable.into();
         // todo(mbrobbel): intoiterator for stringarray
     }
 }

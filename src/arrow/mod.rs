@@ -5,17 +5,15 @@
 mod array;
 pub use array::{StructArrayTypeFields, UnionArrayTypeFields};
 
-mod buffer;
-pub use buffer::*;
+mod bitmap;
 
-use crate::array::Array;
-use arrow_schema::Field;
+pub mod buffer;
 
 /// Extension trait of [`Array`] for [`arrow-rs`] interop.
-pub trait ArrowArray: Array + Sized {
+pub trait Array: crate::array::Array + Sized {
     /// The corresponding arrow array
     type Array: arrow_array::Array;
 
     /// Returns the field of this array.
-    fn as_field(name: &str) -> Field;
+    fn as_field(name: &str) -> arrow_schema::Field;
 }
