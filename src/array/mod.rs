@@ -4,7 +4,7 @@ use crate::{
     buffer::BufferType,
     offset::{self, OffsetElement},
 };
-use std::collections::VecDeque;
+use std::{collections::VecDeque, marker::PhantomData};
 
 mod boolean;
 pub use boolean::*;
@@ -209,4 +209,8 @@ impl<T: ArrayType> ArrayType for Option<VecDeque<T>> {
             OffsetItem,
             Buffer,
         >;
+}
+
+impl<T> ArrayType for PhantomData<T> {
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> = NullArray;
 }
