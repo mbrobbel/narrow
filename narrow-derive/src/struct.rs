@@ -240,12 +240,12 @@ impl Struct<'_> {
             .extend(self.where_predicate_fields(parse_quote!(#narrow::arrow::Array)));
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
         let ident = self.array_struct_ident();
-
+        let field_name = self.ident.to_string();
         let tokens = if matches!(self.fields, Fields::Unit) {
             quote!(impl #impl_generics #narrow::arrow::StructArrayTypeFields for #ident #ty_generics #where_clause {
                 fn fields() -> ::arrow_schema::Fields {
                     ::arrow_schema::Fields::from([
-                        ::std::sync::Arc::new(::arrow_schema::Field::new("_0", ::arrow_schema::DataType::Null, false)),
+                        ::std::sync::Arc::new(::arrow_schema::Field::new(#field_name, ::arrow_schema::DataType::Null, false)),
                     ])
                 }
             })

@@ -364,6 +364,9 @@ mod tests {
     #[test]
     fn derive() {
         #[derive(crate::ArrayType)]
+        struct Unit;
+
+        #[derive(crate::ArrayType)]
         struct Foo(Option<Bar<u32>>);
 
         #[derive(crate::ArrayType)]
