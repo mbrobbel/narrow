@@ -239,27 +239,37 @@ impl Struct<'_> {
             .predicates
             .extend(self.where_predicate_fields(parse_quote!(#narrow::arrow::Array)));
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-
-        // Fields
-        let field_ident = self.field_idents().map(|ident| ident.to_string());
-        let field_ty = self.field_types();
-        let field_ty_drop = self.field_types_drop_option();
-        let fields = quote!(
-            #(
-                ::std::sync::Arc::new(<<#field_ty as ::narrow::array::ArrayType<#field_ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as #narrow::arrow::Array>::as_field(#field_ident)),
-            )*
-        );
-
         let ident = self.array_struct_ident();
-        let tokens = quote! {
-            impl #impl_generics #narrow::arrow::StructArrayTypeFields for #ident #ty_generics #where_clause {
+
+        let tokens = if matches!(self.fields, Fields::Unit) {
+            quote!(impl #impl_generics #narrow::arrow::StructArrayTypeFields for #ident #ty_generics #where_clause {
                 fn fields() -> ::arrow_schema::Fields {
                     ::arrow_schema::Fields::from([
-                        #fields
+                        ::std::sync::Arc::new(::arrow_schema::Field::new("_", ::arrow_schema::DataType::Null, false)),
                     ])
+                }
+            })
+        } else {
+            // Fields
+            let field_ident = self.field_idents().map(|ident| ident.to_string());
+            let field_ty = self.field_types();
+            let field_ty_drop = self.field_types_drop_option();
+            let fields = quote!(
+                #(
+                    ::std::sync::Arc::new(<<#field_ty as ::narrow::array::ArrayType<#field_ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as #narrow::arrow::Array>::as_field(#field_ident)),
+                )*
+            );
+            quote! {
+                impl #impl_generics #narrow::arrow::StructArrayTypeFields for #ident #ty_generics #where_clause {
+                    fn fields() -> ::arrow_schema::Fields {
+                        ::arrow_schema::Fields::from([
+                            #fields
+                        ])
+                    }
                 }
             }
         };
+
         parse2(tokens).expect("struct_array_type_fields_impl")
     }
 
