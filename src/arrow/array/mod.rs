@@ -8,6 +8,6 @@ mod r#struct;
 pub use r#struct::StructArrayTypeFields;
 mod logical;
 mod null;
-mod union;
-pub use union::UnionArrayTypeFields;
+// mod union;
+// pub use union::UnionArrayTypeFields;
 mod variable_size_list;

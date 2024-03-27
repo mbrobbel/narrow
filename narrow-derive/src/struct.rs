@@ -1,6 +1,4 @@
-use crate::util::{
-    self, AddTypeParam, AddTypeParamBound, AddTypeParamBoundWithSelf, DropOuterParam, SelfReplace,
-};
+use crate::util::{self, AddTypeParam, AddTypeParamBoundWithSelf, DropOuterParam, SelfReplace};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
 use std::iter::{Enumerate, Map};
@@ -228,15 +226,12 @@ impl Struct<'_> {
     /// Add an `StructArrayTypeFields` implementation for the derive input.
     #[cfg(feature = "arrow-rs")]
     fn struct_array_type_fields_impl(&self) -> ItemImpl {
-        use crate::util::DropOuterParam;
-
         let narrow = util::narrow();
 
         // Generics
         let mut generics = self.generics.clone();
         SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
         AddTypeParamBoundWithSelf(Self::array_type_bound()).visit_generics_mut(&mut generics);
-        // AddTypeParamBound(Self::arrow_array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
         generics
@@ -248,9 +243,10 @@ impl Struct<'_> {
         // Fields
         let field_ident = self.field_idents().map(|ident| ident.to_string());
         let field_ty = self.field_types();
+        let field_ty_drop = self.field_types_drop_option();
         let fields = quote!(
             #(
-                ::std::sync::Arc::new(<<#field_ty as ::narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as #narrow::arrow::Array>::as_field(#field_ident)),
+                ::std::sync::Arc::new(<<#field_ty as ::narrow::array::ArrayType<#field_ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as #narrow::arrow::Array>::as_field(#field_ident)),
             )*
         );
 
@@ -670,11 +666,11 @@ impl Struct<'_> {
         //         parse_quote!(
         //         <#ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>: #narrow::arrow::Array
         //     )}).chain(
-        self.field_types()
-            .map(move |ty| {
+        self.field_types().zip(self.field_types_drop_option())
+            .map(move |(ty, ty_drop)| {
                 let narrow = util::narrow();
                 parse_quote!(
-                <#ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>:
+                <#ty as #narrow::array::ArrayType<#ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>:
                     ::std::convert::Into<
                         ::std::sync::Arc<dyn ::arrow_array::Array>
                     >
