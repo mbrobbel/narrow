@@ -245,7 +245,7 @@ impl Struct<'_> {
             quote!(impl #impl_generics #narrow::arrow::StructArrayTypeFields for #ident #ty_generics #where_clause {
                 fn fields() -> ::arrow_schema::Fields {
                     ::arrow_schema::Fields::from([
-                        ::std::sync::Arc::new(::arrow_schema::Field::new("_", ::arrow_schema::DataType::Null, false)),
+                        ::std::sync::Arc::new(::arrow_schema::Field::new("_0", ::arrow_schema::DataType::Null, false)),
                     ])
                 }
             })
