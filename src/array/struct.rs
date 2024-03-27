@@ -69,13 +69,20 @@ where
     }
 }
 
-impl<T: StructArrayType, U, const NULLABLE: bool, Buffer: BufferType> Extend<U>
-    for StructArray<T, NULLABLE, Buffer>
+impl<T: StructArrayType, U, Buffer: BufferType> Extend<U> for StructArray<T, false, Buffer>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Extend<U>,
+    <T as StructArrayType>::Array<Buffer>: Extend<U>,
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
+        self.0.extend(iter);
+    }
+}
+
+impl<T: StructArrayType, U, Buffer: BufferType> Extend<Option<U>> for StructArray<T, true, Buffer>
+where
+    Nullable<<T as StructArrayType>::Array<Buffer>, Buffer>: Extend<Option<U>>,
+{
+    fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
         self.0.extend(iter);
     }
 }
@@ -362,7 +369,14 @@ mod tests {
         #[derive(crate::ArrayType)]
         struct Bar<T>(T);
 
-        #[derive(crate::ArrayType)]
+        #[derive(crate::ArrayType, Default)]
         struct FooBar(Option<Vec<Option<u32>>>);
+
+        let mut foo_bar = StructArray::<FooBar, false>::default();
+        foo_bar.extend(std::iter::once(FooBar(None)));
+        foo_bar.extend(std::iter::once(FooBar(Some(vec![None]))));
+        let mut foo_bar = StructArray::<FooBar, true>::default();
+        foo_bar.extend(std::iter::once(Some(FooBar(None))));
+        foo_bar.extend(std::iter::once(None));
     }
 }
