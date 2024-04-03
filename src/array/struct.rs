@@ -378,8 +378,8 @@ mod tests {
         let mut foo_bar = StructArray::<FooBar, false>::default();
         foo_bar.extend(std::iter::once(FooBar(None)));
         foo_bar.extend(std::iter::once(FooBar(Some(vec![None]))));
-        let mut foo_bar = StructArray::<FooBar, true>::default();
-        foo_bar.extend(std::iter::once(Some(FooBar(None))));
-        foo_bar.extend(std::iter::once(None));
+        let mut foo_bar_nullable = StructArray::<FooBar, true>::default();
+        foo_bar_nullable.extend(std::iter::once(Some(FooBar(None))));
+        foo_bar_nullable.extend(std::iter::once(None));
     }
 }
