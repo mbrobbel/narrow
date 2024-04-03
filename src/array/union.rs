@@ -169,8 +169,8 @@ where
 pub struct DenseUnionArray<
     T: UnionArrayType<VARIANTS>,
     const VARIANTS: usize,
-    Buffer: BufferType,
-    OffsetItem: OffsetElement,
+    Buffer: BufferType = VecBuffer,
+    OffsetItem: OffsetElement = i32,
 > where
     for<'a> i8: From<&'a T>,
 {
@@ -253,8 +253,8 @@ where
 pub struct SparseUnionArray<
     T: UnionArrayType<VARIANTS>,
     const VARIANTS: usize,
-    Buffer: BufferType,
-    OffsetItem: OffsetElement,
+    Buffer: BufferType = VecBuffer,
+    OffsetItem: OffsetElement = i32,
 > where
     for<'a> i8: From<&'a T>,
 {
@@ -435,7 +435,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "derive--")]
+    #[cfg(feature = "derive")]
     #[allow(clippy::too_many_lines)]
     #[rustversion::attr(nightly, allow(non_local_definitions))]
     fn with_multiple_fields() {
@@ -448,7 +448,7 @@ mod tests {
             Named { a: u32, b: u64 },
         }
 
-        impl ArrayType for Foo {
+        impl ArrayType<Foo> for Foo {
             type Array<
                 Buffer: BufferType,
                 OffsetItem: offset::OffsetElement,
@@ -639,10 +639,17 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "derive----")]
+    #[cfg(feature = "derive")]
     #[rustversion::attr(nightly, allow(non_local_definitions))]
     fn derive() {
         use crate::ArrayType;
+
+        #[derive(ArrayType, Copy, Clone, Default)]
+        enum Foo {
+            #[default]
+            Foo,
+            Bar,
+        }
 
         #[derive(ArrayType, Clone, Copy)]
         enum Test {
@@ -650,6 +657,18 @@ mod tests {
             Bar(bool),
             None,
         }
+
+        const FOO_INPUT: [Foo; 2] = [Foo::Foo, Foo::Bar];
+
+        let dense_foo_array = FOO_INPUT
+            .into_iter()
+            .collect::<DenseUnionArray<Foo, { Foo::VARIANTS }>>();
+        assert_eq!(dense_foo_array.len(), FOO_INPUT.len());
+        let sparse_foo_array = FOO_INPUT
+            .into_iter()
+            .collect::<SparseUnionArray<Foo, { Foo::VARIANTS }>>();
+        assert_eq!(sparse_foo_array.len(), FOO_INPUT.len());
+
         let input = [
             Test::None,
             Test::Bar(true),

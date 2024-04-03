@@ -62,10 +62,10 @@ pub trait ArrayType<T: ?Sized> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>: Array;
 }
 
-// impl<T: ArrayType<U> + ?Sized, U> ArrayType<U> for &T {
-//     type Array<Buffer: BufferType, OfsetItem: OffsetElement, UnionLayout: UnionType> =
-//         <T as ArrayType<U>>::Array<Buffer, OfsetItem, UnionLayout>;
-// }
+impl<T: ArrayType<U> + ?Sized, U> ArrayType<U> for &T {
+    type Array<Buffer: BufferType, OfsetItem: OffsetElement, UnionLayout: UnionType> =
+        <T as ArrayType<U>>::Array<Buffer, OfsetItem, UnionLayout>;
+}
 
 // impl<'a, T: ArrayType<&'a T> + ?Sized> ArrayType<&'a T> for T {
 //     type Array<Buffer: BufferType, OfsetItem: OffsetElement, UnionLayout: UnionType> =

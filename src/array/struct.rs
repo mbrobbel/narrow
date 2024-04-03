@@ -363,7 +363,7 @@ mod tests {
     #[cfg(feature = "derive")]
     #[test]
     fn derive() {
-        #[derive(crate::ArrayType)]
+        #[derive(crate::ArrayType, Copy, Clone, Default)]
         struct Unit;
 
         #[derive(crate::ArrayType)]
