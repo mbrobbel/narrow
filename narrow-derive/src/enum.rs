@@ -451,10 +451,7 @@ impl<'a> Enum<'a> {
                     parse_quote!(<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<Buffer, OffsetItem, #narrow::array::DenseLayout>: ::std::iter::Extend<#struct_def>)
                 })
             );
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
-        let mut generics = generics.clone();
-        AddTypeParam(parse_quote!(DenseLayout)).visit_generics_mut(&mut generics);
-        let (_, ty_generics, _) = generics.split_for_impl();
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
         let ident = self.array_struct_ident();
         let fields = self
             .variants
@@ -492,7 +489,7 @@ impl<'a> Enum<'a> {
                     },
                 }
             });
-        let tokens = quote! {
+        let mut item_impl: ItemImpl = parse_quote! {
             impl #impl_generics ::std::iter::Extend<#self_ident #self_ty_generics> for #ident #ty_generics #where_clause {
                 fn extend<I>(&mut self, iter: I) where I: IntoIterator<Item = #self_ident #self_ty_generics> {
                     iter.into_iter().for_each(|variant| {
@@ -505,6 +502,19 @@ impl<'a> Enum<'a> {
                 }
             }
         };
+        match *item_impl.self_ty {
+            Type::Path(ref mut path) => {
+                let last_segment = path.path.segments.last_mut().unwrap();
+                match last_segment.arguments {
+                    syn::PathArguments::AngleBracketed(ref mut args) => {
+                        args.args.push(parse_quote!(#narrow::array::DenseLayout));
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            _ => unreachable!(),
+        }
+        let tokens = quote!(#item_impl);
         parse2(tokens).expect("array_struct_extend_dense_impl")
     }
 
@@ -539,10 +549,7 @@ impl<'a> Enum<'a> {
                     parse_quote!(<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<Buffer, OffsetItem, #narrow::array::SparseLayout>: ::std::iter::Extend<#struct_def>)
                 })
             );
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
-        let mut generics = generics.clone();
-        AddTypeParam(parse_quote!(SparseLayout)).visit_generics_mut(&mut generics);
-        let (_, ty_generics, _) = generics.split_for_impl();
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
         let ident = self.array_struct_ident();
         let fields = self
             .variants
@@ -591,7 +598,7 @@ impl<'a> Enum<'a> {
                     }},
                 }
             });
-        let tokens = quote! {
+        let mut item_impl: ItemImpl = parse_quote! {
             impl #impl_generics ::std::iter::Extend<#self_ident #self_ty_generics> for #ident #ty_generics #where_clause {
                 fn extend<I>(&mut self, iter: I) where I: IntoIterator<Item = #self_ident #self_ty_generics> {
                     iter.into_iter().for_each(|variant| {
@@ -604,6 +611,19 @@ impl<'a> Enum<'a> {
                 }
             }
         };
+        match *item_impl.self_ty {
+            Type::Path(ref mut path) => {
+                let last_segment = path.path.segments.last_mut().unwrap();
+                match last_segment.arguments {
+                    syn::PathArguments::AngleBracketed(ref mut args) => {
+                        args.args.push(parse_quote!(#narrow::array::SparseLayout));
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            _ => unreachable!(),
+        }
+        let tokens = quote!(#item_impl);
         parse2(tokens).expect("array_struct_extend_sparse_impl")
     }
 
@@ -766,7 +786,7 @@ impl<'a> Enum<'a> {
                 <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<
                     Buffer,
                     OffsetItem,
-                    SparseLayout,
+                    #narrow::array::SparseLayout,
                 >,
             >)
             }),

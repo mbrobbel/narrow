@@ -3,10 +3,7 @@ mod tests {
     mod derive {
         mod r#enum {
             mod unit {
-                use narrow::{
-                    array::{DenseLayout, SparseLayout, UnionArray},
-                    ArrayType, Length,
-                };
+                use narrow::{array::UnionArray, ArrayType, Length};
 
                 #[derive(ArrayType, Clone, Copy)]
                 enum FooBar {
@@ -16,6 +13,7 @@ mod tests {
 
                 #[test]
                 fn from_iter() {
+                    use narrow::array::{DenseLayout, SparseLayout};
                     let input = [FooBar::Foo, FooBar::Bar];
                     let array = input
                         .into_iter()
