@@ -81,7 +81,8 @@ where
 impl<
     Buffer: narrow::buffer::BufferType,
     OffsetItem: narrow::offset::OffsetElement,
-> ::std::iter::Extend<FooBar> for FooBarArray<Buffer, OffsetItem, DenseLayout>
+> ::std::iter::Extend<FooBar>
+for FooBarArray<Buffer, OffsetItem, narrow::array::DenseLayout>
 where
     <<FooBar as narrow::array::union::EnumVariant<
         0,
@@ -122,7 +123,8 @@ where
 impl<
     Buffer: narrow::buffer::BufferType,
     OffsetItem: narrow::offset::OffsetElement,
-> ::std::iter::Extend<FooBar> for FooBarArray<Buffer, OffsetItem, SparseLayout>
+> ::std::iter::Extend<FooBar>
+for FooBarArray<Buffer, OffsetItem, narrow::array::SparseLayout>
 where
     <<FooBar as narrow::array::union::EnumVariant<
         0,

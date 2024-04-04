@@ -119,7 +119,8 @@ impl<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
     OffsetItem: narrow::offset::OffsetElement,
-> ::std::iter::Extend<Foo<T>> for FooArray<T, Buffer, OffsetItem, DenseLayout>
+> ::std::iter::Extend<Foo<T>>
+for FooArray<T, Buffer, OffsetItem, narrow::array::DenseLayout>
 where
     <<Foo<
         T,
@@ -175,7 +176,8 @@ impl<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
     OffsetItem: narrow::offset::OffsetElement,
-> ::std::iter::Extend<Foo<T>> for FooArray<T, Buffer, OffsetItem, SparseLayout>
+> ::std::iter::Extend<Foo<T>>
+for FooArray<T, Buffer, OffsetItem, narrow::array::SparseLayout>
 where
     <<Foo<
         T,

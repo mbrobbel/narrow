@@ -73,7 +73,8 @@ impl<
     const X: bool,
     Buffer: narrow::buffer::BufferType,
     OffsetItem: narrow::offset::OffsetElement,
-> ::std::iter::Extend<FooBar<X>> for FooBarArray<X, Buffer, OffsetItem, DenseLayout>
+> ::std::iter::Extend<FooBar<X>>
+for FooBarArray<X, Buffer, OffsetItem, narrow::array::DenseLayout>
 where
     <<FooBar<
         X,
@@ -111,7 +112,8 @@ impl<
     const X: bool,
     Buffer: narrow::buffer::BufferType,
     OffsetItem: narrow::offset::OffsetElement,
-> ::std::iter::Extend<FooBar<X>> for FooBarArray<X, Buffer, OffsetItem, SparseLayout>
+> ::std::iter::Extend<FooBar<X>>
+for FooBarArray<X, Buffer, OffsetItem, narrow::array::SparseLayout>
 where
     <<FooBar<
         X,

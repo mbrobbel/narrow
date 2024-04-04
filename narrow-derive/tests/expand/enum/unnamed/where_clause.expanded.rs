@@ -159,7 +159,8 @@ impl<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
     OffsetItem: narrow::offset::OffsetElement,
-> ::std::iter::Extend<FooBar<T>> for FooBarArray<T, Buffer, OffsetItem, DenseLayout>
+> ::std::iter::Extend<FooBar<T>>
+for FooBarArray<T, Buffer, OffsetItem, narrow::array::DenseLayout>
 where
     T: Default,
     FooBar<T>: Clone,
@@ -218,7 +219,8 @@ impl<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
     OffsetItem: narrow::offset::OffsetElement,
-> ::std::iter::Extend<FooBar<T>> for FooBarArray<T, Buffer, OffsetItem, SparseLayout>
+> ::std::iter::Extend<FooBar<T>>
+for FooBarArray<T, Buffer, OffsetItem, narrow::array::SparseLayout>
 where
     T: Default,
     FooBar<T>: Clone,

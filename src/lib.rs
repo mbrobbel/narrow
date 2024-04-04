@@ -1,4 +1,5 @@
-#![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/README.md"))]
+#![cfg_attr(not(feature = "derive"), doc = "# Narrow")]
+#![cfg_attr(feature = "derive", doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/README.md")))]
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/mbrobbel/narrow/main/narrow.svg",
     html_favicon_url = "https://raw.githubusercontent.com/mbrobbel/narrow/main/narrow.svg"
