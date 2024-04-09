@@ -143,11 +143,11 @@ where
         FromIterator<Arc<dyn arrow_array::Array>>,
 {
     fn from(value: arrow_array::UnionArray) -> Self {
-        let (_, types, offsets_opt, variants) = value.into_parts();
+        let (types, offsets_opt, _field_type_ids, variants) = value.into_parts();
         match offsets_opt {
             Some(_) => panic!("expected array without offsets"),
             None => Self(SparseUnionArray {
-                variants: variants.into_iter().flatten().collect(),
+                variants: variants.into_iter().map(|(_, array)| array).collect(),
                 types: types.into(),
             }),
         }
@@ -168,11 +168,11 @@ where
         FromIterator<Arc<dyn arrow_array::Array>>,
 {
     fn from(value: arrow_array::UnionArray) -> Self {
-        let (_, types, offsets_opt, variants) = value.into_parts();
+        let (types, offsets_opt, _field_types_ids, variants) = value.into_parts();
         match offsets_opt {
             None => panic!("expected array with offsets"),
             Some(offsets) => Self(DenseUnionArray {
-                variants: variants.into_iter().flatten().collect(),
+                variants: variants.into_iter().map(|(_, array)| array).collect(),
                 offsets: offsets.into(),
                 types: types.into(),
             }),
