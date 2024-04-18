@@ -71,3 +71,25 @@ where
         value.0.into()
     }
 }
+
+impl<
+        T: LogicalArrayType,
+        const NULLABLE: bool,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
+    > From<LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>>
+    for arrow_array::FixedSizeBinaryArray
+where
+    <T as LogicalArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>,
+    arrow_array::FixedSizeBinaryArray:
+        From<
+            <<T as LogicalArrayType>::Array<Buffer, OffsetItem, UnionLayout> as Validity<
+                NULLABLE,
+            >>::Storage<Buffer>,
+        >,
+{
+    fn from(value: LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>) -> Self {
+        value.0.into()
+    }
+}
