@@ -97,12 +97,11 @@ impl<
     for arrow_array::FixedSizeBinaryArray
 where
     <T as LogicalArrayType<T>>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>,
-    arrow_array::FixedSizeBinaryArray:
-        From<
-            <<T as LogicalArrayType<T>>::Array<Buffer, OffsetItem, UnionLayout> as Validity<
-                NULLABLE,
-            >>::Storage<Buffer>,
-        >,
+    arrow_array::FixedSizeBinaryArray: From<
+        <<T as LogicalArrayType<T>>::Array<Buffer, OffsetItem, UnionLayout> as Validity<
+            NULLABLE,
+        >>::Storage<Buffer>,
+    >,
 {
     fn from(value: LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>) -> Self {
         value.0.into()
