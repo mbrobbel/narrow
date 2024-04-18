@@ -8,14 +8,13 @@ use arrow_schema::{DataType, Field};
 
 use crate::{
     array::{FixedSizeBinaryArray, FixedSizeListArray, FixedSizePrimitiveArray},
-    arrow::ArrowArray,
     bitmap::Bitmap,
     buffer::BufferType,
     nullable::Nullable,
     validity::{Nullability, Validity},
 };
 
-impl<const N: usize, const NULLABLE: bool, Buffer: BufferType> ArrowArray
+impl<const N: usize, const NULLABLE: bool, Buffer: BufferType> crate::arrow::Array
     for FixedSizeBinaryArray<N, NULLABLE, Buffer>
 where
     FixedSizePrimitiveArray<u8, false, Buffer>: Validity<NULLABLE>,
@@ -60,6 +59,26 @@ where
             clippy::cast_possible_wrap
         )]
         arrow_array::FixedSizeBinaryArray::new(N as i32, value.0 .0.into(), None)
+    }
+}
+
+impl<const N: usize, Buffer: BufferType> From<FixedSizeBinaryArray<N, false, Buffer>>
+    for Arc<dyn arrow_array::Array>
+where
+    arrow_array::FixedSizeBinaryArray: From<FixedSizeBinaryArray<N, false, Buffer>>,
+{
+    fn from(value: FixedSizeBinaryArray<N, false, Buffer>) -> Self {
+        Arc::new(arrow_array::FixedSizeBinaryArray::from(value))
+    }
+}
+
+impl<const N: usize, Buffer: BufferType> From<FixedSizeBinaryArray<N, true, Buffer>>
+    for Arc<dyn arrow_array::Array>
+where
+    arrow_array::FixedSizeBinaryArray: From<FixedSizeBinaryArray<N, true, Buffer>>,
+{
+    fn from(value: FixedSizeBinaryArray<N, true, Buffer>) -> Self {
+        Arc::new(arrow_array::FixedSizeBinaryArray::from(value))
     }
 }
 
@@ -125,8 +144,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::arrow::scalar_buffer::ArrowScalarBuffer;
-
     use super::*;
 
     const INPUT: [[u8; 2]; 3] = [[1, 2], [3, 4], [5, 6]];
@@ -170,7 +187,9 @@ mod tests {
             arrow_array::FixedSizeBinaryArray::try_from_iter(INPUT.into_iter()).expect("");
         // TODO(mbrobbel): we need scalarbuffer here because arrow_array::
         // FixedSizeBinary uses Buffer instead of ScalarBuffer.
-        let _ = FixedSizeBinaryArray::<2, true, ArrowScalarBuffer>::from(fixed_size_binary_array);
+        let _ = FixedSizeBinaryArray::<2, true, crate::arrow::buffer::ScalarBuffer>::from(
+            fixed_size_binary_array,
+        );
     }
 
     #[test]
@@ -180,7 +199,7 @@ mod tests {
             arrow_array::FixedSizeBinaryArray::from(vec![None, Some([1_u8, 2, 3].as_slice())]);
         // TODO(mbrobbel): we need scalarbuffer here because arrow_array::
         // FixedSizeBinary uses Buffer instead of ScalarBuffer.
-        let _ = FixedSizeBinaryArray::<3, false, ArrowScalarBuffer>::from(
+        let _ = FixedSizeBinaryArray::<3, false, crate::arrow::buffer::ScalarBuffer>::from(
             fixed_size_binary_array_nullable,
         );
     }
@@ -190,11 +209,13 @@ mod tests {
         let fixed_size_binary_array =
             arrow_array::FixedSizeBinaryArray::try_from_iter(INPUT.into_iter()).expect("");
         assert_eq!(
-            FixedSizeBinaryArray::<2, false, ArrowScalarBuffer>::from(fixed_size_binary_array)
-                .into_iter()
-                .flatten()
-                .copied()
-                .collect::<Vec<_>>(),
+            FixedSizeBinaryArray::<2, false, crate::arrow::buffer::ScalarBuffer>::from(
+                fixed_size_binary_array
+            )
+            .into_iter()
+            .flatten()
+            .copied()
+            .collect::<Vec<_>>(),
             INPUT.into_iter().flatten().collect::<Vec<_>>()
         );
 
@@ -204,7 +225,7 @@ mod tests {
         let fixed_size_binary_array_nullable =
             arrow_array::FixedSizeBinaryArray::from(fixed_size_binary_array_nullable_input);
         assert_eq!(
-            FixedSizeBinaryArray::<2, true, ArrowScalarBuffer>::from(
+            FixedSizeBinaryArray::<2, true, crate::arrow::buffer::ScalarBuffer>::from(
                 fixed_size_binary_array_nullable
             )
             .into_iter()

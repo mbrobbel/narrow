@@ -88,7 +88,7 @@ where
 }
 
 impl<
-        T: LogicalArrayType,
+        T: LogicalArrayType<T>,
         const NULLABLE: bool,
         Buffer: BufferType,
         OffsetItem: OffsetElement,
@@ -96,10 +96,10 @@ impl<
     > From<LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>>
     for arrow_array::FixedSizeBinaryArray
 where
-    <T as LogicalArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>,
+    <T as LogicalArrayType<T>>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>,
     arrow_array::FixedSizeBinaryArray:
         From<
-            <<T as LogicalArrayType>::Array<Buffer, OffsetItem, UnionLayout> as Validity<
+            <<T as LogicalArrayType<T>>::Array<Buffer, OffsetItem, UnionLayout> as Validity<
                 NULLABLE,
             >>::Storage<Buffer>,
         >,
