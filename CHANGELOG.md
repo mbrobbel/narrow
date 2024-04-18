@@ -1,5 +1,36 @@
 
 
+## v0.6.0 (2024-04-18)
+
+### Chore
+
+ - <csr-id-89ea9fccaccd7592e6e52cc72c022032ae0ff020/> remove unused `IndexMut` trait
+
+### New Features (BREAKING)
+
+ - <csr-id-96496750aad8d20904fab222ff6fbb445a246bdb/> add `FixedSizeBinaryArray` and use it for `Uuid`
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 2 commits contributed to the release over the course of 48 calendar days.
+ - 72 days passed between releases.
+ - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 2 unique issues were worked on: [#155](https://github.com/mbrobbel/narrow/issues/155), [#171](https://github.com/mbrobbel/narrow/issues/171)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#155](https://github.com/mbrobbel/narrow/issues/155)**
+    - Remove unused `IndexMut` trait ([`89ea9fc`](https://github.com/mbrobbel/narrow/commit/89ea9fccaccd7592e6e52cc72c022032ae0ff020))
+ * **[#171](https://github.com/mbrobbel/narrow/issues/171)**
+    - Add `FixedSizeBinaryArray` and use it for `Uuid` ([`9649675`](https://github.com/mbrobbel/narrow/commit/96496750aad8d20904fab222ff6fbb445a246bdb))
+</details>
+
 ## v0.5.0 (2024-02-06)
 
 ### New Features (BREAKING)

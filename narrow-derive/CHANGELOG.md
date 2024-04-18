@@ -1,5 +1,36 @@
 
 
+## v0.5.2 (2024-04-18)
+
+### Chore
+
+ - <csr-id-00ecf75b57d8d265fb91eeb2bd7f624226832305/> bump syn from 2.0.52 to 2.0.53
+ - <csr-id-c24da0a1c965c72d75738d2c417b0b622463b6f4/> bump proc-macro2 from 1.0.78 to 1.0.79
+ - <csr-id-87f9fb576412115c971433f541a6ff1aa3cc46a3/> bump syn from 2.0.48 to 2.0.52
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 3 commits contributed to the release over the course of 48 calendar days.
+ - 72 days passed between releases.
+ - 3 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 3 unique issues were worked on: [#154](https://github.com/mbrobbel/narrow/issues/154), [#157](https://github.com/mbrobbel/narrow/issues/157), [#161](https://github.com/mbrobbel/narrow/issues/161)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#154](https://github.com/mbrobbel/narrow/issues/154)**
+    - Bump syn from 2.0.48 to 2.0.52 ([`87f9fb5`](https://github.com/mbrobbel/narrow/commit/87f9fb576412115c971433f541a6ff1aa3cc46a3))
+ * **[#157](https://github.com/mbrobbel/narrow/issues/157)**
+    - Bump proc-macro2 from 1.0.78 to 1.0.79 ([`c24da0a`](https://github.com/mbrobbel/narrow/commit/c24da0a1c965c72d75738d2c417b0b622463b6f4))
+ * **[#161](https://github.com/mbrobbel/narrow/issues/161)**
+    - Bump syn from 2.0.52 to 2.0.53 ([`00ecf75`](https://github.com/mbrobbel/narrow/commit/00ecf75b57d8d265fb91eeb2bd7f624226832305))
+</details>
+
 ## v0.5.1 (2024-02-06)
 
 ### Bug Fixes
@@ -10,7 +41,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 1 commit contributed to the release.
+ - 2 commits contributed to the release.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#150](https://github.com/mbrobbel/narrow/issues/150)
 
@@ -22,6 +53,8 @@
 
  * **[#150](https://github.com/mbrobbel/narrow/issues/150)**
     - Fix visibility of generated variant struct definitions ([`7791cfd`](https://github.com/mbrobbel/narrow/commit/7791cfd356ed7606bd615009a4dcd274c1d7ed97))
+ * **Uncategorized**
+    - Release narrow-derive v0.5.1 ([`185b143`](https://github.com/mbrobbel/narrow/commit/185b14348c335c9c3a4917cd0f0ecc0cc839cbdc))
 </details>
 
 ## v0.5.0 (2024-02-06)
