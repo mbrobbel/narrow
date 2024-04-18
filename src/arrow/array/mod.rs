@@ -1,6 +1,7 @@
 //! Interop with [`arrow-array`].
 
 mod boolean;
+mod fixed_size_binary;
 mod fixed_size_list;
 mod fixed_size_primitive;
 mod string;

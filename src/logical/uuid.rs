@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use crate::{
-    array::{Array, ArrayType, FixedSizeListArray, FixedSizePrimitiveArray, UnionType},
+    array::{Array, ArrayType, FixedSizeBinaryArray, UnionType},
     buffer::BufferType,
     offset::OffsetElement,
 };
@@ -20,7 +20,7 @@ impl ArrayType<Uuid> for Option<Uuid> {
 
 impl LogicalArrayType<Uuid> for Uuid {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        FixedSizeListArray<16, FixedSizePrimitiveArray<u8, false, Buffer>, false, Buffer>;
+        FixedSizeBinaryArray<16, false, Buffer>;
 
     fn convert<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>(
         self,
@@ -32,7 +32,7 @@ impl LogicalArrayType<Uuid> for Uuid {
 
 impl LogicalArrayType<Uuid> for Option<Uuid> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        FixedSizeListArray<16, FixedSizePrimitiveArray<u8, false, Buffer>, true, Buffer>;
+        FixedSizeBinaryArray<16, true, Buffer>;
 
     fn convert<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>(
         self,
@@ -44,7 +44,7 @@ impl LogicalArrayType<Uuid> for Option<Uuid> {
 
 impl<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>
     From<LogicalArray<Uuid, false, Buffer, OffsetItem, UnionLayout>>
-    for FixedSizeListArray<16, FixedSizePrimitiveArray<u8, false, Buffer>, false, Buffer>
+    for FixedSizeBinaryArray<16, false, Buffer>
 {
     fn from(value: LogicalArray<Uuid, false, Buffer, OffsetItem, UnionLayout>) -> Self {
         value.0
