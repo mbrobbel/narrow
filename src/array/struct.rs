@@ -27,6 +27,17 @@ pub struct StructArray<
 where
     <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>;
 
+impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> StructArray<T, NULLABLE, Buffer>
+where
+    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    for<'a> &'a Self: IntoIterator,
+{
+    /// Returns an iterator over the items in this [`StructArray`].
+    pub fn iter(&self) -> <&Self as IntoIterator>::IntoIter {
+        self.into_iter()
+    }
+}
+
 impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> Array
     for StructArray<T, NULLABLE, Buffer>
 where
@@ -84,6 +95,42 @@ where
 {
     fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
         self.0.extend(iter);
+    }
+}
+
+impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> IntoIterator
+    for StructArray<T, NULLABLE, Buffer>
+where
+    T: Nullability<NULLABLE>,
+    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: IntoIterator,
+{
+    type Item = <<<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as
+        IntoIterator>::Item;
+    type IntoIter = <<<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as
+        IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a, T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> IntoIterator
+    for &'a StructArray<T, NULLABLE, Buffer>
+where
+    T: Nullability<NULLABLE>,
+    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    &'a <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>:
+        IntoIterator,
+{
+    type Item = <&'a <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as
+        IntoIterator>::Item;
+    type IntoIter = <&'a <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<
+        Buffer,
+    > as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 
@@ -381,5 +428,78 @@ mod tests {
         let mut foo_bar_nullable = StructArray::<FooBar, true>::default();
         foo_bar_nullable.extend(std::iter::once(Some(FooBar(None))));
         foo_bar_nullable.extend(std::iter::once(None));
+    }
+
+    #[cfg(feature = "derive")]
+    #[test]
+    fn into_iter() {
+        #[derive(crate::ArrayType, Copy, Clone, Debug, Default, PartialEq)]
+        struct Unit;
+
+        #[derive(crate::ArrayType, Copy, Clone, Debug, Default, PartialEq)]
+        struct Unnamed(u8, Option<u16>, u32, u64);
+
+        #[derive(crate::ArrayType, Clone, Debug, Default, PartialEq)]
+        struct Named {
+            a: u8,
+            b: bool,
+            c: Option<u16>,
+            d: Option<bool>,
+            e: String,
+            f: Option<String>,
+        }
+
+        let unit_input = [Unit; 3];
+        let unit_array = unit_input.into_iter().collect::<StructArray<Unit>>();
+        assert_eq!(unit_array.len(), unit_input.len());
+        let unit_output = unit_array.into_iter().collect::<Vec<_>>();
+        assert_eq!(unit_output, unit_input);
+        let unit_input_nullable = unit_input.map(Option::Some);
+        let unit_array_nullable = unit_input_nullable
+            .into_iter()
+            .collect::<StructArray<Unit, true>>();
+        assert_eq!(unit_array_nullable.len(), unit_input_nullable.len());
+        let unit_output_nullable = unit_array_nullable.into_iter().collect::<Vec<_>>();
+        assert_eq!(unit_output_nullable, unit_input_nullable);
+
+        let unnamed_input = [Unnamed(1, Some(2), 3, 4); 3];
+        let unnamed_array = unnamed_input.into_iter().collect::<StructArray<Unnamed>>();
+        assert_eq!(unnamed_array.len(), unnamed_input.len());
+        let unnamed_output = unnamed_array.into_iter().collect::<Vec<_>>();
+        assert_eq!(unnamed_output, unnamed_input);
+        let unnamed_input_nullable = unnamed_input.map(Option::Some);
+        let unnamed_array_nullable = unnamed_input_nullable
+            .into_iter()
+            .collect::<StructArray<Unnamed, true>>();
+        assert_eq!(unnamed_array_nullable.len(), unnamed_input_nullable.len());
+        let unnamed_output_nullable = unnamed_array_nullable.into_iter().collect::<Vec<_>>();
+        assert_eq!(unnamed_output_nullable, unnamed_input_nullable);
+
+        let named_input = [Named {
+            a: 1,
+            b: false,
+            c: Some(3),
+            d: Some(true),
+            e: "hello".to_owned(),
+            f: None,
+        }];
+        let named_array = named_input
+            .clone()
+            .into_iter()
+            .collect::<StructArray<Named>>();
+        assert_eq!(named_array.len(), named_input.len());
+        let named_output = named_array.into_iter().collect::<Vec<_>>();
+        assert_eq!(named_output, named_input);
+        let named_input_nullable = named_input
+            .into_iter()
+            .map(Option::Some)
+            .collect::<Vec<_>>();
+        let named_array_nullable = named_input_nullable
+            .clone()
+            .into_iter()
+            .collect::<StructArray<Named, true>>();
+        assert_eq!(named_array_nullable.len(), named_input_nullable.len());
+        let named_output_nullable = named_array_nullable.into_iter().collect::<Vec<_>>();
+        assert_eq!(named_output_nullable, named_input_nullable);
     }
 }

@@ -170,3 +170,149 @@ where
         Self(_0, _1, _2, _3)
     }
 }
+struct BarArrayIter<Buffer: narrow::buffer::BufferType>(
+    <<u8 as narrow::array::ArrayType<
+        u8,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    > as ::std::iter::IntoIterator>::IntoIter,
+    <<u16 as narrow::array::ArrayType<
+        u16,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    > as ::std::iter::IntoIterator>::IntoIter,
+    <<u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    > as ::std::iter::IntoIterator>::IntoIter,
+    <<u64 as narrow::array::ArrayType<
+        u64,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    > as ::std::iter::IntoIterator>::IntoIter,
+)
+where
+    <u8 as narrow::array::ArrayType<
+        u8,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u8>,
+    <u16 as narrow::array::ArrayType<
+        u16,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u16>,
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u32>,
+    <u64 as narrow::array::ArrayType<
+        u64,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u64>;
+impl<Buffer: narrow::buffer::BufferType> ::std::iter::Iterator for BarArrayIter<Buffer>
+where
+    <u8 as narrow::array::ArrayType<
+        u8,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u8>,
+    <u16 as narrow::array::ArrayType<
+        u16,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u16>,
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u32>,
+    <u64 as narrow::array::ArrayType<
+        u64,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u64>,
+{
+    type Item = Bar;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0
+            .next()
+            .map(|first| {
+                Bar(
+                    first,
+                    self.1.next().unwrap(),
+                    self.2.next().unwrap(),
+                    self.3.next().unwrap(),
+                )
+            })
+    }
+}
+impl<Buffer: narrow::buffer::BufferType> ::std::iter::IntoIterator for BarArray<Buffer>
+where
+    <u8 as narrow::array::ArrayType<
+        u8,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u8>,
+    <u16 as narrow::array::ArrayType<
+        u16,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u16>,
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u32>,
+    <u64 as narrow::array::ArrayType<
+        u64,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u64>,
+{
+    type Item = Bar;
+    type IntoIter = BarArrayIter<Buffer>;
+    fn into_iter(self) -> Self::IntoIter {
+        BarArrayIter(
+            self.0.into_iter(),
+            self.1.into_iter(),
+            self.2.into_iter(),
+            self.3.into_iter(),
+        )
+    }
+}

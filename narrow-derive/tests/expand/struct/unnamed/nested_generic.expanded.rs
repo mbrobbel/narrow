@@ -107,6 +107,63 @@ where
         Self(_0)
     }
 }
+struct FooArrayIter<T: narrow::array::ArrayType<T>, Buffer: narrow::buffer::BufferType>(
+    <<T as narrow::array::ArrayType<
+        T,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    > as ::std::iter::IntoIterator>::IntoIter,
+)
+where
+    T: Copy,
+    <T as narrow::array::ArrayType<
+        T,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = T>;
+impl<
+    T: narrow::array::ArrayType<T>,
+    Buffer: narrow::buffer::BufferType,
+> ::std::iter::Iterator for FooArrayIter<T, Buffer>
+where
+    T: Copy,
+    <T as narrow::array::ArrayType<
+        T,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = T>,
+{
+    type Item = Foo<T>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|first| { Foo(first) })
+    }
+}
+impl<
+    T: narrow::array::ArrayType<T>,
+    Buffer: narrow::buffer::BufferType,
+> ::std::iter::IntoIterator for FooArray<T, Buffer>
+where
+    T: Copy,
+    <T as narrow::array::ArrayType<
+        T,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = T>,
+{
+    type Item = Foo<T>;
+    type IntoIter = FooArrayIter<T, Buffer>;
+    fn into_iter(self) -> Self::IntoIter {
+        FooArrayIter(self.0.into_iter())
+    }
+}
 struct Bar<'a, T>(&'a Foo<T>);
 impl<'a, T: narrow::array::ArrayType<T>> narrow::array::ArrayType<Bar<'a, T>>
 for Bar<'a, T> {
@@ -214,6 +271,74 @@ where
         Self(_0)
     }
 }
+struct BarArrayIter<
+    'a,
+    T: narrow::array::ArrayType<T>,
+    Buffer: narrow::buffer::BufferType,
+>(
+    <<&'a Foo<
+        T,
+    > as narrow::array::ArrayType<
+        &'a Foo<T>,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    > as ::std::iter::IntoIterator>::IntoIter,
+)
+where
+    <&'a Foo<
+        T,
+    > as narrow::array::ArrayType<
+        &'a Foo<T>,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = &'a Foo<T>>;
+impl<
+    'a,
+    T: narrow::array::ArrayType<T>,
+    Buffer: narrow::buffer::BufferType,
+> ::std::iter::Iterator for BarArrayIter<'a, T, Buffer>
+where
+    <&'a Foo<
+        T,
+    > as narrow::array::ArrayType<
+        &'a Foo<T>,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = &'a Foo<T>>,
+{
+    type Item = Bar<'a, T>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|first| { Bar(first) })
+    }
+}
+impl<
+    'a,
+    T: narrow::array::ArrayType<T>,
+    Buffer: narrow::buffer::BufferType,
+> ::std::iter::IntoIterator for BarArray<'a, T, Buffer>
+where
+    <&'a Foo<
+        T,
+    > as narrow::array::ArrayType<
+        &'a Foo<T>,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = &'a Foo<T>>,
+{
+    type Item = Bar<'a, T>;
+    type IntoIter = BarArrayIter<'a, T, Buffer>;
+    fn into_iter(self) -> Self::IntoIter {
+        BarArrayIter(self.0.into_iter())
+    }
+}
 struct FooBar<'a>(Bar<'a, u32>);
 impl<'a> narrow::array::ArrayType<FooBar<'a>> for FooBar<'a> {
     type Array<
@@ -309,5 +434,67 @@ where
     fn from_iter<_I: ::std::iter::IntoIterator<Item = FooBar<'a>>>(iter: _I) -> Self {
         let (_0, ()) = iter.into_iter().map(|FooBar(_0)| (_0, ())).unzip();
         Self(_0)
+    }
+}
+struct FooBarArrayIter<'a, Buffer: narrow::buffer::BufferType>(
+    <<Bar<
+        'a,
+        u32,
+    > as narrow::array::ArrayType<
+        Bar<'a, u32>,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    > as ::std::iter::IntoIterator>::IntoIter,
+)
+where
+    <Bar<
+        'a,
+        u32,
+    > as narrow::array::ArrayType<
+        Bar<'a, u32>,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = Bar<'a, u32>>;
+impl<'a, Buffer: narrow::buffer::BufferType> ::std::iter::Iterator
+for FooBarArrayIter<'a, Buffer>
+where
+    <Bar<
+        'a,
+        u32,
+    > as narrow::array::ArrayType<
+        Bar<'a, u32>,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = Bar<'a, u32>>,
+{
+    type Item = FooBar<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|first| { FooBar(first) })
+    }
+}
+impl<'a, Buffer: narrow::buffer::BufferType> ::std::iter::IntoIterator
+for FooBarArray<'a, Buffer>
+where
+    <Bar<
+        'a,
+        u32,
+    > as narrow::array::ArrayType<
+        Bar<'a, u32>,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = Bar<'a, u32>>,
+{
+    type Item = FooBar<'a>;
+    type IntoIter = FooBarArrayIter<'a, Buffer>;
+    fn into_iter(self) -> Self::IntoIter {
+        FooBarArrayIter(self.0.into_iter())
     }
 }

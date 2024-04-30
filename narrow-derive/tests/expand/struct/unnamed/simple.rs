@@ -1,2 +1,2 @@
 #[derive(narrow_derive::ArrayType)]
-struct Foo<T: Sized>(T);
+struct Foo<T: Sized>(T, u32);

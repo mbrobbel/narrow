@@ -37,6 +37,15 @@ pub(super) fn derive(input: &DeriveInput, fields: &Fields) -> TokenStream {
     // Generate the FromIterator implementation.
     let array_from_iter_impl = input.array_from_iter_impl();
 
+    // Generate the iter struct definition.
+    let array_iter_struct_def = input.array_iter_struct_def();
+
+    // Generate the iterator impl for the iter struct.
+    let array_iter_iterator_impl = input.array_iter_iterator_impl();
+
+    // Generate the IntoIterator implementation.
+    let array_into_iter_impl = input.array_into_iter_impl();
+
     let tokens = quote! {
         #unit_impl
 
@@ -53,6 +62,12 @@ pub(super) fn derive(input: &DeriveInput, fields: &Fields) -> TokenStream {
         #array_extend_impl
 
         #array_from_iter_impl
+
+        #array_iter_struct_def
+
+        #array_iter_iterator_impl
+
+        #array_into_iter_impl
     };
 
     #[cfg(feature = "arrow-rs")]
@@ -104,6 +119,11 @@ impl Struct<'_> {
     /// Returns the name of the Array wrapper struct.
     fn array_struct_ident(&self) -> Ident {
         format_ident!("{}Array", self.ident)
+    }
+
+    /// Returns the name of the Array iter wrapper struct.
+    fn array_iter_struct_ident(&self) -> Ident {
+        format_ident!("{}ArrayIter", self.ident)
     }
 
     /// Returns the `ArrayType` trait bound
@@ -651,6 +671,215 @@ impl Struct<'_> {
             }
         );
         parse2(tokens).expect("array_from_iter_impl")
+    }
+
+    fn array_iter_struct_def(&self) -> ItemStruct {
+        let narrow = util::narrow();
+
+        // Array generics
+        let mut generics = self.generics.clone();
+        AddTypeParamBoundWithSelf(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
+            .visit_generics_mut(&mut generics);
+        generics
+            .make_where_clause()
+            .predicates
+            .extend(
+                self.field_types().zip(self.field_types_drop_option())
+                    .map::<WherePredicate, _>(move |(ty, ty_drop)| parse_quote!(<#ty as #narrow::array::ArrayType<#ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>: ::std::iter::IntoIterator<Item = #ty>))
+            );
+        let (impl_generics, _, where_clause) = generics.split_for_impl();
+
+        // Iter struct definition
+        let array_iter_struct_ident = self.array_iter_struct_ident();
+        let fields = self.surround_with_delimiters(match self.fields {
+            Fields::Unnamed(_) => {
+                let field_ty = self.field_types();
+                let field_ty_drop = self.field_types_drop_option();
+                let narrow = util::narrow();
+                quote!(
+                    #(
+                        <<#field_ty as #narrow::array::ArrayType<#field_ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as ::std::iter::IntoIterator>::IntoIter,
+                    )*
+                )
+            }
+            Fields::Named(_) => {
+                let field_ident = self.field_idents();
+                let field_ty = self.field_types();
+                let field_ty_drop = self.field_types_drop_option();
+                let narrow = util::narrow();
+                quote!(
+                    #(
+                        #field_ident: <<#field_ty as #narrow::array::ArrayType<#field_ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as ::std::iter::IntoIterator>::IntoIter,
+                    )*
+                )
+            }
+            Fields::Unit => {
+                let ident = self.ident;
+                let narrow = util::narrow();
+                let mut generics = generics.clone();
+                let (_, ty_generics, _) = self.generics.split_for_impl();
+                generics
+                    .make_where_clause()
+                    .predicates
+                    .extend(
+                       std::iter::once::<WherePredicate>(parse_quote!(#narrow::array::NullArray<#ident #ty_generics, false, Buffer>: ::std::iter::IntoIterator<Item = #ident #ty_generics>))
+                    );
+                let (impl_generics, _, where_clause) = generics.split_for_impl();
+                let narrow = util::narrow();
+                let vis = self.vis;
+                let tokens = quote!(
+                    #vis struct #array_iter_struct_ident #impl_generics(
+                        <#narrow::array::NullArray<#ident #ty_generics, false, Buffer> as IntoIterator>::IntoIter
+                    ) #where_clause;
+                );
+                return parse2(tokens).expect("array_iter_struct_def");
+            }
+        });
+        let vis = self.vis;
+
+        let rest = if matches!(self.fields, Fields::Named(_)) {
+            quote!(#where_clause #fields)
+        } else {
+            quote!(#fields #where_clause;)
+        };
+
+        let tokens = quote! {
+            #vis struct #array_iter_struct_ident #impl_generics #rest
+        };
+        parse2(tokens).expect("array_iter_struct_def")
+    }
+
+    fn array_iter_iterator_impl(&self) -> ItemImpl {
+        let narrow = util::narrow();
+
+        // Array generics
+        let mut generics = self.generics.clone();
+        AddTypeParamBoundWithSelf(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
+            .visit_generics_mut(&mut generics);
+        generics
+            .make_where_clause()
+            .predicates
+            .extend(
+                self.field_types().zip(self.field_types_drop_option())
+                    .map::<WherePredicate, _>(move |(ty, ty_drop)| parse_quote!(<#ty as #narrow::array::ArrayType<#ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>: ::std::iter::IntoIterator<Item = #ty>))
+            );
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+        let next = match self.fields {
+            Fields::Unit => quote!(self.0.next()),
+            Fields::Unnamed(_) => {
+                let mut field_idx = self
+                    .fields
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, _)| Index::from(idx));
+                let first = field_idx.next().unwrap();
+                let ident = self.ident;
+                quote!(
+                    self.#first.next().map(|first| {
+                        #ident(
+                            first,
+                            #(
+                                self.#field_idx.next().unwrap(),
+                            )*
+                        )
+                    })
+                )
+            }
+            Fields::Named(_) => {
+                let field_ident = self.field_idents().skip(1);
+                let first = self.field_idents().nth(0);
+                let ident = self.ident;
+                quote!(
+                    self.#first.next().map(|#first| {
+                        #ident{
+                            #first,
+                            #(
+                                #field_ident: self.#field_ident.next().unwrap(),
+                            )*
+                        }
+                    })
+                )
+            }
+        };
+
+        let ident = self.ident;
+        let array_iter_struct_ident = self.array_iter_struct_ident();
+        let (_, ty_generics_item, _) = self.generics.split_for_impl();
+        let tokens = quote! {
+            impl #impl_generics ::std::iter::Iterator for #array_iter_struct_ident #ty_generics #where_clause {
+                type Item = #ident #ty_generics_item;
+
+                fn next(&mut self) -> Option<Self::Item> {
+                    #next
+                }
+            }
+        };
+        parse2(tokens).expect("array_iter_iterator_impl")
+    }
+
+    fn array_into_iter_impl(&self) -> ItemImpl {
+        let narrow = util::narrow();
+        let ident = self.ident;
+
+        // Generics
+        let mut ident_generics = self.generics.clone();
+        SelfReplace::new(ident, &ident_generics).visit_generics_mut(&mut ident_generics);
+
+        // Array generics
+        let mut generics = self.generics.clone();
+        AddTypeParamBoundWithSelf(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
+            .visit_generics_mut(&mut generics);
+        generics
+            .make_where_clause()
+            .predicates
+            .extend(
+                self.field_types().zip(self.field_types_drop_option())
+                    .map::<WherePredicate, _>(move |(ty, ty_drop)| parse_quote!(<#ty as #narrow::array::ArrayType<#ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>: ::std::iter::IntoIterator<Item = #ty>))
+            );
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+        // Iter struct definition
+        // Trait impl
+        let array_iter_struct_ident = self.array_iter_struct_ident();
+        let array_struct_ident = self.array_struct_ident();
+        let fields = self.surround_with_delimiters(match self.fields {
+            Fields::Unnamed(_) => {
+                let field_idx = self
+                    .fields
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, _)| Index::from(idx));
+                quote!(
+                    #(
+                        self.#field_idx.into_iter(),
+                    )*
+                )
+            }
+            Fields::Named(_) => {
+                let field_ident = self.field_idents();
+                quote!(
+                    #(
+                        #field_ident: self.#field_ident.into_iter(),
+                    )*
+                )
+            }
+            Fields::Unit => quote!(self.0.into_iter()),
+        });
+        let (_, ty_generics_item, _) = self.generics.split_for_impl();
+        let tokens = quote!(
+            impl #impl_generics ::std::iter::IntoIterator for #array_struct_ident #ty_generics #where_clause {
+                type Item = #ident #ty_generics_item;
+                type IntoIter = #array_iter_struct_ident #ty_generics;
+                fn into_iter(self) -> Self::IntoIter {
+                    #array_iter_struct_ident #fields
+                }
+            }
+        );
+        parse2(tokens).expect("array_into_iter_impl")
     }
 
     fn field_tuple(&self) -> TokenStream {
