@@ -170,7 +170,7 @@ mod tests {
 
     use super::*;
 
-    #[derive(Default)]
+    #[derive(Copy, Clone, Default, Debug, PartialEq)]
     struct Foo {
         a: u32,
     }
@@ -212,6 +212,32 @@ mod tests {
         fn from_iter<T: IntoIterator<Item = Foo>>(iter: T) -> Self {
             let (a, _): (_, Vec<_>) = iter.into_iter().map(|Foo { a }| (a, ())).unzip();
             Self { a }
+        }
+    }
+    struct FooArrayIter<Buffer: BufferType> where <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: IntoIterator {
+        a: <<u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA> as IntoIterator>::IntoIter,
+    }
+    impl<Buffer: BufferType> Iterator for FooArrayIter<Buffer>
+    where
+        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: IntoIterator<Item = u32>,
+    {
+        type Item = Foo;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            self.a.next().map(|a| Foo { a })
+        }
+    }
+    impl<Buffer: BufferType> IntoIterator for FooArray<Buffer>
+    where
+        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: IntoIterator<Item = u32>,
+    {
+        type Item = Foo;
+        type IntoIter = FooArrayIter<Buffer>;
+
+        fn into_iter(self) -> Self::IntoIter {
+            Self::IntoIter {
+                a: self.a.into_iter(),
+            }
         }
     }
     impl StructArrayType for Foo {
@@ -322,6 +348,23 @@ mod tests {
                 .0,
             [1234, u32::default()]
         );
+    }
+
+    #[test]
+    fn into_iter() {
+        let input = [Foo { a: 1 }, Foo { a: 2345 }];
+        let struct_array = input.into_iter().collect::<StructArray<Foo, false>>();
+        let vec = struct_array.into_iter().collect::<Vec<Foo>>();
+        assert_eq!(input.as_slice(), vec.as_slice());
+
+        let input_nullable = [Some(Foo { a: 1 }), None, Some(Foo { a: 2345 })];
+        let struct_array_nullable = input_nullable
+            .into_iter()
+            .collect::<StructArray<Foo, true>>();
+        let vec_nullable = struct_array_nullable
+            .into_iter()
+            .collect::<Vec<Option<Foo>>>();
+        assert_eq!(input_nullable.as_slice(), vec_nullable.as_slice());
     }
 
     #[test]

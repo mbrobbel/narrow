@@ -45,3 +45,21 @@ for FooArray<Buffer> {
         Self(iter.into_iter().collect())
     }
 }
+struct FooArrayIter<Buffer: narrow::buffer::BufferType>(
+    <narrow::array::NullArray<Foo, false, Buffer> as IntoIterator>::IntoIter,
+)
+where
+    narrow::array::NullArray<Foo, false, Buffer>: ::std::iter::IntoIterator<Item = Foo>;
+impl<Buffer: narrow::buffer::BufferType> ::std::iter::Iterator for FooArrayIter<Buffer> {
+    type Item = Foo;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+impl<Buffer: narrow::buffer::BufferType> ::std::iter::IntoIterator for FooArray<Buffer> {
+    type Item = Foo;
+    type IntoIter = FooArrayIter<Buffer>;
+    fn into_iter(self) -> Self::IntoIter {
+        FooArrayIter(self.0.into_iter())
+    }
+}

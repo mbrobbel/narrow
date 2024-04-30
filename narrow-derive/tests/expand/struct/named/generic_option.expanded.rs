@@ -175,3 +175,142 @@ where
         Self { a, b, c }
     }
 }
+struct BarArrayIter<T: narrow::array::ArrayType<T>, Buffer: narrow::buffer::BufferType>
+where
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u32>,
+    <Option<
+        bool,
+    > as narrow::array::ArrayType<
+        bool,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = Option<bool>>,
+    <Option<
+        T,
+    > as narrow::array::ArrayType<
+        T,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = Option<T>>,
+{
+    a: <<u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    > as ::std::iter::IntoIterator>::IntoIter,
+    b: <<Option<
+        bool,
+    > as narrow::array::ArrayType<
+        bool,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    > as ::std::iter::IntoIterator>::IntoIter,
+    c: <<Option<
+        T,
+    > as narrow::array::ArrayType<
+        T,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    > as ::std::iter::IntoIterator>::IntoIter,
+}
+impl<
+    T: narrow::array::ArrayType<T>,
+    Buffer: narrow::buffer::BufferType,
+> ::std::iter::Iterator for BarArrayIter<T, Buffer>
+where
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u32>,
+    <Option<
+        bool,
+    > as narrow::array::ArrayType<
+        bool,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = Option<bool>>,
+    <Option<
+        T,
+    > as narrow::array::ArrayType<
+        T,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = Option<T>>,
+{
+    type Item = Bar<T>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.a
+            .next()
+            .map(|a| {
+                Bar {
+                    a,
+                    b: self.b.next().unwrap(),
+                    c: self.c.next().unwrap(),
+                }
+            })
+    }
+}
+impl<
+    T: narrow::array::ArrayType<T>,
+    Buffer: narrow::buffer::BufferType,
+> ::std::iter::IntoIterator for BarArray<T, Buffer>
+where
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u32>,
+    <Option<
+        bool,
+    > as narrow::array::ArrayType<
+        bool,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = Option<bool>>,
+    <Option<
+        T,
+    > as narrow::array::ArrayType<
+        T,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = Option<T>>,
+{
+    type Item = Bar<T>;
+    type IntoIter = BarArrayIter<T, Buffer>;
+    fn into_iter(self) -> Self::IntoIter {
+        BarArrayIter {
+            a: self.a.into_iter(),
+            b: self.b.into_iter(),
+            c: self.c.into_iter(),
+        }
+    }
+}

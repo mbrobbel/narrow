@@ -86,3 +86,37 @@ where
         Self(iter.into_iter().collect())
     }
 }
+pub(super) struct FooArrayIter<const N: bool, Buffer: narrow::buffer::BufferType>(
+    <narrow::array::NullArray<Foo<N>, false, Buffer> as IntoIterator>::IntoIter,
+)
+where
+    Self: Sized,
+    (): From<Self>,
+    narrow::array::NullArray<
+        Foo<N>,
+        false,
+        Buffer,
+    >: ::std::iter::IntoIterator<Item = Foo<N>>;
+impl<const N: bool, Buffer: narrow::buffer::BufferType> ::std::iter::Iterator
+for FooArrayIter<N, Buffer>
+where
+    Self: Sized,
+    (): From<Self>,
+{
+    type Item = Foo<N>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+impl<const N: bool, Buffer: narrow::buffer::BufferType> ::std::iter::IntoIterator
+for FooArray<N, Buffer>
+where
+    Self: Sized,
+    (): From<Self>,
+{
+    type Item = Foo<N>;
+    type IntoIter = FooArrayIter<N, Buffer>;
+    fn into_iter(self) -> Self::IntoIter {
+        FooArrayIter(self.0.into_iter())
+    }
+}
