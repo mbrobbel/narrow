@@ -202,7 +202,7 @@ mod tests {
                 .flat_map(|dyn_array| {
                     let array: StringArray<false, i32, crate::arrow::buffer::ScalarBuffer> =
                         dyn_array.into();
-                    array.into_iter().map(ToOwned::to_owned).collect::<Vec<_>>()
+                    array.into_iter().collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>(),
             INPUT_NULLABLE

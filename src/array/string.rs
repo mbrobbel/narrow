@@ -228,6 +228,51 @@ where
     }
 }
 
+/// An iterator over items in a [`StringArray`].
+pub struct StringIntoIter<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+{
+    /// Reference to the array.
+    array: StringArray<NULLABLE, OffsetItem, Buffer>,
+    /// Current index.
+    index: usize,
+}
+
+impl<OffsetItem: OffsetElement, Buffer: BufferType> Iterator
+    for StringIntoIter<false, OffsetItem, Buffer>
+{
+    type Item = String;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.array
+            .index(self.index)
+            .into_iter()
+            .inspect(|_| {
+                self.index += 1;
+            })
+            .next()
+            .map(ToOwned::to_owned)
+    }
+}
+
+impl<OffsetItem: OffsetElement, Buffer: BufferType> Iterator
+    for StringIntoIter<true, OffsetItem, Buffer>
+{
+    type Item = Option<String>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.array
+            .index(self.index)
+            .into_iter()
+            .inspect(|_| {
+                self.index += 1;
+            })
+            .next()
+            .map(|opt| opt.map(ToOwned::to_owned))
+    }
+}
+
 impl<'a, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
     for &'a StringArray<NULLABLE, OffsetItem, Buffer>
 where
@@ -239,6 +284,23 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         StringIter {
+            array: self,
+            index: 0,
+        }
+    }
+}
+
+impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
+    for StringArray<NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    StringIntoIter<NULLABLE, OffsetItem, Buffer>: Iterator,
+{
+    type Item = <StringIntoIter<NULLABLE, OffsetItem, Buffer> as Iterator>::Item;
+    type IntoIter = StringIntoIter<NULLABLE, OffsetItem, Buffer>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        StringIntoIter {
             array: self,
             index: 0,
         }
@@ -328,15 +390,19 @@ mod tests {
         let array = input.into_iter().collect::<StringArray>();
         assert_eq!(array.into_iter().collect::<Vec<_>>(), input);
 
-        let input_nullable = vec![Some("a"), None, Some("sd"), Some("f"), None];
+        let input_nullable = vec![
+            Some("a".to_owned()),
+            None,
+            Some("sd".to_owned()),
+            Some("f".to_owned()),
+            None,
+        ];
         let array_nullable = input_nullable
             .clone()
             .into_iter()
             .collect::<StringArray<true>>();
-        assert_eq!(
-            array_nullable.into_iter().collect::<Vec<_>>(),
-            input_nullable
-        );
+        let output = array_nullable.into_iter().collect::<Vec<_>>();
+        assert_eq!(output, input_nullable);
     }
 
     #[test]
@@ -344,7 +410,7 @@ mod tests {
         let input = ["hello", " ", "world"];
         let array = input
             .into_iter()
-            .map(ToString::to_string)
+            .map(ToOwned::to_owned)
             .collect::<StringArray>();
         let nullable: StringArray<true> = array.into();
         assert_eq!(nullable.bitmap_ref().buffer_ref(), &[0b0000_0111]);
