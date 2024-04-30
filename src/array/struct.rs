@@ -490,12 +490,16 @@ mod tests {
         assert_eq!(named_array.len(), named_input.len());
         let named_output = named_array.into_iter().collect::<Vec<_>>();
         assert_eq!(named_output, named_input);
-        // let named_input_nullable = named_input.map(Option::Some);
-        // let named_array_nullable = named_input_nullable
-        //     .into_iter()
-        //     .collect::<StructArray<Named, true>>();
-        // assert_eq!(named_array_nullable.len(), named_input_nullable.len());
-        // let named_output_nullable = named_array_nullable.into_iter().collect::<Vec<_>>();
-        // assert_eq!(named_output_nullable, named_input_nullable);
+        let named_input_nullable = named_input
+            .into_iter()
+            .map(Option::Some)
+            .collect::<Vec<_>>();
+        let named_array_nullable = named_input_nullable
+            .clone()
+            .into_iter()
+            .collect::<StructArray<Named, true>>();
+        assert_eq!(named_array_nullable.len(), named_input_nullable.len());
+        let named_output_nullable = named_array_nullable.into_iter().collect::<Vec<_>>();
+        assert_eq!(named_output_nullable, named_input_nullable);
     }
 }
