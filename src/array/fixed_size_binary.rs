@@ -2,7 +2,7 @@
 
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
-    buffer::{BufferType, VecBuffer},
+    buffer::{Buffer, BufferType, VecBuffer},
     validity::{Nullability, Validity},
     Index, Length,
 };
@@ -66,24 +66,27 @@ where
     }
 }
 
-impl<const N: usize, Buffer: BufferType> Extend<[u8; N]> for FixedSizeBinaryArray<N, false, Buffer>
+impl<T, const N: usize, Buffer: BufferType> Extend<T> for FixedSizeBinaryArray<N, false, Buffer>
 where
+    T: Into<[u8; N]>,
     FixedSizeListArray<N, FixedSizePrimitiveArray<u8, false, Buffer>, false, Buffer>:
         Extend<[u8; N]>,
 {
-    fn extend<I: IntoIterator<Item = [u8; N]>>(&mut self, iter: I) {
-        self.0.extend(iter);
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        self.0.extend(iter.into_iter().map(Into::into));
     }
 }
 
-impl<const N: usize, Buffer: BufferType> Extend<Option<[u8; N]>>
+impl<T, const N: usize, Buffer: BufferType> Extend<Option<T>>
     for FixedSizeBinaryArray<N, true, Buffer>
 where
+    T: Into<[u8; N]>,
     FixedSizeListArray<N, FixedSizePrimitiveArray<u8, false, Buffer>, true, Buffer>:
         Extend<Option<[u8; N]>>,
 {
-    fn extend<I: IntoIterator<Item = Option<[u8; N]>>>(&mut self, iter: I) {
-        self.0.extend(iter);
+    fn extend<I: IntoIterator<Item = Option<T>>>(&mut self, iter: I) {
+        self.0
+            .extend(iter.into_iter().map(|opt| opt.map(Into::into)));
     }
 }
 
@@ -98,25 +101,27 @@ where
     }
 }
 
-impl<const N: usize, Buffer: BufferType> FromIterator<[u8; N]>
+impl<T, const N: usize, Buffer: BufferType> FromIterator<T>
     for FixedSizeBinaryArray<N, false, Buffer>
 where
+    T: Into<[u8; N]>,
     FixedSizeListArray<N, FixedSizePrimitiveArray<u8, false, Buffer>, false, Buffer>:
         FromIterator<[u8; N]>,
 {
-    fn from_iter<I: IntoIterator<Item = [u8; N]>>(iter: I) -> Self {
-        Self(iter.into_iter().collect())
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Self(iter.into_iter().map(Into::into).collect())
     }
 }
 
-impl<const N: usize, Buffer: BufferType> FromIterator<Option<[u8; N]>>
+impl<T, const N: usize, Buffer: BufferType> FromIterator<Option<T>>
     for FixedSizeBinaryArray<N, true, Buffer>
 where
+    T: Into<[u8; N]>,
     FixedSizeListArray<N, FixedSizePrimitiveArray<u8, false, Buffer>, true, Buffer>:
         FromIterator<Option<[u8; N]>>,
 {
-    fn from_iter<I: IntoIterator<Item = Option<[u8; N]>>>(iter: I) -> Self {
-        Self(iter.into_iter().collect())
+    fn from_iter<I: IntoIterator<Item = Option<T>>>(iter: I) -> Self {
+        Self(iter.into_iter().map(|opt| opt.map(Into::into)).collect())
     }
 }
 
@@ -132,6 +137,49 @@ where
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
         self.0.index_unchecked(index)
+    }
+}
+
+/// An iterator over fixed-size lists in a [`FixedSizeBinaryArray`].
+pub struct FixedSizeBinaryIntoIter<const N: usize, const NULLABLE: bool, Buffer: BufferType>
+where
+    FixedSizePrimitiveArray<u8, false, Buffer>: Validity<NULLABLE>,
+{
+    /// Reference to the array.
+    array: FixedSizeBinaryArray<N, NULLABLE, Buffer>,
+    /// Current index.
+    index: usize,
+}
+
+impl<const N: usize, Buffer: BufferType> Iterator for FixedSizeBinaryIntoIter<N, false, Buffer> {
+    type Item = [u8; N];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        (self.index < self.array.len()).then(|| {
+            let item = self.array.0 .0 .0.as_slice()[self.index * N..self.index * N + N]
+                .try_into()
+                .expect("out of bounds");
+            self.index += 1;
+            item
+        })
+    }
+}
+
+impl<const N: usize, Buffer: BufferType> Iterator for FixedSizeBinaryIntoIter<N, true, Buffer> {
+    type Item = Option<[u8; N]>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        (self.index < self.array.len()).then(|| {
+            // Safety:
+            // - bound checked above
+            let item = unsafe { self.array.0 .0.is_valid_unchecked(self.index) }.then(|| {
+                self.array.0 .0.data.0.as_slice()[self.index * N..self.index * N + N]
+                    .try_into()
+                    .expect("out of bounds")
+            });
+            self.index += 1;
+            item
+        })
     }
 }
 
@@ -162,6 +210,23 @@ where
                 self.index += 1;
             })
             .next()
+    }
+}
+
+impl<const N: usize, const NULLABLE: bool, Buffer: BufferType> IntoIterator
+    for FixedSizeBinaryArray<N, NULLABLE, Buffer>
+where
+    FixedSizePrimitiveArray<u8, false, Buffer>: Validity<NULLABLE>,
+    FixedSizeBinaryIntoIter<N, NULLABLE, Buffer>: Iterator,
+{
+    type Item = <FixedSizeBinaryIntoIter<N, NULLABLE, Buffer> as Iterator>::Item;
+    type IntoIter = FixedSizeBinaryIntoIter<N, NULLABLE, Buffer>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        FixedSizeBinaryIntoIter {
+            array: self,
+            index: 0,
+        }
     }
 }
 
@@ -235,7 +300,7 @@ mod tests {
     fn into_iter() {
         let input = [[1_u8, 2], [3, 4]];
         let array = input.into_iter().collect::<FixedSizeBinaryArray<2>>();
-        assert_eq!(array.into_iter().collect::<Vec<_>>(), [[&1, &2], [&3, &4]]);
+        assert_eq!(array.into_iter().collect::<Vec<_>>(), [[1, 2], [3, 4]]);
 
         let input_nullable = [Some([1_u8, 2]), None];
         let array_nullable = input_nullable
@@ -243,7 +308,7 @@ mod tests {
             .collect::<FixedSizeBinaryArray<2, true>>();
         assert_eq!(
             array_nullable.into_iter().collect::<Vec<_>>(),
-            [Some([&1, &2]), None]
+            [Some([1, 2]), None]
         );
     }
 }
