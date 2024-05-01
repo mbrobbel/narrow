@@ -1,53 +1,32 @@
 use uuid::Uuid;
 
 use crate::{
-    array::{Array, ArrayType, FixedSizeBinaryArray, UnionType},
+    array::{ArrayType, FixedSizeBinary, UnionType},
     buffer::BufferType,
     offset::OffsetElement,
 };
 
 use super::{LogicalArray, LogicalArrayType};
 
-impl ArrayType<Uuid> for Uuid {
+impl ArrayType<uuid::Uuid> for uuid::Uuid {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<Uuid, false, Buffer, OffsetItem, UnionLayout>;
+        LogicalArray<uuid::Uuid, false, Buffer, OffsetItem, UnionLayout>;
 }
 
-impl ArrayType<Uuid> for Option<Uuid> {
+impl ArrayType<uuid::Uuid> for Option<uuid::Uuid> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<Uuid, true, Buffer, OffsetItem, UnionLayout>;
+        LogicalArray<uuid::Uuid, true, Buffer, OffsetItem, UnionLayout>;
 }
 
-impl LogicalArrayType<Uuid> for Uuid {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        FixedSizeBinaryArray<16, false, Buffer>;
+impl LogicalArrayType<uuid::Uuid> for uuid::Uuid {
+    type ArrayType = FixedSizeBinary<16>;
 
-    fn convert<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>(
-        self,
-    ) -> <<Self as LogicalArrayType<Uuid>>::Array<Buffer, OffsetItem, UnionLayout> as Array>::Item
-    {
-        self.into_bytes()
+    fn from_array_type(item: Self::ArrayType) -> Self {
+        uuid::Uuid::from_bytes(item.into())
     }
-}
 
-impl LogicalArrayType<Uuid> for Option<Uuid> {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        FixedSizeBinaryArray<16, true, Buffer>;
-
-    fn convert<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>(
-        self,
-    ) -> <<Self as LogicalArrayType<Uuid>>::Array<Buffer, OffsetItem, UnionLayout> as Array>::Item
-    {
-        self.map(Uuid::into_bytes)
-    }
-}
-
-impl<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>
-    From<LogicalArray<Uuid, false, Buffer, OffsetItem, UnionLayout>>
-    for FixedSizeBinaryArray<16, false, Buffer>
-{
-    fn from(value: LogicalArray<Uuid, false, Buffer, OffsetItem, UnionLayout>) -> Self {
-        value.0
+    fn into_array_type(self) -> Self::ArrayType {
+        uuid::Uuid::into_bytes(self).into()
     }
 }
 
@@ -68,5 +47,24 @@ mod tests {
             .collect::<UuidArray>();
         assert_eq!(array.len(), 2);
         assert_eq!(array.0.len(), 2);
+
+        let array_nullable = [Some(Uuid::from_u128(1)), None]
+            .into_iter()
+            .collect::<UuidArray<true>>();
+        assert_eq!(array_nullable.len(), 2);
+        assert_eq!(array_nullable.0.len(), 2);
+    }
+
+    #[test]
+    fn into_iter() {
+        let input = [Uuid::from_u128(1), Uuid::from_u128(42)];
+        let array = input.into_iter().collect::<UuidArray>();
+        let output = array.into_iter().collect::<Vec<_>>();
+        assert_eq!(input, output.as_slice());
+
+        let input_nullable = [Some(Uuid::from_u128(1)), None];
+        let array_nullable = input_nullable.into_iter().collect::<UuidArray<true>>();
+        let output_nullable = array_nullable.into_iter().collect::<Vec<_>>();
+        assert_eq!(input_nullable, output_nullable.as_slice());
     }
 }

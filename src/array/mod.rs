@@ -129,6 +129,40 @@ impl_array_type!(Option<f64>, FixedSizePrimitiveArray<f64, true, Buffer>, f64);
 impl_array_type!((), NullArray<(), false, Buffer>);
 impl_array_type!(Option<()>, NullArray<(), true, Buffer>, ());
 
+/// An byte array wrapper that maps to [`FixedSizeBinaryArray`] via its
+/// [`ArrayType`] implementation. Used for example to map `Uuid` to
+/// a [`FixedSizeBinaryArray`] instead of a [`FixedSizeListArray`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FixedSizeBinary<const N: usize>([u8; N]);
+
+impl<const N: usize> ArrayType<FixedSizeBinary<N>> for FixedSizeBinary<N> {
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+        FixedSizeBinaryArray<N, false, Buffer>;
+}
+
+impl<const N: usize> ArrayType<FixedSizeBinary<N>> for Option<FixedSizeBinary<N>> {
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+        FixedSizeBinaryArray<N, true, Buffer>;
+}
+
+impl<const N: usize> From<&[u8; N]> for FixedSizeBinary<N> {
+    fn from(value: &[u8; N]) -> Self {
+        Self(*value)
+    }
+}
+
+impl<const N: usize> From<[u8; N]> for FixedSizeBinary<N> {
+    fn from(value: [u8; N]) -> Self {
+        Self(value)
+    }
+}
+
+impl<const N: usize> From<FixedSizeBinary<N>> for [u8; N] {
+    fn from(value: FixedSizeBinary<N>) -> Self {
+        value.0
+    }
+}
+
 impl<T: ArrayType<T>, const N: usize> ArrayType<[T; N]> for [T; N] {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         FixedSizeListArray<

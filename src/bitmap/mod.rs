@@ -342,6 +342,12 @@ impl<Buffer: BufferType> PartialEq for Bitmap<Buffer> {
     }
 }
 
+impl<const N: usize, Buffer: BufferType> PartialEq<[bool; N]> for Bitmap<Buffer> {
+    fn eq(&self, other: &[bool; N]) -> bool {
+        self.len() == other.len() && self.iter().zip(other).all(|(a, b)| a == *b)
+    }
+}
+
 impl<Buffer: BufferType> ValidityBitmap for Bitmap<Buffer> {}
 
 #[cfg(test)]

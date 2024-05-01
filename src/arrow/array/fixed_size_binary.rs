@@ -214,7 +214,6 @@ mod tests {
             )
             .into_iter()
             .flatten()
-            .copied()
             .collect::<Vec<_>>(),
             INPUT.into_iter().flatten().collect::<Vec<_>>()
         );
@@ -229,7 +228,6 @@ mod tests {
                 fixed_size_binary_array_nullable
             )
             .into_iter()
-            .map(|item| item.map(|value| value.map(Clone::clone)))
             .collect::<Vec<_>>(),
             INPUT_NULLABLE
         );
