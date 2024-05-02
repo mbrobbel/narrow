@@ -408,7 +408,7 @@ impl Struct<'_> {
             Fields::Unit => {
                 let ident = self.ident;
                 let (_, ty_generics, _) = self.generics.split_for_impl();
-                quote!(#narrow::array::NullArray<#ident #ty_generics, false, Buffer>)
+                quote!(#narrow::array::NullArray<#ident #ty_generics, true, Buffer>)
             }
         });
 
