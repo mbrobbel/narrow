@@ -180,18 +180,21 @@ where
         I: IntoIterator<Item = FooBar>,
     {
         iter.into_iter()
-            .for_each(|variant| match variant {
-                FooBar::Unit => {
-                    self.0.extend(::std::iter::once(()));
-                }
-                FooBar::Foo { bar } => {
-                    self.1.extend(::std::iter::once(FooBarVariantFoo { bar }));
-                }
-                FooBar::Bar { foo } => {
-                    self.2.extend(::std::iter::once(FooBarVariantBar { foo }));
-                }
-                FooBar::FooBar { foo, bar } => {
-                    self.3.extend(::std::iter::once(FooBarVariantFooBar { foo, bar }));
+            .for_each(|variant| {
+                match variant {
+                    FooBar::Unit => {
+                        self.0.extend(::std::iter::once(()));
+                    }
+                    FooBar::Foo { bar } => {
+                        self.1.extend(::std::iter::once(FooBarVariantFoo { bar }));
+                    }
+                    FooBar::Bar { foo } => {
+                        self.2.extend(::std::iter::once(FooBarVariantBar { foo }));
+                    }
+                    FooBar::FooBar { foo, bar } => {
+                        self.3
+                            .extend(::std::iter::once(FooBarVariantFooBar { foo, bar }));
+                    }
                 }
             });
     }
@@ -235,30 +238,69 @@ where
         I: IntoIterator<Item = FooBar>,
     {
         iter.into_iter()
-            .for_each(|variant| match variant {
-                FooBar::Unit => {
-                    self.0.extend(::std::iter::once(()));
-                    self.1.extend(::std::iter::once(::std::default::Default::default()));
-                    self.2.extend(::std::iter::once(::std::default::Default::default()));
-                    self.3.extend(::std::iter::once(::std::default::Default::default()));
-                }
-                FooBar::Foo { bar } => {
-                    self.1.extend(::std::iter::once(FooBarVariantFoo { bar }));
-                    self.0.extend(::std::iter::once(::std::default::Default::default()));
-                    self.2.extend(::std::iter::once(::std::default::Default::default()));
-                    self.3.extend(::std::iter::once(::std::default::Default::default()));
-                }
-                FooBar::Bar { foo } => {
-                    self.2.extend(::std::iter::once(FooBarVariantBar { foo }));
-                    self.0.extend(::std::iter::once(::std::default::Default::default()));
-                    self.1.extend(::std::iter::once(::std::default::Default::default()));
-                    self.3.extend(::std::iter::once(::std::default::Default::default()));
-                }
-                FooBar::FooBar { foo, bar } => {
-                    self.3.extend(::std::iter::once(FooBarVariantFooBar { foo, bar }));
-                    self.0.extend(::std::iter::once(::std::default::Default::default()));
-                    self.1.extend(::std::iter::once(::std::default::Default::default()));
-                    self.2.extend(::std::iter::once(::std::default::Default::default()));
+            .for_each(|variant| {
+                match variant {
+                    FooBar::Unit => {
+                        self.0.extend(::std::iter::once(()));
+                        self.1
+                            .extend(
+                                ::std::iter::once(::std::default::Default::default()),
+                            );
+                        self.2
+                            .extend(
+                                ::std::iter::once(::std::default::Default::default()),
+                            );
+                        self.3
+                            .extend(
+                                ::std::iter::once(::std::default::Default::default()),
+                            );
+                    }
+                    FooBar::Foo { bar } => {
+                        self.1.extend(::std::iter::once(FooBarVariantFoo { bar }));
+                        self.0
+                            .extend(
+                                ::std::iter::once(::std::default::Default::default()),
+                            );
+                        self.2
+                            .extend(
+                                ::std::iter::once(::std::default::Default::default()),
+                            );
+                        self.3
+                            .extend(
+                                ::std::iter::once(::std::default::Default::default()),
+                            );
+                    }
+                    FooBar::Bar { foo } => {
+                        self.2.extend(::std::iter::once(FooBarVariantBar { foo }));
+                        self.0
+                            .extend(
+                                ::std::iter::once(::std::default::Default::default()),
+                            );
+                        self.1
+                            .extend(
+                                ::std::iter::once(::std::default::Default::default()),
+                            );
+                        self.3
+                            .extend(
+                                ::std::iter::once(::std::default::Default::default()),
+                            );
+                    }
+                    FooBar::FooBar { foo, bar } => {
+                        self.3
+                            .extend(::std::iter::once(FooBarVariantFooBar { foo, bar }));
+                        self.0
+                            .extend(
+                                ::std::iter::once(::std::default::Default::default()),
+                            );
+                        self.1
+                            .extend(
+                                ::std::iter::once(::std::default::Default::default()),
+                            );
+                        self.2
+                            .extend(
+                                ::std::iter::once(::std::default::Default::default()),
+                            );
+                    }
                 }
             });
     }

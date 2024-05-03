@@ -99,12 +99,14 @@ where
         I: IntoIterator<Item = FooBar<X>>,
     {
         iter.into_iter()
-            .for_each(|variant| match variant {
-                FooBar::Foo => {
-                    self.0.extend(::std::iter::once(()));
-                }
-                FooBar::Bar => {
-                    self.1.extend(::std::iter::once(()));
+            .for_each(|variant| {
+                match variant {
+                    FooBar::Foo => {
+                        self.0.extend(::std::iter::once(()));
+                    }
+                    FooBar::Bar => {
+                        self.1.extend(::std::iter::once(()));
+                    }
                 }
             });
     }
@@ -139,14 +141,22 @@ where
         I: IntoIterator<Item = FooBar<X>>,
     {
         iter.into_iter()
-            .for_each(|variant| match variant {
-                FooBar::Foo => {
-                    self.0.extend(::std::iter::once(()));
-                    self.1.extend(::std::iter::once(::std::default::Default::default()));
-                }
-                FooBar::Bar => {
-                    self.1.extend(::std::iter::once(()));
-                    self.0.extend(::std::iter::once(::std::default::Default::default()));
+            .for_each(|variant| {
+                match variant {
+                    FooBar::Foo => {
+                        self.0.extend(::std::iter::once(()));
+                        self.1
+                            .extend(
+                                ::std::iter::once(::std::default::Default::default()),
+                            );
+                    }
+                    FooBar::Bar => {
+                        self.1.extend(::std::iter::once(()));
+                        self.0
+                            .extend(
+                                ::std::iter::once(::std::default::Default::default()),
+                            );
+                    }
                 }
             });
     }
