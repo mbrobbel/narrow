@@ -22,7 +22,7 @@ impl narrow::array::StructArrayType for Foo {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<Buffer>;
 }
 struct FooArray<Buffer: narrow::buffer::BufferType>(
-    narrow::array::NullArray<Foo, false, Buffer>,
+    narrow::array::NullArray<Foo, true, Buffer>,
 );
 impl<Buffer: narrow::buffer::BufferType> ::std::default::Default for FooArray<Buffer> {
     fn default() -> Self {

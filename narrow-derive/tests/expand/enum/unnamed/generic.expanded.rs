@@ -158,18 +158,15 @@ where
         I: IntoIterator<Item = FooBar<T>>,
     {
         iter.into_iter()
-            .for_each(|variant| {
-                match variant {
-                    FooBar::Foo => {
-                        self.0.extend(::std::iter::once(()));
-                    }
-                    FooBar::Bar(_0) => {
-                        self.1.extend(::std::iter::once(FooBarVariantBar(_0)));
-                    }
-                    FooBar::FooBar { foo_bar } => {
-                        self.2
-                            .extend(::std::iter::once(FooBarVariantFooBar { foo_bar }));
-                    }
+            .for_each(|variant| match variant {
+                FooBar::Foo => {
+                    self.0.extend(::std::iter::once(()));
+                }
+                FooBar::Bar(_0) => {
+                    self.1.extend(::std::iter::once(FooBarVariantBar(_0)));
+                }
+                FooBar::FooBar { foo_bar } => {
+                    self.2.extend(::std::iter::once(FooBarVariantFooBar { foo_bar }));
                 }
             });
     }
@@ -213,42 +210,21 @@ where
         I: IntoIterator<Item = FooBar<T>>,
     {
         iter.into_iter()
-            .for_each(|variant| {
-                match variant {
-                    FooBar::Foo => {
-                        self.0.extend(::std::iter::once(()));
-                        self.1
-                            .extend(
-                                ::std::iter::once(::std::default::Default::default()),
-                            );
-                        self.2
-                            .extend(
-                                ::std::iter::once(::std::default::Default::default()),
-                            );
-                    }
-                    FooBar::Bar(_0) => {
-                        self.1.extend(::std::iter::once(FooBarVariantBar(_0)));
-                        self.0
-                            .extend(
-                                ::std::iter::once(::std::default::Default::default()),
-                            );
-                        self.2
-                            .extend(
-                                ::std::iter::once(::std::default::Default::default()),
-                            );
-                    }
-                    FooBar::FooBar { foo_bar } => {
-                        self.2
-                            .extend(::std::iter::once(FooBarVariantFooBar { foo_bar }));
-                        self.0
-                            .extend(
-                                ::std::iter::once(::std::default::Default::default()),
-                            );
-                        self.1
-                            .extend(
-                                ::std::iter::once(::std::default::Default::default()),
-                            );
-                    }
+            .for_each(|variant| match variant {
+                FooBar::Foo => {
+                    self.0.extend(::std::iter::once(()));
+                    self.1.extend(::std::iter::once(::std::default::Default::default()));
+                    self.2.extend(::std::iter::once(::std::default::Default::default()));
+                }
+                FooBar::Bar(_0) => {
+                    self.1.extend(::std::iter::once(FooBarVariantBar(_0)));
+                    self.0.extend(::std::iter::once(::std::default::Default::default()));
+                    self.2.extend(::std::iter::once(::std::default::Default::default()));
+                }
+                FooBar::FooBar { foo_bar } => {
+                    self.2.extend(::std::iter::once(FooBarVariantFooBar { foo_bar }));
+                    self.0.extend(::std::iter::once(::std::default::Default::default()));
+                    self.1.extend(::std::iter::once(::std::default::Default::default()));
                 }
             });
     }

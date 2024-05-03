@@ -103,14 +103,12 @@ where
         I: IntoIterator<Item = FooBar>,
     {
         iter.into_iter()
-            .for_each(|variant| {
-                match variant {
-                    FooBar::Foo(_0) => {
-                        self.0.extend(::std::iter::once(FooBarVariantFoo(_0)));
-                    }
-                    FooBar::Bar(_0, _1) => {
-                        self.1.extend(::std::iter::once(FooBarVariantBar(_0, _1)));
-                    }
+            .for_each(|variant| match variant {
+                FooBar::Foo(_0) => {
+                    self.0.extend(::std::iter::once(FooBarVariantFoo(_0)));
+                }
+                FooBar::Bar(_0, _1) => {
+                    self.1.extend(::std::iter::once(FooBarVariantBar(_0, _1)));
                 }
             });
     }
@@ -140,22 +138,14 @@ where
         I: IntoIterator<Item = FooBar>,
     {
         iter.into_iter()
-            .for_each(|variant| {
-                match variant {
-                    FooBar::Foo(_0) => {
-                        self.0.extend(::std::iter::once(FooBarVariantFoo(_0)));
-                        self.1
-                            .extend(
-                                ::std::iter::once(::std::default::Default::default()),
-                            );
-                    }
-                    FooBar::Bar(_0, _1) => {
-                        self.1.extend(::std::iter::once(FooBarVariantBar(_0, _1)));
-                        self.0
-                            .extend(
-                                ::std::iter::once(::std::default::Default::default()),
-                            );
-                    }
+            .for_each(|variant| match variant {
+                FooBar::Foo(_0) => {
+                    self.0.extend(::std::iter::once(FooBarVariantFoo(_0)));
+                    self.1.extend(::std::iter::once(::std::default::Default::default()));
+                }
+                FooBar::Bar(_0, _1) => {
+                    self.1.extend(::std::iter::once(FooBarVariantBar(_0, _1)));
+                    self.0.extend(::std::iter::once(::std::default::Default::default()));
                 }
             });
     }
