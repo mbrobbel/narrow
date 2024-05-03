@@ -265,7 +265,7 @@ impl Struct<'_> {
             quote!(impl #impl_generics #narrow::arrow::StructArrayTypeFields for #ident #ty_generics #where_clause {
                 fn fields() -> ::arrow_schema::Fields {
                     ::arrow_schema::Fields::from([
-                        ::std::sync::Arc::new(::arrow_schema::Field::new(#field_name, ::arrow_schema::DataType::Null, false)),
+                        ::std::sync::Arc::new(::arrow_schema::Field::new(#field_name, ::arrow_schema::DataType::Null, true)),
                     ])
                 }
             })
@@ -442,7 +442,7 @@ impl Struct<'_> {
             Fields::Unit => {
                 let ident = self.ident;
                 let (_, ty_generics, _) = self.generics.split_for_impl();
-                quote!(#narrow::array::NullArray<#ident #ty_generics, true, Buffer>)
+                quote!(#narrow::array::NullArray<#ident #ty_generics, false, Buffer>)
             }
         });
 
