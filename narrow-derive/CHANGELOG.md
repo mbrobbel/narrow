@@ -1,6 +1,35 @@
 
 
+## v0.5.3 (2024-05-03)
+
+### Bug Fixes
+
+ - <csr-id-7930e73f9441bb69046480c42df7889280e129ef/> make `StructArray` field for unit structs nullable
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 14 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#174](https://github.com/mbrobbel/narrow/issues/174)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#174](https://github.com/mbrobbel/narrow/issues/174)**
+    - Make `StructArray` field for unit structs nullable ([`7930e73`](https://github.com/mbrobbel/narrow/commit/7930e73f9441bb69046480c42df7889280e129ef))
+</details>
+
 ## v0.5.2 (2024-04-18)
+
+<csr-id-00ecf75b57d8d265fb91eeb2bd7f624226832305/>
+<csr-id-c24da0a1c965c72d75738d2c417b0b622463b6f4/>
+<csr-id-87f9fb576412115c971433f541a6ff1aa3cc46a3/>
 
 ### Chore
 
@@ -12,7 +41,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 3 commits contributed to the release over the course of 48 calendar days.
+ - 4 commits contributed to the release over the course of 48 calendar days.
  - 72 days passed between releases.
  - 3 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 3 unique issues were worked on: [#154](https://github.com/mbrobbel/narrow/issues/154), [#157](https://github.com/mbrobbel/narrow/issues/157), [#161](https://github.com/mbrobbel/narrow/issues/161)
@@ -29,6 +58,8 @@
     - Bump proc-macro2 from 1.0.78 to 1.0.79 ([`c24da0a`](https://github.com/mbrobbel/narrow/commit/c24da0a1c965c72d75738d2c417b0b622463b6f4))
  * **[#161](https://github.com/mbrobbel/narrow/issues/161)**
     - Bump syn from 2.0.52 to 2.0.53 ([`00ecf75`](https://github.com/mbrobbel/narrow/commit/00ecf75b57d8d265fb91eeb2bd7f624226832305))
+ * **Uncategorized**
+    - Release narrow-derive v0.5.2, narrow v0.6.0 ([`9a5899e`](https://github.com/mbrobbel/narrow/commit/9a5899e3ef1e7b1b5adcd222434f3518d093a197))
 </details>
 
 ## v0.5.1 (2024-02-06)

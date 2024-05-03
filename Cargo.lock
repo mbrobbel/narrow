@@ -640,7 +640,7 @@ dependencies = [
 
 [[package]]
 name = "narrow-derive"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
  "macrotest",
  "once_cell",
