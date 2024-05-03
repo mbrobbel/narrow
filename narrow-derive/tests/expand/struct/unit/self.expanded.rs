@@ -36,7 +36,7 @@ where
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<Buffer>;
 }
 struct FooArray<Buffer: narrow::buffer::BufferType>(
-    narrow::array::NullArray<Foo, true, Buffer>,
+    narrow::array::NullArray<Foo, false, Buffer>,
 )
 where
     Foo: Debug;

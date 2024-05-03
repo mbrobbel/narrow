@@ -41,7 +41,7 @@ where
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<N, Buffer>;
 }
 pub(super) struct FooArray<const N: bool, Buffer: narrow::buffer::BufferType>(
-    narrow::array::NullArray<Foo<N>, true, Buffer>,
+    narrow::array::NullArray<Foo<N>, false, Buffer>,
 )
 where
     Foo<N>: Sized,
