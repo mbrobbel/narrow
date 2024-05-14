@@ -84,9 +84,9 @@ where
 {
     fn from(value: UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>) -> Self {
         let union_fields = match < UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem> as crate::arrow::Array>::as_field("").data_type() {
-            DataType::Union(fields, _mode) => fields,
+            &DataType::Union(ref fields, _mode) => fields.to_owned(),
             _ => unreachable!(),
-        }.to_owned();
+        };
         // Safety:
         // - todo
         unsafe {
@@ -116,9 +116,9 @@ where
 {
     fn from(value: UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>) -> Self {
         let union_fields = match < UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem> as crate::arrow::Array>::as_field("").data_type() {
-            DataType::Union(fields, _mode) => fields,
+            &DataType::Union(ref fields, _mode) => fields.to_owned(),
             _ => unreachable!(),
-        }.to_owned();
+        };
         // Safety:
         // - todo
         unsafe {
