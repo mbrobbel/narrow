@@ -746,19 +746,12 @@ impl<'a> Enum<'a> {
         let (impl_generics, _, where_clause) = generics.split_for_impl();
         let (_, ty_generics, _) = generics.split_for_impl();
         let idx = self.variant_indices();
-        let variant_idx = (0..self.variants.len()).map(|idx| idx.to_string());
         let tokens = quote! {
-            impl #impl_generics ::std::convert::From<#ident #ty_generics> for ::std::vec::Vec<(::arrow_schema::Field, ::std::sync::Arc<dyn ::arrow_array::Array>)> #where_clause {
+            impl #impl_generics ::std::convert::From<#ident #ty_generics> for ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>> #where_clause {
                 fn from(value: #ident #ty_generics) -> Self {
                     vec![
                         #(
-                            (
-                                    <<
-                                        <#self_ident as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType
-                                            <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<Buffer,OffsetItem,UnionLayout> as #narrow::arrow::Array
-                                    >::as_field(#variant_idx),
-                                value.#idx.into()
-                            ),
+                            value.#idx.into(),
                         )*
                     ]
                 }

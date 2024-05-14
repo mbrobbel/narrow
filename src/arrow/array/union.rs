@@ -78,22 +78,23 @@ impl<
 where
     for<'a> i8: From<&'a T>,
     <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, SparseLayout>:
-        UnionArrayTypeFields<VARIANTS> + Into<Vec<(Field, Arc<dyn arrow_array::Array>)>>,
+        UnionArrayTypeFields<VARIANTS> + Into<Vec<Arc<dyn arrow_array::Array>>>,
     arrow_buffer::ScalarBuffer<i8>: From<FixedSizePrimitiveArray<i8, false, Buffer>>,
+    UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>: crate::arrow::Array,
 {
     fn from(value: UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>) -> Self {
+        let union_fields = match < UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem> as crate::arrow::Array>::as_field("").data_type() {
+            DataType::Union(fields, _mode) => fields,
+            _ => unreachable!(),
+        }.to_owned();
         // Safety:
         // - todo
         unsafe {
             arrow_array::UnionArray::new_unchecked(
-                &<<T as UnionArrayType<VARIANTS>>::Array<
-                    Buffer,
-                    OffsetItem,
-                    SparseLayout,
-                > as UnionArrayTypeFields<VARIANTS>>::type_ids(),
-                arrow_buffer::ScalarBuffer::from(value.0.types).into_inner(),
+                union_fields,
+                arrow_buffer::ScalarBuffer::from(value.0.types),
                 None,
-                value.0.variants.into()
+                value.0.variants.into(),
             )
         }
     }
@@ -108,23 +109,24 @@ impl<
 where
     for<'a> i8: From<&'a T>,
     <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, DenseLayout>:
-        UnionArrayTypeFields<VARIANTS> + Into<Vec<(Field, Arc<dyn arrow_array::Array>)>>,
+        UnionArrayTypeFields<VARIANTS> + Into<Vec<Arc<dyn arrow_array::Array>>>,
     arrow_buffer::ScalarBuffer<i8>: From<FixedSizePrimitiveArray<i8, false, Buffer>>,
     arrow_buffer::ScalarBuffer<i32>: From<FixedSizePrimitiveArray<i32, false, Buffer>>,
+    UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>: crate::arrow::Array,
 {
     fn from(value: UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>) -> Self {
+        let union_fields = match < UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem> as crate::arrow::Array>::as_field("").data_type() {
+            DataType::Union(fields, _mode) => fields,
+            _ => unreachable!(),
+        }.to_owned();
         // Safety:
         // - todo
         unsafe {
             arrow_array::UnionArray::new_unchecked(
-                &<<T as UnionArrayType<VARIANTS>>::Array<
-                    Buffer,
-                    OffsetItem,
-                    DenseLayout,
-                > as UnionArrayTypeFields<VARIANTS>>::type_ids(),
-                arrow_buffer::ScalarBuffer::from(value.0.types).into_inner(),
-                Some(arrow_buffer::ScalarBuffer::<i32>::from(value.0.offsets).into_inner()),
-                value.0.variants.into()
+                union_fields,
+                arrow_buffer::ScalarBuffer::from(value.0.types),
+                Some(arrow_buffer::ScalarBuffer::<i32>::from(value.0.offsets)),
+                value.0.variants.into(),
             )
         }
     }
@@ -143,12 +145,12 @@ where
         FromIterator<Arc<dyn arrow_array::Array>>,
 {
     fn from(value: arrow_array::UnionArray) -> Self {
-        let (types, offsets_opt, _field_type_ids, variants) = value.into_parts();
+        let (_union_fields, type_ids, offsets_opt, variants) = value.into_parts();
         match offsets_opt {
             Some(_) => panic!("expected array without offsets"),
             None => Self(SparseUnionArray {
-                variants: variants.into_iter().map(|(_, array)| array).collect(),
-                types: types.into(),
+                variants: variants.into_iter().collect(),
+                types: type_ids.into(),
             }),
         }
     }
@@ -168,13 +170,13 @@ where
         FromIterator<Arc<dyn arrow_array::Array>>,
 {
     fn from(value: arrow_array::UnionArray) -> Self {
-        let (types, offsets_opt, _field_types_ids, variants) = value.into_parts();
+        let (_union_fields, type_ids, offsets_opt, variants) = value.into_parts();
         match offsets_opt {
             None => panic!("expected array with offsets"),
             Some(offsets) => Self(DenseUnionArray {
-                variants: variants.into_iter().map(|(_, array)| array).collect(),
+                variants: variants.into_iter().collect(),
                 offsets: offsets.into(),
-                types: types.into(),
+                types: type_ids.into(),
             }),
         }
     }
