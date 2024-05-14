@@ -11,7 +11,7 @@ This crate provides methods to automatically generate types to support reading a
 
 ## Why
 
-- The [arrow](https://docs.rs/arrow) crate provides APIs that mostly make sense when array types are only known at runtime, however, for applications with [types known at compile-time](https://docs.rs/arrow/latest/arrow/#type-erasure--trait-objects), using [trait objects](https://doc.rust-lang.org/book/ch17-02-trait-objects.html) and [downcasting](https://docs.rs/arrow/latest/arrow/array/fn.downcast_array.html) is not ergonomic.
+- The [`arrow`](https://docs.rs/arrow) crate provides APIs that make sense when the array types are only known at run-time. Many of its [APIs](https://docs.rs/arrow/latest/arrow/#type-erasure--trait-objects) require the use of [trait objects](https://doc.rust-lang.org/book/ch17-02-trait-objects.html) and [downcasting](https://docs.rs/arrow/latest/arrow/array/fn.downcast_array.html). However, for applications where types are known at compile-time, these APIs are not ergonomic.
 - Builders for [nested](https://docs.rs/arrow/latest/arrow/datatypes/enum.DataType.html#method.is_nested) array types are [complex](https://docs.rs/arrow/latest/arrow/array/struct.StructBuilder.html) and error-prone.
 
 There are [other crates](https://crates.io/search?q=arrow%20derive&sort=relevance) that aim to prevent users from having to maintain array builder code by providing derive macros. These builders typically produce type-erased arrays, whereas this crate only provides fully statically typed arrays.
