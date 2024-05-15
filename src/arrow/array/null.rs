@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use crate::{
     array::{NullArray, Nulls, Unit},
-    arrow::ArrowArray,
     buffer::BufferType,
     validity::{Nullability, Validity},
     Length,
@@ -12,7 +11,7 @@ use crate::{
 use arrow_array::Array;
 use arrow_schema::{DataType, Field};
 
-impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> ArrowArray
+impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> crate::arrow::Array
     for NullArray<T, NULLABLE, Buffer>
 where
     T: Nullability<NULLABLE>,
@@ -57,10 +56,50 @@ impl<T: Unit, Buffer: BufferType> From<arrow_array::NullArray> for NullArray<T, 
 
 #[cfg(test)]
 mod tests {
-    use crate::{array::NullArray, buffer::ArcBuffer, Length};
-    use arrow_array::Array;
+    use std::sync::Arc;
+
+    use crate::{
+        array::{NullArray, StructArray},
+        buffer::ArcBuffer,
+        Length,
+    };
+    use arrow_array::{cast::AsArray, Array};
 
     const INPUT: [(); 4] = [(), (), (), ()];
+
+    #[test]
+    fn derive() {
+        #[derive(crate::ArrayType, Copy, Clone, Debug, Default)]
+        struct Unit;
+
+        #[derive(crate::ArrayType, Copy, Clone, Debug, Default)]
+        struct NestedUnit(Unit);
+
+        let input = [Unit; 4];
+        let array = input.into_iter().collect::<NullArray<Unit>>();
+        let arrow_array = arrow_array::NullArray::from(array);
+        assert!(arrow_array.data_type().is_null());
+        let narrow_array = NullArray::<Unit>::from(arrow_array);
+        assert_eq!(narrow_array.len(), 4);
+
+        let input_nested = [NestedUnit(Unit); 4];
+        let array_nested = input_nested
+            .into_iter()
+            .collect::<StructArray<NestedUnit>>();
+        let arrow_array_nested = arrow_array::StructArray::from(array_nested);
+        assert!(arrow_array_nested
+            .column(0)
+            .as_struct()
+            .column(0)
+            .data_type()
+            .is_null());
+        assert_eq!(arrow_array_nested.len(), 4);
+        let inner_unit = Arc::clone(arrow_array_nested.column(0).as_struct().column(0));
+        let narrow_array_inner = NullArray::<Unit>::from(inner_unit);
+        assert_eq!(narrow_array_inner.len(), 4);
+        let narrow_array_nested = StructArray::<NestedUnit>::from(arrow_array_nested);
+        assert_eq!(narrow_array_nested.len(), 4);
+    }
 
     #[test]
     fn from() {
@@ -83,11 +122,9 @@ mod tests {
     fn into() {
         let null_array = arrow_array::NullArray::new(INPUT.len());
         assert_eq!(
-            NullArray::<(), false, crate::arrow::buffer::scalar_buffer::ArrowScalarBuffer>::from(
-                null_array
-            )
-            .into_iter()
-            .collect::<Vec<_>>(),
+            NullArray::<(), false, crate::arrow::buffer::ScalarBuffer>::from(null_array)
+                .into_iter()
+                .collect::<Vec<_>>(),
             INPUT
         );
     }

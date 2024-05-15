@@ -7,7 +7,6 @@ use arrow_schema::{DataType, Field, Fields};
 
 use crate::{
     array::{StructArray, StructArrayType},
-    arrow::ArrowArray,
     bitmap::Bitmap,
     buffer::BufferType,
     nullable::Nullable,
@@ -20,7 +19,7 @@ pub trait StructArrayTypeFields {
     fn fields() -> Fields;
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> ArrowArray
+impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> crate::arrow::Array
     for StructArray<T, NULLABLE, Buffer>
 where
     <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE> + StructArrayTypeFields,
@@ -157,46 +156,48 @@ where
 #[cfg(test)]
 mod tests {
 
-    use arrow_array::{cast::AsArray, types::UInt32Type, Array as _};
+    use arrow_array::{cast::AsArray as _, types::UInt32Type, Array as _};
 
     use crate::{
-        array::union::{self, UnionType},
-        array::ArrayType,
-        arrow::{buffer_builder::ArrowBufferBuilder, scalar_buffer::ArrowScalarBuffer},
-        buffer::Buffer,
+        array::{
+            union::{self, UnionType},
+            ArrayType,
+        },
+        arrow::buffer::{BufferBuilder, ScalarBuffer},
+        buffer::Buffer as _,
         offset::{self, OffsetElement},
     };
 
     use super::*;
 
-    #[derive(Default)]
+    #[derive(Copy, Clone, Default, Debug, PartialEq)]
     struct Foo {
         a: u32,
     }
     struct FooArray<Buffer: BufferType> {
-        a: <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>,
+        a: <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>,
     }
-    impl ArrayType for Foo {
+    impl ArrayType<Foo> for Foo {
         type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
             StructArray<Foo, false, Buffer>;
     }
-    impl ArrayType for Option<Foo> {
+    impl ArrayType<Foo> for Option<Foo> {
         type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
             StructArray<Foo, true, Buffer>;
     }
     impl<Buffer: BufferType> Default for FooArray<Buffer>
     where
-        <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
+        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: Default,
     {
         fn default() -> Self {
             Self {
-                a: <u32 as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
+                a: <u32 as ArrayType<u32>>::Array::<Buffer, offset::NA, union::NA>::default(),
             }
         }
     }
     impl<Buffer: BufferType> Extend<Foo> for FooArray<Buffer>
     where
-        <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<u32>,
+        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: Extend<u32>,
     {
         fn extend<I: IntoIterator<Item = Foo>>(&mut self, iter: I) {
             iter.into_iter().for_each(|Foo { a }| {
@@ -206,11 +207,37 @@ mod tests {
     }
     impl<Buffer: BufferType> FromIterator<Foo> for FooArray<Buffer>
     where
-        <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default + Extend<u32>,
+        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: Default + Extend<u32>,
     {
         fn from_iter<T: IntoIterator<Item = Foo>>(iter: T) -> Self {
             let (a, _): (_, Vec<_>) = iter.into_iter().map(|Foo { a }| (a, ())).unzip();
             Self { a }
+        }
+    }
+    struct FooArrayIter<Buffer: BufferType> where <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: IntoIterator {
+        a: <<u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA> as IntoIterator>::IntoIter,
+    }
+    impl<Buffer: BufferType> Iterator for FooArrayIter<Buffer>
+    where
+        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: IntoIterator<Item = u32>,
+    {
+        type Item = Foo;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            self.a.next().map(|a| Foo { a })
+        }
+    }
+    impl<Buffer: BufferType> IntoIterator for FooArray<Buffer>
+    where
+        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: IntoIterator<Item = u32>,
+    {
+        type Item = Foo;
+        type IntoIter = FooArrayIter<Buffer>;
+
+        fn into_iter(self) -> Self::IntoIter {
+            Self::IntoIter {
+                a: self.a.into_iter(),
+            }
         }
     }
     impl StructArrayType for Foo {
@@ -223,18 +250,19 @@ mod tests {
     }
     impl<Buffer: BufferType> From<FooArray<Buffer>> for Vec<Arc<dyn arrow_array::Array>>
     where
-        <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>:
-            Into<<<u32 as ArrayType>::Array<Buffer, offset::NA, union::NA> as ArrowArray>::Array>,
+        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>:
+            Into<<<u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA> as crate::arrow::Array>::Array>,
     {
         fn from(value: FooArray<Buffer>) -> Self {
             vec![Arc::<
-                <<u32 as ArrayType>::Array<Buffer, offset::NA, union::NA> as ArrowArray>::Array,
+                <<u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA> as crate::arrow::Array>::Array,
             >::new(value.a.into())]
         }
     }
     impl<Buffer: BufferType> From<Vec<Arc<dyn arrow_array::Array>>> for FooArray<Buffer>
     where
-        <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>: From<Arc<dyn arrow_array::Array>>,
+        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>:
+            From<Arc<dyn arrow_array::Array>>,
     {
         fn from(value: Vec<Arc<dyn arrow_array::Array>>) -> Self {
             let mut arrays = value.into_iter();
@@ -250,13 +278,13 @@ mod tests {
     fn from() {
         let struct_array = [Foo { a: 1 }, Foo { a: 2 }]
             .into_iter()
-            .collect::<StructArray<Foo, false, ArrowBufferBuilder>>();
+            .collect::<StructArray<Foo, false, BufferBuilder>>();
         let struct_array_arrow = arrow_array::StructArray::from(struct_array);
         assert_eq!(struct_array_arrow.len(), 2);
 
         let struct_array_nullable = [Some(Foo { a: 1234 }), None]
             .into_iter()
-            .collect::<StructArray<Foo, true, ArrowBufferBuilder>>();
+            .collect::<StructArray<Foo, true, BufferBuilder>>();
         let struct_array_arrow_nullable = arrow_array::StructArray::from(struct_array_nullable);
         assert_eq!(struct_array_arrow_nullable.len(), 2);
         assert!(struct_array_arrow_nullable.is_valid(0));
@@ -271,8 +299,7 @@ mod tests {
         );
 
         // And convert back
-        let roundtrip: StructArray<Foo, true, ArrowScalarBuffer> =
-            struct_array_arrow_nullable.into();
+        let roundtrip: StructArray<Foo, true, ScalarBuffer> = struct_array_arrow_nullable.into();
         assert_eq!(roundtrip.0.data.a.0, [1234, u32::default()]);
     }
 
@@ -281,9 +308,9 @@ mod tests {
     fn into_nullable() {
         let struct_array = [Foo { a: 1 }, Foo { a: 2 }]
             .into_iter()
-            .collect::<StructArray<Foo, false, ArrowBufferBuilder>>();
+            .collect::<StructArray<Foo, false, BufferBuilder>>();
         let struct_array_arrow = arrow_array::StructArray::from(struct_array);
-        let _ = StructArray::<Foo, true, ArrowScalarBuffer>::from(struct_array_arrow);
+        let _ = StructArray::<Foo, true, ScalarBuffer>::from(struct_array_arrow);
     }
 
     #[test]
@@ -291,19 +318,19 @@ mod tests {
     fn into_non_nullable() {
         let struct_array_nullable = [Some(Foo { a: 1234 }), None]
             .into_iter()
-            .collect::<StructArray<Foo, true, ArrowBufferBuilder>>();
+            .collect::<StructArray<Foo, true, BufferBuilder>>();
         let struct_array_arrow_nullable = arrow_array::StructArray::from(struct_array_nullable);
-        let _ = StructArray::<Foo, false, ArrowScalarBuffer>::from(struct_array_arrow_nullable);
+        let _ = StructArray::<Foo, false, ScalarBuffer>::from(struct_array_arrow_nullable);
     }
 
     #[test]
     fn into() {
         let struct_array = [Foo { a: 1 }, Foo { a: 2 }]
             .into_iter()
-            .collect::<StructArray<Foo, false, ArrowBufferBuilder>>();
+            .collect::<StructArray<Foo, false, BufferBuilder>>();
         let struct_array_arrow = arrow_array::StructArray::from(struct_array);
         assert_eq!(
-            StructArray::<Foo, false, ArrowScalarBuffer>::from(struct_array_arrow)
+            StructArray::<Foo, false, ScalarBuffer>::from(struct_array_arrow)
                 .0
                 .a
                 .0,
@@ -311,15 +338,53 @@ mod tests {
         );
         let struct_array_nullable = [Some(Foo { a: 1234 }), None]
             .into_iter()
-            .collect::<StructArray<Foo, true, ArrowBufferBuilder>>();
+            .collect::<StructArray<Foo, true, BufferBuilder>>();
         let struct_array_arrow_nullable = arrow_array::StructArray::from(struct_array_nullable);
         assert_eq!(
-            StructArray::<Foo, true, ArrowScalarBuffer>::from(struct_array_arrow_nullable)
+            StructArray::<Foo, true, ScalarBuffer>::from(struct_array_arrow_nullable)
                 .0
                 .data
                 .a
                 .0,
             [1234, u32::default()]
         );
+    }
+
+    #[test]
+    fn into_iter() {
+        let input = [Foo { a: 1 }, Foo { a: 2345 }];
+        let struct_array = input.into_iter().collect::<StructArray<Foo, false>>();
+        let vec = struct_array.into_iter().collect::<Vec<Foo>>();
+        assert_eq!(input.as_slice(), vec.as_slice());
+
+        let input_nullable = [Some(Foo { a: 1 }), None, Some(Foo { a: 2345 })];
+        let struct_array_nullable = input_nullable
+            .into_iter()
+            .collect::<StructArray<Foo, true>>();
+        let vec_nullable = struct_array_nullable
+            .into_iter()
+            .collect::<Vec<Option<Foo>>>();
+        assert_eq!(input_nullable.as_slice(), vec_nullable.as_slice());
+    }
+
+    #[test]
+    #[cfg(feature = "derive")]
+    fn derived() {
+        use crate::Length;
+
+        use super::*;
+        use arrow_array::Array as _;
+
+        #[derive(crate::ArrayType)]
+        struct Foo<T>(T, u32);
+
+        let struct_array = [Foo(1_i32, 2), Foo(3, 4)]
+            .into_iter()
+            .collect::<StructArray<Foo<_>, false>>();
+        let struct_array_arrow = arrow_array::StructArray::from(struct_array);
+        assert_eq!(struct_array_arrow.len(), 2);
+
+        let struct_array_roundtrip: StructArray<Foo<i32>> = struct_array_arrow.into();
+        assert_eq!(struct_array_roundtrip.len(), 2);
     }
 }

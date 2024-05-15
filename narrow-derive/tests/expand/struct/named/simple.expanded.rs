@@ -3,7 +3,7 @@ struct Foo {
     b: bool,
     c: Option<Vec<u8>>,
 }
-impl narrow::array::ArrayType for Foo {
+impl narrow::array::ArrayType<Foo> for Foo {
     type Array<
         Buffer: narrow::buffer::BufferType,
         OffsetItem: narrow::offset::OffsetElement,
@@ -21,39 +21,39 @@ impl narrow::array::StructArrayType for Foo {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<Buffer>;
 }
 struct FooArray<Buffer: narrow::buffer::BufferType> {
-    a: <u32 as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >,
-    b: <bool as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >,
+    a: <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>,
+    b: <bool as narrow::array::ArrayType<
+        bool,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>,
     c: <Option<
         Vec<u8>,
-    > as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >,
+    > as narrow::array::ArrayType<
+        Vec<u8>,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>,
 }
 impl<Buffer: narrow::buffer::BufferType> ::std::default::Default for FooArray<Buffer>
 where
-    <u32 as narrow::array::ArrayType>::Array<
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,
     >: ::std::default::Default,
-    <bool as narrow::array::ArrayType>::Array<
+    <bool as narrow::array::ArrayType<
+        bool,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,
     >: ::std::default::Default,
     <Option<
         Vec<u8>,
-    > as narrow::array::ArrayType>::Array<
+    > as narrow::array::ArrayType<
+        Vec<u8>,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,
@@ -69,23 +69,17 @@ where
 }
 impl<Buffer: narrow::buffer::BufferType> narrow::Length for FooArray<Buffer>
 where
-    <u32 as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >: narrow::Length,
-    <bool as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >: narrow::Length,
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: narrow::Length,
+    <bool as narrow::array::ArrayType<
+        bool,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: narrow::Length,
     <Option<
         Vec<u8>,
-    > as narrow::array::ArrayType>::Array<
-        Buffer,
-        narrow::offset::NA,
-        narrow::array::union::NA,
-    >: narrow::Length,
+    > as narrow::array::ArrayType<
+        Vec<u8>,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: narrow::Length,
 {
     fn len(&self) -> usize {
         self.a.len()
@@ -93,19 +87,25 @@ where
 }
 impl<Buffer: narrow::buffer::BufferType> ::std::iter::Extend<Foo> for FooArray<Buffer>
 where
-    <u32 as narrow::array::ArrayType>::Array<
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,
     >: ::std::iter::Extend<u32>,
-    <bool as narrow::array::ArrayType>::Array<
+    <bool as narrow::array::ArrayType<
+        bool,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,
     >: ::std::iter::Extend<bool>,
     <Option<
         Vec<u8>,
-    > as narrow::array::ArrayType>::Array<
+    > as narrow::array::ArrayType<
+        Vec<u8>,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,
@@ -123,19 +123,25 @@ where
 impl<Buffer: narrow::buffer::BufferType> ::std::iter::FromIterator<Foo>
 for FooArray<Buffer>
 where
-    <u32 as narrow::array::ArrayType>::Array<
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,
     >: ::std::default::Default + ::std::iter::Extend<u32>,
-    <bool as narrow::array::ArrayType>::Array<
+    <bool as narrow::array::ArrayType<
+        bool,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,
     >: ::std::default::Default + ::std::iter::Extend<bool>,
     <Option<
         Vec<u8>,
-    > as narrow::array::ArrayType>::Array<
+    > as narrow::array::ArrayType<
+        Vec<u8>,
+    >>::Array<
         Buffer,
         narrow::offset::NA,
         narrow::array::union::NA,
@@ -147,5 +153,130 @@ where
             .map(|Foo { a, b, c }| (a, (b, (c, ()))))
             .unzip();
         Self { a, b, c }
+    }
+}
+struct FooArrayIter<Buffer: narrow::buffer::BufferType>
+where
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u32>,
+    <bool as narrow::array::ArrayType<
+        bool,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = bool>,
+    <Option<
+        Vec<u8>,
+    > as narrow::array::ArrayType<
+        Vec<u8>,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = Option<Vec<u8>>>,
+{
+    a: <<u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    > as ::std::iter::IntoIterator>::IntoIter,
+    b: <<bool as narrow::array::ArrayType<
+        bool,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    > as ::std::iter::IntoIterator>::IntoIter,
+    c: <<Option<
+        Vec<u8>,
+    > as narrow::array::ArrayType<
+        Vec<u8>,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    > as ::std::iter::IntoIterator>::IntoIter,
+}
+impl<Buffer: narrow::buffer::BufferType> ::std::iter::Iterator for FooArrayIter<Buffer>
+where
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u32>,
+    <bool as narrow::array::ArrayType<
+        bool,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = bool>,
+    <Option<
+        Vec<u8>,
+    > as narrow::array::ArrayType<
+        Vec<u8>,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = Option<Vec<u8>>>,
+{
+    type Item = Foo;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.a
+            .next()
+            .map(|a| {
+                Foo {
+                    a,
+                    b: self.b.next().unwrap(),
+                    c: self.c.next().unwrap(),
+                }
+            })
+    }
+}
+impl<Buffer: narrow::buffer::BufferType> ::std::iter::IntoIterator for FooArray<Buffer>
+where
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = u32>,
+    <bool as narrow::array::ArrayType<
+        bool,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = bool>,
+    <Option<
+        Vec<u8>,
+    > as narrow::array::ArrayType<
+        Vec<u8>,
+    >>::Array<
+        Buffer,
+        narrow::offset::NA,
+        narrow::array::union::NA,
+    >: ::std::iter::IntoIterator<Item = Option<Vec<u8>>>,
+{
+    type Item = Foo;
+    type IntoIter = FooArrayIter<Buffer>;
+    fn into_iter(self) -> Self::IntoIter {
+        FooArrayIter {
+            a: self.a.into_iter(),
+            b: self.b.into_iter(),
+            c: self.c.into_iter(),
+        }
     }
 }

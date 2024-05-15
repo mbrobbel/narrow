@@ -4,7 +4,7 @@ enum Foo<T> {
     None,
 }
 impl<T> ::std::convert::From<&Foo<T>> for ::std::primitive::i8 {
-    fn from(value: &Foo<T>) -> i8 {
+    fn from(value: &Foo<T>) -> ::std::primitive::i8 {
         match *value {
             Foo::Foo { .. } => 0,
             Foo::Bar(..) => 1,
@@ -60,17 +60,23 @@ struct FooArray<
         T,
     > as narrow::array::union::EnumVariant<
         0,
-    >>::Data as narrow::array::ArrayType>::Array<Buffer, OffsetItem, UnionLayout>,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<0>>::Data,
+    >>::Array<Buffer, OffsetItem, UnionLayout>,
     <<Foo<
         T,
     > as narrow::array::union::EnumVariant<
         1,
-    >>::Data as narrow::array::ArrayType>::Array<Buffer, OffsetItem, UnionLayout>,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<1>>::Data,
+    >>::Array<Buffer, OffsetItem, UnionLayout>,
     <<Foo<
         T,
     > as narrow::array::union::EnumVariant<
         2,
-    >>::Data as narrow::array::ArrayType>::Array<Buffer, OffsetItem, UnionLayout>,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<2>>::Data,
+    >>::Array<Buffer, OffsetItem, UnionLayout>,
 );
 impl<
     T: narrow::array::ArrayType,
@@ -83,29 +89,23 @@ where
         T,
     > as narrow::array::union::EnumVariant<
         0,
-    >>::Data as narrow::array::ArrayType>::Array<
-        Buffer,
-        OffsetItem,
-        UnionLayout,
-    >: ::std::default::Default,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<0>>::Data,
+    >>::Array<Buffer, OffsetItem, UnionLayout>: ::std::default::Default,
     <<Foo<
         T,
     > as narrow::array::union::EnumVariant<
         1,
-    >>::Data as narrow::array::ArrayType>::Array<
-        Buffer,
-        OffsetItem,
-        UnionLayout,
-    >: ::std::default::Default,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<1>>::Data,
+    >>::Array<Buffer, OffsetItem, UnionLayout>: ::std::default::Default,
     <<Foo<
         T,
     > as narrow::array::union::EnumVariant<
         2,
-    >>::Data as narrow::array::ArrayType>::Array<
-        Buffer,
-        OffsetItem,
-        UnionLayout,
-    >: ::std::default::Default,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<2>>::Data,
+    >>::Array<Buffer, OffsetItem, UnionLayout>: ::std::default::Default,
 {
     fn default() -> Self {
         Self(
@@ -119,13 +119,16 @@ impl<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
     OffsetItem: narrow::offset::OffsetElement,
-> ::std::iter::Extend<Foo<T>> for FooArray<T, Buffer, OffsetItem, DenseLayout>
+> ::std::iter::Extend<Foo<T>>
+for FooArray<T, Buffer, OffsetItem, narrow::array::DenseLayout>
 where
     <<Foo<
         T,
     > as narrow::array::union::EnumVariant<
         0,
-    >>::Data as narrow::array::ArrayType>::Array<
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<0>>::Data,
+    >>::Array<
         Buffer,
         OffsetItem,
         narrow::array::DenseLayout,
@@ -134,7 +137,9 @@ where
         T,
     > as narrow::array::union::EnumVariant<
         1,
-    >>::Data as narrow::array::ArrayType>::Array<
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<1>>::Data,
+    >>::Array<
         Buffer,
         OffsetItem,
         narrow::array::DenseLayout,
@@ -143,11 +148,9 @@ where
         T,
     > as narrow::array::union::EnumVariant<
         2,
-    >>::Data as narrow::array::ArrayType>::Array<
-        Buffer,
-        OffsetItem,
-        narrow::array::DenseLayout,
-    >: ::std::iter::Extend<()>,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<2>>::Data,
+    >>::Array<Buffer, OffsetItem, narrow::array::DenseLayout>: ::std::iter::Extend<()>,
 {
     fn extend<I>(&mut self, iter: I)
     where
@@ -173,13 +176,16 @@ impl<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
     OffsetItem: narrow::offset::OffsetElement,
-> ::std::iter::Extend<Foo<T>> for FooArray<T, Buffer, OffsetItem, SparseLayout>
+> ::std::iter::Extend<Foo<T>>
+for FooArray<T, Buffer, OffsetItem, narrow::array::SparseLayout>
 where
     <<Foo<
         T,
     > as narrow::array::union::EnumVariant<
         0,
-    >>::Data as narrow::array::ArrayType>::Array<
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<0>>::Data,
+    >>::Array<
         Buffer,
         OffsetItem,
         narrow::array::SparseLayout,
@@ -188,7 +194,9 @@ where
         T,
     > as narrow::array::union::EnumVariant<
         1,
-    >>::Data as narrow::array::ArrayType>::Array<
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<1>>::Data,
+    >>::Array<
         Buffer,
         OffsetItem,
         narrow::array::SparseLayout,
@@ -197,11 +205,9 @@ where
         T,
     > as narrow::array::union::EnumVariant<
         2,
-    >>::Data as narrow::array::ArrayType>::Array<
-        Buffer,
-        OffsetItem,
-        narrow::array::SparseLayout,
-    >: ::std::iter::Extend<()>,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<2>>::Data,
+    >>::Array<Buffer, OffsetItem, narrow::array::SparseLayout>: ::std::iter::Extend<()>,
 {
     fn extend<I>(&mut self, iter: I)
     where
@@ -254,7 +260,7 @@ impl<T: narrow::array::ArrayType> narrow::array::UnionArrayType<3> for Foo<T> {
         UnionLayout: narrow::array::UnionType,
     > = FooArray<T, Buffer, OffsetItem, UnionLayout>;
 }
-impl<T: narrow::array::ArrayType> narrow::array::ArrayType for Foo<T> {
+impl<T: narrow::array::ArrayType> narrow::array::ArrayType<Foo<T>> for Foo<T> {
     type Array<
         Buffer: narrow::buffer::BufferType,
         OffsetItem: narrow::offset::OffsetElement,

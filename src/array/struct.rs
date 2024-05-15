@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// Struct array types.
-pub trait StructArrayType: ArrayType {
+pub trait StructArrayType: ArrayType<Self> {
     /// The array type that stores items of this struct. Note this differs from
     /// the [`ArrayType`] array because that wraps this array. Also note that this
     /// has no [`Array`] bound.
@@ -26,6 +26,17 @@ pub struct StructArray<
 >(pub <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>)
 where
     <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>;
+
+impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> StructArray<T, NULLABLE, Buffer>
+where
+    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    for<'a> &'a Self: IntoIterator,
+{
+    /// Returns an iterator over the items in this [`StructArray`].
+    pub fn iter(&self) -> <&Self as IntoIterator>::IntoIter {
+        self.into_iter()
+    }
+}
 
 impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> Array
     for StructArray<T, NULLABLE, Buffer>
@@ -69,14 +80,57 @@ where
     }
 }
 
-impl<T: StructArrayType, U, const NULLABLE: bool, Buffer: BufferType> Extend<U>
-    for StructArray<T, NULLABLE, Buffer>
+impl<T: StructArrayType, U, Buffer: BufferType> Extend<U> for StructArray<T, false, Buffer>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Extend<U>,
+    <T as StructArrayType>::Array<Buffer>: Extend<U>,
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
         self.0.extend(iter);
+    }
+}
+
+impl<T: StructArrayType, U, Buffer: BufferType> Extend<Option<U>> for StructArray<T, true, Buffer>
+where
+    Nullable<<T as StructArrayType>::Array<Buffer>, Buffer>: Extend<Option<U>>,
+{
+    fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
+        self.0.extend(iter);
+    }
+}
+
+impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> IntoIterator
+    for StructArray<T, NULLABLE, Buffer>
+where
+    T: Nullability<NULLABLE>,
+    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: IntoIterator,
+{
+    type Item = <<<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as
+        IntoIterator>::Item;
+    type IntoIter = <<<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as
+        IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a, T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> IntoIterator
+    for &'a StructArray<T, NULLABLE, Buffer>
+where
+    T: Nullability<NULLABLE>,
+    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    &'a <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>:
+        IntoIterator,
+{
+    type Item = <&'a <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as
+        IntoIterator>::Item;
+    type IntoIter = <&'a <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<
+        Buffer,
+    > as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 
@@ -128,59 +182,59 @@ mod tests {
         g: String,
     }
     // These impls below can all be generated.
-    impl<'a> ArrayType for Foo<'a> {
+    impl<'a> ArrayType<Self> for Foo<'a> {
         type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
             StructArray<Foo<'a>, false, Buffer>;
     }
-    impl<'a> ArrayType for Option<Foo<'a>> {
+    impl<'a> ArrayType<Foo<'a>> for Option<Foo<'a>> {
         type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
             StructArray<Foo<'a>, true, Buffer>;
     }
 
     struct FooArray<'a, Buffer: BufferType> {
-        a: <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>,
-        b: <Option<()> as ArrayType>::Array<Buffer, offset::NA, union::NA>,
-        c: <() as ArrayType>::Array<Buffer, offset::NA, union::NA>,
-        d: <Option<[u64; 2]> as ArrayType>::Array<Buffer, offset::NA, union::NA>,
-        e: <bool as ArrayType>::Array<Buffer, offset::NA, union::NA>,
-        f: <&'a [u8] as ArrayType>::Array<Buffer, offset::NA, union::NA>,
-        g: <String as ArrayType>::Array<Buffer, offset::NA, union::NA>,
+        a: <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>,
+        b: <Option<()> as ArrayType<()>>::Array<Buffer, offset::NA, union::NA>,
+        c: <() as ArrayType<()>>::Array<Buffer, offset::NA, union::NA>,
+        d: <Option<[u64; 2]> as ArrayType<[u64; 2]>>::Array<Buffer, offset::NA, union::NA>,
+        e: <bool as ArrayType<bool>>::Array<Buffer, offset::NA, union::NA>,
+        f: <&'a [u8] as ArrayType<&'a [u8]>>::Array<Buffer, offset::NA, union::NA>,
+        g: <String as ArrayType<String>>::Array<Buffer, offset::NA, union::NA>,
     }
 
     impl<'a, Buffer: BufferType> Default for FooArray<'a, Buffer>
     where
-        <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
-        <Option<()> as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
-        <() as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
-        <Option<[u64; 2]> as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
-        <bool as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
-        <&'a [u8] as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
-        <String as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default,
+        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: Default,
+        <Option<()> as ArrayType<()>>::Array<Buffer, offset::NA, union::NA>: Default,
+        <() as ArrayType<()>>::Array<Buffer, offset::NA, union::NA>: Default,
+        <Option<[u64; 2]> as ArrayType<[u64; 2]>>::Array<Buffer, offset::NA, union::NA>: Default,
+        <bool as ArrayType<bool>>::Array<Buffer, offset::NA, union::NA>: Default,
+        <&'a [u8] as ArrayType<&'a [u8]>>::Array<Buffer, offset::NA, union::NA>: Default,
+        <String as ArrayType<String>>::Array<Buffer, offset::NA, union::NA>: Default,
     {
         fn default() -> Self {
             Self {
-                a: <u32 as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
-                b: <Option<()> as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
-                c: <() as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
-                d: <Option<[u64; 2]> as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(
+                a: <u32 as ArrayType<u32>>::Array::<Buffer, offset::NA, union::NA>::default(),
+                b: <Option<()> as ArrayType<()>>::Array::<Buffer, offset::NA, union::NA>::default(),
+                c: <() as ArrayType<()>>::Array::<Buffer, offset::NA, union::NA>::default(),
+                d: <Option<[u64; 2]> as ArrayType<[u64; 2]>>::Array::<Buffer, offset::NA, union::NA>::default(
                 ),
-                e: <bool as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
-                f: <&'a [u8] as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
-                g: <String as ArrayType>::Array::<Buffer, offset::NA, union::NA>::default(),
+                e: <bool as ArrayType<bool>>::Array::<Buffer, offset::NA, union::NA>::default(),
+                f: <&'a [u8] as ArrayType<&'a [u8]>>::Array::<Buffer, offset::NA, union::NA>::default(),
+                g: <String as ArrayType<String>>::Array::<Buffer, offset::NA, union::NA>::default(),
             }
         }
     }
 
     impl<'a, Buffer: BufferType> Extend<Foo<'a>> for FooArray<'a, Buffer>
     where
-        <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<u32>,
-        <Option<()> as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<Option<()>>,
-        <() as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<()>,
-        <Option<[u64; 2]> as ArrayType>::Array<Buffer, offset::NA, union::NA>:
+        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: Extend<u32>,
+        <Option<()> as ArrayType<()>>::Array<Buffer, offset::NA, union::NA>: Extend<Option<()>>,
+        <() as ArrayType<()>>::Array<Buffer, offset::NA, union::NA>: Extend<()>,
+        <Option<[u64; 2]> as ArrayType<[u64; 2]>>::Array<Buffer, offset::NA, union::NA>:
             Extend<Option<[u64; 2]>>,
-        <bool as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<bool>,
-        <&'a [u8] as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<&'a [u8]>,
-        <String as ArrayType>::Array<Buffer, offset::NA, union::NA>: Extend<String>,
+        <bool as ArrayType<bool>>::Array<Buffer, offset::NA, union::NA>: Extend<bool>,
+        <&'a [u8] as ArrayType<&'a [u8]>>::Array<Buffer, offset::NA, union::NA>: Extend<&'a [u8]>,
+        <String as ArrayType<String>>::Array<Buffer, offset::NA, union::NA>: Extend<String>,
     {
         fn extend<I: IntoIterator<Item = Foo<'a>>>(&mut self, iter: I) {
             iter.into_iter().for_each(
@@ -207,15 +261,17 @@ mod tests {
 
     impl<'a, Buffer: BufferType> FromIterator<Foo<'a>> for FooArray<'a, Buffer>
     where
-        <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default + Extend<u32>,
-        <Option<()> as ArrayType>::Array<Buffer, offset::NA, union::NA>:
+        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: Default + Extend<u32>,
+        <Option<()> as ArrayType<()>>::Array<Buffer, offset::NA, union::NA>:
             Default + Extend<Option<()>>,
-        <() as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default + Extend<()>,
-        <Option<[u64; 2]> as ArrayType>::Array<Buffer, offset::NA, union::NA>:
+        <() as ArrayType<()>>::Array<Buffer, offset::NA, union::NA>: Default + Extend<()>,
+        <Option<[u64; 2]> as ArrayType<[u64; 2]>>::Array<Buffer, offset::NA, union::NA>:
             Default + Extend<Option<[u64; 2]>>,
-        <bool as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default + Extend<bool>,
-        <&'a [u8] as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default + Extend<&'a [u8]>,
-        <String as ArrayType>::Array<Buffer, offset::NA, union::NA>: Default + Extend<String>,
+        <bool as ArrayType<bool>>::Array<Buffer, offset::NA, union::NA>: Default + Extend<bool>,
+        <&'a [u8] as ArrayType<&'a [u8]>>::Array<Buffer, offset::NA, union::NA>:
+            Default + Extend<&'a [u8]>,
+        <String as ArrayType<String>>::Array<Buffer, offset::NA, union::NA>:
+            Default + Extend<String>,
     {
         #[allow(clippy::many_single_char_names)]
         fn from_iter<T: IntoIterator<Item = Foo<'a>>>(iter: T) -> Self {
@@ -250,7 +306,7 @@ mod tests {
 
     impl<'a, Buffer: BufferType> Length for FooArray<'a, Buffer>
     where
-        <u32 as ArrayType>::Array<Buffer, offset::NA, union::NA>: Length,
+        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: Length,
     {
         fn len(&self) -> usize {
             self.a.len()
@@ -349,5 +405,101 @@ mod tests {
         assert_eq!(array_nullable.is_null(0), Some(true));
         assert_eq!(array_nullable.is_valid(1), Some(true));
         assert_eq!(array_nullable.is_valid(2), None);
+    }
+
+    #[cfg(feature = "derive")]
+    #[test]
+    fn derive() {
+        #[derive(crate::ArrayType, Copy, Clone, Default)]
+        struct Unit;
+
+        #[derive(crate::ArrayType)]
+        struct Foo(Option<Bar<u32>>);
+
+        #[derive(crate::ArrayType)]
+        struct Bar<T>(T);
+
+        #[derive(crate::ArrayType, Default)]
+        struct FooBar(Option<Vec<Option<u32>>>);
+
+        let mut foo_bar = StructArray::<FooBar, false>::default();
+        foo_bar.extend(std::iter::once(FooBar(None)));
+        foo_bar.extend(std::iter::once(FooBar(Some(vec![None]))));
+        let mut foo_bar_nullable = StructArray::<FooBar, true>::default();
+        foo_bar_nullable.extend(std::iter::once(Some(FooBar(None))));
+        foo_bar_nullable.extend(std::iter::once(None));
+    }
+
+    #[cfg(feature = "derive")]
+    #[test]
+    fn into_iter() {
+        #[derive(crate::ArrayType, Copy, Clone, Debug, Default, PartialEq)]
+        struct Unit;
+
+        #[derive(crate::ArrayType, Copy, Clone, Debug, Default, PartialEq)]
+        struct Unnamed(u8, Option<u16>, u32, u64);
+
+        #[derive(crate::ArrayType, Clone, Debug, Default, PartialEq)]
+        struct Named {
+            a: u8,
+            b: bool,
+            c: Option<u16>,
+            d: Option<bool>,
+            e: String,
+            f: Option<String>,
+        }
+
+        let unit_input = [Unit; 3];
+        let unit_array = unit_input.into_iter().collect::<StructArray<Unit>>();
+        assert_eq!(unit_array.len(), unit_input.len());
+        let unit_output = unit_array.into_iter().collect::<Vec<_>>();
+        assert_eq!(unit_output, unit_input);
+        let unit_input_nullable = unit_input.map(Option::Some);
+        let unit_array_nullable = unit_input_nullable
+            .into_iter()
+            .collect::<StructArray<Unit, true>>();
+        assert_eq!(unit_array_nullable.len(), unit_input_nullable.len());
+        let unit_output_nullable = unit_array_nullable.into_iter().collect::<Vec<_>>();
+        assert_eq!(unit_output_nullable, unit_input_nullable);
+
+        let unnamed_input = [Unnamed(1, Some(2), 3, 4); 3];
+        let unnamed_array = unnamed_input.into_iter().collect::<StructArray<Unnamed>>();
+        assert_eq!(unnamed_array.len(), unnamed_input.len());
+        let unnamed_output = unnamed_array.into_iter().collect::<Vec<_>>();
+        assert_eq!(unnamed_output, unnamed_input);
+        let unnamed_input_nullable = unnamed_input.map(Option::Some);
+        let unnamed_array_nullable = unnamed_input_nullable
+            .into_iter()
+            .collect::<StructArray<Unnamed, true>>();
+        assert_eq!(unnamed_array_nullable.len(), unnamed_input_nullable.len());
+        let unnamed_output_nullable = unnamed_array_nullable.into_iter().collect::<Vec<_>>();
+        assert_eq!(unnamed_output_nullable, unnamed_input_nullable);
+
+        let named_input = [Named {
+            a: 1,
+            b: false,
+            c: Some(3),
+            d: Some(true),
+            e: "hello".to_owned(),
+            f: None,
+        }];
+        let named_array = named_input
+            .clone()
+            .into_iter()
+            .collect::<StructArray<Named>>();
+        assert_eq!(named_array.len(), named_input.len());
+        let named_output = named_array.into_iter().collect::<Vec<_>>();
+        assert_eq!(named_output, named_input);
+        let named_input_nullable = named_input
+            .into_iter()
+            .map(Option::Some)
+            .collect::<Vec<_>>();
+        let named_array_nullable = named_input_nullable
+            .clone()
+            .into_iter()
+            .collect::<StructArray<Named, true>>();
+        assert_eq!(named_array_nullable.len(), named_input_nullable.len());
+        let named_output_nullable = named_array_nullable.into_iter().collect::<Vec<_>>();
+        assert_eq!(named_output_nullable, named_input_nullable);
     }
 }

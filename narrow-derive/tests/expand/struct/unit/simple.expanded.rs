@@ -4,7 +4,7 @@ struct Foo;
 unsafe impl narrow::array::Unit for Foo {
     type Item = Self;
 }
-impl narrow::array::ArrayType for Foo {
+impl narrow::array::ArrayType<Foo> for Foo {
     type Array<
         Buffer: narrow::buffer::BufferType,
         OffsetItem: narrow::offset::OffsetElement,
@@ -22,7 +22,7 @@ impl narrow::array::StructArrayType for Foo {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<Buffer>;
 }
 struct FooArray<Buffer: narrow::buffer::BufferType>(
-    narrow::array::NullArray<Foo, true, Buffer>,
+    narrow::array::NullArray<Foo, false, Buffer>,
 );
 impl<Buffer: narrow::buffer::BufferType> ::std::default::Default for FooArray<Buffer> {
     fn default() -> Self {
@@ -43,5 +43,23 @@ impl<Buffer: narrow::buffer::BufferType> ::std::iter::FromIterator<Foo>
 for FooArray<Buffer> {
     fn from_iter<_I: ::std::iter::IntoIterator<Item = Foo>>(iter: _I) -> Self {
         Self(iter.into_iter().collect())
+    }
+}
+struct FooArrayIter<Buffer: narrow::buffer::BufferType>(
+    <narrow::array::NullArray<Foo, false, Buffer> as IntoIterator>::IntoIter,
+)
+where
+    narrow::array::NullArray<Foo, false, Buffer>: ::std::iter::IntoIterator<Item = Foo>;
+impl<Buffer: narrow::buffer::BufferType> ::std::iter::Iterator for FooArrayIter<Buffer> {
+    type Item = Foo;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+impl<Buffer: narrow::buffer::BufferType> ::std::iter::IntoIterator for FooArray<Buffer> {
+    type Item = Foo;
+    type IntoIter = FooArrayIter<Buffer>;
+    fn into_iter(self) -> Self::IntoIter {
+        FooArrayIter(self.0.into_iter())
     }
 }

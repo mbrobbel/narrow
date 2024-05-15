@@ -26,7 +26,7 @@ use arrow_rs::_arrow_rs_trait;
 ///
 /// This trait is sealed to prevent downstream implementations.
 pub trait FixedSize:
-    ArrayType + Copy + Debug + Sized + sealed::Sealed + 'static + _arrow_rs_trait
+    ArrayType<Self> + Copy + Debug + PartialEq + Sized + sealed::Sealed + 'static + _arrow_rs_trait
 {
     /// The fixed-size of this type in bytes.
     const SIZE: usize = mem::size_of::<Self>();

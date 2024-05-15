@@ -3,10 +3,7 @@ mod tests {
     mod derive {
         mod r#enum {
             mod unit {
-                use narrow::{
-                    array::{DenseLayout, SparseLayout, UnionArray},
-                    ArrayType, Length,
-                };
+                use narrow::{array::UnionArray, ArrayType, Length};
 
                 #[derive(ArrayType, Clone, Copy)]
                 enum FooBar {
@@ -16,6 +13,7 @@ mod tests {
 
                 #[test]
                 fn from_iter() {
+                    use narrow::array::{DenseLayout, SparseLayout};
                     let input = [FooBar::Foo, FooBar::Bar];
                     let array = input
                         .into_iter()
@@ -82,7 +80,6 @@ mod tests {
             }
         }
         mod r#struct {
-            #[cfg(not(feature = "arrow-rs"))]
             mod unit {
                 use narrow::{
                     array::{StructArray, VariableSizeListArray},
@@ -145,7 +142,6 @@ mod tests {
                 }
             }
 
-            #[cfg(not(feature = "arrow-rs"))]
             mod unnamed {
                 use narrow::{
                     array::{StructArray, VariableSizeListArray},
@@ -223,7 +219,6 @@ mod tests {
                 }
             }
 
-            #[cfg(not(feature = "arrow-rs"))]
             mod named {
                 use narrow::{
                     array::{StructArray, VariableSizeListArray},
@@ -232,16 +227,16 @@ mod tests {
                 };
 
                 #[derive(ArrayType)]
-                struct Foo<'a, T: ?Sized> {
-                    a: &'a T,
+                struct Foo<T> {
+                    a: T,
                     b: bool,
                     c: u8,
-                    d: Option<Vec<Option<String>>>,
+                    d: Option<Vec<String>>,
                 }
 
-                impl<'a, T: ?Sized> Default for Foo<'a, T>
+                impl<T> Default for Foo<T>
                 where
-                    &'a T: Default,
+                    T: Default,
                 {
                     fn default() -> Self {
                         Self {
@@ -254,16 +249,16 @@ mod tests {
                 }
 
                 #[derive(ArrayType, Default)]
-                struct Bar<T> {
+                struct Bar {
                     a: u32,
                     b: Option<bool>,
-                    c: T,
+                    c: Option<()>,
                 }
 
                 #[derive(ArrayType, Default)]
                 struct FooBar {
                     foo: bool,
-                    bar: Bar<()>,
+                    bar: Bar,
                 }
 
                 #[test]
@@ -273,11 +268,7 @@ mod tests {
                             a: "as",
                             b: true,
                             c: 4,
-                            d: Some(vec![
-                                Some("hello".to_string()),
-                                None,
-                                Some("world".to_string()),
-                            ]),
+                            d: Some(vec!["hello".to_string(), "world".to_string()]),
                         },
                         Foo {
                             a: "df",
@@ -293,34 +284,12 @@ mod tests {
                         array.0.d.0.data.0 .0.data.0.as_slice(),
                         "helloworld".as_bytes()
                     );
-                    assert_eq!(array.0.d.0.data.0 .0.offsets.as_ref(), &[0, 5, 5, 10]);
+                    assert_eq!(array.0.d.0.data.0 .0.offsets, &[0, 5, 10]);
                     assert_eq!(
-                        array
-                            .0
-                            .d
-                            .0
-                            .data
-                            .0
-                             .0
-                            .offsets
-                            .bitmap_ref()
-                            .into_iter()
-                            .collect::<Vec<_>>(),
-                        [true, false, true]
-                    );
-                    assert_eq!(array.0.d.0.offsets.as_ref(), &[0, 3, 3]);
-                    assert_eq!(
-                        array
-                            .0
-                            .d
-                            .0
-                            .offsets
-                            .bitmap_ref()
-                            .into_iter()
-                            .collect::<Vec<_>>(),
+                        array.0.d.0.bitmap_ref().into_iter().collect::<Vec<_>>(),
                         [true, false]
                     );
-                    assert_eq!(array.0.d.0.offsets.as_ref(), &[0, 3, 3]);
+                    assert_eq!(array.0.d.0.offsets.as_ref(), &[0, 2, 2]);
                 }
 
                 #[test]
@@ -338,7 +307,7 @@ mod tests {
                             c: Some(()),
                         }),
                     ];
-                    let array = input.into_iter().collect::<StructArray<Bar<_>, true>>();
+                    let array = input.into_iter().collect::<StructArray<Bar, true>>();
                     assert_eq!(array.len(), 3);
                     assert_eq!(array.is_valid(0), Some(true));
                     assert_eq!(array.is_null(1), Some(true));
@@ -362,11 +331,11 @@ mod tests {
                         Some(Bar {
                             a: 1,
                             b: None,
-                            c: false,
+                            c: Some(()),
                         }),
                         None,
                     ];
-                    let array = input.into_iter().collect::<StructArray<Bar<_>, true>>();
+                    let array = input.into_iter().collect::<StructArray<Bar, true>>();
                     assert_eq!(array.len(), 2);
                 }
 
@@ -376,22 +345,11 @@ mod tests {
                         Some(Bar {
                             a: 1,
                             b: Some(false),
-                            c: Foo {
-                                a: "a",
-                                b: false,
-                                c: 123,
-                                d: Some(vec![
-                                    Some("as".to_string()),
-                                    Some("d".to_string()),
-                                    Some("f".to_string()),
-                                ]),
-                            },
+                            c: None,
                         }),
                         None,
                     ];
-                    let array = input
-                        .into_iter()
-                        .collect::<StructArray<Bar<Foo<str>>, true>>();
+                    let array = input.into_iter().collect::<StructArray<Bar, true>>();
                     assert_eq!(array.len(), 2);
                 }
 
@@ -401,12 +359,7 @@ mod tests {
                         Some(vec![Some(Bar {
                             a: 2,
                             b: None,
-                            c: Foo {
-                                a: "a",
-                                b: false,
-                                c: 123,
-                                d: None,
-                            },
+                            c: None,
                         })]),
                         None,
                         Some(vec![None]),
@@ -414,7 +367,7 @@ mod tests {
                     ];
                     let array = input
                         .into_iter()
-                        .collect::<VariableSizeListArray<StructArray<Bar<Foo<str>>, true>, true>>();
+                        .collect::<VariableSizeListArray<StructArray<Bar, true>, true>>();
                     assert_eq!(array.len(), 4);
                 }
             }

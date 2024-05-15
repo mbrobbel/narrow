@@ -8,6 +8,7 @@ use crate::{
     validity::{Nullability, Validity},
     Index, Length,
 };
+use std::fmt::{Debug, Formatter, Result};
 
 /// Array with boolean values.
 ///
@@ -63,6 +64,26 @@ where
 
     fn buffer_ref_mut(&mut self) -> &mut Self::BufferMut {
         self.0.buffer_ref_mut()
+    }
+}
+
+impl<const NULLABLE: bool, Buffer: BufferType> Clone for BooleanArray<NULLABLE, Buffer>
+where
+    Bitmap<Buffer>: Validity<NULLABLE>,
+    <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Clone,
+{
+    fn clone(&self) -> Self {
+        BooleanArray(self.0.clone())
+    }
+}
+
+impl<const NULLABLE: bool, Buffer: BufferType> Debug for BooleanArray<NULLABLE, Buffer>
+where
+    Bitmap<Buffer>: Validity<NULLABLE>,
+    <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        f.debug_tuple("BooleanArray").field(&self.0).finish()
     }
 }
 
@@ -174,6 +195,24 @@ impl<Buffer: BufferType> BitmapRefMut for BooleanArray<true, Buffer> {
 }
 
 impl<Buffer: BufferType> ValidityBitmap for BooleanArray<true, Buffer> {}
+
+impl<Buffer: BufferType> PartialEq<[bool]> for BooleanArray<false, Buffer>
+where
+    Bitmap<Buffer>: PartialEq<[bool]>,
+{
+    fn eq(&self, other: &[bool]) -> bool {
+        self.0.eq(other)
+    }
+}
+
+impl<Buffer: BufferType> PartialEq<[Option<bool>]> for BooleanArray<true, Buffer>
+where
+    for<'a> &'a Self: IntoIterator<Item = Option<bool>>,
+{
+    fn eq(&self, other: &[Option<bool>]) -> bool {
+        self.len() == other.len() && self.iter().zip(other).all(|(a, &b)| a == b)
+    }
+}
 
 #[cfg(test)]
 mod tests {

@@ -4,7 +4,7 @@ pub struct Foo<const N: usize = 42>;
 unsafe impl<const N: usize> narrow::array::Unit for Foo<N> {
     type Item = Self;
 }
-impl<const N: usize> narrow::array::ArrayType for Foo<N> {
+impl<const N: usize> narrow::array::ArrayType<Foo<N>> for Foo<N> {
     type Array<
         Buffer: narrow::buffer::BufferType,
         OffsetItem: narrow::offset::OffsetElement,
@@ -22,7 +22,7 @@ impl<const N: usize> narrow::array::StructArrayType for Foo<N> {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<N, Buffer>;
 }
 pub struct FooArray<const N: usize, Buffer: narrow::buffer::BufferType>(
-    narrow::array::NullArray<Foo<N>, true, Buffer>,
+    narrow::array::NullArray<Foo<N>, false, Buffer>,
 );
 impl<const N: usize, Buffer: narrow::buffer::BufferType> ::std::default::Default
 for FooArray<N, Buffer> {
@@ -48,5 +48,29 @@ impl<
 > ::std::iter::FromIterator<Foo<N>> for FooArray<N, Buffer> {
     fn from_iter<_I: ::std::iter::IntoIterator<Item = Foo<N>>>(iter: _I) -> Self {
         Self(iter.into_iter().collect())
+    }
+}
+pub struct FooArrayIter<const N: usize, Buffer: narrow::buffer::BufferType>(
+    <narrow::array::NullArray<Foo<N>, false, Buffer> as IntoIterator>::IntoIter,
+)
+where
+    narrow::array::NullArray<
+        Foo<N>,
+        false,
+        Buffer,
+    >: ::std::iter::IntoIterator<Item = Foo<N>>;
+impl<const N: usize, Buffer: narrow::buffer::BufferType> ::std::iter::Iterator
+for FooArrayIter<N, Buffer> {
+    type Item = Foo<N>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+impl<const N: usize, Buffer: narrow::buffer::BufferType> ::std::iter::IntoIterator
+for FooArray<N, Buffer> {
+    type Item = Foo<N>;
+    type IntoIter = FooArrayIter<N, Buffer>;
+    fn into_iter(self) -> Self::IntoIter {
+        FooArrayIter(self.0.into_iter())
     }
 }

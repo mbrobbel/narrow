@@ -11,6 +11,9 @@ pub(super) use self_replace::*;
 mod type_param_bound;
 pub(super) use type_param_bound::*;
 
+mod drop_outer_option;
+pub(super) use drop_outer_option::*;
+
 /// Returns the name of the `narrow` crate. Panics when the `narrow` crate is
 /// not found.
 pub(super) fn narrow() -> TokenStream {

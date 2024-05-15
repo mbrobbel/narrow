@@ -66,20 +66,20 @@ pub(super) fn derive(
         // Generate the union array type fields impl.
         let union_array_types_fields_impl = input.union_array_types_fields_impl();
 
-        // Generate the conversion to struct array.
-        let union_array_to_struct_array_impl = input.union_array_to_struct_array_impl();
+        // Generate the conversion to vec of array.
+        let union_array_to_vec_array_impl = input.union_array_to_vec_array_impl();
 
         // Generate the conversion from the variant arrays.
-        let union_array_from_struct_array_impl = input.union_array_from_struct_array_impl();
+        let union_array_from_iter_array_impl = input.union_array_from_iter_array_impl();
 
         quote! {
             #tokens
 
             #union_array_types_fields_impl
 
-            #union_array_to_struct_array_impl
+            #union_array_to_vec_array_impl
 
-            #union_array_from_struct_array_impl
+            #union_array_from_iter_array_impl
         }
     }
     #[cfg(not(feature = "arrow-rs"))]
@@ -226,7 +226,7 @@ impl<'a> Enum<'a> {
             });
         let tokens = quote! {
             impl #impl_generics ::std::convert::From<&#ident #ty_generics> for ::std::primitive::i8 #where_clause {
-                fn from(value: &#ident #ty_generics) -> i8 {
+                fn from(value: &#ident #ty_generics) -> ::std::primitive::i8 {
                     match *value {
                         #(
                             #ident::#variants,
@@ -365,7 +365,7 @@ impl<'a> Enum<'a> {
         let tokens = quote!(
             #vis struct #ident #impl_generics (
                 #(
-                  <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType>::Array<Buffer, OffsetItem, UnionLayout>,
+                  <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<Buffer, OffsetItem, UnionLayout>,
                 )*
             ) #where_clause;
         );
@@ -396,7 +396,7 @@ impl<'a> Enum<'a> {
                 self.variant_indices()
                     .map::<WherePredicate, _>(|idx|
                         parse_quote!(
-                            <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType>::Array<Buffer, OffsetItem, UnionLayout>
+                            <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<Buffer, OffsetItem, UnionLayout>
                         : ::std::default::Default)
                     )
             );
@@ -448,13 +448,10 @@ impl<'a> Enum<'a> {
             .predicates
             .extend(
                 self.variant_indices().zip(struct_defs).map::<WherePredicate, _>(|(idx, struct_def)|{
-                    parse_quote!(<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType>::Array<Buffer, OffsetItem, #narrow::array::DenseLayout>: ::std::iter::Extend<#struct_def>)
+                    parse_quote!(<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<Buffer, OffsetItem, #narrow::array::DenseLayout>: ::std::iter::Extend<#struct_def>)
                 })
             );
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
-        let mut generics = generics.clone();
-        AddTypeParam(parse_quote!(DenseLayout)).visit_generics_mut(&mut generics);
-        let (_, ty_generics, _) = generics.split_for_impl();
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
         let ident = self.array_struct_ident();
         let fields = self
             .variants
@@ -492,7 +489,7 @@ impl<'a> Enum<'a> {
                     },
                 }
             });
-        let tokens = quote! {
+        let mut item_impl: ItemImpl = parse_quote! {
             impl #impl_generics ::std::iter::Extend<#self_ident #self_ty_generics> for #ident #ty_generics #where_clause {
                 fn extend<I>(&mut self, iter: I) where I: IntoIterator<Item = #self_ident #self_ty_generics> {
                     iter.into_iter().for_each(|variant| {
@@ -505,6 +502,19 @@ impl<'a> Enum<'a> {
                 }
             }
         };
+        match *item_impl.self_ty {
+            Type::Path(ref mut path) => {
+                let last_segment = path.path.segments.last_mut().unwrap();
+                match last_segment.arguments {
+                    syn::PathArguments::AngleBracketed(ref mut args) => {
+                        args.args.push(parse_quote!(#narrow::array::DenseLayout));
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            _ => unreachable!(),
+        }
+        let tokens = quote!(#item_impl);
         parse2(tokens).expect("array_struct_extend_dense_impl")
     }
 
@@ -536,13 +546,10 @@ impl<'a> Enum<'a> {
             .predicates
             .extend(
                 self.variant_indices().zip(struct_defs).map::<WherePredicate, _>(|(idx, struct_def)|{
-                    parse_quote!(<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType>::Array<Buffer, OffsetItem, #narrow::array::SparseLayout>: ::std::iter::Extend<#struct_def>)
+                    parse_quote!(<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<Buffer, OffsetItem, #narrow::array::SparseLayout>: ::std::iter::Extend<#struct_def>)
                 })
             );
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
-        let mut generics = generics.clone();
-        AddTypeParam(parse_quote!(SparseLayout)).visit_generics_mut(&mut generics);
-        let (_, ty_generics, _) = generics.split_for_impl();
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
         let ident = self.array_struct_ident();
         let fields = self
             .variants
@@ -591,7 +598,7 @@ impl<'a> Enum<'a> {
                     }},
                 }
             });
-        let tokens = quote! {
+        let mut item_impl: ItemImpl = parse_quote! {
             impl #impl_generics ::std::iter::Extend<#self_ident #self_ty_generics> for #ident #ty_generics #where_clause {
                 fn extend<I>(&mut self, iter: I) where I: IntoIterator<Item = #self_ident #self_ty_generics> {
                     iter.into_iter().for_each(|variant| {
@@ -604,6 +611,19 @@ impl<'a> Enum<'a> {
                 }
             }
         };
+        match *item_impl.self_ty {
+            Type::Path(ref mut path) => {
+                let last_segment = path.path.segments.last_mut().unwrap();
+                match last_segment.arguments {
+                    syn::PathArguments::AngleBracketed(ref mut args) => {
+                        args.args.push(parse_quote!(#narrow::array::SparseLayout));
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            _ => unreachable!(),
+        }
+        let tokens = quote!(#item_impl);
         parse2(tokens).expect("array_struct_extend_sparse_impl")
     }
 
@@ -644,7 +664,7 @@ impl<'a> Enum<'a> {
         let ident = self.ident;
         let variants = Literal::usize_unsuffixed(self.variants.len());
         let tokens = quote! {
-            impl #impl_generics #narrow::array::ArrayType for #ident #ty_generics #where_clause {
+            impl #impl_generics #narrow::array::ArrayType<#ident #ty_generics> for #ident #ty_generics #where_clause {
                 type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::OffsetElement, UnionLayout: #narrow::array::UnionType> = #narrow::array::UnionArray<Self, { <Self as #narrow::array::UnionArrayType<#variants>>::VARIANTS }, UnionLayout, Buffer>;
             }
         };
@@ -666,20 +686,30 @@ impl<'a> Enum<'a> {
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
         let self_ident = self.ident;
-        let idx = self.variant_indices();
+        let self_generics = self.generics.clone();
+        let (_, self_ty_generics, _) = self_generics.split_for_impl();
+        let idx = self.variant_indices().collect::<Vec<_>>();
+        let variants = Literal::usize_unsuffixed(self.variants.len());
         let variant_idx = (0..self.variants.len()).map(|idx| idx.to_string());
         let tokens = quote! {
-            impl #impl_generics #narrow::arrow::UnionArrayTypeFields for #ident #ty_generics #where_clause {
+            impl #impl_generics #narrow::arrow::UnionArrayTypeFields<#variants> for #ident #ty_generics #where_clause {
                 fn fields() -> ::arrow_schema::Fields {
                     ::arrow_schema::Fields::from(vec![
                         #(
-                            <<<#self_ident as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType>::Array<
+                            <<<#self_ident as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<
                                 Buffer,
                                 OffsetItem,
-                                SparseLayout,
-                            > as #narrow::arrow::ArrowArray>::as_field(#variant_idx),
+                                UnionLayout,
+                            > as #narrow::arrow::Array>::as_field(#variant_idx),
                         )*
                     ])
+                }
+                fn type_ids() -> [::std::primitive::i8; #variants] {
+                    [
+                        #(
+                            #idx,
+                        )*
+                    ]
                 }
             }
         };
@@ -687,7 +717,7 @@ impl<'a> Enum<'a> {
     }
 
     #[cfg(feature = "arrow-rs")]
-    fn union_array_to_struct_array_impl(&self) -> ItemImpl {
+    fn union_array_to_vec_array_impl(&self) -> ItemImpl {
         let narrow = util::narrow();
 
         let ident = self.array_struct_ident();
@@ -696,50 +726,42 @@ impl<'a> Enum<'a> {
             .visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
             .visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(UnionLayout: #narrow::array::r#union::UnionType))
+            .visit_generics_mut(&mut generics);
 
         let self_ident = self.ident;
         let (_, self_ty_generics, _) = self.generics.split_for_impl();
         generics.make_where_clause().predicates.extend(
             self.variant_indices().map::<WherePredicate, _>(|idx| {
                 parse_quote!(::std::sync::Arc<dyn ::arrow_array::Array>: From<
-                <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType>::Array<
+                <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<
                     Buffer,
                     OffsetItem,
-                    SparseLayout,
+                    UnionLayout,
                 >,
             >)
             }),
         );
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
-        let mut generics = generics.clone();
-        AddTypeParam(parse_quote!(SparseLayout)).visit_generics_mut(&mut generics);
         let (_, ty_generics, _) = generics.split_for_impl();
         let idx = self.variant_indices();
         let tokens = quote! {
-            impl #impl_generics ::std::convert::From<#ident #ty_generics> for ::arrow_array::StructArray #where_clause {
+            impl #impl_generics ::std::convert::From<#ident #ty_generics> for ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>> #where_clause {
                 fn from(value: #ident #ty_generics) -> Self {
-                    // Safety:
-                    // - TODO
-                    unsafe {
-                        ::arrow_array::StructArray::new_unchecked(
-                            <#ident #ty_generics as #narrow::arrow::UnionArrayTypeFields>::fields(),
-                            vec![
-                                #(
-                                    value.#idx.into(),
-                                )*
-                            ],
-                            None,
-                        )
-                    }
+                    vec![
+                        #(
+                            value.#idx.into(),
+                        )*
+                    ]
                 }
             }
         };
-        parse2(tokens).expect("union_array_to_struct_array_impl")
+        parse2(tokens).expect("union_array_to_vec_array_impl")
     }
 
     #[cfg(feature = "arrow-rs")]
-    fn union_array_from_struct_array_impl(&self) -> ItemImpl {
+    fn union_array_from_iter_array_impl(&self) -> ItemImpl {
         let narrow = util::narrow();
         let self_ident = self.ident;
         let (_, self_ty_generics, _) = self.generics.split_for_impl();
@@ -754,30 +776,37 @@ impl<'a> Enum<'a> {
         generics.make_where_clause().predicates.extend(
             self.variant_indices().map::<WherePredicate, _>(|idx| {
                 parse_quote!(::std::sync::Arc<dyn ::arrow_array::Array>: Into<
-                <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType>::Array<
+                <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<
                     Buffer,
                     OffsetItem,
-                    SparseLayout,
+                    #narrow::array::SparseLayout,
                 >,
             >)
             }),
         );
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-
-        let idx = (0..self.variants.len()).map(|_| Literal::usize_suffixed(0));
+        let len = Literal::usize_unsuffixed(self.variants.len());
+        let pops = (0..self.variants.len()).map(|_| {
+            quote!(iter
+                .next()
+                .expect(&format!(
+                    "not enough variant data arrays, expected {VARIANTS}"
+                ))
+                .into())
+        });
         let tokens = quote! {
-            impl #impl_generics ::std::convert::From<::std::sync::Arc<dyn arrow_array::Array>> for #ident #ty_generics #where_clause {
-                fn from(value: ::std::sync::Arc<dyn arrow_array::Array>) -> Self {
-                    let struct_array = ::arrow_array::StructArray::from(value.to_data());
-                    let (_, mut arrays, _) = struct_array.into_parts();
+            impl #impl_generics ::std::iter::FromIterator<::std::sync::Arc<dyn ::arrow_array::Array>> for #ident #ty_generics #where_clause {
+                fn from_iter<_I: ::std::iter::IntoIterator<Item = ::std::sync::Arc<dyn ::arrow_array::Array>>>(iter: _I) -> Self {
+                    let mut iter = iter.into_iter();
+                    const VARIANTS: usize = #len;
                     Self(
                         #(
-                            arrays.remove(#idx).into(),
+                            #pops,
                         )*
                     )
                 }
             }
         };
-        parse2(tokens).expect("union_array_from_struct_array_impl")
+        parse2(tokens).expect("union_array_from_iter_array_impl")
     }
 }

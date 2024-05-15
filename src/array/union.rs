@@ -67,7 +67,7 @@ where
 pub trait EnumVariant<const INDEX: usize>: Sized {
     /// The data for this variant. It must be an `ArrayType` because it is stored in an array.
     /// And it must implement `Into<Self>` (this is taking the data and wrapping it in the original enum variant).
-    type Data: ArrayType + Default;
+    type Data: ArrayType<Self::Data> + Default;
 
     /// Wraps the data in the original enum variant
     fn from_data(value: Self::Data) -> Self;
@@ -169,8 +169,8 @@ where
 pub struct DenseUnionArray<
     T: UnionArrayType<VARIANTS>,
     const VARIANTS: usize,
-    Buffer: BufferType,
-    OffsetItem: OffsetElement,
+    Buffer: BufferType = VecBuffer,
+    OffsetItem: OffsetElement = i32,
 > where
     for<'a> i8: From<&'a T>,
 {
@@ -253,8 +253,8 @@ where
 pub struct SparseUnionArray<
     T: UnionArrayType<VARIANTS>,
     const VARIANTS: usize,
-    Buffer: BufferType,
-    OffsetItem: OffsetElement,
+    Buffer: BufferType = VecBuffer,
+    OffsetItem: OffsetElement = i32,
 > where
     for<'a> i8: From<&'a T>,
 {
@@ -448,7 +448,7 @@ mod tests {
             Named { a: u32, b: u64 },
         }
 
-        impl ArrayType for Foo {
+        impl ArrayType<Foo> for Foo {
             type Array<
                 Buffer: BufferType,
                 OffsetItem: offset::OffsetElement,
@@ -503,21 +503,24 @@ mod tests {
         }
 
         struct FooArray<Buffer: BufferType, UnionLayout: UnionType> {
-            unit: <<Foo as EnumVariant<0>>::Data as ArrayType>::Array<
-                Buffer,
-                offset::NA,
-                UnionLayout,
-            >,
-            unnamed: <<Foo as EnumVariant<1>>::Data as ArrayType>::Array<
-                Buffer,
-                offset::NA,
-                UnionLayout,
-            >,
-            named: <<Foo as EnumVariant<2>>::Data as ArrayType>::Array<
-                Buffer,
-                offset::NA,
-                UnionLayout,
-            >,
+            unit:
+                <<Foo as EnumVariant<0>>::Data as ArrayType<<Foo as EnumVariant<0>>::Data>>::Array<
+                    Buffer,
+                    offset::NA,
+                    UnionLayout,
+                >,
+            unnamed:
+                <<Foo as EnumVariant<1>>::Data as ArrayType<<Foo as EnumVariant<1>>::Data>>::Array<
+                    Buffer,
+                    offset::NA,
+                    UnionLayout,
+                >,
+            named:
+                <<Foo as EnumVariant<2>>::Data as ArrayType<<Foo as EnumVariant<2>>::Data>>::Array<
+                    Buffer,
+                    offset::NA,
+                    UnionLayout,
+                >,
         }
 
         impl UnionArrayType<3> for Foo {
@@ -527,12 +530,21 @@ mod tests {
 
         impl<Buffer: BufferType, UnionLayout: UnionType> Default for FooArray<Buffer, UnionLayout>
         where
-            <<Foo as EnumVariant<0>>::Data as ArrayType>::Array<Buffer, offset::NA, UnionLayout>:
-                Default,
-            <<Foo as EnumVariant<1>>::Data as ArrayType>::Array<Buffer, offset::NA, UnionLayout>:
-                Default,
-            <<Foo as EnumVariant<2>>::Data as ArrayType>::Array<Buffer, offset::NA, UnionLayout>:
-                Default,
+            <<Foo as EnumVariant<0>>::Data as ArrayType<<Foo as EnumVariant<0>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                UnionLayout,
+            >: Default,
+            <<Foo as EnumVariant<1>>::Data as ArrayType<<Foo as EnumVariant<1>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                UnionLayout,
+            >: Default,
+            <<Foo as EnumVariant<2>>::Data as ArrayType<<Foo as EnumVariant<2>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                UnionLayout,
+            >: Default,
         {
             fn default() -> Self {
                 #[allow(clippy::default_trait_access)]
@@ -546,12 +558,21 @@ mod tests {
 
         impl<Buffer: BufferType> Extend<Foo> for FooArray<Buffer, DenseLayout>
         where
-            <<Foo as EnumVariant<0>>::Data as ArrayType>::Array<Buffer, offset::NA, DenseLayout>:
-                Extend<()>,
-            <<Foo as EnumVariant<1>>::Data as ArrayType>::Array<Buffer, offset::NA, DenseLayout>:
-                Extend<FooVariantUnnamed>,
-            <<Foo as EnumVariant<2>>::Data as ArrayType>::Array<Buffer, offset::NA, DenseLayout>:
-                Extend<FooVariantNamed>,
+            <<Foo as EnumVariant<0>>::Data as ArrayType<<Foo as EnumVariant<0>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                DenseLayout,
+            >: Extend<()>,
+            <<Foo as EnumVariant<1>>::Data as ArrayType<<Foo as EnumVariant<1>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                DenseLayout,
+            >: Extend<FooVariantUnnamed>,
+            <<Foo as EnumVariant<2>>::Data as ArrayType<<Foo as EnumVariant<2>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                DenseLayout,
+            >: Extend<FooVariantNamed>,
         {
             fn extend<T: IntoIterator<Item = Foo>>(&mut self, iter: T) {
                 iter.into_iter().for_each(|item| match item {
@@ -564,12 +585,21 @@ mod tests {
 
         impl<Buffer: BufferType> Extend<Foo> for FooArray<Buffer, SparseLayout>
         where
-            <<Foo as EnumVariant<0>>::Data as ArrayType>::Array<Buffer, offset::NA, DenseLayout>:
-                Extend<()>,
-            <<Foo as EnumVariant<1>>::Data as ArrayType>::Array<Buffer, offset::NA, DenseLayout>:
-                Extend<FooVariantUnnamed>,
-            <<Foo as EnumVariant<2>>::Data as ArrayType>::Array<Buffer, offset::NA, DenseLayout>:
-                Extend<FooVariantNamed>,
+            <<Foo as EnumVariant<0>>::Data as ArrayType<<Foo as EnumVariant<0>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                DenseLayout,
+            >: Extend<()>,
+            <<Foo as EnumVariant<1>>::Data as ArrayType<<Foo as EnumVariant<1>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                DenseLayout,
+            >: Extend<FooVariantUnnamed>,
+            <<Foo as EnumVariant<2>>::Data as ArrayType<<Foo as EnumVariant<2>>::Data>>::Array<
+                Buffer,
+                offset::NA,
+                DenseLayout,
+            >: Extend<FooVariantNamed>,
         {
             fn extend<T: IntoIterator<Item = Foo>>(&mut self, iter: T) {
                 iter.into_iter().for_each(|item| match item {
@@ -614,12 +644,31 @@ mod tests {
     fn derive() {
         use crate::ArrayType;
 
+        #[derive(ArrayType, Copy, Clone, Default)]
+        enum Foo {
+            #[default]
+            Foo,
+            Bar,
+        }
+
         #[derive(ArrayType, Clone, Copy)]
         enum Test {
             Foo { bar: u8 },
             Bar(bool),
             None,
         }
+
+        const FOO_INPUT: [Foo; 2] = [Foo::Foo, Foo::Bar];
+
+        let dense_foo_array = FOO_INPUT
+            .into_iter()
+            .collect::<DenseUnionArray<Foo, { Foo::VARIANTS }>>();
+        assert_eq!(dense_foo_array.len(), FOO_INPUT.len());
+        let sparse_foo_array = FOO_INPUT
+            .into_iter()
+            .collect::<SparseUnionArray<Foo, { Foo::VARIANTS }>>();
+        assert_eq!(sparse_foo_array.len(), FOO_INPUT.len());
+
         let input = [
             Test::None,
             Test::Bar(true),
