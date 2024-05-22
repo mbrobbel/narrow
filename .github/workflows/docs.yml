@@ -42,7 +42,7 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
       - run: cargo docs-rs
-      - run: mv "target/*/doc" "target/doc"
+      - run: mv "target/$(rustc -vV | awk '/^host/ { print $2 }')/doc" "target/doc"
       - run: chmod -c -R +rX "target/doc"
       - run: echo "<meta http-equiv=refresh content=0;url=narrow>" > target/doc/index.html
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
