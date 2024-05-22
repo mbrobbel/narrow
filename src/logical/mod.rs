@@ -12,7 +12,7 @@ use crate::{
 
 #[cfg(feature = "uuid")]
 /// Uuid support via logical arrays.
-mod uuid;
+pub mod uuid;
 
 /// Types that can be stored in Arrow arrays, but require mapping via
 /// [`LogicalArray`].

@@ -22,11 +22,12 @@ jobs:
     name: Rustdoc
     runs-on: ubuntu-latest
     env:
-      RUSTDOCFLAGS: --cfg docsrs
+      RUSTDOCFLAGS: -Dwarnings
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
         id: rust-toolchain
+      - uses: dtolnay/install@cargo-docs-rs
       - uses: actions/cache@v4
         with:
           path: |
@@ -40,7 +41,8 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-docs-
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
-      - run: cargo doc --no-deps --all --all-features --document-private-items
+      - run: cargo docs-rs
+      - run: mv "target/*/doc" "target/doc"
       - run: chmod -c -R +rX "target/doc"
       - run: echo "<meta http-equiv=refresh content=0;url=narrow>" > target/doc/index.html
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
