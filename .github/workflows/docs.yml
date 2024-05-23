@@ -7,40 +7,18 @@ permissions:
   contents: read
 
 jobs:
-  docs-rs:
-    name: docs.rs
+  rustdoc:
+    name: Rustdoc
     runs-on: ubuntu-latest
     env:
       RUSTDOCFLAGS: -Dwarnings
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
+        id: rust-toolchain
       - uses: dtolnay/install@cargo-docs-rs
       - run: cargo docs-rs
-
-  rustdoc:
-    name: Rustdoc
-    runs-on: ubuntu-latest
-    env:
-      RUSTDOCFLAGS: --cfg docsrs
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-        id: rust-toolchain
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-docs-${{ hashFiles('**/Cargo.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-docs-
-            ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
-            ${{ runner.os }}-cargo-
-      - run: cargo doc --no-deps --all --all-features --document-private-items
+      - run: mv "target/$(rustc -vV | awk '/^host/ { print $2 }')/doc" "target/doc"
       - run: chmod -c -R +rX "target/doc"
       - run: echo "<meta http-equiv=refresh content=0;url=narrow>" > target/doc/index.html
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -48,6 +26,7 @@ jobs:
         with:
           name: rustdoc
           path: target/doc
+      - run: cargo docs-rs -p narrow-derive
 
   deploy:
     name: Deploy
