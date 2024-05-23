@@ -246,6 +246,61 @@ where
     }
 }
 
+/// An iterator over `N` elements of the iterator at a time.
+pub struct FixedSizeArrayChunks<const N: usize, I: Iterator> {
+    /// An owned iterator
+    iter: I,
+}
+
+impl<const N: usize, I: Iterator> FixedSizeArrayChunks<N, I> {
+    /// Returns a new [`FixedSizeArrayChunks`]
+    fn new(iter: I) -> Self {
+        Self { iter }
+    }
+}
+
+impl<const N: usize, I: Iterator> Iterator for FixedSizeArrayChunks<N, I> {
+    type Item = [I::Item; N];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut data: [MaybeUninit<I::Item>; N] =
+        // Safety:
+        // - https://doc.rust-lang.org/stable/std/mem/union.MaybeUninit.html#initializing-an-array-element-by-element
+        unsafe { MaybeUninit::uninit().assume_init() };
+
+        let mut total_elements_written: usize = 0;
+        self.iter
+            .by_ref()
+            .take(N)
+            .enumerate()
+            .for_each(|(array_index, val)| {
+                data[array_index].write(val);
+                total_elements_written += 1;
+            });
+
+        assert!(total_elements_written <= N);
+
+        if total_elements_written == N {
+            Some(data.map(|elem| {
+                // Safety:
+                // - We only initialize if we acually wrote to this element.
+                unsafe { elem.assume_init() }
+            }))
+        } else {
+            // For each elem in the array, drop if we wrote to it to prevent memory leaks.
+            for elem in &mut data[0..total_elements_written] {
+                // Safety:
+                // - This element was initialized as indicated by `total_elements_written`.
+                unsafe {
+                    // Drop the value to prevent a memory leak.
+                    elem.assume_init_drop();
+                }
+            }
+            None
+        }
+    }
+}
+
 impl<const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType> Length
     for FixedSizeListArray<N, T, NULLABLE, Buffer>
 where
@@ -341,6 +396,28 @@ mod tests {
             Some(Some([None, Some("world")]))
         );
         assert_eq!(array_nullable_string_nullable.index(3), None);
+    }
+
+    #[test]
+    fn fixed_size_array_chunks() {
+        {
+            let input = vec![0, 1, 2, 3, 4, 5, 6, 7, 8];
+            let array_chunks = FixedSizeArrayChunks::<3, _>::new(input.into_iter());
+            assert_eq!(
+                array_chunks.into_iter().collect::<Vec<_>>(),
+                vec![[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+            );
+        };
+
+        {
+            // only returns complete chunks.
+            let input = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+            let array_chunks = FixedSizeArrayChunks::<3, _>::new(input.into_iter());
+            assert_eq!(
+                array_chunks.into_iter().collect::<Vec<_>>(),
+                vec![[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+            );
+        }
     }
 
     #[test]
