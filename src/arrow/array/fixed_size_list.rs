@@ -277,16 +277,20 @@ mod tests {
             .collect::<FixedSizeListArray<2, StringArray, true>>();
         let fixed_size_list_array_nullable =
             arrow_array::FixedSizeListArray::from(fixed_size_list_array_nullable_input);
+
+        let owned_input_nullable = INPUT_NULLABLE
+            .into_iter()
+            .map(|item| item.map(|[first, second]| [first.to_owned(), second.to_owned()]))
+            .collect::<Vec<_>>();
         assert_eq!(
             FixedSizeListArray::<
                 2,
                 StringArray<false, i32, crate::arrow::buffer::ScalarBuffer>,
                 true,
-                crate::arrow::buffer::ScalarBuffer,
             >::from(fixed_size_list_array_nullable)
             .into_iter()
             .collect::<Vec<_>>(),
-            INPUT_NULLABLE
+            owned_input_nullable
         );
     }
 }
