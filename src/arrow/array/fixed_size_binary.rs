@@ -62,22 +62,13 @@ where
     }
 }
 
-impl<const N: usize, Buffer: BufferType> From<FixedSizeBinaryArray<N, false, Buffer>>
-    for Arc<dyn arrow_array::Array>
+impl<const NULLABLE: bool, const N: usize, Buffer: BufferType>
+    From<FixedSizeBinaryArray<N, NULLABLE, Buffer>> for Arc<dyn arrow_array::Array>
 where
-    arrow_array::FixedSizeBinaryArray: From<FixedSizeBinaryArray<N, false, Buffer>>,
+    FixedSizePrimitiveArray<u8, false, Buffer>: Validity<NULLABLE>,
+    arrow_array::FixedSizeBinaryArray: From<FixedSizeBinaryArray<N, NULLABLE, Buffer>>,
 {
-    fn from(value: FixedSizeBinaryArray<N, false, Buffer>) -> Self {
-        Arc::new(arrow_array::FixedSizeBinaryArray::from(value))
-    }
-}
-
-impl<const N: usize, Buffer: BufferType> From<FixedSizeBinaryArray<N, true, Buffer>>
-    for Arc<dyn arrow_array::Array>
-where
-    arrow_array::FixedSizeBinaryArray: From<FixedSizeBinaryArray<N, true, Buffer>>,
-{
-    fn from(value: FixedSizeBinaryArray<N, true, Buffer>) -> Self {
+    fn from(value: FixedSizeBinaryArray<N, NULLABLE, Buffer>) -> Self {
         Arc::new(arrow_array::FixedSizeBinaryArray::from(value))
     }
 }
@@ -185,11 +176,7 @@ mod tests {
     fn into_nullable() {
         let fixed_size_binary_array =
             arrow_array::FixedSizeBinaryArray::try_from_iter(INPUT.into_iter()).expect("");
-        // TODO(mbrobbel): we need scalarbuffer here because arrow_array::
-        // FixedSizeBinary uses Buffer instead of ScalarBuffer.
-        let _ = FixedSizeBinaryArray::<2, true, crate::arrow::buffer::ScalarBuffer>::from(
-            fixed_size_binary_array,
-        );
+        let _ = FixedSizeBinaryArray::<2, true>::from(fixed_size_binary_array);
     }
 
     #[test]
@@ -197,11 +184,7 @@ mod tests {
     fn into_non_nullable() {
         let fixed_size_binary_array_nullable =
             arrow_array::FixedSizeBinaryArray::from(vec![None, Some([1_u8, 2, 3].as_slice())]);
-        // TODO(mbrobbel): we need scalarbuffer here because arrow_array::
-        // FixedSizeBinary uses Buffer instead of ScalarBuffer.
-        let _ = FixedSizeBinaryArray::<3, false, crate::arrow::buffer::ScalarBuffer>::from(
-            fixed_size_binary_array_nullable,
-        );
+        let _ = FixedSizeBinaryArray::<3, false>::from(fixed_size_binary_array_nullable);
     }
 
     #[test]
@@ -209,12 +192,10 @@ mod tests {
         let fixed_size_binary_array =
             arrow_array::FixedSizeBinaryArray::try_from_iter(INPUT.into_iter()).expect("");
         assert_eq!(
-            FixedSizeBinaryArray::<2, false, crate::arrow::buffer::ScalarBuffer>::from(
-                fixed_size_binary_array
-            )
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>(),
+            FixedSizeBinaryArray::<2, false>::from(fixed_size_binary_array)
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>(),
             INPUT.into_iter().flatten().collect::<Vec<_>>()
         );
 
@@ -224,11 +205,9 @@ mod tests {
         let fixed_size_binary_array_nullable =
             arrow_array::FixedSizeBinaryArray::from(fixed_size_binary_array_nullable_input);
         assert_eq!(
-            FixedSizeBinaryArray::<2, true, crate::arrow::buffer::ScalarBuffer>::from(
-                fixed_size_binary_array_nullable
-            )
-            .into_iter()
-            .collect::<Vec<_>>(),
+            FixedSizeBinaryArray::<2, true>::from(fixed_size_binary_array_nullable)
+                .into_iter()
+                .collect::<Vec<_>>(),
             INPUT_NULLABLE
         );
     }
