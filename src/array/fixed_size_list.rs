@@ -1,7 +1,7 @@
 //! Array with fixed-size sequences of elements.
 
 use std::{
-    iter,
+    iter::{self, Map, Zip},
     mem::{self, ManuallyDrop, MaybeUninit},
 };
 
@@ -246,6 +246,102 @@ where
     }
 }
 
+/// An iterator over `N` elements of the iterator at a time.
+pub struct FixedSizeArrayChunks<const N: usize, I: Iterator> {
+    /// An owned iterator
+    iter: I,
+}
+
+impl<const N: usize, I: Iterator> FixedSizeArrayChunks<N, I> {
+    /// Returns a new [`FixedSizeArrayChunks`]
+    fn new(iter: I) -> Self {
+        Self { iter }
+    }
+}
+
+impl<const N: usize, I: Iterator> Iterator for FixedSizeArrayChunks<N, I> {
+    type Item = [I::Item; N];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut data: [MaybeUninit<I::Item>; N] =
+        // Safety:
+        // - https://doc.rust-lang.org/stable/std/mem/union.MaybeUninit.html#initializing-an-array-element-by-element
+        unsafe { MaybeUninit::uninit().assume_init() };
+
+        let mut total_elements_written: usize = 0;
+        self.iter
+            .by_ref()
+            .take(N)
+            .enumerate()
+            .for_each(|(array_index, val)| {
+                data[array_index].write(val);
+                total_elements_written += 1;
+            });
+
+        assert!(total_elements_written <= N);
+
+        if total_elements_written == N {
+            Some(data.map(|elem| {
+                // Safety:
+                // - We only initialize if we acually wrote to this element.
+                unsafe { elem.assume_init() }
+            }))
+        } else {
+            // For each elem in the array, drop if we wrote to it to prevent memory leaks.
+            for elem in &mut data[0..total_elements_written] {
+                // Safety:
+                // - This element was initialized as indicated by `total_elements_written`.
+                unsafe {
+                    // Drop the value to prevent a memory leak.
+                    elem.assume_init_drop();
+                }
+            }
+            None
+        }
+    }
+}
+
+impl<const N: usize, T: Array, Buffer: BufferType> IntoIterator
+    for FixedSizeListArray<N, T, false, Buffer>
+where
+    T: IntoIterator,
+    FixedSizeArrayChunks<N, <T as IntoIterator>::IntoIter>:
+        IntoIterator<Item = [<T as IntoIterator>::Item; N]>,
+{
+    type Item = [<T as IntoIterator>::Item; N];
+    type IntoIter = FixedSizeArrayChunks<N, <T as IntoIterator>::IntoIter>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        FixedSizeArrayChunks::<N, _>::new(self.0.into_iter())
+    }
+}
+
+impl<const N: usize, T: Array, Buffer: BufferType> IntoIterator
+    for FixedSizeListArray<N, T, true, Buffer>
+where
+    T: IntoIterator,
+    Bitmap<Buffer>: IntoIterator<Item = bool>,
+    FixedSizeArrayChunks<N, <T as IntoIterator>::IntoIter>:
+        IntoIterator<Item = [<T as IntoIterator>::Item; N]>,
+{
+    type Item = Option<[<T as IntoIterator>::Item; N]>;
+    type IntoIter = Map<
+        Zip<
+            <Bitmap<Buffer> as IntoIterator>::IntoIter,
+            <FixedSizeArrayChunks<N, <T as IntoIterator>::IntoIter> as IntoIterator>::IntoIter,
+        >,
+        fn((bool, [<T as IntoIterator>::Item; N])) -> Self::Item,
+    >;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0
+            .validity
+            .into_iter()
+            .zip(FixedSizeArrayChunks::<N, _>::new(self.0.data.into_iter()))
+            .map(|(validity, value)| validity.then_some(value))
+    }
+}
+
 impl<const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType> Length
     for FixedSizeListArray<N, T, NULLABLE, Buffer>
 where
@@ -275,24 +371,190 @@ mod tests {
 
     #[test]
     fn from_iter() {
-        let input = [[1_u8, 2], [3, 4]];
-        let array = input
-            .into_iter()
-            .collect::<FixedSizeListArray<2, FixedSizePrimitiveArray<u8>>>();
-        assert_eq!(array.len(), 2);
-
-        let input_nullable = [Some([1_u8, 2]), None];
-        let array_nullable =
-            input_nullable
+        {
+            let input_non_nullable = [[1_u8, 2], [3, 4]];
+            let array_non_nullable = input_non_nullable
                 .into_iter()
-                .collect::<FixedSizeListArray<2, FixedSizePrimitiveArray<u8>, true>>();
-        assert_eq!(array_nullable.len(), 2);
+                .collect::<FixedSizeListArray<2, FixedSizePrimitiveArray<u8>>>();
+            assert_eq!(array_non_nullable.len(), 2);
+        };
 
-        let input_string = [["hello", "world"], ["!", "!"]];
-        let array_string = input_string
-            .into_iter()
-            .collect::<FixedSizeListArray<2, StringArray>>();
-        assert_eq!(array_string.len(), 2);
+        {
+            let input_inner_nullable = [[Some(1_u8), None], [Some(3), None]];
+            let array_inner_nullable = input_inner_nullable
+                .into_iter()
+                .collect::<FixedSizeListArray<2, FixedSizePrimitiveArray<u8, true>, false>>();
+            assert_eq!(array_inner_nullable.len(), 2);
+            assert_eq!(
+                array_inner_nullable.into_iter().collect::<Vec<_>>(),
+                input_inner_nullable
+            );
+        };
+
+        {
+            let input_outer_nullable = [Some([1_u8, 1_u8]), Some([1_u8, 1_u8]), None];
+            let array_outer_nullable = input_outer_nullable
+                .into_iter()
+                .collect::<FixedSizeListArray<2, FixedSizePrimitiveArray<u8, false>, true>>();
+            assert_eq!(array_outer_nullable.len(), 3);
+            assert_eq!(
+                array_outer_nullable.into_iter().collect::<Vec<_>>(),
+                input_outer_nullable
+            );
+        };
+
+        {
+            let input_both_nullable = [Some([Some(1_u8), None]), None];
+            let array_both_nullable = input_both_nullable
+                .into_iter()
+                .collect::<FixedSizeListArray<2, FixedSizePrimitiveArray<u8, true>, true>>();
+            assert_eq!(array_both_nullable.len(), 2);
+            assert_eq!(
+                array_both_nullable.into_iter().collect::<Vec<_>>(),
+                input_both_nullable
+            );
+        };
+
+        {
+            let input_nested_innermost_nullable = [
+                [
+                    [Some(1_u8), None, Some(1_u8)],
+                    [Some(3_u8), None, Some(1_u8)],
+                ],
+                [
+                    [Some(2_u8), None, Some(1_u8)],
+                    [Some(5_u8), None, Some(1_u8)],
+                ],
+            ];
+            let array_nested_innermost_nullable = input_nested_innermost_nullable
+                .into_iter()
+                .collect::<FixedSizeListArray<
+                2,
+                FixedSizeListArray<3, FixedSizePrimitiveArray<u8, true>, false>,
+                false,
+            >>();
+            assert_eq!(array_nested_innermost_nullable.len(), 2);
+            assert_eq!(
+                array_nested_innermost_nullable
+                    .into_iter()
+                    .collect::<Vec<_>>(),
+                input_nested_innermost_nullable
+            );
+        };
+
+        {
+            let input_nested_all_nullable = [
+                None,
+                Some([
+                    None,
+                    Some([Some(1_u8), None, Some(2)]),
+                    Some([Some(3), None, Some(1)]),
+                    None,
+                ]),
+                Some([
+                    Some([Some(2), None, Some(1)]),
+                    None,
+                    None,
+                    Some([Some(5), None, Some(6)]),
+                ]),
+            ];
+            let array_nested_all_nullable = input_nested_all_nullable
+                .into_iter()
+                .collect::<FixedSizeListArray<
+                    4,
+                    FixedSizeListArray<3, FixedSizePrimitiveArray<u8, true>, true>,
+                    true,
+                >>();
+            assert_eq!(array_nested_all_nullable.len(), 3);
+            assert_eq!(
+                array_nested_all_nullable.into_iter().collect::<Vec<_>>(),
+                input_nested_all_nullable
+            );
+        };
+    }
+
+    #[test]
+    fn from_iter_variable_size() {
+        {
+            let input_string_non_nullable = [
+                ["hello".to_owned(), "world".to_owned()],
+                ["!".to_owned(), "!".to_owned()],
+            ];
+            let array_string_non_nullable = input_string_non_nullable
+                .clone()
+                .into_iter()
+                .collect::<FixedSizeListArray<2, StringArray>>();
+            assert_eq!(array_string_non_nullable.len(), 2);
+            assert_eq!(
+                array_string_non_nullable.into_iter().collect::<Vec<_>>(),
+                input_string_non_nullable
+            );
+        };
+
+        {
+            let input_string_nested_all_nullable = [
+                None,
+                Some([
+                    Some([Some("hello".to_owned()), None, Some("from".to_owned())]),
+                    Some([Some("the".to_owned()), None, Some("other".to_owned())]),
+                    None,
+                    None,
+                ]),
+                Some([
+                    None,
+                    Some([Some("side".to_owned()), None, Some("hello".to_owned())]),
+                    None,
+                    Some([Some("its".to_owned()), None, Some("me".to_owned())]),
+                ]),
+            ];
+            let array_string_nested_all_nullable = input_string_nested_all_nullable.clone()
+                .into_iter()
+                .collect::<FixedSizeListArray<
+                4,
+                FixedSizeListArray<3, StringArray<true>, true>,
+                true,
+            >>();
+            assert_eq!(array_string_nested_all_nullable.len(), 3);
+            assert_eq!(
+                array_string_nested_all_nullable
+                    .into_iter()
+                    .collect::<Vec<_>>(),
+                input_string_nested_all_nullable
+            );
+        };
+
+        {
+            let input_string_even_more_nested = [
+                Some([
+                    Some([Some(["hello".to_owned()]), None, Some(["from".to_owned()])]),
+                    Some([Some(["the".to_owned()]), None, Some(["other".to_owned()])]),
+                    None,
+                    None,
+                ]),
+                None,
+                Some([
+                    None,
+                    Some([Some(["side".to_owned()]), None, Some(["hello".to_owned()])]),
+                    None,
+                    Some([Some(["its".to_owned()]), None, Some(["me".to_owned()])]),
+                ]),
+            ];
+            let array_string_even_more_nested = input_string_even_more_nested
+                .clone()
+                .into_iter()
+                .collect::<FixedSizeListArray<
+                4,
+                FixedSizeListArray<3, FixedSizeListArray<1, StringArray<false>, true>, true>,
+                true,
+            >>();
+            assert_eq!(array_string_even_more_nested.len(), 3);
+            assert_eq!(
+                array_string_even_more_nested
+                    .into_iter()
+                    .collect::<Vec<_>>(),
+                input_string_even_more_nested
+            );
+        };
     }
 
     #[test]
@@ -344,12 +606,34 @@ mod tests {
     }
 
     #[test]
+    fn fixed_size_array_chunks() {
+        {
+            let input = vec![0, 1, 2, 3, 4, 5, 6, 7, 8];
+            let array_chunks = FixedSizeArrayChunks::<3, _>::new(input.into_iter());
+            assert_eq!(
+                array_chunks.into_iter().collect::<Vec<_>>(),
+                vec![[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+            );
+        };
+
+        {
+            // only returns complete chunks.
+            let input = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+            let array_chunks = FixedSizeArrayChunks::<3, _>::new(input.into_iter());
+            assert_eq!(
+                array_chunks.into_iter().collect::<Vec<_>>(),
+                vec![[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+            );
+        }
+    }
+
+    #[test]
     fn into_iter() {
         let input = [[1_u8, 2], [3, 4]];
         let array = input
             .into_iter()
             .collect::<FixedSizeListArray<2, FixedSizePrimitiveArray<u8>>>();
-        assert_eq!(array.into_iter().collect::<Vec<_>>(), [[&1, &2], [&3, &4]]);
+        assert_eq!(array.into_iter().collect::<Vec<_>>(), [[1, 2], [3, 4]]);
 
         let input_string = [["hello", "world"], ["!", "!"]];
         let array_string = input_string
@@ -357,8 +641,13 @@ mod tests {
             .collect::<FixedSizeListArray<2, StringArray>>();
         assert_eq!(array_string.into_iter().collect::<Vec<_>>(), input_string);
 
-        let input_nullable_string = [Some(["hello", "world"]), None];
+        let input_nullable_string = [
+            Some(["hello".to_owned(), "world".to_owned()]),
+            None,
+            Some(["hello".to_owned(), "again".to_owned()]),
+        ];
         let array_nullable_string = input_nullable_string
+            .clone()
             .into_iter()
             .collect::<FixedSizeListArray<2, StringArray, true>>();
         assert_eq!(
@@ -367,11 +656,14 @@ mod tests {
         );
 
         let input_nullable_string_nullable = [
-            Some([Some("hello"), None]),
+            Some([Some("hello".to_owned()), None]),
             None,
-            Some([None, Some("world")]),
+            Some([None, Some("world".to_owned())]),
+            None,
+            Some([Some("hello".to_owned()), Some("again".to_owned())]),
         ];
         let array_nullable_string_nullable = input_nullable_string_nullable
+            .clone()
             .into_iter()
             .collect::<FixedSizeListArray<2, StringArray<true>, true>>(
         );
@@ -386,13 +678,11 @@ mod tests {
         let array_nested = input_nested
             .into_iter()
             .collect::<FixedSizeListArray<3, FixedSizeListArray<2, FixedSizePrimitiveArray<u8>>>>();
+
+        assert_eq!(array_nested.0 .0 .0, [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0]);
         assert_eq!(
             array_nested.into_iter().collect::<Vec<_>>(),
-            [
-                [[&1, &2], [&3, &4], [&5, &6]],
-                [[&7, &8], [&9, &0], [&0, &0]]
-            ]
+            [[[1, 2], [3, 4], [5, 6]], [[7, 8], [9, 0], [0, 0]]]
         );
-        assert_eq!(array_nested.0 .0 .0, [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0]);
     }
 }

@@ -363,7 +363,7 @@ mod tests {
         assert_eq!(array.0.c.into_iter().collect::<Vec<_>>(), &[(), (), (), ()]);
         assert_eq!(
             array.0.d.into_iter().collect::<Vec<_>>(),
-            &[Some([&1, &2]), Some([&3, &4]), None, None]
+            &[Some([1, 2]), Some([3, 4]), None, None]
         );
         assert_eq!(
             array.0.e.into_iter().collect::<Vec<_>>(),
