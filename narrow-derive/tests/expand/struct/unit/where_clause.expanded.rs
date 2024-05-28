@@ -41,7 +41,7 @@ where
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<N, Buffer>;
 }
 pub(super) struct FooArray<const N: bool, Buffer: narrow::buffer::BufferType>(
-    narrow::array::NullArray<Foo<N>, false, Buffer>,
+    pub(super) narrow::array::NullArray<Foo<N>, false, Buffer>,
 )
 where
     Foo<N>: Sized,
@@ -87,7 +87,11 @@ where
     }
 }
 pub(super) struct FooArrayIter<const N: bool, Buffer: narrow::buffer::BufferType>(
-    <narrow::array::NullArray<Foo<N>, false, Buffer> as IntoIterator>::IntoIter,
+    pub(super) <narrow::array::NullArray<
+        Foo<N>,
+        false,
+        Buffer,
+    > as IntoIterator>::IntoIter,
 )
 where
     Self: Sized,
