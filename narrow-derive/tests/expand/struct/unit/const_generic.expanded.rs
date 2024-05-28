@@ -22,7 +22,7 @@ impl<const N: usize> narrow::array::StructArrayType for Foo<N> {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<N, Buffer>;
 }
 pub struct FooArray<const N: usize, Buffer: narrow::buffer::BufferType>(
-    narrow::array::NullArray<Foo<N>, false, Buffer>,
+    pub narrow::array::NullArray<Foo<N>, false, Buffer>,
 );
 impl<const N: usize, Buffer: narrow::buffer::BufferType> ::std::default::Default
 for FooArray<N, Buffer> {
@@ -51,7 +51,7 @@ impl<
     }
 }
 pub struct FooArrayIter<const N: usize, Buffer: narrow::buffer::BufferType>(
-    <narrow::array::NullArray<Foo<N>, false, Buffer> as IntoIterator>::IntoIter,
+    pub <narrow::array::NullArray<Foo<N>, false, Buffer> as IntoIterator>::IntoIter,
 )
 where
     narrow::array::NullArray<

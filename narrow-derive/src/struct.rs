@@ -152,6 +152,10 @@ impl Struct<'_> {
         self.fields.iter().map(|Field { ty, .. }| ty)
     }
 
+    fn field_vis(&self) -> Map<punctuated::Iter<'_, Field>, fn(&Field) -> &Visibility> {
+        self.fields.iter().map(|Field { vis, .. }| vis)
+    }
+
     fn field_types_drop_option(&self) -> impl Iterator<Item = Type> + '_ {
         self.fields
             .iter()
@@ -423,26 +427,30 @@ impl Struct<'_> {
             Fields::Named(_) => {
                 let field_ident = self.field_idents();
                 let field_ty = self.field_types();
+                let field_vis = self.field_vis();
                 let field_ty_drop = self.field_types_drop_option();
                 quote!(
                     #(
-                        #field_ident: <#field_ty as #narrow::array::ArrayType<#field_ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>,
+                        #field_vis #field_ident: <#field_ty as #narrow::array::ArrayType<#field_ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>,
                     )*
                 )
             }
             Fields::Unnamed(_) => {
                 let field_ty = self.field_types();
+                let field_vis = self.field_vis();
                 let field_ty_drop = self.field_types_drop_option();
                 quote!(
                     #(
-                        <#field_ty as #narrow::array::ArrayType<#field_ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>,
+                        #field_vis <#field_ty as #narrow::array::ArrayType<#field_ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>,
                     )*
                 )
             }
             Fields::Unit => {
                 let ident = self.ident;
+                // We use the visibility of the item for the inner null array.
+                let vis = self.vis;
                 let (_, ty_generics, _) = self.generics.split_for_impl();
-                quote!(#narrow::array::NullArray<#ident #ty_generics, false, Buffer>)
+                quote!(#vis #narrow::array::NullArray<#ident #ty_generics, false, Buffer>)
             }
         });
 
@@ -695,22 +703,24 @@ impl Struct<'_> {
         let fields = self.surround_with_delimiters(match self.fields {
             Fields::Unnamed(_) => {
                 let field_ty = self.field_types();
+                let field_vis = self.field_vis();
                 let field_ty_drop = self.field_types_drop_option();
                 let narrow = util::narrow();
                 quote!(
                     #(
-                        <<#field_ty as #narrow::array::ArrayType<#field_ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as ::std::iter::IntoIterator>::IntoIter,
+                        #field_vis <<#field_ty as #narrow::array::ArrayType<#field_ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as ::std::iter::IntoIterator>::IntoIter,
                     )*
                 )
             }
             Fields::Named(_) => {
                 let field_ident = self.field_idents();
                 let field_ty = self.field_types();
+                let field_vis = self.field_vis();
                 let field_ty_drop = self.field_types_drop_option();
                 let narrow = util::narrow();
                 quote!(
                     #(
-                        #field_ident: <<#field_ty as #narrow::array::ArrayType<#field_ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as ::std::iter::IntoIterator>::IntoIter,
+                        #field_vis #field_ident: <<#field_ty as #narrow::array::ArrayType<#field_ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA> as ::std::iter::IntoIterator>::IntoIter,
                     )*
                 )
             }
@@ -730,7 +740,7 @@ impl Struct<'_> {
                 let vis = self.vis;
                 let tokens = quote!(
                     #vis struct #array_iter_struct_ident #impl_generics(
-                        <#narrow::array::NullArray<#ident #ty_generics, false, Buffer> as IntoIterator>::IntoIter
+                        #vis <#narrow::array::NullArray<#ident #ty_generics, false, Buffer> as IntoIterator>::IntoIter
                     ) #where_clause;
                 );
                 return parse2(tokens).expect("array_iter_struct_def");
@@ -899,12 +909,6 @@ impl Struct<'_> {
 
     #[cfg(feature = "arrow-rs")]
     fn where_predicate_fields_arrow_array_into(&self) -> impl Iterator<Item = WherePredicate> + '_ {
-        // self.field_types()
-        //     .map(move |ty| {
-        //         let narrow = util::narrow();
-        //         parse_quote!(
-        //         <#ty as #narrow::array::ArrayType>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>: #narrow::arrow::Array
-        //     )}).chain(
         self.field_types().zip(self.field_types_drop_option())
             .map(move |(ty, ty_drop)| {
                 let narrow = util::narrow();
