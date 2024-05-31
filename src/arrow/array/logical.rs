@@ -10,7 +10,7 @@ use crate::{
     validity::Nullability,
 };
 
-/// Trait to update [`Field`]s with an `[arrow_schema::ExtensionType`].
+/// Trait to update [`arrow_schema::Field`]s with an `[arrow_schema::ExtensionType`].
 pub trait ExtensionType {
     /// Returns the `[arrow_schema::ExtensionType`] of this logical type, if
     /// there is one.
