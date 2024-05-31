@@ -55,7 +55,7 @@ checksum = "7079075b41f533b8c61d2a4d073c4676e1f8b249ff94a393b0595db304e0dd87"
 [[package]]
 name = "arrow-array"
 version = "51.0.0"
-source = "git+https://github.com/apache/arrow-rs.git?rev=d17b2067d637c563eb315571e719807a6f482784#d17b2067d637c563eb315571e719807a6f482784"
+source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=a7244f565e9a0ed63ef16368b1bae231ac1033c4#a7244f565e9a0ed63ef16368b1bae231ac1033c4"
 dependencies = [
  "ahash",
  "arrow-buffer",
@@ -70,7 +70,7 @@ dependencies = [
 [[package]]
 name = "arrow-buffer"
 version = "51.0.0"
-source = "git+https://github.com/apache/arrow-rs.git?rev=d17b2067d637c563eb315571e719807a6f482784#d17b2067d637c563eb315571e719807a6f482784"
+source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=a7244f565e9a0ed63ef16368b1bae231ac1033c4#a7244f565e9a0ed63ef16368b1bae231ac1033c4"
 dependencies = [
  "bytes",
  "half 2.3.1",
@@ -80,7 +80,7 @@ dependencies = [
 [[package]]
 name = "arrow-cast"
 version = "51.0.0"
-source = "git+https://github.com/apache/arrow-rs.git?rev=d17b2067d637c563eb315571e719807a6f482784#d17b2067d637c563eb315571e719807a6f482784"
+source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=a7244f565e9a0ed63ef16368b1bae231ac1033c4#a7244f565e9a0ed63ef16368b1bae231ac1033c4"
 dependencies = [
  "arrow-array",
  "arrow-buffer",
@@ -100,7 +100,7 @@ dependencies = [
 [[package]]
 name = "arrow-data"
 version = "51.0.0"
-source = "git+https://github.com/apache/arrow-rs.git?rev=d17b2067d637c563eb315571e719807a6f482784#d17b2067d637c563eb315571e719807a6f482784"
+source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=a7244f565e9a0ed63ef16368b1bae231ac1033c4#a7244f565e9a0ed63ef16368b1bae231ac1033c4"
 dependencies = [
  "arrow-buffer",
  "arrow-schema",
@@ -111,7 +111,7 @@ dependencies = [
 [[package]]
 name = "arrow-ipc"
 version = "51.0.0"
-source = "git+https://github.com/apache/arrow-rs.git?rev=d17b2067d637c563eb315571e719807a6f482784#d17b2067d637c563eb315571e719807a6f482784"
+source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=a7244f565e9a0ed63ef16368b1bae231ac1033c4#a7244f565e9a0ed63ef16368b1bae231ac1033c4"
 dependencies = [
  "arrow-array",
  "arrow-buffer",
@@ -124,12 +124,12 @@ dependencies = [
 [[package]]
 name = "arrow-schema"
 version = "51.0.0"
-source = "git+https://github.com/apache/arrow-rs.git?rev=d17b2067d637c563eb315571e719807a6f482784#d17b2067d637c563eb315571e719807a6f482784"
+source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=a7244f565e9a0ed63ef16368b1bae231ac1033c4#a7244f565e9a0ed63ef16368b1bae231ac1033c4"
 
 [[package]]
 name = "arrow-select"
 version = "51.0.0"
-source = "git+https://github.com/apache/arrow-rs.git?rev=d17b2067d637c563eb315571e719807a6f482784#d17b2067d637c563eb315571e719807a6f482784"
+source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=a7244f565e9a0ed63ef16368b1bae231ac1033c4#a7244f565e9a0ed63ef16368b1bae231ac1033c4"
 dependencies = [
  "ahash",
  "arrow-array",
@@ -755,7 +755,7 @@ dependencies = [
 [[package]]
 name = "parquet"
 version = "51.0.0"
-source = "git+https://github.com/apache/arrow-rs.git?rev=d17b2067d637c563eb315571e719807a6f482784#d17b2067d637c563eb315571e719807a6f482784"
+source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=a7244f565e9a0ed63ef16368b1bae231ac1033c4#a7244f565e9a0ed63ef16368b1bae231ac1033c4"
 dependencies = [
  "ahash",
  "arrow-array",

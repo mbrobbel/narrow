@@ -8,6 +8,7 @@ mod string;
 mod r#struct;
 pub use r#struct::StructArrayTypeFields;
 mod logical;
+pub use logical::ExtensionType;
 mod null;
 mod union;
 pub use union::UnionArrayTypeFields;

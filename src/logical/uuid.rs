@@ -18,6 +18,13 @@ impl ArrayType<uuid::Uuid> for Option<uuid::Uuid> {
         LogicalArray<uuid::Uuid, true, Buffer, OffsetItem, UnionLayout>;
 }
 
+#[cfg(feature = "arrow-rs")]
+impl crate::arrow::ExtensionType for uuid::Uuid {
+    fn extension_type() -> Option<arrow_schema::ExtensionType> {
+        Some(arrow_schema::ExtensionType::Uuid)
+    }
+}
+
 impl LogicalArrayType<uuid::Uuid> for uuid::Uuid {
     type ArrayType = FixedSizeBinary<16>;
 

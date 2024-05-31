@@ -3,7 +3,7 @@
 //! [`arrow-rs`]: https://crates.io/crates/arrow
 
 mod array;
-pub use array::{StructArrayTypeFields, UnionArrayTypeFields};
+pub use array::{ExtensionType, StructArrayTypeFields, UnionArrayTypeFields};
 
 mod bitmap;
 

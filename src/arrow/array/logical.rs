@@ -10,10 +10,18 @@ use crate::{
     validity::Nullability,
 };
 
-// TODO(mbrobbel): add field metadata trait
+/// Trait to update [`Field`]s with an `[arrow_schema::ExtensionType`].
+pub trait ExtensionType {
+    /// Returns the `[arrow_schema::ExtensionType`] of this logical type, if
+    /// there is one.
+    #[must_use]
+    fn extension_type() -> Option<arrow_schema::ExtensionType> {
+        None
+    }
+}
 
 impl<
-        T: LogicalArrayType<T>,
+        T: LogicalArrayType<T> + ExtensionType,
         const NULLABLE: bool,
         Buffer: BufferType,
         OffsetItem: OffsetElement,
@@ -34,9 +42,17 @@ where
         >>::Array<Buffer, OffsetItem, UnionLayout> as crate::arrow::Array>::Array;
 
     fn as_field(name: &str) -> arrow_schema::Field {
-        <<<<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item as ArrayType<
-            <T as LogicalArrayType<T>>::ArrayType,
-        >>::Array<Buffer, OffsetItem, UnionLayout> as crate::arrow::Array>::as_field(name)
+        let field =
+            <<<<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item as ArrayType<
+                <T as LogicalArrayType<T>>::ArrayType,
+            >>::Array<Buffer, OffsetItem, UnionLayout> as crate::arrow::Array>::as_field(
+                name
+            );
+        if let Some(extension_type) = <T as ExtensionType>::extension_type() {
+            field.with_extension_type(extension_type)
+        } else {
+            field
+        }
     }
 }
 
