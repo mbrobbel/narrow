@@ -253,6 +253,285 @@ where
             });
     }
 }
+struct FooArrayIntoIter<
+    T: narrow::array::ArrayType,
+    Buffer: narrow::buffer::BufferType,
+    OffsetItem: narrow::offset::OffsetElement,
+    UnionLayout: narrow::array::UnionType,
+>(
+    <<<Foo<
+        T,
+    > as narrow::array::union::EnumVariant<
+        0,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<0>>::Data,
+    >>::Array<Buffer, OffsetItem, UnionLayout> as ::core::iter::IntoIterator>::IntoIter,
+    <<<Foo<
+        T,
+    > as narrow::array::union::EnumVariant<
+        1,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<1>>::Data,
+    >>::Array<Buffer, OffsetItem, UnionLayout> as ::core::iter::IntoIterator>::IntoIter,
+    <<<Foo<
+        T,
+    > as narrow::array::union::EnumVariant<
+        2,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<2>>::Data,
+    >>::Array<Buffer, OffsetItem, UnionLayout> as ::core::iter::IntoIterator>::IntoIter,
+)
+where
+    <<Foo<
+        T,
+    > as narrow::array::union::EnumVariant<
+        0,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<0>>::Data,
+    >>::Array<Buffer, OffsetItem, UnionLayout>: ::core::iter::IntoIterator,
+    <<Foo<
+        T,
+    > as narrow::array::union::EnumVariant<
+        1,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<1>>::Data,
+    >>::Array<Buffer, OffsetItem, UnionLayout>: ::core::iter::IntoIterator,
+    <<Foo<
+        T,
+    > as narrow::array::union::EnumVariant<
+        2,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<2>>::Data,
+    >>::Array<Buffer, OffsetItem, UnionLayout>: ::core::iter::IntoIterator;
+impl<
+    T: narrow::array::ArrayType,
+    Buffer: narrow::buffer::BufferType,
+    OffsetItem: narrow::offset::OffsetElement,
+> narrow::array::union::TypeIdIterator
+for FooArrayIntoIter<T, Buffer, OffsetItem, narrow::array::DenseLayout>
+where
+    <<Foo<
+        T,
+    > as narrow::array::union::EnumVariant<
+        0,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<0>>::Data,
+    >>::Array<
+        Buffer,
+        OffsetItem,
+        narrow::array::DenseLayout,
+    >: ::core::iter::IntoIterator<
+        Item = <Foo<T> as narrow::array::union::EnumVariant<0>>::Data,
+    >,
+    <<Foo<
+        T,
+    > as narrow::array::union::EnumVariant<
+        1,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<1>>::Data,
+    >>::Array<
+        Buffer,
+        OffsetItem,
+        narrow::array::DenseLayout,
+    >: ::core::iter::IntoIterator<
+        Item = <Foo<T> as narrow::array::union::EnumVariant<1>>::Data,
+    >,
+    <<Foo<
+        T,
+    > as narrow::array::union::EnumVariant<
+        2,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<2>>::Data,
+    >>::Array<
+        Buffer,
+        OffsetItem,
+        narrow::array::DenseLayout,
+    >: ::core::iter::IntoIterator<
+        Item = <Foo<T> as narrow::array::union::EnumVariant<2>>::Data,
+    >,
+{
+    type Enum = Foo<T>;
+    fn next(
+        &mut self,
+        type_id: ::std::primitive::i8,
+    ) -> ::core::option::Option<Self::Enum> {
+        match type_id {
+            0 => {
+                self
+                    .0
+                    .next()
+                    .map(<Foo<T> as narrow::array::union::EnumVariant<0>>::from_data)
+            }
+            1 => {
+                self
+                    .1
+                    .next()
+                    .map(<Foo<T> as narrow::array::union::EnumVariant<1>>::from_data)
+            }
+            2 => {
+                self
+                    .2
+                    .next()
+                    .map(<Foo<T> as narrow::array::union::EnumVariant<2>>::from_data)
+            }
+            _ => {
+                {
+                    ::core::panicking::panic_fmt(
+                        format_args!("type id greater than number of variants"),
+                    );
+                };
+            }
+        }
+    }
+}
+impl<
+    T: narrow::array::ArrayType,
+    Buffer: narrow::buffer::BufferType,
+    OffsetItem: narrow::offset::OffsetElement,
+> narrow::array::union::TypeIdIterator
+for FooArrayIntoIter<T, Buffer, OffsetItem, narrow::array::SparseLayout>
+where
+    <<Foo<
+        T,
+    > as narrow::array::union::EnumVariant<
+        0,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<0>>::Data,
+    >>::Array<
+        Buffer,
+        OffsetItem,
+        narrow::array::SparseLayout,
+    >: ::core::iter::IntoIterator<
+        Item = <Foo<T> as narrow::array::union::EnumVariant<0>>::Data,
+    >,
+    <<Foo<
+        T,
+    > as narrow::array::union::EnumVariant<
+        1,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<1>>::Data,
+    >>::Array<
+        Buffer,
+        OffsetItem,
+        narrow::array::SparseLayout,
+    >: ::core::iter::IntoIterator<
+        Item = <Foo<T> as narrow::array::union::EnumVariant<1>>::Data,
+    >,
+    <<Foo<
+        T,
+    > as narrow::array::union::EnumVariant<
+        2,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<2>>::Data,
+    >>::Array<
+        Buffer,
+        OffsetItem,
+        narrow::array::SparseLayout,
+    >: ::core::iter::IntoIterator<
+        Item = <Foo<T> as narrow::array::union::EnumVariant<2>>::Data,
+    >,
+{
+    type Enum = Foo<T>;
+    fn next(
+        &mut self,
+        type_id: ::std::primitive::i8,
+    ) -> ::core::option::Option<Self::Enum> {
+        match type_id {
+            0 => {
+                self.1.next();
+                self.2.next();
+                self.0
+                    .next()
+                    .map(<Foo<T> as narrow::array::union::EnumVariant<0>>::from_data)
+            }
+            1 => {
+                self.0.next();
+                self.2.next();
+                self.1
+                    .next()
+                    .map(<Foo<T> as narrow::array::union::EnumVariant<1>>::from_data)
+            }
+            2 => {
+                self.0.next();
+                self.1.next();
+                self.2
+                    .next()
+                    .map(<Foo<T> as narrow::array::union::EnumVariant<2>>::from_data)
+            }
+            _ => {
+                {
+                    ::core::panicking::panic_fmt(
+                        format_args!("type id greater than number of variants"),
+                    );
+                };
+            }
+        }
+    }
+}
+impl<
+    T: narrow::array::ArrayType,
+    Buffer: narrow::buffer::BufferType,
+    OffsetItem: narrow::offset::OffsetElement,
+    UnionLayout: narrow::array::UnionType,
+> narrow::array::union::UnionArrayIterators
+for FooArray<T, Buffer, OffsetItem, UnionLayout>
+where
+    <<Foo<
+        T,
+    > as narrow::array::union::EnumVariant<
+        0,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<0>>::Data,
+    >>::Array<
+        Buffer,
+        OffsetItem,
+        UnionLayout,
+    >: ::core::iter::IntoIterator<
+        Item = <Foo<T> as narrow::array::union::EnumVariant<0>>::Data,
+    >,
+    <<Foo<
+        T,
+    > as narrow::array::union::EnumVariant<
+        1,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<1>>::Data,
+    >>::Array<
+        Buffer,
+        OffsetItem,
+        UnionLayout,
+    >: ::core::iter::IntoIterator<
+        Item = <Foo<T> as narrow::array::union::EnumVariant<1>>::Data,
+    >,
+    <<Foo<
+        T,
+    > as narrow::array::union::EnumVariant<
+        2,
+    >>::Data as narrow::array::ArrayType<
+        <Foo<T> as narrow::array::union::EnumVariant<2>>::Data,
+    >>::Array<
+        Buffer,
+        OffsetItem,
+        UnionLayout,
+    >: ::core::iter::IntoIterator<
+        Item = <Foo<T> as narrow::array::union::EnumVariant<2>>::Data,
+    >,
+    FooArrayIntoIter<
+        T,
+        Buffer,
+        OffsetItem,
+        UnionLayout,
+    >: narrow::array::union::TypeIdIterator,
+{
+    type VariantIterators = FooArrayIntoIter<T, Buffer, OffsetItem, UnionLayout>;
+    fn new_variant_iters(self) -> Self::VariantIterators {
+        FooArrayIntoIter::<
+            T,
+            Buffer,
+            OffsetItem,
+            UnionLayout,
+        >(self.0.into_iter(), self.1.into_iter(), self.2.into_iter())
+    }
+}
 impl<T: narrow::array::ArrayType> narrow::array::UnionArrayType<3> for Foo<T> {
     type Array<
         Buffer: narrow::buffer::BufferType,
@@ -270,6 +549,7 @@ impl<T: narrow::array::ArrayType> narrow::array::ArrayType<Foo<T>> for Foo<T> {
         { <Self as narrow::array::UnionArrayType<3>>::VARIANTS },
         UnionLayout,
         Buffer,
+        OffsetItem,
     >;
 }
 #[automatically_derived]

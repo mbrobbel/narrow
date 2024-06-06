@@ -1,5 +1,6 @@
 use proc_macro2::{Literal, TokenStream};
 use quote::{format_ident, quote};
+use std::iter;
 use syn::{
     parse2, parse_quote, punctuated::Punctuated, token, visit_mut::VisitMut, DeriveInput, Field,
     Fields, Generics, Ident, ItemImpl, ItemStruct, Token, Type, TypeParamBound, Variant,
@@ -41,6 +42,18 @@ pub(super) fn derive(
     // Generate the ArrayType impl.
     let array_type_impl = input.array_type_impl();
 
+    // Generate the wrapper array into iter struct def.
+    let array_into_iter_struct_def = input.array_into_iter_struct_def();
+
+    // Generate the TypeIdIterator impl for DenseLayout.
+    let array_into_iter_type_id_iter_dense_impl = input.array_into_iter_type_id_iter_dense_impl();
+
+    // Generate the TypeIdIterator impl for SparseLayout.
+    let array_into_iter_type_id_iter_sparse_impl = input.array_into_iter_type_id_iter_sparse_impl();
+
+    // Generate the UnionArrayIterators impl for wrapper array struct.
+    let array_union_array_iterators_impl = input.array_union_array_iterators_impl();
+
     let tokens = quote! {
         #i8_conversion
 
@@ -55,6 +68,14 @@ pub(super) fn derive(
         #array_struct_extend_dense_impl
 
         #array_struct_extend_sparse_impl
+
+        #array_into_iter_struct_def
+
+        #array_into_iter_type_id_iter_dense_impl
+
+        #array_into_iter_type_id_iter_sparse_impl
+
+        #array_union_array_iterators_impl
 
         #union_array_type_impl
 
@@ -205,6 +226,11 @@ impl<'a> Enum<'a> {
     /// Returns the name of the Array wrapper struct.
     fn array_struct_ident(&self) -> Ident {
         format_ident!("{}Array", self.ident)
+    }
+
+    /// Returns the name of the ArrayIntoIter wrapper struct.
+    fn array_into_iter_struct_ident(&self) -> Ident {
+        format_ident!("{}IntoIter", self.array_struct_ident())
     }
 
     /// Returns the `ArrayType` trait bound
@@ -372,6 +398,278 @@ impl<'a> Enum<'a> {
         parse2(tokens).expect("array_struct_def")
     }
 
+    /// Returns the struct definition of the ArrayIntoIter wrapper struct.
+    fn array_into_iter_struct_def(&self) -> ItemStruct {
+        let narrow = util::narrow();
+
+        // Generics
+        let self_generics = self.generics.clone();
+        let (_, self_ty_generics, _) = self_generics.split_for_impl();
+        let mut generics = self.generics.clone();
+        SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
+        AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
+            .visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
+            .visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(UnionLayout: #narrow::array::UnionType))
+            .visit_generics_mut(&mut generics);
+        let self_ident = self.ident;
+        generics
+            .make_where_clause()
+            .predicates
+            .extend(
+                self.variant_indices()
+                    .map::<WherePredicate, _>(|idx|
+                        parse_quote!(
+                            <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<Buffer, OffsetItem, UnionLayout>
+                        : ::core::iter::IntoIterator)
+                    )
+            );
+        let (impl_generics, _, where_clause) = generics.split_for_impl();
+
+        let idx = self.variant_indices();
+        let vis = self.vis;
+        let self_ident = self.ident;
+        let into_iter_ident = self.array_into_iter_struct_ident();
+        let tokens = quote!(
+            #vis struct #into_iter_ident #impl_generics (
+                #(
+                  <<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<Buffer, OffsetItem, UnionLayout> as ::core::iter::IntoIterator>::IntoIter,
+                )*
+            ) #where_clause;
+        );
+        parse2(tokens).expect("array_into_iter_struct_def")
+    }
+
+    /// Generates `TypeIdIterator` impl for the `DenseLayout`.
+    fn array_into_iter_type_id_iter_dense_impl(&self) -> ItemImpl {
+        let narrow = util::narrow();
+
+        // Generics
+        let self_generics = self.generics.clone();
+        let self_ident = self.ident;
+        let (_, self_ty_generics, _) = self_generics.split_for_impl();
+        let mut generics = self.generics.clone();
+        SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
+        AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
+            .visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
+            .visit_generics_mut(&mut generics);
+        generics
+            .make_where_clause()
+            .predicates
+            .extend(
+                self.variant_indices()
+                    .map::<WherePredicate, _>(|idx|
+                        parse_quote!(
+                            <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<Buffer, OffsetItem, #narrow::array::DenseLayout>: ::core::iter::IntoIterator<Item = <#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>
+                        )
+                    )
+            );
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+        let fields = self
+            .variants
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| {
+                let idx = Literal::usize_unsuffixed(idx);
+                quote! {
+                    #idx => {
+                        self.#idx.next().map(<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::from_data)
+                    }
+
+                }
+            }).chain(iter::once(
+                quote! {
+                    _ => {
+                        panic!("type id greater than number of variants");
+                    }
+                }
+            ));
+
+        let into_iter_ident = self.array_into_iter_struct_ident();
+        let mut item_impl: ItemImpl = parse_quote! {
+            impl #impl_generics #narrow::array::union::TypeIdIterator for #into_iter_ident #ty_generics #where_clause {
+                type Enum = #self_ident #self_ty_generics;
+
+                fn next(&mut self, type_id: ::std::primitive::i8) -> ::core::option::Option<Self::Enum> {
+                    match type_id {
+                        #(
+                            #fields,
+                        )*
+                    }
+                }
+            }
+        };
+        match *item_impl.self_ty {
+            Type::Path(ref mut path) => {
+                let last_segment = path.path.segments.last_mut().unwrap();
+                match last_segment.arguments {
+                    syn::PathArguments::AngleBracketed(ref mut args) => {
+                        args.args.push(parse_quote!(#narrow::array::DenseLayout));
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            _ => unreachable!(),
+        }
+        let tokens = quote!(#item_impl);
+        parse2(tokens).expect("array_into_iter_type_id_iter_dense_impl")
+    }
+
+    /// Generates `TypeIdIterator` impl for the `SparseLayout`.
+    fn array_into_iter_type_id_iter_sparse_impl(&self) -> ItemImpl {
+        let narrow = util::narrow();
+
+        // Generics
+        let self_generics = self.generics.clone();
+        let self_ident = self.ident;
+        let (_, self_ty_generics, _) = self_generics.split_for_impl();
+        let mut generics = self.generics.clone();
+        SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
+        AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
+            .visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
+            .visit_generics_mut(&mut generics);
+        generics
+            .make_where_clause()
+            .predicates
+            .extend(
+                self.variant_indices()
+                    .map::<WherePredicate, _>(|idx|
+                        parse_quote!(
+                            <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<Buffer, OffsetItem, #narrow::array::SparseLayout>: ::core::iter::IntoIterator<Item = <#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>
+                        )
+                    )
+            );
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+        let fields = self
+            .variants
+            .iter()
+            .enumerate()
+            .map(|(current_index, _)| {
+                let current_idx = Literal::usize_unsuffixed(current_index);
+                let other_idx = (0..self.variants.len()).filter(|&var_idx| current_index != var_idx).map(Literal::usize_unsuffixed);
+                quote! {
+                    #current_idx => {
+                        #(
+                            self.#other_idx.next();
+                        )*
+                        self.#current_idx.next().map(<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#current_idx>>::from_data)
+                    }
+
+                }
+            }).chain(iter::once(
+                quote! {
+                    _ => {
+                        panic!("type id greater than number of variants");
+                    }
+                }
+            ));
+
+        let into_iter_ident = self.array_into_iter_struct_ident();
+        let mut item_impl: ItemImpl = parse_quote! {
+            impl #impl_generics #narrow::array::union::TypeIdIterator for #into_iter_ident #ty_generics #where_clause {
+                type Enum = #self_ident #self_ty_generics;
+
+                fn next(&mut self, type_id: ::std::primitive::i8) -> ::core::option::Option<Self::Enum> {
+                    match type_id {
+                        #(
+                            #fields,
+                        )*
+                    }
+                }
+            }
+        };
+        match *item_impl.self_ty {
+            Type::Path(ref mut path) => {
+                let last_segment = path.path.segments.last_mut().unwrap();
+                match last_segment.arguments {
+                    syn::PathArguments::AngleBracketed(ref mut args) => {
+                        args.args.push(parse_quote!(#narrow::array::SparseLayout));
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            _ => unreachable!(),
+        }
+        let tokens = quote!(#item_impl);
+        parse2(tokens).expect("array_into_iter_type_id_iter_sparse_impl")
+    }
+
+    /// Generates `UnionArrayIterators` impl for the wrapper array struct.
+    fn array_union_array_iterators_impl(&self) -> ItemImpl {
+        let narrow = util::narrow();
+
+        // Generics
+        let self_generics = self.generics.clone();
+        let self_ident = self.ident;
+        let (_, self_ty_generics, _) = self_generics.split_for_impl();
+        let mut generics = self.generics.clone();
+        SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
+        AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
+            .visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
+            .visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(UnionLayout: #narrow::array::UnionType))
+            .visit_generics_mut(&mut generics);
+
+        let into_iter_type_generics = generics.clone();
+        let (_, into_iter_type_generics, _) = into_iter_type_generics.split_for_impl();
+        let into_iter_ident = self.array_into_iter_struct_ident();
+
+        generics
+            .make_where_clause()
+            .predicates
+            .extend(
+                self.variant_indices()
+                    .map::<WherePredicate, _>(|idx|
+                        parse_quote!(
+                            <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<Buffer, OffsetItem, UnionLayout>: ::core::iter::IntoIterator<Item = <#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>
+                        )
+                    )
+                    .chain({
+                        iter::once(
+                            parse_quote!(
+                                #into_iter_ident #into_iter_type_generics: #narrow::array::union::TypeIdIterator
+                            )
+                        )
+                    })
+            );
+
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+        let fields = self.variants.iter().enumerate().map(|(current_index, _)| {
+            let current_idx = Literal::usize_unsuffixed(current_index);
+            quote! {
+                self.#current_idx.into_iter()
+            }
+        });
+
+        let array_struct_ident = self.array_struct_ident();
+        let item_impl: ItemImpl = parse_quote! {
+            impl #impl_generics #narrow::array::union::UnionArrayIterators for #array_struct_ident #ty_generics #where_clause {
+                type VariantIterators = #into_iter_ident #ty_generics;
+
+                fn new_variant_iters(self) -> Self::VariantIterators {
+                    #into_iter_ident :: #ty_generics (
+                        #(
+                            #fields,
+                        )*
+                    )
+                }
+            }
+        };
+        let tokens = quote!(#item_impl);
+        parse2(tokens).expect("array_union_array_iterators_impl")
+    }
+
     // Adds a default impl for the array wrapper struct.
     fn array_struct_default_impl(&self) -> ItemImpl {
         let narrow = util::narrow();
@@ -452,7 +750,6 @@ impl<'a> Enum<'a> {
                 })
             );
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-        let ident = self.array_struct_ident();
         let fields = self
             .variants
             .iter()
@@ -489,6 +786,8 @@ impl<'a> Enum<'a> {
                     },
                 }
             });
+
+        let ident = self.array_struct_ident();
         let mut item_impl: ItemImpl = parse_quote! {
             impl #impl_generics ::std::iter::Extend<#self_ident #self_ty_generics> for #ident #ty_generics #where_clause {
                 fn extend<I>(&mut self, iter: I) where I: IntoIterator<Item = #self_ident #self_ty_generics> {
@@ -665,7 +964,7 @@ impl<'a> Enum<'a> {
         let variants = Literal::usize_unsuffixed(self.variants.len());
         let tokens = quote! {
             impl #impl_generics #narrow::array::ArrayType<#ident #ty_generics> for #ident #ty_generics #where_clause {
-                type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::OffsetElement, UnionLayout: #narrow::array::UnionType> = #narrow::array::UnionArray<Self, { <Self as #narrow::array::UnionArrayType<#variants>>::VARIANTS }, UnionLayout, Buffer>;
+                type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::OffsetElement, UnionLayout: #narrow::array::UnionType> = #narrow::array::UnionArray<Self, { <Self as #narrow::array::UnionArrayType<#variants>>::VARIANTS }, UnionLayout, Buffer, OffsetItem>;
             }
         };
         parse2(tokens).expect("array_type_impl")

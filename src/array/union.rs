@@ -988,74 +988,65 @@ mod tests {
     fn derive() {
         use crate::ArrayType;
 
-        #[derive(ArrayType, Copy, Clone, Default)]
+        #[derive(ArrayType, Copy, Clone, Default, Debug, PartialEq, Eq)]
         enum Foo {
             #[default]
             Foo,
             Bar,
         }
 
-        #[derive(ArrayType, Clone, Copy)]
+        #[derive(ArrayType, Clone, Copy, Debug, PartialEq, Eq)]
         enum Test {
             Foo { bar: u8 },
             Bar(bool),
             None,
         }
 
-        const FOO_INPUT: [Foo; 2] = [Foo::Foo, Foo::Bar];
+        let foo_input = vec![Foo::Foo, Foo::Bar];
 
-        let dense_foo_array = FOO_INPUT
-            .into_iter()
-            .collect::<DenseUnionArray<Foo, { Foo::VARIANTS }>>();
-        assert_eq!(dense_foo_array.len(), FOO_INPUT.len());
-        let sparse_foo_array = FOO_INPUT
-            .into_iter()
-            .collect::<SparseUnionArray<Foo, { Foo::VARIANTS }>>();
-        assert_eq!(sparse_foo_array.len(), FOO_INPUT.len());
+        let dense_foo_array = foo_input.clone().into_iter().collect::<UnionArray<
+            Foo,
+            { Foo::VARIANTS },
+            DenseLayout,
+        >>();
+        assert_eq!(dense_foo_array.len(), foo_input.len());
+        let a = dense_foo_array.into_iter().collect::<Vec<_>>();
+        assert_eq!(a, foo_input.clone());
 
-        let input = [
+        let sparse_foo_array = foo_input.clone().into_iter().collect::<UnionArray<
+            Foo,
+            { <Foo as UnionArrayType<2>>::VARIANTS },
+            SparseLayout,
+        >>();
+        assert_eq!(sparse_foo_array.len(), foo_input.len());
+        assert_eq!(sparse_foo_array.into_iter().collect::<Vec<_>>(), foo_input);
+
+        let input = vec![
             Test::None,
             Test::Bar(true),
             Test::Foo { bar: 123 },
             Test::None,
         ];
         let dense_array = input
+            .clone()
             .into_iter()
-            .collect::<UnionArray<Test, { Test::VARIANTS }>>();
+            .collect::<UnionArray<Test, { <Test as UnionArrayType<3>>::VARIANTS }>>();
         assert_eq!(dense_array.len(), 4);
         assert_eq!(dense_array.0.types.0, &[2, 1, 0, 2]);
         assert_eq!(dense_array.0.offsets.0, &[0, 0, 0, 1]);
         assert_eq!(dense_array.0.variants.0 .0.bar.0, &[123]);
-        assert_eq!(
-            dense_array
-                .0
-                .variants
-                .1
-                 .0
-                 .0
-                .into_iter()
-                .collect::<Vec<_>>(),
-            &[true]
-        );
         assert_eq!(dense_array.0.variants.2 .0.len(), 2);
+        assert_eq!(dense_array.into_iter().collect::<Vec<_>>(), input.clone());
 
-        let sparse_array = input
-            .into_iter()
-            .collect::<UnionArray<Test, { Test::VARIANTS }, SparseLayout>>();
+        let sparse_array = input.clone().into_iter().collect::<UnionArray<
+            Test,
+            { <Test as UnionArrayType<3>>::VARIANTS },
+            SparseLayout,
+        >>();
         assert_eq!(sparse_array.len(), 4);
         assert_eq!(sparse_array.0.types.0, &[2, 1, 0, 2]);
         assert_eq!(sparse_array.0.variants.0 .0.bar.0, &[0, 0, 123, 0]);
-        assert_eq!(
-            sparse_array
-                .0
-                .variants
-                .1
-                 .0
-                 .0
-                .into_iter()
-                .collect::<Vec<_>>(),
-            &[false, true, false, false]
-        );
         assert_eq!(sparse_array.0.variants.2 .0.len(), 4);
+        assert_eq!(sparse_array.into_iter().collect::<Vec<_>>(), input);
     }
 }
