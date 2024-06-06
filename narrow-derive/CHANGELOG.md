@@ -1,5 +1,36 @@
 
 
+## v0.6.0 (2024-06-06)
+
+### Bug Fixes
+
+ - <csr-id-a90fa5884237f5932250481aeaee80a12a16e023/> match field visibility in array struct definition
+
+### New Features (BREAKING)
+
+ - <csr-id-8128b7dad369b59c439de7a4a43ef4ee8d518c34/> fix `union` array `arrow-rs` conversion
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 2 commits contributed to the release over the course of 22 calendar days.
+ - 34 days passed between releases.
+ - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 2 unique issues were worked on: [#166](https://github.com/mbrobbel/narrow/issues/166), [#180](https://github.com/mbrobbel/narrow/issues/180)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#166](https://github.com/mbrobbel/narrow/issues/166)**
+    - Fix `union` array `arrow-rs` conversion ([`8128b7d`](https://github.com/mbrobbel/narrow/commit/8128b7dad369b59c439de7a4a43ef4ee8d518c34))
+ * **[#180](https://github.com/mbrobbel/narrow/issues/180)**
+    - Match field visibility in array struct definition ([`a90fa58`](https://github.com/mbrobbel/narrow/commit/a90fa5884237f5932250481aeaee80a12a16e023))
+</details>
+
 ## v0.5.3 (2024-05-03)
 
 ### Bug Fixes
@@ -10,7 +41,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 1 commit contributed to the release.
+ - 2 commits contributed to the release.
  - 14 days passed between releases.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#174](https://github.com/mbrobbel/narrow/issues/174)
@@ -23,6 +54,8 @@
 
  * **[#174](https://github.com/mbrobbel/narrow/issues/174)**
     - Make `StructArray` field for unit structs nullable ([`7930e73`](https://github.com/mbrobbel/narrow/commit/7930e73f9441bb69046480c42df7889280e129ef))
+ * **Uncategorized**
+    - Release narrow-derive v0.5.3 ([`4fd0eea`](https://github.com/mbrobbel/narrow/commit/4fd0eea80ff9a9a06b6fb2052103312a8c499759))
 </details>
 
 ## v0.5.2 (2024-04-18)

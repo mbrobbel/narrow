@@ -1,6 +1,51 @@
 
 
+## v0.7.0 (2024-06-06)
+
+### Documentation
+
+ - <csr-id-c4a6e6cf8a64f96633d0422197651257b0143cae/> docs.rs defines `--cfg=docsrs` by default
+
+### New Features
+
+ - <csr-id-a074bfe6901aea1fc6817b076cfc874e5beb2a90/> implement `IntoIterator` for `FixedSizeListArray`
+
+### Refactor
+
+ - <csr-id-f3f3a9f692ff6f633765a643c7c07eb57c6fb524/> clean up `arrow-rs` interop `FixedSizeBinaryArray` impls and tests
+
+### New Features (BREAKING)
+
+ - <csr-id-8128b7dad369b59c439de7a4a43ef4ee8d518c34/> fix `union` array `arrow-rs` conversion
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 4 commits contributed to the release over the course of 22 calendar days.
+ - 49 days passed between releases.
+ - 4 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 4 unique issues were worked on: [#166](https://github.com/mbrobbel/narrow/issues/166), [#176](https://github.com/mbrobbel/narrow/issues/176), [#178](https://github.com/mbrobbel/narrow/issues/178), [#179](https://github.com/mbrobbel/narrow/issues/179)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#166](https://github.com/mbrobbel/narrow/issues/166)**
+    - Fix `union` array `arrow-rs` conversion ([`8128b7d`](https://github.com/mbrobbel/narrow/commit/8128b7dad369b59c439de7a4a43ef4ee8d518c34))
+ * **[#176](https://github.com/mbrobbel/narrow/issues/176)**
+    - Implement `IntoIterator` for `FixedSizeListArray` ([`a074bfe`](https://github.com/mbrobbel/narrow/commit/a074bfe6901aea1fc6817b076cfc874e5beb2a90))
+ * **[#178](https://github.com/mbrobbel/narrow/issues/178)**
+    - Docs.rs defines `--cfg=docsrs` by default ([`c4a6e6c`](https://github.com/mbrobbel/narrow/commit/c4a6e6cf8a64f96633d0422197651257b0143cae))
+ * **[#179](https://github.com/mbrobbel/narrow/issues/179)**
+    - Clean up `arrow-rs` interop `FixedSizeBinaryArray` impls and tests ([`f3f3a9f`](https://github.com/mbrobbel/narrow/commit/f3f3a9f692ff6f633765a643c7c07eb57c6fb524))
+</details>
+
 ## v0.6.0 (2024-04-18)
+
+<csr-id-89ea9fccaccd7592e6e52cc72c022032ae0ff020/>
 
 ### Chore
 
