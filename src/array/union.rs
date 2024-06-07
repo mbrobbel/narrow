@@ -236,7 +236,10 @@ where
             .map(|item| {
                 let type_id = i8::from(&item);
                 let idx = usize::try_from(type_id).expect("bad type id");
+
+                assert!(idx < VARIANTS, "type id greater than number of variants");
                 let result = ((type_id, lens[idx]), item);
+
                 lens[idx] += 1;
                 result
             })
@@ -333,6 +336,127 @@ where
     }
 }
 
+/// Types that return a constructed `enum` by advancing
+/// iterator(s) of variants of a union array given the
+/// `type_id` for the variant.
+pub trait TypeIdIterator {
+    /// The rust enum
+    type Enum;
+
+    /// Advances the variant iterator(s) to get the next
+    /// value for the `type_id`.
+    fn next(&mut self, type_id: i8) -> Option<Self::Enum>;
+}
+
+/// Types that may be consumed to construct iterators of
+/// union array variants.
+pub trait UnionArrayIterators {
+    /// Type holding the variant iterators that may be
+    /// advanced to get the value for a `type_id`.
+    type VariantIterators: TypeIdIterator;
+
+    /// Constructs `VariantIterators` by consuming `Self`.
+    fn new_variant_iters(self) -> Self::VariantIterators;
+}
+
+/// Type holding the variant iterators of a union array
+type VarIters<T, const VARIANTS: usize, Buffer, OffsetItem, UnionLayout> = <<T as UnionArrayType<
+    VARIANTS,
+>>::Array<
+    Buffer,
+    OffsetItem,
+    UnionLayout,
+> as UnionArrayIterators>::VariantIterators;
+
+/// State required to iterate over union arrays
+pub struct UnionArrayIntoIter<
+    T: UnionArrayType<VARIANTS>,
+    const VARIANTS: usize,
+    Buffer: BufferType,
+    OffsetItem: OffsetElement,
+    UnionLayout: UnionType,
+> where
+    for<'a> i8: From<&'a T>,
+    <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, UnionLayout>: UnionArrayIterators,
+    <Buffer as BufferType>::Buffer<i8>: IntoIterator<Item = i8>,
+{
+    /// Type ids of the items in the union array
+    type_ids: <Int8Array<false, Buffer> as IntoIterator>::IntoIter,
+
+    /// Iterators of variants that may be advanced to get items for a type id
+    variant_iterators: VarIters<T, VARIANTS, Buffer, OffsetItem, UnionLayout>,
+}
+
+impl<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
+    > Iterator for UnionArrayIntoIter<T, VARIANTS, Buffer, OffsetItem, UnionLayout>
+where
+    for<'a> i8: From<&'a T>,
+    <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, UnionLayout>: UnionArrayIterators,
+    <Buffer as BufferType>::Buffer<i8>: IntoIterator<Item = i8>,
+    VarIters<T, VARIANTS, Buffer, OffsetItem, UnionLayout>: TypeIdIterator<Enum = T>,
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.type_ids.next().map(|type_id| {
+            self.variant_iterators
+                .next(type_id)
+                .expect("child arrays have correct length")
+        })
+    }
+}
+
+impl<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+    > IntoIterator for UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>
+where
+    for<'a> i8: From<&'a T>,
+    <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, SparseLayout>: UnionArrayIterators,
+    <Buffer as BufferType>::Buffer<i8>: IntoIterator<Item = i8>,
+    VarIters<T, VARIANTS, Buffer, OffsetItem, SparseLayout>: TypeIdIterator<Enum = T>,
+{
+    type Item = T;
+    type IntoIter = UnionArrayIntoIter<T, VARIANTS, Buffer, OffsetItem, SparseLayout>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        UnionArrayIntoIter {
+            variant_iterators: UnionArrayIterators::new_variant_iters(self.0.variants),
+            type_ids: self.0.types.into_iter(),
+        }
+    }
+}
+
+impl<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+    > IntoIterator for UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>
+where
+    for<'a> i8: From<&'a T>,
+    <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, DenseLayout>: UnionArrayIterators,
+    <Buffer as BufferType>::Buffer<i8>: IntoIterator<Item = i8>,
+    VarIters<T, VARIANTS, Buffer, OffsetItem, DenseLayout>: TypeIdIterator<Enum = T>,
+{
+    type Item = T;
+    type IntoIter = UnionArrayIntoIter<T, VARIANTS, Buffer, OffsetItem, DenseLayout>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        UnionArrayIntoIter {
+            variant_iterators: UnionArrayIterators::new_variant_iters(self.0.variants),
+            type_ids: self.0.types.into_iter(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -341,7 +465,9 @@ mod tests {
 
     #[test]
     #[rustversion::attr(nightly, allow(non_local_definitions))]
+    #[allow(clippy::too_many_lines)]
     fn simple() {
+        #[derive(Clone, Debug, PartialEq, Eq)]
         enum Foo {
             Bar(i32),
             Baz(u32),
@@ -399,6 +525,70 @@ mod tests {
             }
         }
 
+        struct FooArrayIntoIter<Buffer: BufferType, UnionLayout: UnionType>
+        where
+            Int32Array<false, Buffer>: IntoIterator,
+            Uint32Array<false, Buffer>: IntoIterator,
+        {
+            bar: <Int32Array<false, Buffer> as IntoIterator>::IntoIter,
+            baz: <Uint32Array<false, Buffer> as IntoIterator>::IntoIter,
+            _ty: PhantomData<UnionLayout>,
+        }
+
+        impl<Buffer: BufferType> TypeIdIterator for FooArrayIntoIter<Buffer, DenseLayout>
+        where
+            Int32Array<false, Buffer>: IntoIterator<Item = i32>,
+            Uint32Array<false, Buffer>: IntoIterator<Item = u32>,
+        {
+            type Enum = Foo;
+            fn next(&mut self, type_id: i8) -> Option<Self::Enum> {
+                match type_id {
+                    0 => self.bar.next().map(Foo::Bar),
+                    1 => self.baz.next().map(Foo::Baz),
+                    _ => panic!("type id greater than number of variants"),
+                }
+            }
+        }
+
+        impl<Buffer: BufferType> TypeIdIterator for FooArrayIntoIter<Buffer, SparseLayout>
+        where
+            Int32Array<false, Buffer>: IntoIterator<Item = i32>,
+            Uint32Array<false, Buffer>: IntoIterator<Item = u32>,
+        {
+            type Enum = Foo;
+            fn next(&mut self, type_id: i8) -> Option<Self::Enum> {
+                match type_id {
+                    0 => {
+                        self.baz.next();
+                        self.bar.next().map(Foo::Bar)
+                    }
+                    1 => {
+                        self.bar.next();
+                        self.baz.next().map(Foo::Baz)
+                    }
+                    _ => panic!("type id greater than number of variants"),
+                }
+            }
+        }
+
+        impl<Buffer: BufferType, UnionLayout: UnionType> UnionArrayIterators
+            for FooArray<Buffer, UnionLayout>
+        where
+            Int32Array<false, Buffer>: IntoIterator<Item = i32>,
+            Uint32Array<false, Buffer>: IntoIterator<Item = u32>,
+            FooArrayIntoIter<Buffer, UnionLayout>: TypeIdIterator,
+        {
+            type VariantIterators = FooArrayIntoIter<Buffer, UnionLayout>;
+
+            fn new_variant_iters(self) -> Self::VariantIterators {
+                Self::VariantIterators {
+                    bar: self.bar.into_iter(),
+                    baz: self.baz.into_iter(),
+                    _ty: PhantomData,
+                }
+            }
+        }
+
         impl From<&Foo> for i8 {
             fn from(value: &Foo) -> i8 {
                 match *value {
@@ -413,47 +603,54 @@ mod tests {
                 FooArray<Buffer, UnionLayout>;
         }
 
-        let dense_array = [Foo::Bar(0), Foo::Baz(1), Foo::Baz(2), Foo::Bar(3)]
-            .into_iter()
-            .collect::<UnionArray<Foo, { Foo::VARIANTS }>>();
+        {
+            let input = vec![Foo::Bar(0), Foo::Baz(1), Foo::Baz(2), Foo::Bar(3)];
+            let dense_array = input
+                .clone()
+                .into_iter()
+                .collect::<UnionArray<Foo, { Foo::VARIANTS }>>();
 
-        assert_eq!(dense_array.0.types.0, [0, 1, 1, 0]);
-        assert_eq!(dense_array.0.offsets.0, [0, 0, 1, 1]);
-        assert_eq!(dense_array.0.variants.bar.0, [0, 3]);
-        assert_eq!(dense_array.0.variants.baz.0, [1, 2]);
+            assert_eq!(dense_array.0.types.0, [0, 1, 1, 0]);
+            assert_eq!(dense_array.0.offsets.0, [0, 0, 1, 1]);
+            assert_eq!(dense_array.0.variants.bar.0, [0, 3]);
+            assert_eq!(dense_array.0.variants.baz.0, [1, 2]);
 
-        let sparse_array = [Foo::Bar(0), Foo::Baz(1), Foo::Baz(2)]
-            .into_iter()
-            .collect::<UnionArray<Foo, { Foo::VARIANTS }, SparseLayout>>();
+            assert_eq!(dense_array.into_iter().collect::<Vec<_>>(), input);
+        };
 
-        assert_eq!(sparse_array.0.types.0, [0, 1, 1]);
-        assert_eq!(
-            sparse_array.0.variants.bar.0,
-            [0, i32::default(), i32::default()]
-        );
-        assert_eq!(sparse_array.0.variants.baz.0, [u32::default(), 1, 2]);
+        {
+            let input = vec![Foo::Bar(-78), Foo::Baz(1), Foo::Baz(99)];
+            let sparse_array = input.clone().into_iter().collect::<UnionArray<
+                Foo,
+                { Foo::VARIANTS },
+                SparseLayout,
+            >>();
+
+            assert_eq!(sparse_array.0.types.0, [0, 1, 1]);
+            assert_eq!(
+                sparse_array.0.variants.bar.0,
+                [-78, i32::default(), i32::default()]
+            );
+            assert_eq!(sparse_array.0.variants.baz.0, [u32::default(), 1, 99]);
+
+            assert_eq!(sparse_array.into_iter().collect::<Vec<_>>(), input);
+        };
     }
 
     #[test]
     #[cfg(feature = "derive")]
     #[allow(clippy::too_many_lines)]
+    #[allow(clippy::type_complexity)]
+    #[allow(unused)]
     #[rustversion::attr(nightly, allow(non_local_definitions))]
     fn with_multiple_fields() {
         use crate::{offset, ArrayType, Length};
 
-        #[derive(Clone)]
+        #[derive(Clone, Debug, PartialEq, Eq)]
         enum Foo {
             Unit,
             Unnamed(u8, u16),
-            Named { a: u32, b: u64 },
-        }
-
-        impl ArrayType<Foo> for Foo {
-            type Array<
-                Buffer: BufferType,
-                OffsetItem: offset::OffsetElement,
-                UnionLayout: UnionType,
-            > = UnionArray<Foo, { Foo::VARIANTS }, UnionLayout>;
+            Named { a: u32, b: u64, c: String },
         }
 
         impl From<&Foo> for i8 {
@@ -489,6 +686,7 @@ mod tests {
         struct FooVariantNamed {
             a: u32,
             b: u64,
+            c: String,
         }
 
         impl EnumVariant<2> for Foo {
@@ -498,6 +696,7 @@ mod tests {
                 Self::Named {
                     a: value.a,
                     b: value.b,
+                    c: value.c,
                 }
             }
         }
@@ -521,11 +720,6 @@ mod tests {
                     offset::NA,
                     UnionLayout,
                 >,
-        }
-
-        impl UnionArrayType<3> for Foo {
-            type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-                FooArray<Buffer, UnionLayout>;
         }
 
         impl<Buffer: BufferType, UnionLayout: UnionType> Default for FooArray<Buffer, UnionLayout>
@@ -562,23 +756,25 @@ mod tests {
                 Buffer,
                 offset::NA,
                 DenseLayout,
-            >: Extend<()>,
+            >: Extend<<Foo as EnumVariant<0>>::Data>,
             <<Foo as EnumVariant<1>>::Data as ArrayType<<Foo as EnumVariant<1>>::Data>>::Array<
                 Buffer,
                 offset::NA,
                 DenseLayout,
-            >: Extend<FooVariantUnnamed>,
+            >: Extend<<Foo as EnumVariant<1>>::Data>,
             <<Foo as EnumVariant<2>>::Data as ArrayType<<Foo as EnumVariant<2>>::Data>>::Array<
                 Buffer,
                 offset::NA,
                 DenseLayout,
-            >: Extend<FooVariantNamed>,
+            >: Extend<<Foo as EnumVariant<2>>::Data>,
         {
             fn extend<T: IntoIterator<Item = Foo>>(&mut self, iter: T) {
                 iter.into_iter().for_each(|item| match item {
                     Foo::Unit => self.unit.extend(iter::once(())),
                     Foo::Unnamed(a, b) => self.unnamed.extend(iter::once(FooVariantUnnamed(a, b))),
-                    Foo::Named { a, b } => self.named.extend(iter::once(FooVariantNamed { a, b })),
+                    Foo::Named { a, b, c } => {
+                        self.named.extend(iter::once(FooVariantNamed { a, b, c }));
+                    }
                 });
             }
         }
@@ -588,18 +784,18 @@ mod tests {
             <<Foo as EnumVariant<0>>::Data as ArrayType<<Foo as EnumVariant<0>>::Data>>::Array<
                 Buffer,
                 offset::NA,
-                DenseLayout,
-            >: Extend<()>,
+                SparseLayout,
+            >: Extend<<Foo as EnumVariant<0>>::Data>,
             <<Foo as EnumVariant<1>>::Data as ArrayType<<Foo as EnumVariant<1>>::Data>>::Array<
                 Buffer,
                 offset::NA,
-                DenseLayout,
-            >: Extend<FooVariantUnnamed>,
+                SparseLayout,
+            >: Extend<<Foo as EnumVariant<1>>::Data>,
             <<Foo as EnumVariant<2>>::Data as ArrayType<<Foo as EnumVariant<2>>::Data>>::Array<
                 Buffer,
                 offset::NA,
-                DenseLayout,
-            >: Extend<FooVariantNamed>,
+                SparseLayout,
+            >: Extend<<Foo as EnumVariant<2>>::Data>,
         {
             fn extend<T: IntoIterator<Item = Foo>>(&mut self, iter: T) {
                 iter.into_iter().for_each(|item| match item {
@@ -614,28 +810,176 @@ mod tests {
                         self.unnamed.extend(iter::once(FooVariantUnnamed(a, b)));
                         self.named.extend(iter::once(FooVariantNamed::default()));
                     }
-                    Foo::Named { a, b } => {
+                    Foo::Named { a, b, c } => {
                         self.unit.extend(iter::once(()));
                         self.unnamed
                             .extend(iter::once(FooVariantUnnamed::default()));
-                        self.named.extend(iter::once(FooVariantNamed { a, b }));
+                        self.named.extend(iter::once(FooVariantNamed { a, b, c }));
                     }
                 });
             }
         }
 
-        let input = [Foo::Unit, Foo::Unnamed(1, 2), Foo::Named { a: 3, b: 4 }];
-        let dense_array = input
-            .into_iter()
-            .collect::<UnionArray<Foo, { Foo::VARIANTS }>>();
+        type FooEnumVariantArray<const INDEX: usize, Buffer, UnionLayout> = <<Foo as EnumVariant<
+            INDEX,
+        >>::Data as ArrayType<
+            <Foo as EnumVariant<INDEX>>::Data,
+        >>::Array<
+            Buffer,
+            offset::NA,
+            UnionLayout,
+        >;
 
-        assert_eq!(dense_array.0.types.0, [0, 1, 2]);
-        assert_eq!(dense_array.0.offsets.0, [0, 0, 0]);
-        assert_eq!(dense_array.0.variants.unit.0.len(), 1);
-        assert_eq!(dense_array.0.variants.unnamed.0 .0 .0, [1]);
-        assert_eq!(dense_array.0.variants.unnamed.0 .1 .0, [2]);
-        assert_eq!(dense_array.0.variants.named.0.a.0, [3]);
-        assert_eq!(dense_array.0.variants.named.0.b.0, [4]);
+        struct FooArrayIntoIter<Buffer: BufferType, UnionLayout: UnionType>
+        where
+            FooEnumVariantArray<0, Buffer, UnionLayout>: IntoIterator,
+            FooEnumVariantArray<1, Buffer, UnionLayout>: IntoIterator,
+            FooEnumVariantArray<2, Buffer, UnionLayout>: IntoIterator,
+        {
+            unit: <FooEnumVariantArray<0, Buffer, UnionLayout> as IntoIterator>::IntoIter,
+            unnamed: <FooEnumVariantArray<1, Buffer, UnionLayout> as IntoIterator>::IntoIter,
+            named: <FooEnumVariantArray<2, Buffer, UnionLayout> as IntoIterator>::IntoIter,
+        }
+
+        impl<Buffer: BufferType> TypeIdIterator for FooArrayIntoIter<Buffer, DenseLayout>
+        where
+            FooEnumVariantArray<0, Buffer, DenseLayout>:
+                IntoIterator<Item = <Foo as EnumVariant<0>>::Data>,
+            FooEnumVariantArray<1, Buffer, DenseLayout>:
+                IntoIterator<Item = <Foo as EnumVariant<1>>::Data>,
+            FooEnumVariantArray<2, Buffer, DenseLayout>:
+                IntoIterator<Item = <Foo as EnumVariant<2>>::Data>,
+        {
+            type Enum = Foo;
+
+            fn next(&mut self, type_id: i8) -> Option<Self::Enum> {
+                match type_id {
+                    0 => self.unit.next().map(<Foo as EnumVariant<0>>::from_data),
+                    1 => self.unnamed.next().map(<Foo as EnumVariant<1>>::from_data),
+                    2 => self.named.next().map(<Foo as EnumVariant<2>>::from_data),
+                    _ => panic!("type id greater than number of variants"),
+                }
+            }
+        }
+
+        impl<Buffer: BufferType> TypeIdIterator for FooArrayIntoIter<Buffer, SparseLayout>
+        where
+            FooEnumVariantArray<0, Buffer, SparseLayout>:
+                IntoIterator<Item = <Foo as EnumVariant<0>>::Data>,
+            FooEnumVariantArray<1, Buffer, SparseLayout>:
+                IntoIterator<Item = <Foo as EnumVariant<1>>::Data>,
+            FooEnumVariantArray<2, Buffer, SparseLayout>:
+                IntoIterator<Item = <Foo as EnumVariant<2>>::Data>,
+        {
+            type Enum = Foo;
+
+            fn next(&mut self, type_id: i8) -> Option<Self::Enum> {
+                match type_id {
+                    0 => {
+                        let to_return = self.unit.next().map(<Foo as EnumVariant<0>>::from_data);
+                        self.unnamed.next();
+                        self.named.next();
+
+                        to_return
+                    }
+                    1 => {
+                        self.unit.next();
+                        let to_return = self.unnamed.next().map(<Foo as EnumVariant<1>>::from_data);
+                        self.named.next();
+
+                        to_return
+                    }
+                    2 => {
+                        self.unit.next();
+                        self.unnamed.next();
+                        let to_return = self.named.next().map(<Foo as EnumVariant<2>>::from_data);
+
+                        #[allow(clippy::let_and_return)]
+                        to_return
+                    }
+                    _ => panic!("type id greater than number of variants"),
+                }
+            }
+        }
+
+        impl<Buffer: BufferType, UnionLayout: UnionType> UnionArrayIterators
+            for FooArray<Buffer, UnionLayout>
+        where
+            FooEnumVariantArray<0, Buffer, SparseLayout>:
+                IntoIterator<Item = <Foo as EnumVariant<0>>::Data>,
+            FooEnumVariantArray<1, Buffer, SparseLayout>:
+                IntoIterator<Item = <Foo as EnumVariant<1>>::Data>,
+            FooEnumVariantArray<2, Buffer, SparseLayout>:
+                IntoIterator<Item = <Foo as EnumVariant<2>>::Data>,
+            FooArrayIntoIter<Buffer, UnionLayout>: TypeIdIterator,
+        {
+            type VariantIterators = FooArrayIntoIter<Buffer, UnionLayout>;
+
+            fn new_variant_iters(self) -> Self::VariantIterators {
+                Self::VariantIterators {
+                    unit: self.unit.into_iter(),
+                    unnamed: self.unnamed.into_iter(),
+                    named: self.named.into_iter(),
+                }
+            }
+        }
+
+        impl UnionArrayType<3> for Foo {
+            type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+                FooArray<Buffer, UnionLayout>;
+        }
+
+        impl ArrayType<Foo> for Foo {
+            type Array<
+                Buffer: BufferType,
+                OffsetItem: offset::OffsetElement,
+                UnionLayout: UnionType,
+            > = UnionArray<Foo, { Foo::VARIANTS }, UnionLayout>;
+        }
+
+        {
+            let input = vec![
+                Foo::Unit,
+                Foo::Unnamed(1, 2),
+                Foo::Named {
+                    a: 3,
+                    b: 4,
+                    c: "woo hoo!".to_owned(),
+                },
+            ];
+            let dense_array = input
+                .clone()
+                .into_iter()
+                .collect::<UnionArray<Foo, { Foo::VARIANTS }>>();
+
+            assert_eq!(dense_array.0.types.0, [0, 1, 2]);
+            assert_eq!(dense_array.0.offsets.0, [0, 0, 0]);
+            assert_eq!(dense_array.0.variants.unit.0.len(), 1);
+            assert_eq!(dense_array.0.variants.unnamed.0 .0 .0, [1]);
+            assert_eq!(dense_array.0.variants.unnamed.0 .1 .0, [2]);
+            assert_eq!(dense_array.0.variants.named.0.a.0, [3]);
+            assert_eq!(dense_array.0.variants.named.0.b.0, [4]);
+
+            assert_eq!(dense_array.into_iter().collect::<Vec<_>>(), input);
+        };
+
+        {
+            let input = vec![
+                Foo::Unit,
+                Foo::Unnamed(1, 2),
+                Foo::Named {
+                    a: 3,
+                    b: 4,
+                    c: "woo hoo!".to_owned(),
+                },
+            ];
+            let sparse_array = input.clone().into_iter().collect::<UnionArray<
+                Foo,
+                { Foo::VARIANTS },
+                SparseLayout,
+            >>();
+            assert_eq!(sparse_array.into_iter().collect::<Vec<_>>(), input);
+        };
     }
 
     #[test]
@@ -644,74 +988,65 @@ mod tests {
     fn derive() {
         use crate::ArrayType;
 
-        #[derive(ArrayType, Copy, Clone, Default)]
+        #[derive(ArrayType, Copy, Clone, Default, Debug, PartialEq, Eq)]
         enum Foo {
             #[default]
             Foo,
             Bar,
         }
 
-        #[derive(ArrayType, Clone, Copy)]
+        #[derive(ArrayType, Clone, Copy, Debug, PartialEq, Eq)]
         enum Test {
             Foo { bar: u8 },
             Bar(bool),
             None,
         }
 
-        const FOO_INPUT: [Foo; 2] = [Foo::Foo, Foo::Bar];
+        let foo_input = vec![Foo::Foo, Foo::Bar];
 
-        let dense_foo_array = FOO_INPUT
-            .into_iter()
-            .collect::<DenseUnionArray<Foo, { Foo::VARIANTS }>>();
-        assert_eq!(dense_foo_array.len(), FOO_INPUT.len());
-        let sparse_foo_array = FOO_INPUT
-            .into_iter()
-            .collect::<SparseUnionArray<Foo, { Foo::VARIANTS }>>();
-        assert_eq!(sparse_foo_array.len(), FOO_INPUT.len());
+        let dense_foo_array = foo_input.clone().into_iter().collect::<UnionArray<
+            Foo,
+            { Foo::VARIANTS },
+            DenseLayout,
+        >>();
+        assert_eq!(dense_foo_array.len(), foo_input.len());
+        let a = dense_foo_array.into_iter().collect::<Vec<_>>();
+        assert_eq!(a, foo_input.clone());
 
-        let input = [
+        let sparse_foo_array = foo_input.clone().into_iter().collect::<UnionArray<
+            Foo,
+            { <Foo as UnionArrayType<2>>::VARIANTS },
+            SparseLayout,
+        >>();
+        assert_eq!(sparse_foo_array.len(), foo_input.len());
+        assert_eq!(sparse_foo_array.into_iter().collect::<Vec<_>>(), foo_input);
+
+        let input = vec![
             Test::None,
             Test::Bar(true),
             Test::Foo { bar: 123 },
             Test::None,
         ];
         let dense_array = input
+            .clone()
             .into_iter()
-            .collect::<UnionArray<Test, { Test::VARIANTS }>>();
+            .collect::<UnionArray<Test, { <Test as UnionArrayType<3>>::VARIANTS }>>();
         assert_eq!(dense_array.len(), 4);
         assert_eq!(dense_array.0.types.0, &[2, 1, 0, 2]);
         assert_eq!(dense_array.0.offsets.0, &[0, 0, 0, 1]);
         assert_eq!(dense_array.0.variants.0 .0.bar.0, &[123]);
-        assert_eq!(
-            dense_array
-                .0
-                .variants
-                .1
-                 .0
-                 .0
-                .into_iter()
-                .collect::<Vec<_>>(),
-            &[true]
-        );
         assert_eq!(dense_array.0.variants.2 .0.len(), 2);
+        assert_eq!(dense_array.into_iter().collect::<Vec<_>>(), input.clone());
 
-        let sparse_array = input
-            .into_iter()
-            .collect::<UnionArray<Test, { Test::VARIANTS }, SparseLayout>>();
+        let sparse_array = input.clone().into_iter().collect::<UnionArray<
+            Test,
+            { <Test as UnionArrayType<3>>::VARIANTS },
+            SparseLayout,
+        >>();
         assert_eq!(sparse_array.len(), 4);
         assert_eq!(sparse_array.0.types.0, &[2, 1, 0, 2]);
         assert_eq!(sparse_array.0.variants.0 .0.bar.0, &[0, 0, 123, 0]);
-        assert_eq!(
-            sparse_array
-                .0
-                .variants
-                .1
-                 .0
-                 .0
-                .into_iter()
-                .collect::<Vec<_>>(),
-            &[false, true, false, false]
-        );
         assert_eq!(sparse_array.0.variants.2 .0.len(), 4);
+        assert_eq!(sparse_array.into_iter().collect::<Vec<_>>(), input);
     }
 }
