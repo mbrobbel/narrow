@@ -1,6 +1,32 @@
 
 
+## v0.7.1 (2024-06-07)
+
+### New Features
+
+ - <csr-id-0093b2235bf25ed76cfd27ff7be821588e9aed15/> implement `IntoIterator` for `UnionArray`
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#184](https://github.com/mbrobbel/narrow/issues/184)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#184](https://github.com/mbrobbel/narrow/issues/184)**
+    - Implement `IntoIterator` for `UnionArray` ([`0093b22`](https://github.com/mbrobbel/narrow/commit/0093b2235bf25ed76cfd27ff7be821588e9aed15))
+</details>
+
 ## v0.7.0 (2024-06-06)
+
+<csr-id-f3f3a9f692ff6f633765a643c7c07eb57c6fb524/>
 
 ### Documentation
 

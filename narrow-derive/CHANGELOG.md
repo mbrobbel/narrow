@@ -1,5 +1,29 @@
 
 
+## v0.6.1 (2024-06-07)
+
+### New Features
+
+ - <csr-id-0093b2235bf25ed76cfd27ff7be821588e9aed15/> implement `IntoIterator` for `UnionArray`
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#184](https://github.com/mbrobbel/narrow/issues/184)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#184](https://github.com/mbrobbel/narrow/issues/184)**
+    - Implement `IntoIterator` for `UnionArray` ([`0093b22`](https://github.com/mbrobbel/narrow/commit/0093b2235bf25ed76cfd27ff7be821588e9aed15))
+</details>
+
 ## v0.6.0 (2024-06-06)
 
 ### Bug Fixes
@@ -14,7 +38,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 2 commits contributed to the release over the course of 22 calendar days.
+ - 3 commits contributed to the release over the course of 22 calendar days.
  - 34 days passed between releases.
  - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 2 unique issues were worked on: [#166](https://github.com/mbrobbel/narrow/issues/166), [#180](https://github.com/mbrobbel/narrow/issues/180)
@@ -29,6 +53,8 @@
     - Fix `union` array `arrow-rs` conversion ([`8128b7d`](https://github.com/mbrobbel/narrow/commit/8128b7dad369b59c439de7a4a43ef4ee8d518c34))
  * **[#180](https://github.com/mbrobbel/narrow/issues/180)**
     - Match field visibility in array struct definition ([`a90fa58`](https://github.com/mbrobbel/narrow/commit/a90fa5884237f5932250481aeaee80a12a16e023))
+ * **Uncategorized**
+    - Release narrow-derive v0.6.0, narrow v0.7.0, safety bump narrow v0.7.0 ([`c50488b`](https://github.com/mbrobbel/narrow/commit/c50488bbd97a717e35afd9591a72d076c6730068))
 </details>
 
 ## v0.5.3 (2024-05-03)
