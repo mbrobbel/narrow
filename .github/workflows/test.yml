@@ -59,7 +59,8 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
       - run: cargo check --workspace --all-targets --all-features
-      - run: cargo test --all --all-targets --all-features
+      - run: cargo test --all --all-features --lib --bins --examples --tests -- --skip expand
+      - run: cargo test --all --all-features --benches
       - run: cargo test --all --doc --all-features
   check:
     name: Check
