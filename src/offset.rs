@@ -8,7 +8,7 @@ use crate::{
     FixedSize, Index, Length,
 };
 use std::{
-    iter,
+    iter::{self, Map, Peekable, Zip},
     num::TryFromIntError,
     ops::{AddAssign, Range, Sub},
 };
@@ -75,6 +75,7 @@ impl OffsetElement for i64 {
 }
 
 /// A reference to a slot in an offset
+#[allow(unused)]
 pub struct OffsetSlot<'a, OffsetItem: OffsetElement, Buffer: BufferType> {
     /// The offset buffer
     offset: &'a <Buffer as BufferType>::Buffer<OffsetItem>,
@@ -490,6 +491,104 @@ where
     }
 }
 
+/// An owned iterator over an offset
+pub struct OffsetIntoIter<T, OffsetItem: OffsetElement, Buffer: BufferType>
+where
+    T: IntoIterator,
+    <Buffer as BufferType>::Buffer<OffsetItem>: IntoIterator,
+{
+    /// The underlying array data
+    data: <T as IntoIterator>::IntoIter,
+    /// A peekable offsets buffer
+    offsets: Peekable<<<Buffer as BufferType>::Buffer<OffsetItem> as IntoIterator>::IntoIter>,
+}
+
+impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Iterator
+    for OffsetIntoIter<T, OffsetItem, Buffer>
+where
+    T: IntoIterator,
+    <Buffer as BufferType>::Buffer<OffsetItem>: IntoIterator<Item = OffsetItem>,
+{
+    type Item = Vec<<T as IntoIterator>::Item>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.offsets
+            .next()
+            .and_then(|start: OffsetItem| self.offsets.peek().map(|end: &OffsetItem| (start, *end)))
+            .map(|(start, end)| {
+                let slot_start: usize = start.try_into().expect("offset value should be in range");
+                let slot_end: usize = end.try_into().expect("offset value should be in range");
+                let slot_length = slot_end
+                    .checked_sub(slot_start)
+                    .expect("offsets should be monotonically increasing");
+
+                let taken = self.data.by_ref().take(slot_length).collect::<Vec<_>>();
+
+                debug_assert!(
+                    taken.len() == slot_length,
+                    "underlying data array does not have enough elements, \
+                    expected {} elements for this slot, found {}",
+                    slot_length,
+                    taken.len()
+                );
+
+                taken
+            })
+    }
+}
+
+impl<T, OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
+    for Offset<T, false, OffsetItem, Buffer>
+where
+    T: IntoIterator,
+    <Buffer as BufferType>::Buffer<OffsetItem>: IntoIterator<Item = OffsetItem>,
+    OffsetIntoIter<T, OffsetItem, Buffer>: Iterator<Item = Vec<<T as IntoIterator>::Item>>,
+{
+    type Item = Vec<<T as IntoIterator>::Item>;
+    type IntoIter = OffsetIntoIter<T, OffsetItem, Buffer>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        OffsetIntoIter {
+            data: self.data.into_iter(),
+            offsets: self.offsets.into_iter().peekable(),
+        }
+    }
+}
+
+impl<T, OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
+    for Offset<T, true, OffsetItem, Buffer>
+where
+    T: IntoIterator,
+    Bitmap<Buffer>: IntoIterator<Item = bool>,
+    <Buffer as BufferType>::Buffer<OffsetItem>: IntoIterator<Item = OffsetItem>,
+    OffsetIntoIter<T, OffsetItem, Buffer>: Iterator<Item = Vec<<T as IntoIterator>::Item>>,
+{
+    type Item = Option<Vec<<T as IntoIterator>::Item>>;
+    type IntoIter = Map<
+        Zip<
+            <Bitmap<Buffer> as IntoIterator>::IntoIter,
+            <OffsetIntoIter<T, OffsetItem, Buffer> as IntoIterator>::IntoIter,
+        >,
+        fn((bool, Vec<<T as IntoIterator>::Item>)) -> Self::Item,
+    >;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.offsets
+            .validity
+            .into_iter()
+            // We use zip insead of map because a null value may have a
+            // positive slot length. That is, a null value may occupy a
+            // non-empty memory space in the data buffer.
+            // Thus the underlying iterator must be advanced even for null
+            // values as indicated by the validity bitmap.
+            .zip(OffsetIntoIter {
+                data: self.data.into_iter(),
+                offsets: self.offsets.data.into_iter().peekable(),
+            })
+            .map(|(validity, value): (bool, Vec<_>)| validity.then_some(value))
+    }
+}
+
 impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Length
     for Offset<T, false, OffsetItem, Buffer>
 {
@@ -625,25 +724,65 @@ mod tests {
     }
 
     #[test]
-    fn into_iter() {
+    fn iter() {
         let input = vec![vec![1, 2, 3, 4], vec![5, 6], vec![7, 8, 9]];
         let offset = input.clone().into_iter().collect::<Offset<Vec<u8>>>();
-        let mut iter = offset.into_iter();
+        let mut iter = offset.iter();
         assert_eq!(iter.next().expect("a value").len(), 4);
         assert_eq!(iter.next().expect("a value").len(), 2);
         assert_eq!(iter.next().expect("a value").len(), 3);
         assert!(iter.next().is_none());
+        assert_eq!(
+            offset.into_iter().flatten().collect::<Vec<_>>(),
+            [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        );
+    }
+
+    #[test]
+    fn into_iter() {
+        let input = vec![vec![1, 2, 3, 4], vec![5, 6], vec![7, 8, 9]];
+        let offset = input.clone().into_iter().collect::<Offset<Vec<u8>>>();
+        assert_eq!(offset.into_iter().collect::<Vec<_>>(), input);
+    }
+
+    #[test]
+    fn into_iter_non_empty_null() {
+        let input_nullable = vec![Some(vec![1, 2, 3, 4]), None, Some(vec![5, 6, 7, 8])];
+        let mut offset_nullable = input_nullable
+            .clone()
+            .into_iter()
+            .collect::<Offset<Vec<u8>, true>>();
 
         assert_eq!(
-            offset
-                .into_iter()
-                .map(|slice| slice.into_iter().copied().collect::<Vec<_>>())
-                .collect::<Vec<_>>(),
-            input
+            offset_nullable.offsets.bitmap_ref_mut().is_valid(0),
+            Some(true)
         );
+        {
+            let mut validity = offset_nullable
+                .offsets
+                .validity
+                .iter()
+                .collect::<Vec<bool>>();
+            if let Some(first) = validity.get_mut(0) {
+                // invalidate the first item
+                *first = false;
+            }
+            // replace the validity bitmap
+            offset_nullable.offsets.validity = validity.into_iter().collect();
+        };
         assert_eq!(
-            offset.into_iter().flatten().copied().collect::<Vec<_>>(),
-            [1, 2, 3, 4, 5, 6, 7, 8, 9]
+            offset_nullable.offsets.bitmap_ref_mut().is_valid(0),
+            Some(false)
+        );
+        // there's still non-empty data corresponding to the now-invalidated
+        // first item in the underlying data array
+        assert_eq!(offset_nullable.data.as_slice(), &[1, 2, 3, 4, 5, 6, 7, 8]);
+
+        assert_eq!(
+            offset_nullable.into_iter().collect::<Vec<_>>(),
+            // the first item is not yielded even though there's data for it
+            // because the validity bitmap was altered.
+            vec![None, None, Some(vec![5, 6, 7, 8])]
         );
     }
 

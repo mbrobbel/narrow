@@ -46,7 +46,7 @@ struct Foo {
 }
 
 #[derive(ArrayType, Default, Clone, Debug, PartialEq, Eq)]
-struct Bar([u8; 4]);
+struct Bar(Vec<u8>);
 
 #[derive(ArrayType, Clone, Debug, PartialEq, Eq)]
 enum FooBar {
@@ -77,7 +77,7 @@ let foo_bars = vec![
         b: 42,
         c: Some("hello world".to_owned()),
     }),
-    FooBar::Bar(Bar([1, 2, 3, 4])),
+    FooBar::Bar(Bar(vec![1, 2, 3, 4])),
     FooBar::None,
     FooBar::None,
 ];

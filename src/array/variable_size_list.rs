@@ -86,6 +86,20 @@ where
     }
 }
 
+impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
+    for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Offset<T, NULLABLE, OffsetItem, Buffer>: IntoIterator,
+{
+    type IntoIter = <Offset<T, NULLABLE, OffsetItem, Buffer> as IntoIterator>::IntoIter;
+    type Item = <Offset<T, NULLABLE, OffsetItem, Buffer> as IntoIterator>::Item;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Index
     for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
 where
@@ -290,5 +304,39 @@ mod tests {
             [4, 5, 6]
         );
         assert!(array.index(2).is_none());
+    }
+
+    #[test]
+    fn into_iter_nested() {
+        let input = vec![
+            vec![vec![1, 2, 3], vec![1, 2, 3]],
+            vec![],
+            vec![vec![], vec![]],
+            vec![vec![4, 5, 6]],
+        ];
+        let array = input
+            .clone()
+            .into_iter()
+            .collect::<VariableSizeListArray<VariableSizeListArray<FixedSizePrimitiveArray<u8>>>>();
+        assert_eq!(array.into_iter().collect::<Vec<_>>(), input);
+    }
+
+    #[test]
+    fn into_iter_nested_nullable() {
+        let input = vec![
+            None,
+            Some(vec![]),
+            Some(vec![None, Some(vec![])]),
+            Some(vec![
+                None,
+                Some(vec![None, Some(vec![1, 2, 3]), Some(vec![1, 2, 3])]),
+                Some(vec![None, Some(vec![4, 5, 6])]),
+            ]),
+        ];
+        let array = input.clone().into_iter().collect::<VariableSizeListArray<
+            VariableSizeListArray<VariableSizeListArray<FixedSizePrimitiveArray<u8>, true>, true>,
+            true,
+        >>();
+        assert_eq!(array.into_iter().collect::<Vec<_>>(), input);
     }
 }
