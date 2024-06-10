@@ -512,32 +512,28 @@ where
     type Item = Vec<<T as IntoIterator>::Item>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let (Some(start), Some(&end)) = (self.offsets.next(), self.offsets.peek()) {
-            let slot_start: usize = start.try_into().expect("offset value should be in range");
-            let slot_end: usize = end.try_into().expect("offset value should be in range");
+        self.offsets
+            .next()
+            .and_then(|start: OffsetItem| self.offsets.peek().map(|end: &OffsetItem| (start, *end)))
+            .map(|(start, end)| {
+                let slot_start: usize = start.try_into().expect("offset value should be in range");
+                let slot_end: usize = end.try_into().expect("offset value should be in range");
+                let slot_length = slot_end
+                    .checked_sub(slot_start)
+                    .expect("offsets should be monotonically increasing");
 
-            assert!(
-                slot_end >= slot_start,
-                "offsets must be monotonically increasing, but a slot's start \
-                offset value {slot_start} is greater than the slot's end offset \
-                value {slot_end}, resulting in a negative slot length"
-            );
+                let taken = self.data.by_ref().take(slot_length).collect::<Vec<_>>();
 
-            let slot_length = slot_end - slot_start;
-            let taken = self.data.by_ref().take(slot_length).collect::<Vec<_>>();
+                debug_assert!(
+                    taken.len() == slot_length,
+                    "underlying data array does not have enough elements, \
+                    expected {} elements for this slot, found {}",
+                    slot_length,
+                    taken.len()
+                );
 
-            assert!(
-                taken.len() == slot_length,
-                "underlying data array does not have enough elements, \
-                expected {} elements for this slot, found {}",
-                slot_length,
-                taken.len()
-            );
-
-            Some(taken)
-        } else {
-            None
-        }
+                taken
+            })
     }
 }
 
@@ -744,9 +740,50 @@ mod tests {
 
     #[test]
     fn into_iter() {
-        let input = vec![vec![1, 2, 3, 4, 15, 19], vec![5, 6], vec![7, 8, 9]];
+        let input = vec![vec![1, 2, 3, 4], vec![5, 6], vec![7, 8, 9]];
         let offset = input.clone().into_iter().collect::<Offset<Vec<u8>>>();
         assert_eq!(offset.into_iter().collect::<Vec<_>>(), input);
+    }
+
+    #[test]
+    fn into_iter_non_empty_null() {
+        let input_nullable = vec![Some(vec![1, 2, 3, 4]), None, Some(vec![5, 6, 7, 8])];
+        let mut offset_nullable = input_nullable
+            .clone()
+            .into_iter()
+            .collect::<Offset<Vec<u8>, true>>();
+
+        assert_eq!(
+            offset_nullable.offsets.bitmap_ref_mut().is_valid(0),
+            Some(true)
+        );
+        {
+            let mut validity = offset_nullable
+                .offsets
+                .validity
+                .iter()
+                .collect::<Vec<bool>>();
+            if let Some(first) = validity.get_mut(0) {
+                // invalidate the first item
+                *first = false;
+            }
+            // replace the validity bitmap
+            offset_nullable.offsets.validity = validity.into_iter().collect();
+        };
+        assert_eq!(
+            offset_nullable.offsets.bitmap_ref_mut().is_valid(0),
+            Some(false)
+        );
+        // there's still non-empty data corresponding to the now-invalidated
+        // first item in the underlying data array
+        assert_eq!(offset_nullable.data.as_slice(), &[1, 2, 3, 4, 5, 6, 7, 8]);
+
+        assert_eq!(
+            offset_nullable.into_iter().collect::<Vec<_>>(),
+            // the first item is not yielded even though there's data for it
+            // because the validity bitmap was altered.
+            vec![None, None, Some(vec![5, 6, 7, 8])]
+        );
     }
 
     #[test]
