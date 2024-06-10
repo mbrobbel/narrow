@@ -1,5 +1,30 @@
 
 
+## v0.7.2 (2024-06-10)
+
+### New Features
+
+ - <csr-id-6385862260520f9f00bee1ea8e76d0c80df4d64e/> Implement `IntoIterator` for `VariableSizeListArray`
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 2 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#186](https://github.com/mbrobbel/narrow/issues/186)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#186](https://github.com/mbrobbel/narrow/issues/186)**
+    - Implement `IntoIterator` for `VariableSizeListArray` ([`6385862`](https://github.com/mbrobbel/narrow/commit/6385862260520f9f00bee1ea8e76d0c80df4d64e))
+</details>
+
 ## v0.7.1 (2024-06-07)
 
 ### New Features
