@@ -1,5 +1,30 @@
 
 
+## v0.7.3 (2024-06-14)
+
+### Bug Fixes
+
+ - <csr-id-7ef38de406691158cd9cded10ba628240a116dc1/> 1.79 warning
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 3 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#188](https://github.com/mbrobbel/narrow/issues/188)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#188](https://github.com/mbrobbel/narrow/issues/188)**
+    - 1.79 warning ([`7ef38de`](https://github.com/mbrobbel/narrow/commit/7ef38de406691158cd9cded10ba628240a116dc1))
+</details>
+
 ## v0.7.2 (2024-06-10)
 
 ### New Features
