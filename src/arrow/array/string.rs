@@ -145,8 +145,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::i64;
-
     use crate::array::StringArray;
 
     const INPUT: [&str; 3] = ["hello", "world", "!"];
