@@ -1,5 +1,29 @@
 
 
+## v0.7.5 (2024-06-25)
+
+### New Features
+
+ - <csr-id-40cb3a52d61cb7ebfea7899124e19aa246df9f26/> Add support for variable size binary interop with arrow-rs
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#191](https://github.com/mbrobbel/narrow/issues/191)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#191](https://github.com/mbrobbel/narrow/issues/191)**
+    - Add support for variable size binary interop with arrow-rs ([`40cb3a5`](https://github.com/mbrobbel/narrow/commit/40cb3a52d61cb7ebfea7899124e19aa246df9f26))
+</details>
+
 ## v0.7.4 (2024-06-25)
 
 ### Bug Fixes

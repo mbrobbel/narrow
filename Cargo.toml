@@ -15,7 +15,7 @@ members = ["narrow-derive"]
 
 [package]
 name = "narrow"
-version = "0.7.4"
+version = "0.7.5"
 authors.workspace = true
 edition.workspace = true
 rust-version.workspace = true
