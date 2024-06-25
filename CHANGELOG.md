@@ -1,5 +1,30 @@
 
 
+## v0.7.4 (2024-06-25)
+
+### Bug Fixes
+
+ - <csr-id-7d30c00b374a6d5ccc392b864ef8a3d49f022734/> return `Large` variants of datatypes in `arrow::Array::as_field`
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 11 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#190](https://github.com/mbrobbel/narrow/issues/190)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#190](https://github.com/mbrobbel/narrow/issues/190)**
+    - Return `Large` variants of datatypes in `arrow::Array::as_field` ([`7d30c00`](https://github.com/mbrobbel/narrow/commit/7d30c00b374a6d5ccc392b864ef8a3d49f022734))
+</details>
+
 ## v0.7.3 (2024-06-14)
 
 ### Bug Fixes
