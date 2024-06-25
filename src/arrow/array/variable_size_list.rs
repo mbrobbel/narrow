@@ -8,10 +8,11 @@ use arrow_schema::{DataType, Field};
 
 use crate::{
     array::{Array, VariableSizeListArray},
+    arrow::OffsetElement,
     bitmap::Bitmap,
     buffer::BufferType,
     nullable::Nullable,
-    offset::{Offset, OffsetElement},
+    offset::Offset,
     validity::{Nullability, Validity},
 };
 
@@ -30,7 +31,11 @@ where
     fn as_field(name: &str) -> arrow_schema::Field {
         Field::new(
             name,
-            DataType::List(Arc::new(T::as_field("item"))),
+            if OffsetItem::LARGE {
+                DataType::LargeList(Arc::new(T::as_field("item")))
+            } else {
+                DataType::List(Arc::new(T::as_field("item")))
+            },
             NULLABLE,
         )
     }
