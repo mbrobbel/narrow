@@ -8,10 +8,11 @@ use arrow_schema::{DataType, Field};
 
 use crate::{
     array::{FixedSizePrimitiveArray, StringArray, VariableSizeBinaryArray},
+    arrow::OffsetElement,
     bitmap::Bitmap,
     buffer::BufferType,
     nullable::Nullable,
-    offset::{Offset, OffsetElement},
+    offset::Offset,
     validity::{Nullability, Validity},
 };
 
@@ -24,7 +25,15 @@ where
     type Array = arrow_array::GenericStringArray<OffsetItem>;
 
     fn as_field(name: &str) -> arrow_schema::Field {
-        Field::new(name, DataType::Utf8, NULLABLE)
+        Field::new(
+            name,
+            if OffsetItem::LARGE {
+                DataType::LargeUtf8
+            } else {
+                DataType::Utf8
+            },
+            NULLABLE,
+        )
     }
 }
 
