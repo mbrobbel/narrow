@@ -85,7 +85,7 @@ where
     fn from(value: VariableSizeBinaryArray<false, OffsetItem, Buffer>) -> Self {
         arrow_array::GenericBinaryArray::new(
             // Safety:
-            // - The narrow offfset buffer contains valid offset data
+            // - The narrow offset buffer contains valid offset data
             unsafe { OffsetBuffer::new_unchecked(value.0.offsets.into()) },
             value.0.data.into().into_inner(),
             None,
@@ -104,7 +104,7 @@ where
     fn from(value: VariableSizeBinaryArray<true, OffsetItem, Buffer>) -> Self {
         arrow_array::GenericBinaryArray::new(
             // Safety:
-            // - The narrow offfset buffer contains valid offset data
+            // - The narrow offset buffer contains valid offset data
             unsafe { OffsetBuffer::new_unchecked(value.0.offsets.data.into()) },
             value.0.data.into().into_inner(),
             Some(value.0.offsets.validity.into()),
