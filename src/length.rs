@@ -94,3 +94,15 @@ impl<T: Length> Length for Option<T> {
         self.as_ref().map_or(0, Length::len)
     }
 }
+
+impl<T> Length for std::vec::IntoIter<T> {
+    fn len(&self) -> usize {
+        ExactSizeIterator::len(self)
+    }
+}
+
+impl<T> Length for std::slice::Iter<'_, T> {
+    fn len(&self) -> usize {
+        ExactSizeIterator::len(self)
+    }
+}

@@ -107,12 +107,13 @@ where
 impl<T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<T>
     for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
 where
+    T: IntoIterator,
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
     Offset<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer>:
-        FromIterator<T>,
+        FromIterator<<T as IntoIterator>::IntoIter>,
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        Self(iter.into_iter().collect())
+        Self(iter.into_iter().map(IntoIterator::into_iter).collect())
     }
 }
 
@@ -217,16 +218,25 @@ impl<OffsetItem: OffsetElement, Buffer: BufferType> ValidityBitmap
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::buffer::BufferRef;
+    use crate::{array::VariableSizeBinary, buffer::BufferRef};
     use std::mem;
+
+    #[test]
+    fn from_variable_size_binary() {
+        let input: [Vec<u8>; 4] = [vec![0, 1, 2], vec![3], vec![], vec![4, 5]];
+        let array = input
+            .into_iter()
+            .map(VariableSizeBinary)
+            .collect::<VariableSizeBinaryArray>();
+        assert_eq!(array.len(), 4);
+        assert_eq!(array.0.data.0, &[0, 1, 2, 3, 4, 5]);
+        assert_eq!(array.0.offsets, &[0, 3, 4, 4, 6]);
+    }
 
     #[test]
     fn from_iter() {
         let input: [&[u8]; 4] = [&[1], &[2, 3], &[4, 5, 6], &[7, 8, 9, 0]];
-        let array = input
-            .into_iter()
-            .map(<[u8]>::to_vec)
-            .collect::<VariableSizeBinaryArray>();
+        let array = input.into_iter().collect::<VariableSizeBinaryArray>();
         assert_eq!(array.len(), 4);
         assert_eq!(array.0.data.0, &[1, 2, 3, 4, 5, 6, 7, 8, 9, 0]);
         assert_eq!(array.0.offsets, &[0, 1, 3, 6, 10]);
@@ -241,10 +251,7 @@ mod tests {
     #[test]
     fn from_iter_nullable() {
         let input: [Option<&[u8]>; 4] = [Some(&[1]), None, Some(&[4, 5, 6]), Some(&[7, 8, 9, 0])];
-        let array = input
-            .into_iter()
-            .map(|x| x.map(<[u8]>::to_vec))
-            .collect::<VariableSizeBinaryArray<true>>();
+        let array = input.into_iter().collect::<VariableSizeBinaryArray<true>>();
         assert_eq!(array.len(), 4);
         assert_eq!(array.0.data.0, &[1, 4, 5, 6, 7, 8, 9, 0]);
         assert_eq!(array.0.offsets.as_ref(), &[0, 1, 1, 4, 8]);
@@ -271,10 +278,7 @@ mod tests {
     #[test]
     fn index() {
         let input: [&[u8]; 4] = [&[1], &[2, 3], &[4, 5, 6], &[7, 8, 9, 0]];
-        let array = input
-            .into_iter()
-            .map(<[u8]>::to_vec)
-            .collect::<VariableSizeBinaryArray>();
+        let array = input.into_iter().collect::<VariableSizeBinaryArray>();
         assert_eq!(array.index_checked(0), &[1]);
         assert_eq!(array.index_checked(1), &[2, 3]);
         assert_eq!(array.index_checked(2), &[4, 5, 6]);
