@@ -3,6 +3,7 @@
 use crate::{
     buffer::BufferType,
     offset::{self, OffsetElement},
+    Length,
 };
 use std::{collections::VecDeque, marker::PhantomData};
 
@@ -160,6 +161,49 @@ impl<const N: usize> From<[u8; N]> for FixedSizeBinary<N> {
 impl<const N: usize> From<FixedSizeBinary<N>> for [u8; N] {
     fn from(value: FixedSizeBinary<N>) -> Self {
         value.0
+    }
+}
+
+/// An byte vector wrapper that maps to [`VariableSizeBinaryArray`] via its
+/// [`ArrayType`] implementation. Used for example to map `Vec<u8>` to
+/// a [`VariableSizeBinaryArray`] instead of a [`VariableSizeListArray`].
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct VariableSizeBinary(Vec<u8>);
+
+impl ArrayType<VariableSizeBinary> for VariableSizeBinary {
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+        VariableSizeBinaryArray<false, OffsetItem, Buffer>;
+}
+
+impl ArrayType<VariableSizeBinary> for Option<VariableSizeBinary> {
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+        VariableSizeBinaryArray<true, OffsetItem, Buffer>;
+}
+
+impl From<Vec<u8>> for VariableSizeBinary {
+    fn from(value: Vec<u8>) -> Self {
+        Self(value)
+    }
+}
+
+impl From<VariableSizeBinary> for Vec<u8> {
+    fn from(value: VariableSizeBinary) -> Self {
+        value.0
+    }
+}
+
+impl Length for VariableSizeBinary {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl IntoIterator for VariableSizeBinary {
+    type Item = u8;
+    type IntoIter = std::vec::IntoIter<u8>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 

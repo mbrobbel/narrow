@@ -11,4 +11,5 @@ mod logical;
 mod null;
 mod union;
 pub use union::UnionArrayTypeFields;
+mod variable_size_binary;
 mod variable_size_list;

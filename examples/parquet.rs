@@ -3,7 +3,11 @@ fn main() {
     use arrow_array::RecordBatch;
     use arrow_cast::pretty;
     use bytes::Bytes;
-    use narrow::{array::StructArray, arrow::buffer::ScalarBuffer, ArrayType};
+    use narrow::{
+        array::{StructArray, VariableSizeBinary},
+        arrow::buffer::ScalarBuffer,
+        ArrayType,
+    };
     use parquet::arrow::{arrow_reader::ParquetRecordBatchReader, ArrowWriter};
     use uuid::Uuid;
 
@@ -20,6 +24,7 @@ fn main() {
         f: Bar,
         g: [u8; 8],
         h: Uuid,
+        i: VariableSizeBinary,
     }
     let input = [
         Foo {
@@ -31,6 +36,7 @@ fn main() {
             f: Bar(Some(true)),
             g: [1, 2, 3, 4, 5, 6, 7, 8],
             h: Uuid::from_u128(1234),
+            i: vec![1, 3, 3, 7].into(),
         },
         Foo {
             a: 42,
@@ -41,6 +47,7 @@ fn main() {
             f: Bar(None),
             g: [9, 10, 11, 12, 13, 14, 15, 16],
             h: Uuid::from_u128(42),
+            i: vec![4, 2].into(),
         },
     ];
 

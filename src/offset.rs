@@ -345,6 +345,21 @@ where
     }
 }
 
+impl<T, U: IntoIterator + Length, OffsetItem: OffsetElement, Buffer: BufferType>
+    FromIterator<std::option::IntoIter<U>> for Offset<T, true, OffsetItem, Buffer>
+where
+    Self: Default,
+    T: Extend<<U as IntoIterator>::Item>,
+    <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<true>>::Storage<Buffer>:
+        Extend<(bool, OffsetItem)>,
+{
+    fn from_iter<I: IntoIterator<Item = std::option::IntoIter<U>>>(iter: I) -> Self {
+        let mut offset = Self::default();
+        offset.extend(iter.into_iter().map(|mut v| v.next()));
+        offset
+    }
+}
+
 /// An iterator over items in an offset.
 pub struct OffsetSlice<'a, T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType>
 where
