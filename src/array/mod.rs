@@ -283,7 +283,19 @@ impl<T: ArrayType<T>> ArrayType<Vec<T>> for Option<Vec<T>> {
             Buffer,
         >;
 }
-impl<T: ArrayType<T>> ArrayType<Vec<Option<T>>> for Option<Vec<Option<T>>>
+impl<T> ArrayType<Vec<Option<T>>> for Vec<Option<T>>
+where
+    Option<T>: ArrayType<T>,
+{
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+        VariableSizeListArray<
+            <Option<T> as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
+            false,
+            OffsetItem,
+            Buffer,
+        >;
+}
+impl<T> ArrayType<Vec<Option<T>>> for Option<Vec<Option<T>>>
 where
     Option<T>: ArrayType<T>,
 {
