@@ -502,4 +502,17 @@ mod tests {
         let named_output_nullable = named_array_nullable.into_iter().collect::<Vec<_>>();
         assert_eq!(named_output_nullable, named_input_nullable);
     }
+
+    #[cfg(feature = "derive")]
+    #[test]
+    fn nested_option_derived() {
+        #[derive(crate::ArrayType, Clone, Debug, PartialEq)]
+        struct Foo(Vec<Option<String>>);
+
+        let input = [Foo(vec![None]), Foo(vec![Some("hello".to_owned())])];
+        let array = input.clone().into_iter().collect::<StructArray<Foo>>();
+        assert_eq!(array.len(), 2);
+        let output = array.into_iter().collect::<Vec<_>>();
+        assert_eq!(input.as_slice(), output);
+    }
 }
