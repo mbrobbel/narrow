@@ -506,13 +506,44 @@ mod tests {
     #[cfg(feature = "derive")]
     #[test]
     fn nested_option_derived() {
-        #[derive(crate::ArrayType, Clone, Debug, PartialEq)]
-        struct Foo(Vec<Option<String>>);
+        use std::collections::VecDeque;
 
-        let input = [Foo(vec![None]), Foo(vec![Some("hello".to_owned())])];
-        let array = input.clone().into_iter().collect::<StructArray<Foo>>();
-        assert_eq!(array.len(), 2);
-        let output = array.into_iter().collect::<Vec<_>>();
-        assert_eq!(input.as_slice(), output);
+        {
+            #[derive(crate::ArrayType, Clone, Debug, PartialEq)]
+            struct Foo(Vec<Option<String>>);
+
+            let input = [Foo(vec![None]), Foo(vec![Some("hello".to_owned())])];
+            let array = input.clone().into_iter().collect::<StructArray<Foo>>();
+            assert_eq!(array.len(), 2);
+            let output = array.into_iter().collect::<Vec<_>>();
+            assert_eq!(input.as_slice(), output);
+        };
+
+        {
+            #[derive(crate::ArrayType, Clone, Debug, PartialEq)]
+            struct Foo([Option<String>; 1]);
+
+            let input = [Foo([None]), Foo([Some("hello".to_owned())])];
+            let array = input.clone().into_iter().collect::<StructArray<Foo>>();
+            assert_eq!(array.len(), 2);
+            let output = array.into_iter().collect::<Vec<_>>();
+            assert_eq!(input.as_slice(), output);
+        };
+
+        {
+            #[derive(crate::ArrayType, Clone, Debug, PartialEq)]
+            struct Foo(VecDeque<Option<String>>);
+
+            let input = [
+                Foo(VecDeque::from_iter([None])),
+                Foo(VecDeque::from_iter([Some("hello".to_owned())])),
+            ];
+            let array = input.clone().into_iter().collect::<StructArray<Foo>>();
+            assert_eq!(array.len(), 2);
+            // TODO(mbrobbel): add support to offset iterator for VecDeque
+            // OR fix bound + convert via proc macro
+            // let output = array.into_iter().collect::<Vec<_>>();
+            // assert_eq!(input.as_slice(), output);
+        };
     }
 }

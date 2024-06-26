@@ -557,7 +557,6 @@ impl<T, OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
 where
     T: IntoIterator,
     <Buffer as BufferType>::Buffer<OffsetItem>: IntoIterator<Item = OffsetItem>,
-    OffsetIntoIter<T, OffsetItem, Buffer>: Iterator<Item = Vec<<T as IntoIterator>::Item>>,
 {
     type Item = Vec<<T as IntoIterator>::Item>;
     type IntoIter = OffsetIntoIter<T, OffsetItem, Buffer>;
@@ -576,7 +575,6 @@ where
     T: IntoIterator,
     Bitmap<Buffer>: IntoIterator<Item = bool>,
     <Buffer as BufferType>::Buffer<OffsetItem>: IntoIterator<Item = OffsetItem>,
-    OffsetIntoIter<T, OffsetItem, Buffer>: Iterator<Item = Vec<<T as IntoIterator>::Item>>,
 {
     type Item = Option<Vec<<T as IntoIterator>::Item>>;
     type IntoIter = Map<

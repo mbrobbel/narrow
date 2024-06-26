@@ -225,7 +225,30 @@ impl<T: ArrayType<T>, const N: usize> ArrayType<[T; N]> for Option<[T; N]> {
             Buffer,
         >;
 }
-
+impl<T, const N: usize> ArrayType<[Option<T>; N]> for [Option<T>; N]
+where
+    Option<T>: ArrayType<T>,
+{
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+        FixedSizeListArray<
+            N,
+            <Option<T> as ArrayType<T>>::Array<Buffer, OffsetItem, UnionLayout>,
+            false,
+            Buffer,
+        >;
+}
+impl<T, const N: usize> ArrayType<[Option<T>; N]> for Option<[Option<T>; N]>
+where
+    Option<T>: ArrayType<T>,
+{
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+        FixedSizeListArray<
+            N,
+            <Option<T> as ArrayType<T>>::Array<Buffer, OffsetItem, UnionLayout>,
+            true,
+            Buffer,
+        >;
+}
 impl ArrayType<str> for str {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         StringArray<false, OffsetItem, Buffer>;
@@ -260,6 +283,30 @@ impl<'a, T: ArrayType<T>> ArrayType<&'a [T]> for Option<&'a [T]> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         VariableSizeListArray<
             <T as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
+            true,
+            OffsetItem,
+            Buffer,
+        >;
+}
+impl<'a, T> ArrayType<&'a [Option<T>]> for &'a [Option<T>]
+where
+    Option<T>: ArrayType<T>,
+{
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+        VariableSizeListArray<
+            <Option<T> as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
+            false,
+            OffsetItem,
+            Buffer,
+        >;
+}
+impl<'a, T> ArrayType<&'a [Option<T>]> for Option<&'a [Option<T>]>
+where
+    Option<T>: ArrayType<T>,
+{
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+        VariableSizeListArray<
+            <Option<T> as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
             true,
             OffsetItem,
             Buffer,
@@ -321,6 +368,30 @@ impl<T: ArrayType<T>> ArrayType<VecDeque<T>> for Option<VecDeque<T>> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         VariableSizeListArray<
             <T as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
+            true,
+            OffsetItem,
+            Buffer,
+        >;
+}
+impl<T> ArrayType<VecDeque<Option<T>>> for VecDeque<Option<T>>
+where
+    Option<T>: ArrayType<T>,
+{
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+        VariableSizeListArray<
+            <Option<T> as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
+            false,
+            OffsetItem,
+            Buffer,
+        >;
+}
+impl<T> ArrayType<VecDeque<Option<T>>> for Option<VecDeque<Option<T>>>
+where
+    Option<T>: ArrayType<T>,
+{
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+        VariableSizeListArray<
+            <Option<T> as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
             true,
             OffsetItem,
             Buffer,
