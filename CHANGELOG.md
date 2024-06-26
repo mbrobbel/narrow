@@ -1,5 +1,29 @@
 
 
+## v0.7.7 (2024-06-26)
+
+### New Features
+
+ - <csr-id-15cc68c2ee0433cae7c8f1e7837549e4ccb81e97/> add more missing `ArrayType` implementations
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#193](https://github.com/mbrobbel/narrow/issues/193)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#193](https://github.com/mbrobbel/narrow/issues/193)**
+    - Add more missing `ArrayType` implementations ([`15cc68c`](https://github.com/mbrobbel/narrow/commit/15cc68c2ee0433cae7c8f1e7837549e4ccb81e97))
+</details>
+
 ## v0.7.6 (2024-06-26)
 
 ### Bug Fixes
