@@ -1,5 +1,29 @@
 
 
+## v0.7.6 (2024-06-26)
+
+### Bug Fixes
+
+ - <csr-id-6c677a2648d04f98dda6b2fa31c7c64869aec121/> add `ArrayType` for `Vec<Option<T>>` and fix `Option<Vec<Option<T>>>` impl
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#192](https://github.com/mbrobbel/narrow/issues/192)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#192](https://github.com/mbrobbel/narrow/issues/192)**
+    - Add `ArrayType` for `Vec<Option<T>>` and fix `Option<Vec<Option<T>>>` impl ([`6c677a2`](https://github.com/mbrobbel/narrow/commit/6c677a2648d04f98dda6b2fa31c7c64869aec121))
+</details>
+
 ## v0.7.5 (2024-06-25)
 
 ### New Features
