@@ -4,6 +4,12 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    groups:
+      arrow:
+        applies-to: version-updates
+        patterns:
+          - "arrow-*"
+          - "parquet"
 
   - package-ecosystem: "github-actions"
     directory: "/"
