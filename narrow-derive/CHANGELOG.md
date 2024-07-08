@@ -1,5 +1,30 @@
 
 
+## v0.6.2 (2024-07-08)
+
+### Chore
+
+ - <csr-id-d0fb471964c08f1343418113c2810e98aed8df46/> bump quote from 1.0.35 to 1.0.36
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 31 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#202](https://github.com/mbrobbel/narrow/issues/202)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#202](https://github.com/mbrobbel/narrow/issues/202)**
+    - Bump quote from 1.0.35 to 1.0.36 ([`d0fb471`](https://github.com/mbrobbel/narrow/commit/d0fb471964c08f1343418113c2810e98aed8df46))
+</details>
+
 ## v0.6.1 (2024-06-07)
 
 ### New Features
@@ -10,7 +35,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 1 commit contributed to the release.
+ - 2 commits contributed to the release.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#184](https://github.com/mbrobbel/narrow/issues/184)
 
@@ -22,6 +47,8 @@
 
  * **[#184](https://github.com/mbrobbel/narrow/issues/184)**
     - Implement `IntoIterator` for `UnionArray` ([`0093b22`](https://github.com/mbrobbel/narrow/commit/0093b2235bf25ed76cfd27ff7be821588e9aed15))
+ * **Uncategorized**
+    - Release narrow-derive v0.6.1, narrow v0.7.1 ([`0da830f`](https://github.com/mbrobbel/narrow/commit/0da830fb6d9306111529320295a9bbb05b337916))
 </details>
 
 ## v0.6.0 (2024-06-06)
