@@ -1,6 +1,32 @@
 
 
+## v0.6.5 (2024-07-09)
+
+### Chore
+
+ - <csr-id-3d3dd199adc570dc2bb70aecb82293bc379088ee/> bump macrotest from 1.0.9 to 1.0.13
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#208](https://github.com/mbrobbel/narrow/issues/208)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#208](https://github.com/mbrobbel/narrow/issues/208)**
+    - Bump macrotest from 1.0.9 to 1.0.13 ([`3d3dd19`](https://github.com/mbrobbel/narrow/commit/3d3dd199adc570dc2bb70aecb82293bc379088ee))
+</details>
+
 ## v0.6.4 (2024-07-09)
+
+<csr-id-53fae1f840b717ad9f2e58c0eb33f7ef53a86709/>
 
 ### Chore
 
@@ -10,7 +36,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 1 commit contributed to the release.
+ - 2 commits contributed to the release.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#209](https://github.com/mbrobbel/narrow/issues/209)
 
@@ -22,6 +48,8 @@
 
  * **[#209](https://github.com/mbrobbel/narrow/issues/209)**
     - Bump proc-macro2 from 1.0.79 to 1.0.86 ([`53fae1f`](https://github.com/mbrobbel/narrow/commit/53fae1f840b717ad9f2e58c0eb33f7ef53a86709))
+ * **Uncategorized**
+    - Release narrow-derive v0.6.4 ([`ac15889`](https://github.com/mbrobbel/narrow/commit/ac1588933c3df74b8606f128925afbdbdd2c002f))
 </details>
 
 ## v0.6.3 (2024-07-08)
