@@ -232,14 +232,12 @@ where
     ) -> ::core::option::Option<Self::Enum> {
         match type_id {
             0 => {
-                self
-                    .0
+                self.0
                     .next()
                     .map(<FooBar<X> as narrow::array::union::EnumVariant<0>>::from_data)
             }
             1 => {
-                self
-                    .1
+                self.1
                     .next()
                     .map(<FooBar<X> as narrow::array::union::EnumVariant<1>>::from_data)
             }

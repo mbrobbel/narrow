@@ -27,4 +27,4 @@ quote = "1.0.36"
 syn = { version = "2.0.58", features = ["visit-mut", "full"] }
 
 [dev-dependencies]
-macrotest = "1.0.9"
+macrotest = "1.0.13"
