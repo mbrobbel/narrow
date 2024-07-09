@@ -353,26 +353,22 @@ where
     ) -> ::core::option::Option<Self::Enum> {
         match type_id {
             0 => {
-                self
-                    .0
+                self.0
                     .next()
                     .map(<FooBar as narrow::array::union::EnumVariant<0>>::from_data)
             }
             1 => {
-                self
-                    .1
+                self.1
                     .next()
                     .map(<FooBar as narrow::array::union::EnumVariant<1>>::from_data)
             }
             2 => {
-                self
-                    .2
+                self.2
                     .next()
                     .map(<FooBar as narrow::array::union::EnumVariant<2>>::from_data)
             }
             3 => {
-                self
-                    .3
+                self.3
                     .next()
                     .map(<FooBar as narrow::array::union::EnumVariant<3>>::from_data)
             }
