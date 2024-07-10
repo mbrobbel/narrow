@@ -1,6 +1,32 @@
 
 
+## v0.6.6 (2024-07-10)
+
+### Chore
+
+ - <csr-id-50e9eafdc240f5f20b2c43c839409b52c09dc007/> bump syn from 2.0.58 to 2.0.70
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#210](https://github.com/mbrobbel/narrow/issues/210)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#210](https://github.com/mbrobbel/narrow/issues/210)**
+    - Bump syn from 2.0.58 to 2.0.70 ([`50e9eaf`](https://github.com/mbrobbel/narrow/commit/50e9eafdc240f5f20b2c43c839409b52c09dc007))
+</details>
+
 ## v0.6.5 (2024-07-09)
+
+<csr-id-3d3dd199adc570dc2bb70aecb82293bc379088ee/>
 
 ### Chore
 
@@ -10,7 +36,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 1 commit contributed to the release.
+ - 2 commits contributed to the release.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#208](https://github.com/mbrobbel/narrow/issues/208)
 
@@ -22,6 +48,8 @@
 
  * **[#208](https://github.com/mbrobbel/narrow/issues/208)**
     - Bump macrotest from 1.0.9 to 1.0.13 ([`3d3dd19`](https://github.com/mbrobbel/narrow/commit/3d3dd199adc570dc2bb70aecb82293bc379088ee))
+ * **Uncategorized**
+    - Release narrow-derive v0.6.5 ([`94fb836`](https://github.com/mbrobbel/narrow/commit/94fb83671d97e84160e87957f765505fee53a9c8))
 </details>
 
 ## v0.6.4 (2024-07-09)
