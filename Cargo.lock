@@ -644,7 +644,7 @@ checksum = "f665ee40bc4a3c5590afb1e9677db74a508659dfd71e126420da8274909a0167"
 
 [[package]]
 name = "narrow"
-version = "0.7.7"
+version = "0.8.0"
 dependencies = [
  "arrow-array",
  "arrow-buffer",
@@ -661,7 +661,7 @@ dependencies = [
 
 [[package]]
 name = "narrow-derive"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "macrotest",
  "once_cell",

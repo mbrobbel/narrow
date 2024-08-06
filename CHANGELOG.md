@@ -1,5 +1,30 @@
 
 
+## v0.8.0 (2024-08-06)
+
+### New Features (BREAKING)
+
+ - <csr-id-d0c62de6886f8672990f6cb0fd2722ce2d049bd0/> convert to nullable arrays from `arrow-rs` arrays without null buffers
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 41 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#218](https://github.com/mbrobbel/narrow/issues/218)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#218](https://github.com/mbrobbel/narrow/issues/218)**
+    - Convert to nullable arrays from `arrow-rs` arrays without null buffers ([`d0c62de`](https://github.com/mbrobbel/narrow/commit/d0c62de6886f8672990f6cb0fd2722ce2d049bd0))
+</details>
+
 ## v0.7.7 (2024-06-26)
 
 ### New Features
