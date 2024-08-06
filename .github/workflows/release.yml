@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.79 # revert to stable on next cargo-smart-release release
         id: rust-toolchain
       - uses: actions/cache@v4
         with:
@@ -28,7 +28,7 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-release-
             ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
             ${{ runner.os }}-cargo-
-      - run: cargo install cargo-smart-release@0.20.0 --locked || true
+      - run: cargo install cargo-smart-release@^0.21 --locked || true
       - run: cargo check --all --all-targets --all-features
       - id: changelog
         run: cargo changelog --no-preview narrow narrow-derive || echo "skip=true" >> "$GITHUB_OUTPUT"
