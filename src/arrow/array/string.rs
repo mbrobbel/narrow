@@ -129,32 +129,37 @@ where
     }
 }
 
-/// Panics when there are no nulls
 impl<OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
     From<arrow_array::GenericStringArray<OffsetItem>> for StringArray<true, OffsetItem, Buffer>
 where
     FixedSizePrimitiveArray<u8, false, Buffer>: From<ScalarBuffer<u8>>,
     <Buffer as BufferType>::Buffer<OffsetItem>: From<ScalarBuffer<OffsetItem>>,
-    Bitmap<Buffer>: From<NullBuffer>,
+    Bitmap<Buffer>: From<NullBuffer> + FromIterator<bool>,
 {
     fn from(value: arrow_array::GenericStringArray<OffsetItem>) -> Self {
-        let (offsets, values, nulls_opt) = value.into_parts();
+        let (offsets_buffer, values, nulls_opt) = value.into_parts();
+        let data = ScalarBuffer::from(values).into();
+        let offsets = offsets_buffer.into_inner().into();
         match nulls_opt {
             Some(null_buffer) => StringArray(VariableSizeBinaryArray(Offset {
-                data: ScalarBuffer::from(values).into(),
+                data,
                 offsets: Nullable {
-                    data: offsets.into_inner().into(),
+                    data: offsets,
                     validity: null_buffer.into(),
                 },
             })),
-            None => panic!("expected array with a null buffer"),
+            None => StringArray::<false, OffsetItem, Buffer>(VariableSizeBinaryArray(Offset {
+                data,
+                offsets,
+            }))
+            .into(),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::array::StringArray;
+    use crate::{array::StringArray, bitmap::ValidityBitmap};
 
     const INPUT: [&str; 3] = ["hello", "world", "!"];
     const INPUT_NULLABLE: [Option<&str>; 3] = [Some("hello"), None, Some("!")];
@@ -182,14 +187,16 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "expected array with a null buffer")]
     fn into_nullable() {
         let string_array = INPUT
             .into_iter()
             .map(ToOwned::to_owned)
             .map(Option::Some)
             .collect::<arrow_array::StringArray>();
-        let _: StringArray<true, i32, crate::arrow::buffer::ScalarBuffer> = string_array.into();
+        assert!(
+            !StringArray::<true, i32, crate::arrow::buffer::ScalarBuffer>::from(string_array)
+                .any_null()
+        );
     }
 
     #[test]

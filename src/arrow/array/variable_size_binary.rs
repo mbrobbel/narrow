@@ -132,33 +132,35 @@ where
     }
 }
 
-/// Panics when there are no nulls
 impl<OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
     From<arrow_array::GenericBinaryArray<OffsetItem>>
     for VariableSizeBinaryArray<true, OffsetItem, Buffer>
 where
     FixedSizePrimitiveArray<u8, false, Buffer>: From<ScalarBuffer<u8>>,
     <Buffer as BufferType>::Buffer<OffsetItem>: From<ScalarBuffer<OffsetItem>>,
-    Bitmap<Buffer>: From<NullBuffer>,
+    Bitmap<Buffer>: From<NullBuffer> + FromIterator<bool>,
 {
     fn from(value: arrow_array::GenericBinaryArray<OffsetItem>) -> Self {
-        let (offsets, values, nulls_opt) = value.into_parts();
+        let (offsets_buffer, values, nulls_opt) = value.into_parts();
+        let data = ScalarBuffer::from(values).into();
+        let offsets = offsets_buffer.into_inner().into();
         match nulls_opt {
             Some(null_buffer) => VariableSizeBinaryArray(Offset {
-                data: ScalarBuffer::from(values).into(),
+                data,
                 offsets: Nullable {
-                    data: offsets.into_inner().into(),
+                    data: offsets,
                     validity: null_buffer.into(),
                 },
             }),
-            None => panic!("expected array with a null buffer"),
+            None => VariableSizeBinaryArray::<false, OffsetItem, Buffer>(Offset { data, offsets })
+                .into(),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::array::VariableSizeBinaryArray;
+    use crate::{array::VariableSizeBinaryArray, bitmap::ValidityBitmap};
 
     fn input() -> [Vec<u8>; 3] {
         [vec![0, 1, 2], vec![3], vec![]]
@@ -192,14 +194,17 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "expected array with a null buffer")]
     fn into_nullable() {
         let vsb_array = input()
             .into_iter()
             .map(Option::Some)
             .collect::<arrow_array::BinaryArray>();
-        let _: VariableSizeBinaryArray<true, i32, crate::arrow::buffer::ScalarBuffer> =
-            vsb_array.into();
+        assert!(
+            !VariableSizeBinaryArray::<true, i32, crate::arrow::buffer::ScalarBuffer>::from(
+                vsb_array
+            )
+            .any_null()
+        );
     }
 
     #[test]

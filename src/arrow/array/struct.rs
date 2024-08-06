@@ -11,6 +11,7 @@ use crate::{
     buffer::BufferType,
     nullable::Nullable,
     validity::{Nullability, Validity},
+    Length,
 };
 
 /// Arrow schema interop trait for the fields of a struct array type.
@@ -99,6 +100,7 @@ where
     }
 }
 
+/// Panics when there are nulls
 impl<T: StructArrayType, Buffer: BufferType> From<arrow_array::StructArray>
     for StructArray<T, false, Buffer>
 where
@@ -116,17 +118,18 @@ where
 impl<T: StructArrayType, Buffer: BufferType> From<arrow_array::StructArray>
     for StructArray<T, true, Buffer>
 where
-    <T as StructArrayType>::Array<Buffer>: From<Vec<Arc<dyn arrow_array::Array>>>,
-    Bitmap<Buffer>: From<NullBuffer>,
+    <T as StructArrayType>::Array<Buffer>: From<Vec<Arc<dyn arrow_array::Array>>> + Length,
+    Bitmap<Buffer>: From<NullBuffer> + FromIterator<bool>,
 {
     fn from(value: arrow_array::StructArray) -> Self {
         let (_fields, arrays, nulls_opt) = value.into_parts();
+        let data = arrays.into();
         match nulls_opt {
             Some(null_buffer) => StructArray(Nullable {
-                data: arrays.into(),
+                data,
                 validity: null_buffer.into(),
             }),
-            None => panic!("expected array with a null buffer"),
+            None => StructArray::<T, false, Buffer>(data).into(),
         }
     }
 }
@@ -164,6 +167,7 @@ mod tests {
             ArrayType,
         },
         arrow::buffer::{BufferBuilder, ScalarBuffer},
+        bitmap::ValidityBitmap,
         buffer::Buffer as _,
         offset::{self, OffsetElement},
     };
@@ -240,6 +244,11 @@ mod tests {
             }
         }
     }
+    impl<Buffer: BufferType> Length for FooArray<Buffer> {
+        fn len(&self) -> usize {
+            self.a.len()
+        }
+    }
     impl StructArrayType for Foo {
         type Array<Buffer: BufferType> = FooArray<Buffer>;
     }
@@ -304,13 +313,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "expected array with a null buffer")]
     fn into_nullable() {
         let struct_array = [Foo { a: 1 }, Foo { a: 2 }]
             .into_iter()
             .collect::<StructArray<Foo, false, BufferBuilder>>();
         let struct_array_arrow = arrow_array::StructArray::from(struct_array);
-        let _ = StructArray::<Foo, true, ScalarBuffer>::from(struct_array_arrow);
+        assert!(!StructArray::<Foo, true, ScalarBuffer>::from(struct_array_arrow).any_null());
     }
 
     #[test]

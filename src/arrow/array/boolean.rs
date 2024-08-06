@@ -70,20 +70,20 @@ where
     }
 }
 
-/// Panics when there are no nulls
-// OR allocate one instead and use `TryFrom` conversion?
 impl<Buffer: BufferType> From<arrow_array::BooleanArray> for BooleanArray<true, Buffer>
 where
-    Bitmap<Buffer>: From<arrow_buffer::BooleanBuffer> + From<arrow_buffer::NullBuffer>,
+    Bitmap<Buffer>:
+        From<arrow_buffer::BooleanBuffer> + From<arrow_buffer::NullBuffer> + FromIterator<bool>,
 {
     fn from(value: arrow_array::BooleanArray) -> Self {
         let (boolean_buffer, nulls_opt) = value.into_parts();
+        let data = boolean_buffer.into();
         match nulls_opt {
             Some(null_buffer) => BooleanArray(Nullable {
-                data: boolean_buffer.into(),
+                data,
                 validity: null_buffer.into(),
             }),
-            None => panic!("expected array with a null buffer"),
+            None => BooleanArray::<false, Buffer>(data).into(),
         }
     }
 }
@@ -117,6 +117,7 @@ impl<Buffer: BufferType> PartialEq<arrow_array::BooleanArray> for BooleanArray<t
 mod tests {
     use crate::{
         array::BooleanArray,
+        bitmap::ValidityBitmap,
         buffer::{BufferType, VecBuffer},
     };
 
@@ -177,10 +178,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "expected array with a null buffer")]
     fn into_nullable() {
         let array = arrow_array::BooleanArray::from(INPUT.to_vec());
-        let _ = BooleanArray::<true>::from(array);
+        assert!(!BooleanArray::<true>::from(array).any_null());
     }
 
     #[test]

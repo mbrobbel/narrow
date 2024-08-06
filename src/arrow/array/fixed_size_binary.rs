@@ -113,28 +113,30 @@ where
     }
 }
 
-/// Panics when there are no nulls
 impl<const N: usize, Buffer: BufferType> From<arrow_array::FixedSizeBinaryArray>
     for FixedSizeBinaryArray<N, true, Buffer>
 where
     FixedSizePrimitiveArray<u8, false, Buffer>: From<arrow_buffer::ScalarBuffer<u8>>,
-    Bitmap<Buffer>: From<NullBuffer>,
+    Bitmap<Buffer>: From<NullBuffer> + FromIterator<bool>,
 {
     fn from(value: arrow_array::FixedSizeBinaryArray) -> Self {
         let (n, values, nulls_opt) = value.into_parts();
         assert_eq!(N, n.try_into().expect("size to cast to usize"));
+        let data = arrow_buffer::ScalarBuffer::from(values).into();
         match nulls_opt {
             Some(null_buffer) => FixedSizeBinaryArray(FixedSizeListArray(Nullable {
-                data: arrow_buffer::ScalarBuffer::from(values).into(),
+                data,
                 validity: null_buffer.into(),
             })),
-            None => panic!("expected array with a null buffer"),
+            None => FixedSizeBinaryArray::<N, false, Buffer>(FixedSizeListArray(data)).into(),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::bitmap::ValidityBitmap;
+
     use super::*;
 
     const INPUT: [[u8; 2]; 3] = [[1, 2], [3, 4], [5, 6]];
@@ -172,11 +174,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "expected array with a null buffer")]
     fn into_nullable() {
         let fixed_size_binary_array =
             arrow_array::FixedSizeBinaryArray::try_from_iter(INPUT.into_iter()).expect("");
-        let _ = FixedSizeBinaryArray::<2, true>::from(fixed_size_binary_array);
+        assert!(!FixedSizeBinaryArray::<2, true>::from(fixed_size_binary_array).any_null());
     }
 
     #[test]

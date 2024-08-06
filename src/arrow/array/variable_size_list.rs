@@ -154,26 +154,28 @@ where
     }
 }
 
-/// Panics when there are no nulls
 impl<T: Array, OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
     From<arrow_array::GenericListArray<OffsetItem>>
     for VariableSizeListArray<T, true, OffsetItem, Buffer>
 where
     T: From<Arc<dyn arrow_array::Array>>,
     <Buffer as BufferType>::Buffer<OffsetItem>: From<ScalarBuffer<OffsetItem>>,
-    Bitmap<Buffer>: From<NullBuffer>,
+    Bitmap<Buffer>: From<NullBuffer> + FromIterator<bool>,
 {
     fn from(value: arrow_array::GenericListArray<OffsetItem>) -> Self {
-        let (_field, offsets, values, nulls_opt) = value.into_parts();
+        let (_field, offsets_buffer, values, nulls_opt) = value.into_parts();
+        let data = values.into();
+        let offsets = offsets_buffer.into_inner().into();
         match nulls_opt {
             Some(null_buffer) => VariableSizeListArray(Offset {
-                data: values.into(),
+                data,
                 offsets: Nullable {
-                    data: offsets.into_inner().into(),
+                    data: offsets,
                     validity: null_buffer.into(),
                 },
             }),
-            None => panic!("expected array with a null buffer"),
+            None => VariableSizeListArray::<T, false, OffsetItem, Buffer>(Offset { data, offsets })
+                .into(),
         }
     }
 }
@@ -189,6 +191,7 @@ mod tests {
     use crate::{
         array::{StringArray, Uint16Array, VariableSizeListArray},
         arrow::buffer::ScalarBuffer,
+        bitmap::ValidityBitmap,
         Length,
     };
 
@@ -212,7 +215,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "expected array with a null buffer")]
     fn into_nullable() {
         let list_array = arrow_array::ListArray::from_iter_primitive::<UInt16Type, _, _>(
             INPUT
@@ -220,8 +222,7 @@ mod tests {
                 .map(|opt| opt.iter().copied().map(Option::Some))
                 .map(Option::Some),
         );
-        let _: VariableSizeListArray<Uint16Array<false, ScalarBuffer>, true, i32, ScalarBuffer> =
-            list_array.into();
+        assert!(!VariableSizeListArray::<Uint16Array<false, ScalarBuffer>, true, i32, ScalarBuffer>::from(list_array).any_null());
     }
 
     #[test]
