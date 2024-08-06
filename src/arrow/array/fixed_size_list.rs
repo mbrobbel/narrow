@@ -11,6 +11,7 @@ use crate::{
     buffer::BufferType,
     nullable::Nullable,
     validity::{Nullability, Validity},
+    Length,
 };
 
 impl<const N: usize, T: crate::arrow::Array, const NULLABLE: bool, Buffer: BufferType>
@@ -141,23 +142,23 @@ where
     }
 }
 
-/// Panics when there are no nulls
 impl<const N: usize, T: crate::arrow::Array, Buffer: BufferType>
     From<arrow_array::FixedSizeListArray> for FixedSizeListArray<N, T, true, Buffer>
 where
-    T: From<Arc<dyn arrow_array::Array>>,
-    Bitmap<Buffer>: From<NullBuffer>,
+    T: From<Arc<dyn arrow_array::Array>> + Length,
+    Bitmap<Buffer>: From<NullBuffer> + FromIterator<bool>,
 {
     fn from(value: arrow_array::FixedSizeListArray) -> Self {
         let (_field, size, values, nulls_opt) = value.into_parts();
         let n = usize::try_from(size).expect("size to cast to usize");
         assert_eq!(N, n);
+        let data = values.into();
         match nulls_opt {
             Some(null_buffer) => FixedSizeListArray(Nullable {
-                data: values.into(),
+                data,
                 validity: null_buffer.into(),
             }),
-            None => panic!("expected array with a null buffer"),
+            None => FixedSizeListArray::<N, T, false, Buffer>(data).into(),
         }
     }
 }
@@ -166,7 +167,10 @@ where
 mod tests {
     use arrow_array::types::UInt32Type;
 
-    use crate::array::{StringArray, Uint32Array};
+    use crate::{
+        array::{StringArray, Uint32Array},
+        bitmap::ValidityBitmap,
+    };
 
     use super::*;
 
@@ -214,7 +218,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "expected array with a null buffer")]
     fn into_nullable() {
         let fixed_size_list_array =
             arrow_array::FixedSizeListArray::from_iter_primitive::<UInt32Type, _, _>(
@@ -224,12 +227,13 @@ mod tests {
                     .map(Option::Some),
                 2,
             );
-        let _ = FixedSizeListArray::<
+        assert!(!FixedSizeListArray::<
             2,
             Uint32Array<false, crate::arrow::buffer::ScalarBuffer>,
             true,
             crate::arrow::buffer::ScalarBuffer,
-        >::from(fixed_size_list_array);
+        >::from(fixed_size_list_array)
+        .any_null());
     }
 
     #[test]

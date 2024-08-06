@@ -122,21 +122,21 @@ where
     }
 }
 
-/// Panics when there are no nulls.
 impl<T: FixedSize, U: arrow_array::types::ArrowPrimitiveType<Native = T>, Buffer: BufferType>
     From<arrow_array::PrimitiveArray<U>> for FixedSizePrimitiveArray<T, true, Buffer>
 where
     <Buffer as BufferType>::Buffer<T>: From<arrow_buffer::ScalarBuffer<T>>,
-    Bitmap<Buffer>: From<arrow_buffer::NullBuffer>,
+    Bitmap<Buffer>: From<arrow_buffer::NullBuffer> + FromIterator<bool>,
 {
     fn from(value: arrow_array::PrimitiveArray<U>) -> Self {
         let (_data_type, values, nulls_opt) = value.into_parts();
+        let data = values.into();
         match nulls_opt {
             Some(null_buffer) => FixedSizePrimitiveArray(Nullable {
-                data: values.into(),
+                data,
                 validity: null_buffer.into(),
             }),
-            None => panic!("expected array with a null buffer"),
+            None => FixedSizePrimitiveArray::<T, false, Buffer>(data).into(),
         }
     }
 }
@@ -198,6 +198,7 @@ mod tests {
 
     use crate::{
         array::FixedSizePrimitiveArray,
+        bitmap::ValidityBitmap,
         buffer::{BufferType, VecBuffer},
     };
 
@@ -260,12 +261,11 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "expected array with a null buffer")]
     fn into_nullable() {
         let array = INPUT
             .into_iter()
             .collect::<arrow_array::PrimitiveArray<UInt32Type>>();
-        let _ = FixedSizePrimitiveArray::<u32, true>::from(array);
+        assert!(!FixedSizePrimitiveArray::<u32, true>::from(array).any_null());
     }
 
     #[test]
