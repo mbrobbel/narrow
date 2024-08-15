@@ -1,5 +1,30 @@
 
 
+## v0.8.1 (2024-08-15)
+
+### New Features
+
+ - <csr-id-d4435a4980b59d4262fa6aec6d710351010f7a9d/> add `chrono` feature
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 9 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#167](https://github.com/mbrobbel/narrow/issues/167)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#167](https://github.com/mbrobbel/narrow/issues/167)**
+    - Add `chrono` feature ([`d4435a4`](https://github.com/mbrobbel/narrow/commit/d4435a4980b59d4262fa6aec6d710351010f7a9d))
+</details>
+
 ## v0.8.0 (2024-08-06)
 
 ### New Features (BREAKING)

@@ -1,6 +1,33 @@
 
 
+## v0.6.8 (2024-08-15)
+
+### Chore
+
+ - <csr-id-bf327d205830db88cffeadbea2e2d4563c62381b/> bump syn from 2.0.72 to 2.0.74
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release over the course of 3 calendar days.
+ - 9 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#222](https://github.com/mbrobbel/narrow/issues/222)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#222](https://github.com/mbrobbel/narrow/issues/222)**
+    - Bump syn from 2.0.72 to 2.0.74 ([`bf327d2`](https://github.com/mbrobbel/narrow/commit/bf327d205830db88cffeadbea2e2d4563c62381b))
+</details>
+
 ## v0.6.7 (2024-08-06)
+
+<csr-id-9c3272f2791c2de60dd598a99c0e43b8713285aa/>
 
 ### Chore
 
@@ -10,7 +37,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 1 commit contributed to the release.
+ - 2 commits contributed to the release.
  - 26 days passed between releases.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#214](https://github.com/mbrobbel/narrow/issues/214)
@@ -23,6 +50,8 @@
 
  * **[#214](https://github.com/mbrobbel/narrow/issues/214)**
     - Bump syn from 2.0.70 to 2.0.72 ([`9c3272f`](https://github.com/mbrobbel/narrow/commit/9c3272f2791c2de60dd598a99c0e43b8713285aa))
+ * **Uncategorized**
+    - Release narrow-derive v0.6.7, narrow v0.8.0 ([`d2c904f`](https://github.com/mbrobbel/narrow/commit/d2c904f46845f933abe9224b512f78fe2ca93075))
 </details>
 
 ## v0.6.6 (2024-07-10)
