@@ -1,3 +1,5 @@
+use chrono::{DateTime, NaiveTime, Utc};
+
 #[rustversion::attr(nightly, allow(non_local_definitions))]
 fn main() {
     use arrow_array::RecordBatch;
@@ -25,6 +27,8 @@ fn main() {
         g: [u8; 8],
         h: Uuid,
         i: VariableSizeBinary,
+        j: DateTime<Utc>,
+        k: NaiveTime,
     }
     let input = [
         Foo {
@@ -37,6 +41,8 @@ fn main() {
             g: [1, 2, 3, 4, 5, 6, 7, 8],
             h: Uuid::from_u128(1234),
             i: vec![1, 3, 3, 7].into(),
+            j: DateTime::UNIX_EPOCH,
+            k: NaiveTime::MIN,
         },
         Foo {
             a: 42,
@@ -48,6 +54,8 @@ fn main() {
             g: [9, 10, 11, 12, 13, 14, 15, 16],
             h: Uuid::from_u128(42),
             i: vec![4, 2].into(),
+            j: Utc::now(),
+            k: Utc::now().time(),
         },
     ];
 
