@@ -86,5 +86,5 @@ pub mod arrow;
 pub use narrow_derive::ArrayType;
 
 // This allows using the `ArrayType` derive macro in tests.
-#[cfg(all(test, feature = "derive"))]
+#[cfg(any(all(test, feature = "derive"), feature = "map"))]
 extern crate self as narrow;
