@@ -76,7 +76,7 @@ mod tests {
     fn from_iter() {
         let array = [
             HashMap::default(),
-            HashMap::from_iter([("a".to_string(), 1), ("b".to_string(), 2)]),
+            HashMap::from_iter([("a".to_owned(), 1), ("b".to_owned(), 2)]),
         ]
         .into_iter()
         .collect::<HashMapArray<String, u8>>();
@@ -85,8 +85,8 @@ mod tests {
 
         let array_nullable = [
             Some(HashMap::from_iter([
-                ("a".to_string(), 1),
-                ("b".to_string(), 2),
+                ("a".to_owned(), 1),
+                ("b".to_owned(), 2),
             ])),
             None,
         ]
@@ -100,7 +100,7 @@ mod tests {
     fn into_iter() {
         let input = [
             HashMap::default(),
-            HashMap::from_iter([("a".to_string(), 1), ("b".to_string(), 2)]),
+            HashMap::from_iter([("a".to_owned(), 1), ("b".to_owned(), 2)]),
         ];
         let array = input
             .clone()
@@ -111,8 +111,8 @@ mod tests {
 
         let input_nullable = [
             Some(HashMap::from_iter([
-                ("a".to_string(), 1),
-                ("b".to_string(), 2),
+                ("a".to_owned(), 1),
+                ("b".to_owned(), 2),
             ])),
             None,
         ];
