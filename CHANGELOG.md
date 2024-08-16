@@ -1,5 +1,29 @@
 
 
+## v0.8.2 (2024-08-16)
+
+### New Features
+
+ - <csr-id-2f937bb44fa76861f0781e340af0eee1b4306f3f/> add `map` feature with logical array support for `HashMap`
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#223](https://github.com/mbrobbel/narrow/issues/223)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#223](https://github.com/mbrobbel/narrow/issues/223)**
+    - Add `map` feature with logical array support for `HashMap` ([`2f937bb`](https://github.com/mbrobbel/narrow/commit/2f937bb44fa76861f0781e340af0eee1b4306f3f))
+</details>
+
 ## v0.8.1 (2024-08-15)
 
 ### New Features
