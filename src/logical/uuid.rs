@@ -10,7 +10,7 @@ use super::{LogicalArray, LogicalArrayType};
 
 impl ArrayType<uuid::Uuid> for uuid::Uuid {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<uuid::Uuid, false, Buffer, OffsetItem, UnionLayout>;
+        LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl ArrayType<uuid::Uuid> for Option<uuid::Uuid> {
@@ -22,11 +22,11 @@ impl LogicalArrayType<uuid::Uuid> for uuid::Uuid {
     type ArrayType = FixedSizeBinary<16>;
 
     fn from_array_type(item: Self::ArrayType) -> Self {
-        uuid::Uuid::from_bytes(item.into())
+        Self::from_bytes(item.into())
     }
 
     fn into_array_type(self) -> Self::ArrayType {
-        uuid::Uuid::into_bytes(self).into()
+        Self::into_bytes(self).into()
     }
 }
 

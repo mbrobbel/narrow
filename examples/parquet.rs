@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, NaiveTime, Utc};
 
 #[rustversion::attr(nightly, allow(non_local_definitions))]
@@ -29,6 +31,7 @@ fn main() {
         i: VariableSizeBinary,
         j: DateTime<Utc>,
         k: NaiveTime,
+        l: Option<HashMap<String, Vec<u8>>>,
     }
     let input = [
         Foo {
@@ -43,6 +46,10 @@ fn main() {
             i: vec![1, 3, 3, 7].into(),
             j: DateTime::UNIX_EPOCH,
             k: NaiveTime::MIN,
+            l: Some(HashMap::from_iter([(
+                "a".to_string(),
+                vec![1, 2, 3, 4, 42],
+            )])),
         },
         Foo {
             a: 42,
@@ -56,6 +63,7 @@ fn main() {
             i: vec![4, 2].into(),
             j: Utc::now(),
             k: Utc::now().time(),
+            l: None,
         },
     ];
 

@@ -10,7 +10,7 @@ use super::{LogicalArray, LogicalArrayType};
 
 impl ArrayType<DateTime<Utc>> for DateTime<Utc> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<DateTime<Utc>, false, Buffer, OffsetItem, UnionLayout>;
+        LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl ArrayType<DateTime<Utc>> for Option<DateTime<Utc>> {
@@ -36,7 +36,7 @@ pub type DateTimeArray<const NULLABLE: bool = false, Buffer = crate::buffer::Vec
 
 impl ArrayType<NaiveDateTime> for NaiveDateTime {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<NaiveDateTime, false, Buffer, OffsetItem, UnionLayout>;
+        LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl ArrayType<NaiveDateTime> for Option<NaiveDateTime> {
@@ -62,7 +62,7 @@ pub type NaiveDateTimeArray<const NULLABLE: bool = false, Buffer = crate::buffer
 
 impl ArrayType<NaiveTime> for NaiveTime {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<NaiveTime, false, Buffer, OffsetItem, UnionLayout>;
+        LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl ArrayType<NaiveTime> for Option<NaiveTime> {
