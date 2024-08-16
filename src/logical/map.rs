@@ -1,6 +1,9 @@
 #![allow(missing_docs)]
 
-use std::{collections::HashMap, hash::Hash};
+use std::{
+    collections::HashMap,
+    hash::{BuildHasher, Hash},
+};
 
 use crate::{
     array::{self, UnionType},
@@ -11,18 +14,18 @@ use crate::{
 
 use super::{LogicalArray, LogicalArrayType};
 
-impl<K: array::ArrayType<K> + Eq + Hash, V: array::ArrayType<V>> array::ArrayType<HashMap<K, V>>
-    for HashMap<K, V>
+impl<K: array::ArrayType<K> + Eq + Hash, V: array::ArrayType<V>, S: BuildHasher + Default>
+    array::ArrayType<HashMap<K, V, S>> for HashMap<K, V, S>
 {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
 }
 
-impl<K: array::ArrayType<K> + Eq + Hash, V: array::ArrayType<V>> array::ArrayType<HashMap<K, V>>
-    for Option<HashMap<K, V>>
+impl<K: array::ArrayType<K> + Eq + Hash, V: array::ArrayType<V>, S: BuildHasher + Default>
+    array::ArrayType<HashMap<K, V, S>> for Option<HashMap<K, V, S>>
 {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<HashMap<K, V>, true, Buffer, OffsetItem, UnionLayout>;
+        LogicalArray<HashMap<K, V, S>, true, Buffer, OffsetItem, UnionLayout>;
 }
 
 // TODO(mbrobbel): support HashMap<K, Option<V>>
@@ -36,8 +39,8 @@ pub struct KeyValue<K, V> {
     value: V,
 }
 
-impl<K: array::ArrayType<K> + Hash + Eq, V: array::ArrayType<V>> LogicalArrayType<HashMap<K, V>>
-    for HashMap<K, V>
+impl<K: array::ArrayType<K> + Hash + Eq, V: array::ArrayType<V>, S: BuildHasher + Default>
+    LogicalArrayType<HashMap<K, V, S>> for HashMap<K, V, S>
 {
     type ArrayType = Vec<KeyValue<K, V>>;
 
