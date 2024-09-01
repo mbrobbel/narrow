@@ -1,4 +1,5 @@
-use chrono::{DateTime, NaiveDateTime, NaiveTime, Timelike, Utc};
+use arrow_array::temporal_conversions::NANOSECONDS;
+use chrono::{DateTime, NaiveDateTime, NaiveDate, NaiveTime, TimeDelta, Timelike, Utc, Datelike};
 
 use crate::{
     array::{ArrayType, UnionType},
@@ -60,6 +61,32 @@ impl LogicalArrayType<NaiveDateTime> for NaiveDateTime {
 pub type NaiveDateTimeArray<const NULLABLE: bool = false, Buffer = crate::buffer::VecBuffer> =
     LogicalArray<NaiveDateTime, NULLABLE, Buffer, crate::offset::NA, crate::array::union::NA>;
 
+impl ArrayType<NaiveDate> for NaiveDate {
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+    LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
+}
+
+impl ArrayType<NaiveDate> for Option<NaiveDate> {
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+    LogicalArray<NaiveDate, true, Buffer, OffsetItem, UnionLayout>;
+}
+
+impl LogicalArrayType<NaiveDate> for NaiveDate {
+    type ArrayType = i32;
+
+    fn from_array_type(item: Self::ArrayType) -> Self {
+        NaiveDate::from_num_days_from_ce_opt(item).expect("out of range")
+    }
+
+    fn into_array_type(self) -> Self::ArrayType {
+        self.num_days_from_ce()
+    }
+}
+
+/// An array for [`NaiveDate`] items.
+pub type NaiveDateArray<const NULLABLE: bool = false, Buffer = crate::buffer::VecBuffer> =
+LogicalArray<NaiveDate, NULLABLE, Buffer, crate::offset::NA, crate::array::union::NA>;
+
 impl ArrayType<NaiveTime> for NaiveTime {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
         LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
@@ -94,13 +121,58 @@ impl LogicalArrayType<NaiveTime> for NaiveTime {
 pub type NaiveTimeArray<const NULLABLE: bool = false, Buffer = crate::buffer::VecBuffer> =
     LogicalArray<NaiveTime, NULLABLE, Buffer, crate::offset::NA, crate::array::union::NA>;
 
+impl ArrayType<TimeDelta> for TimeDelta {
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+    LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
+}
+
+impl ArrayType<TimeDelta> for Option<TimeDelta> {
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+    LogicalArray<TimeDelta, true, Buffer, OffsetItem, UnionLayout>;
+}
+
+/// The number of nano seconds in a milli second.
+const NANOS_PER_MILLI: i64 = 1_000_000;
+/// The number of milli seconds in a second.
+const MILLI_SECONDS: i64 = 1_000;
+
+impl LogicalArrayType<TimeDelta> for TimeDelta {
+    type ArrayType = i64;
+
+    fn from_array_type(item: Self::ArrayType) -> Self {
+        let (secs, nano) = (item.div_euclid(MILLI_SECONDS),
+                            u32::try_from(item.rem_euclid(NANOS_PER_MILLI))
+                                .expect("i64 to u32 cast error"));
+        
+        Self::new(secs, nano).expect("out of range")
+    }
+
+    fn into_array_type(self) -> Self::ArrayType {
+        self.num_seconds() * NANOSECONDS + i64::from(self.subsec_nanos())
+    }
+}
+
+/// An array for [`TimeDelta`] items.
+pub type TimeDeltaArray<const NULLABLE: bool = false, Buffer = crate::buffer::VecBuffer> =
+LogicalArray<TimeDelta, NULLABLE, Buffer, crate::offset::NA, crate::array::union::NA>;
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::Length;
 
     #[test]
-    fn round_trip() {
+    fn round_trip_naivedate() {
+        for value in [
+            NaiveDate::from_yo_opt(2024,7).expect("out of range").num_days_from_ce(),
+            NaiveDate::from_yo_opt(2020,6).expect("out of range").num_days_from_ce(),
+        ] {
+            assert_eq!(NaiveDate::from_num_days_from_ce_opt(value).expect("out of range").into_array_type(), value);
+        }
+    }
+
+    #[test]
+    fn round_trip_naivetime() {
         for value in [
             0,
             1234,
@@ -111,6 +183,18 @@ mod tests {
         }
     }
 
+    #[test]
+    fn round_trip_timedelta() {
+        for value in [
+            0,
+            1234,
+            1234 * NANO_SECONDS,
+            86_398 * NANO_SECONDS + 1_999_999_999,
+        ] {
+            assert_eq!(TimeDelta::nanoseconds(value).into_array_type(), value);
+        }
+    }
+    
     #[test]
     fn from_iter() {
         let array = [DateTime::<Utc>::UNIX_EPOCH, DateTime::<Utc>::UNIX_EPOCH]
