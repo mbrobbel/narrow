@@ -161,12 +161,7 @@ mod tests {
                 .expect("out of range")
                 .num_days_from_ce(),
         ] {
-            assert_eq!(
-                NaiveDate::from_num_days_from_ce_opt(value)
-                    .expect("out of range")
-                    .into_array_type(),
-                value
-            );
+            assert_eq!(NaiveDate::from_array_type(value).into_array_type(), value);
         }
     }
 
