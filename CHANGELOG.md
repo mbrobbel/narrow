@@ -1,5 +1,30 @@
 
 
+## v0.8.3 (2024-09-02)
+
+### New Features
+
+ - <csr-id-5972c2bf51660bea0ab916ca18ecb7e1bf92275a/> add `NaiveDate` and `TimeDelta` from `chrono`
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 17 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#230](https://github.com/mbrobbel/narrow/issues/230)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#230](https://github.com/mbrobbel/narrow/issues/230)**
+    - Add `NaiveDate` and `TimeDelta` from `chrono` ([`5972c2b`](https://github.com/mbrobbel/narrow/commit/5972c2bf51660bea0ab916ca18ecb7e1bf92275a))
+</details>
+
 ## v0.8.2 (2024-08-16)
 
 ### New Features
@@ -269,7 +294,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 4 commits contributed to the release over the course of 22 calendar days.
+ - 4 commits contributed to the release.
  - 49 days passed between releases.
  - 4 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 4 unique issues were worked on: [#166](https://github.com/mbrobbel/narrow/issues/166), [#176](https://github.com/mbrobbel/narrow/issues/176), [#178](https://github.com/mbrobbel/narrow/issues/178), [#179](https://github.com/mbrobbel/narrow/issues/179)
@@ -306,7 +331,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 2 commits contributed to the release over the course of 48 calendar days.
+ - 2 commits contributed to the release.
  - 72 days passed between releases.
  - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 2 unique issues were worked on: [#155](https://github.com/mbrobbel/narrow/issues/155), [#171](https://github.com/mbrobbel/narrow/issues/171)
@@ -508,7 +533,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 52 commits contributed to the release over the course of 173 calendar days.
+ - 52 commits contributed to the release.
  - 173 days passed between releases.
  - 20 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 11 unique issues were worked on: [#100](https://github.com/mbrobbel/narrow/issues/100), [#102](https://github.com/mbrobbel/narrow/issues/102), [#107](https://github.com/mbrobbel/narrow/issues/107), [#108](https://github.com/mbrobbel/narrow/issues/108), [#109](https://github.com/mbrobbel/narrow/issues/109), [#110](https://github.com/mbrobbel/narrow/issues/110), [#117](https://github.com/mbrobbel/narrow/issues/117), [#118](https://github.com/mbrobbel/narrow/issues/118), [#123](https://github.com/mbrobbel/narrow/issues/123), [#136](https://github.com/mbrobbel/narrow/issues/136), [#98](https://github.com/mbrobbel/narrow/issues/98)
@@ -648,7 +673,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 3 commits contributed to the release over the course of 4 calendar days.
+ - 3 commits contributed to the release.
  - 4 days passed between releases.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#82](https://github.com/mbrobbel/narrow/issues/82)
@@ -819,7 +844,7 @@
     - Add `BufferRef` and `BufferRefMut` impls for `BooleanArray` ([`50c9d81`](https://github.com/mbrobbel/narrow/commit/50c9d81cdce63ca6c3500d2c436ce4c3712a506d))
 </details>
 
-## v0.2.5 (2023-07-26)
+## v0.2.5 (2023-07-27)
 
 <csr-id-adc3f3b5ff5854ece947fe4dbee33e8d8cf5fff6/>
 <csr-id-aeefe446e6845ab203e72685d37fc263e1cbd2a5/>
@@ -877,7 +902,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 62 commits contributed to the release over the course of 630 calendar days.
+ - 62 commits contributed to the release.
  - 726 days passed between releases.
  - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 2 unique issues were worked on: [#69](https://github.com/mbrobbel/narrow/issues/69), [#70](https://github.com/mbrobbel/narrow/issues/70)
@@ -955,13 +980,13 @@
     - Migrate to 2021 edition ([`60d723d`](https://github.com/mbrobbel/narrow/commit/60d723d3a721d8578ffe96ea857c7b9d124147ed))
 </details>
 
-## v0.1.0 (2021-07-29)
+## v0.1.0 (2021-07-30)
 
 ### Commit Statistics
 
 <csr-read-only-do-not-edit/>
 
- - 16 commits contributed to the release over the course of 84 calendar days.
+ - 16 commits contributed to the release.
  - 0 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 0 issues like '(#ID)' were seen in commit messages
 

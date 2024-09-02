@@ -1,6 +1,42 @@
 
 
+## v0.6.9 (2024-09-02)
+
+### Chore
+
+ - <csr-id-ceeb3ad92517eed52fb98a1af3fdb151c88419c4/> bump proc-macro-crate from 3.1.0 to 3.2.0
+ - <csr-id-d327178f451a06e931f6fd8c433564110c392e59/> bump syn from 2.0.75 to 2.0.76
+ - <csr-id-9b7e2d2ce9076b03b3ca3b3ab549fd0d26f4b338/> bump quote from 1.0.36 to 1.0.37
+ - <csr-id-3dfd8e4e260128ed7a48418b1b6460bd27ea17cf/> bump syn from 2.0.74 to 2.0.75
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 4 commits contributed to the release.
+ - 17 days passed between releases.
+ - 4 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 4 unique issues were worked on: [#225](https://github.com/mbrobbel/narrow/issues/225), [#226](https://github.com/mbrobbel/narrow/issues/226), [#227](https://github.com/mbrobbel/narrow/issues/227), [#228](https://github.com/mbrobbel/narrow/issues/228)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#225](https://github.com/mbrobbel/narrow/issues/225)**
+    - Bump syn from 2.0.74 to 2.0.75 ([`3dfd8e4`](https://github.com/mbrobbel/narrow/commit/3dfd8e4e260128ed7a48418b1b6460bd27ea17cf))
+ * **[#226](https://github.com/mbrobbel/narrow/issues/226)**
+    - Bump quote from 1.0.36 to 1.0.37 ([`9b7e2d2`](https://github.com/mbrobbel/narrow/commit/9b7e2d2ce9076b03b3ca3b3ab549fd0d26f4b338))
+ * **[#227](https://github.com/mbrobbel/narrow/issues/227)**
+    - Bump syn from 2.0.75 to 2.0.76 ([`d327178`](https://github.com/mbrobbel/narrow/commit/d327178f451a06e931f6fd8c433564110c392e59))
+ * **[#228](https://github.com/mbrobbel/narrow/issues/228)**
+    - Bump proc-macro-crate from 3.1.0 to 3.2.0 ([`ceeb3ad`](https://github.com/mbrobbel/narrow/commit/ceeb3ad92517eed52fb98a1af3fdb151c88419c4))
+</details>
+
 ## v0.6.8 (2024-08-15)
+
+<csr-id-bf327d205830db88cffeadbea2e2d4563c62381b/>
 
 ### Chore
 
@@ -10,7 +46,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 1 commit contributed to the release over the course of 3 calendar days.
+ - 2 commits contributed to the release.
  - 9 days passed between releases.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#222](https://github.com/mbrobbel/narrow/issues/222)
@@ -23,6 +59,8 @@
 
  * **[#222](https://github.com/mbrobbel/narrow/issues/222)**
     - Bump syn from 2.0.72 to 2.0.74 ([`bf327d2`](https://github.com/mbrobbel/narrow/commit/bf327d205830db88cffeadbea2e2d4563c62381b))
+ * **Uncategorized**
+    - Release narrow-derive v0.6.8, narrow v0.8.1 ([`e86d298`](https://github.com/mbrobbel/narrow/commit/e86d298819783bcab026cff8e1c141e70667ca6a))
 </details>
 
 ## v0.6.7 (2024-08-06)
@@ -235,7 +273,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 3 commits contributed to the release over the course of 22 calendar days.
+ - 3 commits contributed to the release.
  - 34 days passed between releases.
  - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 2 unique issues were worked on: [#166](https://github.com/mbrobbel/narrow/issues/166), [#180](https://github.com/mbrobbel/narrow/issues/180)
@@ -297,7 +335,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 4 commits contributed to the release over the course of 48 calendar days.
+ - 4 commits contributed to the release.
  - 72 days passed between releases.
  - 3 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 3 unique issues were worked on: [#154](https://github.com/mbrobbel/narrow/issues/154), [#157](https://github.com/mbrobbel/narrow/issues/157), [#161](https://github.com/mbrobbel/narrow/issues/161)
@@ -442,7 +480,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 2 commits contributed to the release over the course of 7 calendar days.
+ - 2 commits contributed to the release.
  - 7 days passed between releases.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#142](https://github.com/mbrobbel/narrow/issues/142)
@@ -834,7 +872,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 23 commits contributed to the release over the course of 110 calendar days.
+ - 23 commits contributed to the release.
  - 173 days passed between releases.
  - 16 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 11 unique issues were worked on: [#100](https://github.com/mbrobbel/narrow/issues/100), [#106](https://github.com/mbrobbel/narrow/issues/106), [#108](https://github.com/mbrobbel/narrow/issues/108), [#109](https://github.com/mbrobbel/narrow/issues/109), [#118](https://github.com/mbrobbel/narrow/issues/118), [#119](https://github.com/mbrobbel/narrow/issues/119), [#129](https://github.com/mbrobbel/narrow/issues/129), [#132](https://github.com/mbrobbel/narrow/issues/132), [#135](https://github.com/mbrobbel/narrow/issues/135), [#137](https://github.com/mbrobbel/narrow/issues/137), [#139](https://github.com/mbrobbel/narrow/issues/139)
@@ -945,7 +983,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 4 commits contributed to the release over the course of 4 calendar days.
+ - 4 commits contributed to the release.
  - 4 days passed between releases.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#82](https://github.com/mbrobbel/narrow/issues/82)
@@ -1134,7 +1172,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 23 commits contributed to the release over the course of 810 calendar days.
+ - 23 commits contributed to the release.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#66](https://github.com/mbrobbel/narrow/issues/66)
 
