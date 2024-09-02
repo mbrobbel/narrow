@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDateTime, NaiveDate, NaiveTime, TimeDelta, Timelike, Utc, Datelike};
+use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, Timelike, Utc};
 
 use crate::{
     array::{ArrayType, UnionType},
@@ -62,12 +62,12 @@ pub type NaiveDateTimeArray<const NULLABLE: bool = false, Buffer = crate::buffer
 
 impl ArrayType<NaiveDate> for NaiveDate {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-    LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
+        LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl ArrayType<NaiveDate> for Option<NaiveDate> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-    LogicalArray<NaiveDate, true, Buffer, OffsetItem, UnionLayout>;
+        LogicalArray<NaiveDate, true, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl LogicalArrayType<NaiveDate> for NaiveDate {
@@ -84,7 +84,7 @@ impl LogicalArrayType<NaiveDate> for NaiveDate {
 
 /// An array for [`NaiveDate`] items.
 pub type NaiveDateArray<const NULLABLE: bool = false, Buffer = crate::buffer::VecBuffer> =
-LogicalArray<NaiveDate, NULLABLE, Buffer, crate::offset::NA, crate::array::union::NA>;
+    LogicalArray<NaiveDate, NULLABLE, Buffer, crate::offset::NA, crate::array::union::NA>;
 
 impl ArrayType<NaiveTime> for NaiveTime {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
@@ -122,12 +122,12 @@ pub type NaiveTimeArray<const NULLABLE: bool = false, Buffer = crate::buffer::Ve
 
 impl ArrayType<TimeDelta> for TimeDelta {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-    LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
+        LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl ArrayType<TimeDelta> for Option<TimeDelta> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-    LogicalArray<TimeDelta, true, Buffer, OffsetItem, UnionLayout>;
+        LogicalArray<TimeDelta, true, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl LogicalArrayType<TimeDelta> for TimeDelta {
@@ -144,7 +144,7 @@ impl LogicalArrayType<TimeDelta> for TimeDelta {
 
 /// An array for [`TimeDelta`] items.
 pub type TimeDeltaArray<const NULLABLE: bool = false, Buffer = crate::buffer::VecBuffer> =
-LogicalArray<TimeDelta, NULLABLE, Buffer, crate::offset::NA, crate::array::union::NA>;
+    LogicalArray<TimeDelta, NULLABLE, Buffer, crate::offset::NA, crate::array::union::NA>;
 
 #[cfg(test)]
 mod tests {
@@ -154,10 +154,19 @@ mod tests {
     #[test]
     fn round_trip_naivedate() {
         for value in [
-            NaiveDate::from_yo_opt(2024,7).expect("out of range").num_days_from_ce(),
-            NaiveDate::from_yo_opt(2020,6).expect("out of range").num_days_from_ce(),
+            NaiveDate::from_yo_opt(2024, 7)
+                .expect("out of range")
+                .num_days_from_ce(),
+            NaiveDate::from_yo_opt(2020, 6)
+                .expect("out of range")
+                .num_days_from_ce(),
         ] {
-            assert_eq!(NaiveDate::from_num_days_from_ce_opt(value).expect("out of range").into_array_type(), value);
+            assert_eq!(
+                NaiveDate::from_num_days_from_ce_opt(value)
+                    .expect("out of range")
+                    .into_array_type(),
+                value
+            );
         }
     }
 
@@ -184,7 +193,7 @@ mod tests {
             assert_eq!(TimeDelta::nanoseconds(value).into_array_type(), value);
         }
     }
-    
+
     #[test]
     fn from_iter() {
         let array = [DateTime::<Utc>::UNIX_EPOCH, DateTime::<Utc>::UNIX_EPOCH]
