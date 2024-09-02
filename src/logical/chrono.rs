@@ -1,4 +1,3 @@
-use arrow_array::temporal_conversions::NANOSECONDS;
 use chrono::{DateTime, NaiveDateTime, NaiveDate, NaiveTime, TimeDelta, Timelike, Utc, Datelike};
 
 use crate::{
@@ -131,24 +130,15 @@ impl ArrayType<TimeDelta> for Option<TimeDelta> {
     LogicalArray<TimeDelta, true, Buffer, OffsetItem, UnionLayout>;
 }
 
-/// The number of nano seconds in a milli second.
-const NANOS_PER_MILLI: i64 = 1_000_000;
-/// The number of milli seconds in a second.
-const MILLI_SECONDS: i64 = 1_000;
-
 impl LogicalArrayType<TimeDelta> for TimeDelta {
     type ArrayType = i64;
 
     fn from_array_type(item: Self::ArrayType) -> Self {
-        let (secs, nano) = (item.div_euclid(MILLI_SECONDS),
-                            u32::try_from(item.rem_euclid(NANOS_PER_MILLI))
-                                .expect("i64 to u32 cast error"));
-        
-        Self::new(secs, nano).expect("out of range")
+        Self::nanoseconds(item)
     }
 
     fn into_array_type(self) -> Self::ArrayType {
-        self.num_seconds() * NANOSECONDS + i64::from(self.subsec_nanos())
+        self.num_nanoseconds().expect("out of range")
     }
 }
 
