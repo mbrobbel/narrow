@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use chrono::{DateTime, NaiveTime, Utc};
+use chrono::{DateTime, NaiveDate, NaiveTime, TimeDelta, Utc};
 
 #[rustversion::attr(nightly, allow(non_local_definitions))]
 fn main() {
@@ -32,6 +32,8 @@ fn main() {
         j: DateTime<Utc>,
         k: NaiveTime,
         l: Option<HashMap<String, Vec<u8>>>,
+        m: NaiveDate,
+        n: TimeDelta,
     }
     let input = [
         Foo {
@@ -50,6 +52,8 @@ fn main() {
                 "a".to_string(),
                 vec![1, 2, 3, 4, 42],
             )])),
+            m: NaiveDate::MAX,
+            n: TimeDelta::max_value(),
         },
         Foo {
             a: 42,
@@ -64,6 +68,8 @@ fn main() {
             j: Utc::now(),
             k: Utc::now().time(),
             l: None,
+            m: NaiveDate::MIN,
+            n: TimeDelta::min_value(),
         },
     ];
 
