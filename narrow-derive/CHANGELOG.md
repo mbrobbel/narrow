@@ -1,6 +1,35 @@
 
 
+## v0.6.10 (2024-09-03)
+
+### Chore
+
+ - <csr-id-a2eb1d971746a99544adc21da3e594cbecf9531d/> bump syn from 2.0.76 to 2.0.77
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#231](https://github.com/mbrobbel/narrow/issues/231)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#231](https://github.com/mbrobbel/narrow/issues/231)**
+    - Bump syn from 2.0.76 to 2.0.77 ([`a2eb1d9`](https://github.com/mbrobbel/narrow/commit/a2eb1d971746a99544adc21da3e594cbecf9531d))
+</details>
+
 ## v0.6.9 (2024-09-02)
+
+<csr-id-ceeb3ad92517eed52fb98a1af3fdb151c88419c4/>
+<csr-id-d327178f451a06e931f6fd8c433564110c392e59/>
+<csr-id-9b7e2d2ce9076b03b3ca3b3ab549fd0d26f4b338/>
+<csr-id-3dfd8e4e260128ed7a48418b1b6460bd27ea17cf/>
 
 ### Chore
 
@@ -13,7 +42,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 4 commits contributed to the release.
+ - 5 commits contributed to the release.
  - 17 days passed between releases.
  - 4 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 4 unique issues were worked on: [#225](https://github.com/mbrobbel/narrow/issues/225), [#226](https://github.com/mbrobbel/narrow/issues/226), [#227](https://github.com/mbrobbel/narrow/issues/227), [#228](https://github.com/mbrobbel/narrow/issues/228)
@@ -32,6 +61,8 @@
     - Bump syn from 2.0.75 to 2.0.76 ([`d327178`](https://github.com/mbrobbel/narrow/commit/d327178f451a06e931f6fd8c433564110c392e59))
  * **[#228](https://github.com/mbrobbel/narrow/issues/228)**
     - Bump proc-macro-crate from 3.1.0 to 3.2.0 ([`ceeb3ad`](https://github.com/mbrobbel/narrow/commit/ceeb3ad92517eed52fb98a1af3fdb151c88419c4))
+ * **Uncategorized**
+    - Release narrow-derive v0.6.9, narrow v0.8.3 ([`0446491`](https://github.com/mbrobbel/narrow/commit/0446491576ab85ac03d7027ba44202af26abbb72))
 </details>
 
 ## v0.6.8 (2024-08-15)

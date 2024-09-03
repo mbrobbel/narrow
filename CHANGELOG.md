@@ -1,5 +1,29 @@
 
 
+## v0.8.4 (2024-09-03)
+
+### New Features
+
+ - <csr-id-69b83cdac7fc3a48e2b10c60b3b4bf2d627c52b0/> add `dyn arrow_array::Array` conversions for union arrays
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#232](https://github.com/mbrobbel/narrow/issues/232)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#232](https://github.com/mbrobbel/narrow/issues/232)**
+    - Add `dyn arrow_array::Array` conversions for union arrays ([`69b83cd`](https://github.com/mbrobbel/narrow/commit/69b83cdac7fc3a48e2b10c60b3b4bf2d627c52b0))
+</details>
+
 ## v0.8.3 (2024-09-02)
 
 ### New Features

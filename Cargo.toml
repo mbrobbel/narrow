@@ -15,7 +15,7 @@ members = ["narrow-derive"]
 
 [package]
 name = "narrow"
-version = "0.8.3"
+version = "0.8.4"
 authors.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -48,7 +48,7 @@ arrow-array = { version = "52", default-features = false, optional = true }
 arrow-buffer = { version = "52", default-features = false, optional = true }
 arrow-schema = { version = "52", default-features = false, optional = true }
 chrono = { version = "0.4.38", default-features = false, optional = true }
-narrow-derive = { path = "narrow-derive", version = "^0.6.9", optional = true }
+narrow-derive = { path = "narrow-derive", version = "^0.6.10", optional = true }
 uuid = { version = "1.10.0", default-features = false, optional = true }
 
 [dev-dependencies]
