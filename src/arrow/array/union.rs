@@ -275,7 +275,7 @@ mod tests {
     }
 
     #[derive(crate::ArrayType, Clone, Debug, PartialEq)]
-    pub struct Wrap(FooBar);
+    struct Wrap(FooBar);
 
     #[test]
     fn via_dyn_array() {
