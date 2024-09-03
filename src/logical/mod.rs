@@ -10,6 +10,9 @@ use crate::{
     Length,
 };
 
+/// Box support via logical arrays.
+pub mod r#box;
+
 #[cfg(feature = "chrono")]
 /// Chrono support via logical arrays.
 pub mod chrono;

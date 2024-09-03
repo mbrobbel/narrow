@@ -19,6 +19,7 @@ fn main() {
     enum FooBar {
         Foo(Foo),
         Bar(Bar),
+        Box(Box<u32>),
         None,
     }
 
@@ -45,13 +46,14 @@ fn main() {
             c: Some("hello world".to_owned()),
         }),
         FooBar::Bar(Bar(vec![1, 2, 3, 4])),
+        FooBar::Box(Box::new(1234)),
         FooBar::None,
         FooBar::None,
     ];
     let union_array = foo_bars
         .clone()
         .into_iter()
-        .collect::<UnionArray<FooBar, 3>>();
-    assert_eq!(union_array.len(), 4);
+        .collect::<UnionArray<FooBar, 4>>();
+    assert_eq!(union_array.len(), 5);
     assert_eq!(union_array.into_iter().collect::<Vec<_>>(), foo_bars);
 }
