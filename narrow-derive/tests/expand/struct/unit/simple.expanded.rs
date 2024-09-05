@@ -24,6 +24,11 @@ impl narrow::array::StructArrayType for Foo {
 struct FooArray<Buffer: narrow::buffer::BufferType>(
     narrow::array::NullArray<Foo, false, Buffer>,
 );
+impl<Buffer: narrow::buffer::BufferType> ::std::clone::Clone for FooArray<Buffer> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl<Buffer: narrow::buffer::BufferType> ::std::default::Default for FooArray<Buffer> {
     fn default() -> Self {
         Self(::std::default::Default::default())

@@ -40,6 +40,14 @@ struct FooArray<Buffer: narrow::buffer::BufferType>(
 )
 where
     Foo: Debug;
+impl<Buffer: narrow::buffer::BufferType> ::std::clone::Clone for FooArray<Buffer>
+where
+    Foo: Debug,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl<Buffer: narrow::buffer::BufferType> ::std::default::Default for FooArray<Buffer>
 where
     Foo: Debug,

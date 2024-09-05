@@ -64,6 +64,17 @@ impl<const N: usize, T: Array, Buffer: BufferType> BitmapRefMut
     }
 }
 
+impl<const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType> Clone
+    for FixedSizeListArray<N, T, NULLABLE, Buffer>
+where
+    T: Validity<NULLABLE>,
+    <T as Validity<NULLABLE>>::Storage<Buffer>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 impl<const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType> Default
     for FixedSizeListArray<N, T, NULLABLE, Buffer>
 where

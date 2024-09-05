@@ -32,6 +32,22 @@ struct FooArray<
 impl<
     T: Sized + narrow::array::ArrayType<T>,
     Buffer: narrow::buffer::BufferType,
+> ::std::clone::Clone for FooArray<T, Buffer>
+where
+    <T as narrow::array::ArrayType<
+        T,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: ::std::clone::Clone,
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: ::std::clone::Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), self.1.clone())
+    }
+}
+impl<
+    T: Sized + narrow::array::ArrayType<T>,
+    Buffer: narrow::buffer::BufferType,
 > ::std::default::Default for FooArray<T, Buffer>
 where
     <T as narrow::array::ArrayType<

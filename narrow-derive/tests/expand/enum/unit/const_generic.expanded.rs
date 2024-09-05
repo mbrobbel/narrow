@@ -48,6 +48,32 @@ impl<
     Buffer: narrow::buffer::BufferType,
     OffsetItem: narrow::offset::OffsetElement,
     UnionLayout: narrow::array::UnionType,
+> ::std::clone::Clone for FooBarArray<X, Buffer, OffsetItem, UnionLayout>
+where
+    <<FooBar<
+        X,
+    > as narrow::array::union::EnumVariant<
+        0,
+    >>::Data as narrow::array::ArrayType<
+        <FooBar<X> as narrow::array::union::EnumVariant<0>>::Data,
+    >>::Array<Buffer, OffsetItem, UnionLayout>: ::std::clone::Clone,
+    <<FooBar<
+        X,
+    > as narrow::array::union::EnumVariant<
+        1,
+    >>::Data as narrow::array::ArrayType<
+        <FooBar<X> as narrow::array::union::EnumVariant<1>>::Data,
+    >>::Array<Buffer, OffsetItem, UnionLayout>: ::std::clone::Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), self.1.clone())
+    }
+}
+impl<
+    const X: bool,
+    Buffer: narrow::buffer::BufferType,
+    OffsetItem: narrow::offset::OffsetElement,
+    UnionLayout: narrow::array::UnionType,
 > ::std::default::Default for FooBarArray<X, Buffer, OffsetItem, UnionLayout>
 where
     <<FooBar<

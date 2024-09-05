@@ -82,6 +82,17 @@ impl<T: FixedSize, Buffer: BufferType> AsRef<[T]> for FixedSizePrimitiveArray<T,
     }
 }
 
+impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType> Clone
+    for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
+where
+    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
+    <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType> Debug
     for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
 where

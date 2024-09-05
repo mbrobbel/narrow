@@ -49,6 +49,17 @@ where
     type Item = <String as Nullability<NULLABLE>>::Item;
 }
 
+impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Clone
+    for StringArray<NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Default
     for StringArray<NULLABLE, OffsetItem, Buffer>
 where

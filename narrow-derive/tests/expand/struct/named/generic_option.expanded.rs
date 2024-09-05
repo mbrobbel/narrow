@@ -39,6 +39,33 @@ struct BarArray<T: narrow::array::ArrayType<T>, Buffer: narrow::buffer::BufferTy
 impl<
     T: narrow::array::ArrayType<T>,
     Buffer: narrow::buffer::BufferType,
+> ::std::clone::Clone for BarArray<T, Buffer>
+where
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: ::std::clone::Clone,
+    <Option<
+        bool,
+    > as narrow::array::ArrayType<
+        bool,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: ::std::clone::Clone,
+    <Option<
+        T,
+    > as narrow::array::ArrayType<
+        T,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: ::std::clone::Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            a: self.a.clone(),
+            b: self.b.clone(),
+            c: self.c.clone(),
+        }
+    }
+}
+impl<
+    T: narrow::array::ArrayType<T>,
+    Buffer: narrow::buffer::BufferType,
 > ::std::default::Default for BarArray<T, Buffer>
 where
     <u32 as narrow::array::ArrayType<

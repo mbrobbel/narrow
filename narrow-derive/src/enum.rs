@@ -3,7 +3,7 @@ use quote::{format_ident, quote};
 use std::iter;
 use syn::{
     parse2, parse_quote, punctuated::Punctuated, token, visit_mut::VisitMut, DeriveInput, Field,
-    Fields, Generics, Ident, ItemImpl, ItemStruct, Token, Type, TypeParamBound, Variant,
+    Fields, Generics, Ident, Index, ItemImpl, ItemStruct, Token, Type, TypeParamBound, Variant,
     Visibility, WhereClause, WherePredicate,
 };
 
@@ -26,6 +26,9 @@ pub(super) fn derive(
 
     // Generate the wrapper struct def.
     let array_struct_def = input.array_struct_def();
+
+    // Generate a clone impl for the wrapper struct def.
+    let array_struct_clone_impl = input.array_struct_clone_impl();
 
     // Generate a default impl for the wrapper struct def.
     let array_struct_default_impl = input.array_struct_default_impl();
@@ -62,6 +65,8 @@ pub(super) fn derive(
         #enum_variant_impl
 
         #array_struct_def
+
+        #array_struct_clone_impl
 
         #array_struct_default_impl
 
@@ -668,6 +673,56 @@ impl<'a> Enum<'a> {
         };
         let tokens = quote!(#item_impl);
         parse2(tokens).expect("array_union_array_iterators_impl")
+    }
+
+    // Adds a default impl for the array wrapper struct.
+    fn array_struct_clone_impl(&self) -> ItemImpl {
+        let narrow = util::narrow();
+
+        // Generics
+        let self_generics = self.generics.clone();
+        let (_, self_ty_generics, _) = self_generics.split_for_impl();
+        let mut generics = self.generics.clone();
+        SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
+        AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
+            .visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
+            .visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(UnionLayout: #narrow::array::UnionType))
+            .visit_generics_mut(&mut generics);
+        let self_ident = self.ident;
+        generics
+            .make_where_clause()
+            .predicates
+            .extend(
+                self.variant_indices()
+                    .map::<WherePredicate, _>(|idx|
+                        parse_quote!(
+                            <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<Buffer, OffsetItem, UnionLayout>
+                        : ::std::clone::Clone)
+                    )
+            );
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+        let ident = self.array_struct_ident();
+        let clone_fields = self
+            .variants
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| Index::from(idx))
+            .map(|idx| quote!(self.#idx.clone()));
+        let tokens = quote! {
+            impl #impl_generics ::std::clone::Clone for #ident #ty_generics #where_clause {
+                fn clone(&self) -> Self {
+                    Self(
+                        #(
+                            #clone_fields,
+                        )*
+                    )
+                }
+            }
+        };
+        parse2(tokens).expect("array_struct_clone_impl")
     }
 
     // Adds a default impl for the array wrapper struct.

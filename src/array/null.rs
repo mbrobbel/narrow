@@ -52,6 +52,16 @@ where
     type Item = <T as Nullability<NULLABLE>>::Item;
 }
 
+impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> Clone for NullArray<T, NULLABLE, Buffer>
+where
+    Nulls<T>: Validity<NULLABLE>,
+    <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> Default for NullArray<T, NULLABLE, Buffer>
 where
     Nulls<T>: Validity<NULLABLE>,
