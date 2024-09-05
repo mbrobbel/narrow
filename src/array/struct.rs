@@ -47,6 +47,17 @@ where
     type Item = <T as Nullability<NULLABLE>>::Item;
 }
 
+impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> Clone
+    for StructArray<T, NULLABLE, Buffer>
+where
+    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> Default
     for StructArray<T, NULLABLE, Buffer>
 where

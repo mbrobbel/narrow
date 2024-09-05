@@ -21,6 +21,16 @@ struct FooArray<Buffer: narrow::buffer::BufferType>(
         u32,
     >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>,
 );
+impl<Buffer: narrow::buffer::BufferType> ::std::clone::Clone for FooArray<Buffer>
+where
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: ::std::clone::Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl<Buffer: narrow::buffer::BufferType> ::std::default::Default for FooArray<Buffer>
 where
     <u32 as narrow::array::ArrayType<
@@ -149,6 +159,16 @@ struct BarArray<Buffer: narrow::buffer::BufferType>(
         Foo,
     >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>,
 );
+impl<Buffer: narrow::buffer::BufferType> ::std::clone::Clone for BarArray<Buffer>
+where
+    <Foo as narrow::array::ArrayType<
+        Foo,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: ::std::clone::Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl<Buffer: narrow::buffer::BufferType> ::std::default::Default for BarArray<Buffer>
 where
     <Foo as narrow::array::ArrayType<

@@ -25,6 +25,9 @@ pub(super) fn derive(input: &DeriveInput, fields: &Fields) -> TokenStream {
     // Generate the array wrapper struct definition.
     let array_struct_def = input.array_struct_def();
 
+    // Generate a `Clone` impl for the array wrapper struct.
+    let array_clone_impl = input.array_clone_impl();
+
     // Generate a `Default` impl for the array wrapper struct.
     let array_default_impl = input.array_default_impl();
 
@@ -54,6 +57,8 @@ pub(super) fn derive(input: &DeriveInput, fields: &Fields) -> TokenStream {
         #struct_array_type_impl
 
         #array_struct_def
+
+        #array_clone_impl
 
         #array_default_impl
 
@@ -467,6 +472,58 @@ impl Struct<'_> {
             #vis struct #ident #impl_generics #rest
         );
         parse2(tokens).expect("array_struct_def")
+    }
+
+    fn array_clone_impl(&self) -> ItemImpl {
+        let narrow = util::narrow();
+
+        // Generics
+        let mut generics = self.generics.clone();
+        SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
+        AddTypeParamBoundWithSelf(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
+            .visit_generics_mut(&mut generics);
+        generics
+            .make_where_clause()
+            .predicates
+            .extend(self.where_predicate_fields(parse_quote!(::std::clone::Clone)));
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+        let clone_fields = self.surround_with_delimiters(match self.fields {
+            Fields::Named(_) => {
+                let field_ident = self.field_idents();
+                quote!(
+                    #(
+                        #field_ident: self.#field_ident.clone(),
+                    )*
+                )
+            }
+            Fields::Unnamed(_) => {
+                let field_idx = self
+                    .fields
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, _)| Index::from(idx));
+                quote!(
+                    #(
+                        self.#field_idx.clone(),
+                    )*
+                )
+            }
+            Fields::Unit => {
+                quote!(self.0.clone())
+            }
+        });
+
+        let ident = self.array_struct_ident();
+        let tokens = quote!(
+            impl #impl_generics ::std::clone::Clone for #ident #ty_generics #where_clause {
+                fn clone(&self) -> Self {
+                    Self #clone_fields
+                }
+            }
+        );
+        parse2(tokens).expect("array_clone_impl")
     }
 
     fn array_default_impl(&self) -> ItemImpl {

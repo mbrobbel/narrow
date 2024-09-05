@@ -46,6 +46,16 @@ pub(super) struct FooArray<const N: bool, Buffer: narrow::buffer::BufferType>(
 where
     Foo<N>: Sized,
     (): From<Foo<N>>;
+impl<const N: bool, Buffer: narrow::buffer::BufferType> ::std::clone::Clone
+for FooArray<N, Buffer>
+where
+    Foo<N>: Sized,
+    (): From<Foo<N>>,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl<const N: bool, Buffer: narrow::buffer::BufferType> ::std::default::Default
 for FooArray<N, Buffer>
 where

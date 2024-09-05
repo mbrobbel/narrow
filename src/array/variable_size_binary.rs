@@ -35,6 +35,17 @@ where
     type Item = <Vec<u8> as Nullability<NULLABLE>>::Item;
 }
 
+impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Clone
+    for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Offset<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Default
     for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
 where

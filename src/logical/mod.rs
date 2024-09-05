@@ -88,6 +88,27 @@ impl<
         Buffer: BufferType,
         OffsetItem: OffsetElement,
         UnionLayout: UnionType,
+    > Clone for LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
+where
+    Option<T>: ArrayType<T>,
+    <T as LogicalArrayType<T>>::ArrayType: Nullability<NULLABLE>,
+    <<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item:
+        ArrayType<<T as LogicalArrayType<T>>::ArrayType>,
+    <<<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item as ArrayType<
+        <T as LogicalArrayType<T>>::ArrayType,
+    >>::Array<Buffer, OffsetItem, UnionLayout>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<
+        T: LogicalArrayType<T>,
+        const NULLABLE: bool,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
     > Default for LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
