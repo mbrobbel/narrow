@@ -87,6 +87,18 @@ impl<T: Debug, Buffer: BufferType> Debug for Nullable<T, Buffer> {
     }
 }
 
+impl<T: Clone, Buffer: BufferType> Clone for Nullable<T, Buffer>
+where
+    Bitmap<Buffer>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data.clone(),
+            validity: self.validity.clone(),
+        }
+    }
+}
+
 impl<T: Default, Buffer: BufferType> Default for Nullable<T, Buffer>
 where
     Bitmap<Buffer>: Default,
