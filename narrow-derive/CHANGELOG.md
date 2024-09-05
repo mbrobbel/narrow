@@ -1,6 +1,33 @@
 
 
+## v0.6.11 (2024-09-05)
+
+### New Features
+
+ - <csr-id-e77196c759e488b8a7ab92d5864e43e13ce243f3/> impl `Clone` for arrays
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 day passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#242](https://github.com/mbrobbel/narrow/issues/242)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#242](https://github.com/mbrobbel/narrow/issues/242)**
+    - Impl `Clone` for arrays ([`e77196c`](https://github.com/mbrobbel/narrow/commit/e77196c759e488b8a7ab92d5864e43e13ce243f3))
+</details>
+
 ## v0.6.10 (2024-09-03)
+
+<csr-id-a2eb1d971746a99544adc21da3e594cbecf9531d/>
 
 ### Chore
 
@@ -10,7 +37,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 1 commit contributed to the release.
+ - 2 commits contributed to the release.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#231](https://github.com/mbrobbel/narrow/issues/231)
 
@@ -22,6 +49,8 @@
 
  * **[#231](https://github.com/mbrobbel/narrow/issues/231)**
     - Bump syn from 2.0.76 to 2.0.77 ([`a2eb1d9`](https://github.com/mbrobbel/narrow/commit/a2eb1d971746a99544adc21da3e594cbecf9531d))
+ * **Uncategorized**
+    - Release narrow-derive v0.6.10, narrow v0.8.4 ([`9b42ca2`](https://github.com/mbrobbel/narrow/commit/9b42ca2e5b31c6d16f5a41855a504c58c16cbc18))
 </details>
 
 ## v0.6.9 (2024-09-02)

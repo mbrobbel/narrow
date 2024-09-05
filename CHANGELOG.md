@@ -1,5 +1,33 @@
 
 
+## v0.8.5 (2024-09-05)
+
+### New Features
+
+ - <csr-id-e77196c759e488b8a7ab92d5864e43e13ce243f3/> impl `Clone` for arrays
+ - <csr-id-53859628d31bee9ebdacd4c05e70cf548cd2cd69/> add `ArrayType` impl for `Box<T>`
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 2 commits contributed to the release.
+ - 1 day passed between releases.
+ - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 2 unique issues were worked on: [#238](https://github.com/mbrobbel/narrow/issues/238), [#242](https://github.com/mbrobbel/narrow/issues/242)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#238](https://github.com/mbrobbel/narrow/issues/238)**
+    - Add `ArrayType` impl for `Box<T>` ([`5385962`](https://github.com/mbrobbel/narrow/commit/53859628d31bee9ebdacd4c05e70cf548cd2cd69))
+ * **[#242](https://github.com/mbrobbel/narrow/issues/242)**
+    - Impl `Clone` for arrays ([`e77196c`](https://github.com/mbrobbel/narrow/commit/e77196c759e488b8a7ab92d5864e43e13ce243f3))
+</details>
+
 ## v0.8.4 (2024-09-03)
 
 ### New Features
