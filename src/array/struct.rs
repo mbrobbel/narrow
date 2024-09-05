@@ -1,10 +1,11 @@
 //! Array for product types.
 
-use super::{Array, ArrayType};
+use super::{union, Array, ArrayType, UnionType};
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
     nullable::Nullable,
+    offset::{self, OffsetElement},
     validity::{Nullability, Validity},
     Length,
 };
@@ -15,7 +16,7 @@ pub trait StructArrayType: ArrayType<Self> {
     /// the [`ArrayType`] array because that wraps this array. Also note that this
     /// has no [`Array`] bound.
     // TODO(mbrobbe): add offset and union generics
-    type Array<Buffer: BufferType>; // into<fields> this then requires all arraytype impls to provide a field
+    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>; // into<fields> this then requires all arraytype impls to provide a field
 }
 
 /// Array for product types.
@@ -23,13 +24,21 @@ pub struct StructArray<
     T: StructArrayType,
     const NULLABLE: bool = false,
     Buffer: BufferType = VecBuffer,
->(pub <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>)
+    OffsetItem: OffsetElement = offset::NA,
+    UnionLayout: UnionType = union::NA,
+>(pub <<T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout> as Validity<NULLABLE>>::Storage<Buffer>)
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>;
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>;
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> StructArray<T, NULLABLE, Buffer>
+impl<
+        T: StructArrayType,
+        const NULLABLE: bool,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
+    > StructArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>,
     for<'a> &'a Self: IntoIterator,
 {
     /// Returns an iterator over the items in this [`StructArray`].
@@ -38,105 +47,155 @@ where
     }
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> Array
-    for StructArray<T, NULLABLE, Buffer>
+impl<
+        T: StructArrayType,
+        const NULLABLE: bool,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
+    > Array for StructArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>,
     T: Nullability<NULLABLE>,
 {
     type Item = <T as Nullability<NULLABLE>>::Item;
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> Clone
-    for StructArray<T, NULLABLE, Buffer>
+impl<
+        T: StructArrayType,
+        const NULLABLE: bool,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
+    > Clone for StructArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Clone,
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>,
+    <<T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout> as Validity<NULLABLE>>::Storage<
+        Buffer,
+    >: Clone,
 {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> Default
-    for StructArray<T, NULLABLE, Buffer>
+impl<
+        T: StructArrayType,
+        const NULLABLE: bool,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
+    > Default for StructArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Default,
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>,
+    <<T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout> as Validity<NULLABLE>>::Storage<
+        Buffer,
+    >: Default,
 {
     fn default() -> Self {
         Self(Default::default())
     }
 }
 
-impl<T: StructArrayType, Buffer: BufferType> From<StructArray<T, false, Buffer>>
-    for StructArray<T, true, Buffer>
+impl<T: StructArrayType, Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>
+    From<StructArray<T, false, Buffer, OffsetItem, UnionLayout>>
+    for StructArray<T, true, Buffer, OffsetItem, UnionLayout>
 where
-    <T as StructArrayType>::Array<Buffer>: Length,
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Length,
     Bitmap<Buffer>: FromIterator<bool>,
 {
-    fn from(value: StructArray<T, false, Buffer>) -> Self {
+    fn from(value: StructArray<T, false, Buffer, OffsetItem, UnionLayout>) -> Self {
         Self(Nullable::from(value.0))
     }
 }
 
-impl<T: StructArrayType, U, const NULLABLE: bool, Buffer: BufferType> FromIterator<U>
-    for StructArray<T, NULLABLE, Buffer>
+impl<
+        T: StructArrayType,
+        U,
+        const NULLABLE: bool,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
+    > FromIterator<U> for StructArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: FromIterator<U>,
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>,
+    <<T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout> as Validity<NULLABLE>>::Storage<
+        Buffer,
+    >: FromIterator<U>,
 {
     fn from_iter<I: IntoIterator<Item = U>>(iter: I) -> Self {
         Self(iter.into_iter().collect())
     }
 }
 
-impl<T: StructArrayType, U, Buffer: BufferType> Extend<U> for StructArray<T, false, Buffer>
+impl<
+        T: StructArrayType,
+        U,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
+    > Extend<U> for StructArray<T, false, Buffer, OffsetItem, UnionLayout>
 where
-    <T as StructArrayType>::Array<Buffer>: Extend<U>,
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Extend<U>,
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
         self.0.extend(iter);
     }
 }
 
-impl<T: StructArrayType, U, Buffer: BufferType> Extend<Option<U>> for StructArray<T, true, Buffer>
+impl<
+        T: StructArrayType,
+        U,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
+    > Extend<Option<U>> for StructArray<T, true, Buffer, OffsetItem, UnionLayout>
 where
-    Nullable<<T as StructArrayType>::Array<Buffer>, Buffer>: Extend<Option<U>>,
+    Nullable<<T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>, Buffer>:
+        Extend<Option<U>>,
 {
     fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
         self.0.extend(iter);
     }
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> IntoIterator
-    for StructArray<T, NULLABLE, Buffer>
+impl<
+        T: StructArrayType,
+        const NULLABLE: bool,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
+    > IntoIterator for StructArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
 where
     T: Nullability<NULLABLE>,
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: IntoIterator,
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>,
+    <<T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout> as Validity<NULLABLE>>::Storage<
+        Buffer,
+    >: IntoIterator,
 {
-    type Item = <<<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as
-        IntoIterator>::Item;
-    type IntoIter = <<<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as
-        IntoIterator>::IntoIter;
+    type Item = <<<T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout> as Validity<
+        NULLABLE,
+    >>::Storage<Buffer> as IntoIterator>::Item;
+    type IntoIter = <<<T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout> as Validity<
+        NULLABLE,
+    >>::Storage<Buffer> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }
 }
 
-impl<'a, T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> IntoIterator
-    for &'a StructArray<T, NULLABLE, Buffer>
+impl<'a, T: StructArrayType, const NULLABLE: bool, Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> IntoIterator
+    for &'a StructArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
 where
     T: Nullability<NULLABLE>,
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    &'a <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>:
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>,
+    &'a <<T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout> as Validity<NULLABLE>>::Storage<Buffer>:
         IntoIterator,
 {
-    type Item = <&'a <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as
+    type Item = <&'a <<T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout> as Validity<NULLABLE>>::Storage<Buffer> as
         IntoIterator>::Item;
-    type IntoIter = <&'a <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<
+    type IntoIter = <&'a <<T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout> as Validity<NULLABLE>>::Storage<
         Buffer,
     > as IntoIterator>::IntoIter;
 
@@ -145,18 +204,27 @@ where
     }
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> Length
-    for StructArray<T, NULLABLE, Buffer>
+impl<
+        T: StructArrayType,
+        const NULLABLE: bool,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
+    > Length for StructArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Length,
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>,
+    <<T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout> as Validity<NULLABLE>>::Storage<
+        Buffer,
+    >: Length,
 {
     fn len(&self) -> usize {
         self.0.len()
     }
 }
 
-impl<T: StructArrayType, Buffer: BufferType> BitmapRef for StructArray<T, true, Buffer> {
+impl<T: StructArrayType, Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>
+    BitmapRef for StructArray<T, true, Buffer, OffsetItem, UnionLayout>
+{
     type Buffer = Buffer;
 
     fn bitmap_ref(&self) -> &Bitmap<Self::Buffer> {
@@ -164,13 +232,18 @@ impl<T: StructArrayType, Buffer: BufferType> BitmapRef for StructArray<T, true, 
     }
 }
 
-impl<T: StructArrayType, Buffer: BufferType> BitmapRefMut for StructArray<T, true, Buffer> {
+impl<T: StructArrayType, Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>
+    BitmapRefMut for StructArray<T, true, Buffer, OffsetItem, UnionLayout>
+{
     fn bitmap_ref_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
         self.0.bitmap_ref_mut()
     }
 }
 
-impl<T: StructArrayType, Buffer: BufferType> ValidityBitmap for StructArray<T, true, Buffer> {}
+impl<T: StructArrayType, Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>
+    ValidityBitmap for StructArray<T, true, Buffer, OffsetItem, UnionLayout>
+{
+}
 
 #[cfg(test)]
 mod tests {
@@ -312,7 +385,8 @@ mod tests {
         }
     }
     impl<'a> StructArrayType for Foo<'a> {
-        type Array<Buffer: BufferType> = FooArray<'a, Buffer>;
+        type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+            FooArray<'a, Buffer>;
     }
 
     impl<'a, Buffer: BufferType> Length for FooArray<'a, Buffer>
