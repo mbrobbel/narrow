@@ -1,5 +1,29 @@
 
 
+## v0.8.6 (2024-09-05)
+
+### New Features
+
+ - <csr-id-f64067366594960c5161f0057b684b883e481564/> impl `Clone` for `Nullable`
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#243](https://github.com/mbrobbel/narrow/issues/243)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#243](https://github.com/mbrobbel/narrow/issues/243)**
+    - Impl `Clone` for `Nullable` ([`f640673`](https://github.com/mbrobbel/narrow/commit/f64067366594960c5161f0057b684b883e481564))
+</details>
+
 ## v0.8.5 (2024-09-05)
 
 ### New Features
