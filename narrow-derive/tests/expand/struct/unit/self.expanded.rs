@@ -33,7 +33,11 @@ impl narrow::array::StructArrayType for Foo
 where
     Self: Debug,
 {
-    type Array<Buffer: narrow::buffer::BufferType> = FooArray<Buffer>;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::union::UnionType,
+    > = FooArray<Buffer>;
 }
 struct FooArray<Buffer: narrow::buffer::BufferType>(
     narrow::array::NullArray<Foo, false, Buffer>,

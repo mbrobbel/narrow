@@ -38,7 +38,11 @@ where
     Self: Sized,
     (): From<Self>,
 {
-    type Array<Buffer: narrow::buffer::BufferType> = FooArray<N, Buffer>;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::union::UnionType,
+    > = FooArray<N, Buffer>;
 }
 pub(super) struct FooArray<const N: bool, Buffer: narrow::buffer::BufferType>(
     pub(super) narrow::array::NullArray<Foo<N>, false, Buffer>,

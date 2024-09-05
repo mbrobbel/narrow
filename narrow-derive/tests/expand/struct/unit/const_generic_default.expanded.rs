@@ -19,7 +19,11 @@ impl<const N: usize> narrow::array::ArrayType<Foo<N>> for ::std::option::Option<
     > = narrow::array::StructArray<Foo<N>, true, Buffer>;
 }
 impl<const N: usize> narrow::array::StructArrayType for Foo<N> {
-    type Array<Buffer: narrow::buffer::BufferType> = FooArray<N, Buffer>;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::union::UnionType,
+    > = FooArray<N, Buffer>;
 }
 pub struct FooArray<const N: usize, Buffer: narrow::buffer::BufferType>(
     pub narrow::array::NullArray<Foo<N>, false, Buffer>,

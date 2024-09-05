@@ -34,7 +34,11 @@ where
     Self: Sized,
     <T as Add<Self>>::Output: Debug,
 {
-    type Array<Buffer: narrow::buffer::BufferType> = FooArray<'a, T, Buffer>;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::union::UnionType,
+    > = FooArray<'a, T, Buffer>;
 }
 struct FooArray<
     'a,
@@ -227,7 +231,11 @@ for ::std::option::Option<FooBar<T>> {
     > = narrow::array::StructArray<FooBar<T>, true, Buffer>;
 }
 impl<T: narrow::array::ArrayType<T>> narrow::array::StructArrayType for FooBar<T> {
-    type Array<Buffer: narrow::buffer::BufferType> = FooBarArray<T, Buffer>;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::union::UnionType,
+    > = FooBarArray<T, Buffer>;
 }
 struct FooBarArray<T: narrow::array::ArrayType<T>, Buffer: narrow::buffer::BufferType>(
     <T as narrow::array::ArrayType<
