@@ -160,7 +160,8 @@ impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> StructArray<T
 where
     <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
 {
-    /// Return the Arrow schema using the fields of this StructArray.
+    /// Return the Arrow schema using the fields of this `StructArray`.
+    #[must_use]
     pub fn schema() -> Arc<arrow_schema::Schema>
     where
         T: StructArrayType,
@@ -169,7 +170,8 @@ where
         Vec<Arc<(dyn arrow_array::Array + 'static)>>:
             From<<T as StructArrayType>::Array<VecBuffer>>,
     {
-        let dummy_array = ([] as [T; 0]).into_iter().collect::<StructArray<T>>();
+        let dummy_slice: [T; 0] = [];
+        let dummy_array = dummy_slice.into_iter().collect::<StructArray<T>>();
         let dummy_batch = arrow_array::RecordBatch::from(dummy_array);
         dummy_batch.schema()
     }
@@ -431,11 +433,11 @@ mod tests {
         assert_eq!(fields.len(), 2);
 
         assert_eq!(fields[0].name(), "a");
-        assert_eq!(fields[0].is_nullable(), false);
+        assert!(!fields[0].is_nullable());
         assert_eq!(*fields[0].data_type(), arrow_schema::DataType::UInt8);
 
         assert_eq!(fields[1].name(), "b");
-        assert_eq!(fields[1].is_nullable(), true);
+        assert!(fields[1].is_nullable());
         assert_eq!(
             *fields[1].data_type(),
             arrow_schema::DataType::List(Arc::new(Field::new(
