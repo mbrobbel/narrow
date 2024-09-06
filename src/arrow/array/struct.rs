@@ -156,6 +156,19 @@ where
     }
 }
 
+impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> StructArray<T, NULLABLE, Buffer>
+where
+    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE> + StructArrayTypeFields,
+{
+    /// Return the Arrow schema using the fields of this `StructArray`.
+    #[must_use]
+    pub fn schema() -> arrow_schema::Schema {
+        arrow_schema::Schema::new(
+            <<T as StructArrayType>::Array<Buffer> as StructArrayTypeFields>::fields(),
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -394,5 +407,36 @@ mod tests {
 
         let struct_array_roundtrip: StructArray<Foo<i32>> = struct_array_arrow.into();
         assert_eq!(struct_array_roundtrip.len(), 2);
+    }
+
+    #[cfg(feature = "derive")]
+    #[derive(narrow_derive::ArrayType)]
+    struct Bar {
+        a: u8,
+        b: Option<Vec<i32>>,
+    }
+
+    #[test]
+    #[cfg(feature = "derive")]
+    fn schema() {
+        let schema = StructArray::<Bar>::schema();
+
+        let fields = schema.fields();
+        assert_eq!(fields.len(), 2);
+
+        assert_eq!(fields[0].name(), "a");
+        assert!(!fields[0].is_nullable());
+        assert_eq!(*fields[0].data_type(), arrow_schema::DataType::UInt8);
+
+        assert_eq!(fields[1].name(), "b");
+        assert!(fields[1].is_nullable());
+        assert_eq!(
+            *fields[1].data_type(),
+            arrow_schema::DataType::List(Arc::new(Field::new(
+                "item",
+                arrow_schema::DataType::Int32,
+                false
+            )))
+        );
     }
 }
