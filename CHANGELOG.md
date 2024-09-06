@@ -1,5 +1,30 @@
 
 
+## v0.8.7 (2024-09-06)
+
+### New Features
+
+ - <csr-id-465a8ce6697cd2cf9591025f14c9d250b12fcc22/> Add function to `StructArray` that returns the Arrow schema
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 day passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#245](https://github.com/mbrobbel/narrow/issues/245)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#245](https://github.com/mbrobbel/narrow/issues/245)**
+    - Add function to `StructArray` that returns the Arrow schema ([`465a8ce`](https://github.com/mbrobbel/narrow/commit/465a8ce6697cd2cf9591025f14c9d250b12fcc22))
+</details>
+
 ## v0.8.6 (2024-09-05)
 
 ### New Features
