@@ -8,7 +8,7 @@ use arrow_schema::{DataType, Field, Fields};
 use crate::{
     array::{StructArray, StructArrayType},
     bitmap::Bitmap,
-    buffer::{BufferType, VecBuffer},
+    buffer::BufferType,
     nullable::Nullable,
     validity::{Nullability, Validity},
     Length,
@@ -158,22 +158,14 @@ where
 
 impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> StructArray<T, NULLABLE, Buffer>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE> + StructArrayTypeFields,
 {
     /// Return the Arrow schema using the fields of this `StructArray`.
     #[must_use]
-    pub fn schema() -> Arc<arrow_schema::Schema>
-    where
-        T: StructArrayType,
-        <T as StructArrayType>::Array<VecBuffer>: FromIterator<T>,
-        <T as StructArrayType>::Array<VecBuffer>: StructArrayTypeFields,
-        Vec<Arc<(dyn arrow_array::Array + 'static)>>:
-            From<<T as StructArrayType>::Array<VecBuffer>>,
-    {
-        let dummy_slice: [T; 0] = [];
-        let dummy_array = dummy_slice.into_iter().collect::<StructArray<T>>();
-        let dummy_batch = arrow_array::RecordBatch::from(dummy_array);
-        dummy_batch.schema()
+    pub fn schema() -> arrow_schema::Schema {
+        arrow_schema::Schema::new(
+            <<T as StructArrayType>::Array<Buffer> as StructArrayTypeFields>::fields(),
+        )
     }
 }
 
