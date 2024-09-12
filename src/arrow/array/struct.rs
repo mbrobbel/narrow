@@ -6,10 +6,11 @@ use arrow_buffer::NullBuffer;
 use arrow_schema::{DataType, Field, Fields};
 
 use crate::{
-    array::{StructArray, StructArrayType},
+    array::{StructArray, StructArrayType, UnionType},
     bitmap::Bitmap,
     buffer::BufferType,
     nullable::Nullable,
+    offset::OffsetElement,
     validity::{Nullability, Validity},
     Length,
 };
@@ -20,10 +21,16 @@ pub trait StructArrayTypeFields {
     fn fields() -> Fields;
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> crate::arrow::Array
-    for StructArray<T, NULLABLE, Buffer>
+impl<
+        T: StructArrayType,
+        const NULLABLE: bool,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
+    > crate::arrow::Array for StructArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE> + StructArrayTypeFields,
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>:
+        Validity<NULLABLE> + StructArrayTypeFields,
     T: Nullability<NULLABLE>,
 {
     type Array = arrow_array::StructArray;
@@ -31,18 +38,26 @@ where
     fn as_field(name: &str) -> arrow_schema::Field {
         Field::new(
             name,
-            DataType::Struct(
-                <<T as StructArrayType>::Array<Buffer> as StructArrayTypeFields>::fields(),
-            ),
+            DataType::Struct(<<T as StructArrayType>::Array<
+                Buffer,
+                OffsetItem,
+                UnionLayout,
+            > as StructArrayTypeFields>::fields()),
             NULLABLE,
         )
     }
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> From<Arc<dyn arrow_array::Array>>
-    for StructArray<T, NULLABLE, Buffer>
+impl<
+        T: StructArrayType,
+        const NULLABLE: bool,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
+    > From<Arc<dyn arrow_array::Array>>
+    for StructArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>,
     Self: From<arrow_array::StructArray>,
 {
     fn from(value: Arc<dyn arrow_array::Array>) -> Self {
@@ -50,29 +65,35 @@ where
     }
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType>
-    From<StructArray<T, NULLABLE, Buffer>> for Arc<dyn arrow_array::Array>
+impl<
+        T: StructArrayType,
+        const NULLABLE: bool,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
+    > From<StructArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>>
+    for Arc<dyn arrow_array::Array>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    arrow_array::StructArray: From<StructArray<T, NULLABLE, Buffer>>,
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>,
+    arrow_array::StructArray: From<StructArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>>,
 {
-    fn from(value: StructArray<T, NULLABLE, Buffer>) -> Self {
+    fn from(value: StructArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>) -> Self {
         Arc::new(arrow_array::StructArray::from(value))
     }
 }
 
-impl<T: StructArrayType, Buffer: BufferType> From<StructArray<T, false, Buffer>>
-    for arrow_array::StructArray
+impl<T: StructArrayType, Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>
+    From<StructArray<T, false, Buffer, OffsetItem, UnionLayout>> for arrow_array::StructArray
 where
-    <T as StructArrayType>::Array<Buffer>:
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>:
         StructArrayTypeFields + Into<Vec<Arc<dyn arrow_array::Array>>>,
 {
-    fn from(value: StructArray<T, false, Buffer>) -> Self {
+    fn from(value: StructArray<T, false, Buffer, OffsetItem, UnionLayout>) -> Self {
         // Safety:
         // - struct arrays are valid by construction
         unsafe {
             arrow_array::StructArray::new_unchecked(
-                <<T as StructArrayType>::Array<Buffer> as StructArrayTypeFields>::fields(),
+                <<T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout> as StructArrayTypeFields>::fields(),
                 value.0.into(),
                 None,
             )
@@ -80,19 +101,19 @@ where
     }
 }
 
-impl<T: StructArrayType, Buffer: BufferType> From<StructArray<T, true, Buffer>>
-    for arrow_array::StructArray
+impl<T: StructArrayType, Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>
+    From<StructArray<T, true, Buffer, OffsetItem, UnionLayout>> for arrow_array::StructArray
 where
-    <T as StructArrayType>::Array<Buffer>:
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>:
         StructArrayTypeFields + Into<Vec<Arc<dyn arrow_array::Array>>>,
     Bitmap<Buffer>: Into<NullBuffer>,
 {
-    fn from(value: StructArray<T, true, Buffer>) -> Self {
+    fn from(value: StructArray<T, true, Buffer, OffsetItem, UnionLayout>) -> Self {
         // Safety:
         // - struct arrays are valid by construction
         unsafe {
             arrow_array::StructArray::new_unchecked(
-                <<T as StructArrayType>::Array<Buffer> as StructArrayTypeFields>::fields(),
+                <<T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout> as StructArrayTypeFields>::fields(),
                 value.0.data.into(),
                 Some(value.0.validity.into()),
             )
@@ -101,10 +122,11 @@ where
 }
 
 /// Panics when there are nulls
-impl<T: StructArrayType, Buffer: BufferType> From<arrow_array::StructArray>
-    for StructArray<T, false, Buffer>
+impl<T: StructArrayType, Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>
+    From<arrow_array::StructArray> for StructArray<T, false, Buffer, OffsetItem, UnionLayout>
 where
-    <T as StructArrayType>::Array<Buffer>: From<Vec<Arc<dyn arrow_array::Array>>>,
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>:
+        From<Vec<Arc<dyn arrow_array::Array>>>,
 {
     fn from(value: arrow_array::StructArray) -> Self {
         let (_fields, arrays, nulls_opt) = value.into_parts();
@@ -115,10 +137,11 @@ where
     }
 }
 
-impl<T: StructArrayType, Buffer: BufferType> From<arrow_array::StructArray>
-    for StructArray<T, true, Buffer>
+impl<T: StructArrayType, Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>
+    From<arrow_array::StructArray> for StructArray<T, true, Buffer, OffsetItem, UnionLayout>
 where
-    <T as StructArrayType>::Array<Buffer>: From<Vec<Arc<dyn arrow_array::Array>>> + Length,
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>:
+        From<Vec<Arc<dyn arrow_array::Array>>> + Length,
     Bitmap<Buffer>: From<NullBuffer> + FromIterator<bool>,
 {
     fn from(value: arrow_array::StructArray) -> Self {
@@ -129,26 +152,36 @@ where
                 data,
                 validity: null_buffer.into(),
             }),
-            None => StructArray::<T, false, Buffer>(data).into(),
+            None => StructArray::<T, false, Buffer, OffsetItem, UnionLayout>(data).into(),
         }
     }
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType>
-    From<StructArray<T, NULLABLE, Buffer>> for arrow_array::RecordBatch
+impl<
+        T: StructArrayType,
+        const NULLABLE: bool,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
+    > From<StructArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>> for arrow_array::RecordBatch
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    arrow_array::StructArray: From<StructArray<T, NULLABLE, Buffer>>,
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>,
+    arrow_array::StructArray: From<StructArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>>,
 {
-    fn from(value: StructArray<T, NULLABLE, Buffer>) -> Self {
+    fn from(value: StructArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>) -> Self {
         Self::from(arrow_array::StructArray::from(value))
     }
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> From<arrow_array::RecordBatch>
-    for StructArray<T, NULLABLE, Buffer>
+impl<
+        T: StructArrayType,
+        const NULLABLE: bool,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+        UnionLayout: UnionType,
+    > From<arrow_array::RecordBatch> for StructArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+    <T as StructArrayType>::Array<Buffer, OffsetItem, UnionLayout>: Validity<NULLABLE>,
     Self: From<arrow_array::StructArray>,
 {
     fn from(value: arrow_array::RecordBatch) -> Self {
@@ -263,7 +296,8 @@ mod tests {
         }
     }
     impl StructArrayType for Foo {
-        type Array<Buffer: BufferType> = FooArray<Buffer>;
+        type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+            FooArray<Buffer>;
     }
     impl<Buffer: BufferType> StructArrayTypeFields for FooArray<Buffer> {
         fn fields() -> Fields {

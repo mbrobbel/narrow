@@ -19,7 +19,11 @@ for ::std::option::Option<Bar<T>> {
     > = narrow::array::StructArray<Bar<T>, true, Buffer>;
 }
 impl<T: narrow::array::ArrayType<T>> narrow::array::StructArrayType for Bar<T> {
-    type Array<Buffer: narrow::buffer::BufferType> = BarArray<T, Buffer>;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::union::UnionType,
+    > = BarArray<T, Buffer>;
 }
 struct BarArray<T: narrow::array::ArrayType<T>, Buffer: narrow::buffer::BufferType> {
     a: <u32 as narrow::array::ArrayType<

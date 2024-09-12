@@ -246,7 +246,7 @@ impl Struct<'_> {
         let array_struct_ident = self.array_struct_ident();
         let tokens = quote! {
             impl #impl_generics #narrow::array::StructArrayType for #ident #ty_generics #where_clause {
-                type Array<Buffer: #narrow::buffer::BufferType> = #array_struct_ident #array_ty_generics;
+                type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::OffsetElement, UnionLayout: #narrow::array::r#union::UnionType> = #array_struct_ident #array_ty_generics;
             }
         };
         parse2(tokens).expect("struct_array_type_impl")

@@ -28,7 +28,11 @@ impl<T: narrow::array::ArrayType<T>> narrow::array::StructArrayType for Foo<T>
 where
     T: Copy,
 {
-    type Array<Buffer: narrow::buffer::BufferType> = FooArray<T, Buffer>;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::union::UnionType,
+    > = FooArray<T, Buffer>;
 }
 struct FooArray<T: narrow::array::ArrayType<T>, Buffer: narrow::buffer::BufferType>(
     <T as narrow::array::ArrayType<
@@ -196,7 +200,11 @@ for ::std::option::Option<Bar<'a, T>> {
     > = narrow::array::StructArray<Bar<'a, T>, true, Buffer>;
 }
 impl<'a, T: narrow::array::ArrayType<T>> narrow::array::StructArrayType for Bar<'a, T> {
-    type Array<Buffer: narrow::buffer::BufferType> = BarArray<'a, T, Buffer>;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::union::UnionType,
+    > = BarArray<'a, T, Buffer>;
 }
 struct BarArray<'a, T: narrow::array::ArrayType<T>, Buffer: narrow::buffer::BufferType>(
     <&'a Foo<
@@ -385,7 +393,11 @@ impl<'a> narrow::array::ArrayType<FooBar<'a>> for ::std::option::Option<FooBar<'
     > = narrow::array::StructArray<FooBar<'a>, true, Buffer>;
 }
 impl<'a> narrow::array::StructArrayType for FooBar<'a> {
-    type Array<Buffer: narrow::buffer::BufferType> = FooBarArray<'a, Buffer>;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::union::UnionType,
+    > = FooBarArray<'a, Buffer>;
 }
 struct FooBarArray<'a, Buffer: narrow::buffer::BufferType>(
     <Bar<

@@ -16,7 +16,11 @@ for ::std::option::Option<Foo<'a, T>> {
     > = narrow::array::StructArray<Foo<'a, T>, true, Buffer>;
 }
 impl<'a, T: narrow::array::ArrayType<T>> narrow::array::StructArrayType for Foo<'a, T> {
-    type Array<Buffer: narrow::buffer::BufferType> = FooArray<'a, T, Buffer>;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::union::UnionType,
+    > = FooArray<'a, T, Buffer>;
 }
 struct FooArray<'a, T: narrow::array::ArrayType<T>, Buffer: narrow::buffer::BufferType>(
     <&'a T as narrow::array::ArrayType<

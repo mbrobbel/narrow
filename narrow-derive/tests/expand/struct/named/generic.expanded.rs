@@ -30,7 +30,11 @@ impl<'a, T: narrow::array::ArrayType<T>> narrow::array::StructArrayType for Foo<
 where
     T: Copy,
 {
-    type Array<Buffer: narrow::buffer::BufferType> = FooArray<'a, T, Buffer>;
+    type Array<
+        Buffer: narrow::buffer::BufferType,
+        OffsetItem: narrow::offset::OffsetElement,
+        UnionLayout: narrow::array::union::UnionType,
+    > = FooArray<'a, T, Buffer>;
 }
 struct FooArray<'a, T: narrow::array::ArrayType<T>, Buffer: narrow::buffer::BufferType>
 where
