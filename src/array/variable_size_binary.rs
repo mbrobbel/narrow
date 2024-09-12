@@ -338,6 +338,22 @@ mod tests {
         assert_eq!(output_vec, input_vec);
     }
 
+    #[cfg(feature = "derive")]
+    #[test]
+    fn with_derive() {
+        use crate::array::{StructArray, VariableSizeBinary};
+
+        #[derive(crate::ArrayType, Clone, Debug, PartialEq)]
+        struct Foo {
+            a: Option<Vec<VariableSizeBinary>>,
+        }
+
+        let input = [Foo { a: None }];
+        let array = input.clone().into_iter().collect::<StructArray<Foo>>();
+        let output = array.into_iter().collect::<Vec<_>>();
+        assert_eq!(input.as_slice(), output);
+    }
+
     #[test]
     fn index() {
         let input: [&[u8]; 4] = [&[1], &[2, 3], &[4, 5, 6], &[7, 8, 9, 0]];
