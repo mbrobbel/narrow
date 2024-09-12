@@ -204,6 +204,21 @@ where
     }
 }
 
+impl<const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer: BufferType> Clone
+    for Offset<T, NULLABLE, OffsetItem, Buffer>
+where
+    T: Clone,
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<NULLABLE>>::Storage<Buffer>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data.clone(),
+            offsets: self.offsets.clone(),
+        }
+    }
+}
+
 impl<T: Default, OffsetItem: OffsetElement, Buffer: BufferType> Default
     for Offset<T, false, OffsetItem, Buffer>
 where

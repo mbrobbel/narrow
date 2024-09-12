@@ -53,7 +53,7 @@ fn main() {
                 vec![1, 2, 3, 4, 42],
             )])),
             m: NaiveDate::MAX,
-            n: TimeDelta::max_value(),
+            n: TimeDelta::seconds(12345),
         },
         Foo {
             a: 42,
@@ -69,7 +69,7 @@ fn main() {
             k: Utc::now().time(),
             l: None,
             m: NaiveDate::MIN,
-            n: TimeDelta::min_value(),
+            n: TimeDelta::minutes(1234),
         },
     ];
 
