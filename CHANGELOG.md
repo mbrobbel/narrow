@@ -1,5 +1,30 @@
 
 
+## v0.9.0 (2024-09-12)
+
+### New Features (BREAKING)
+
+ - <csr-id-3e728419ff5050cf454c6b6b78d4bf0ca9bc8e45/> add `IntoIterator` for `VariableSizeBinaryArray`
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 5 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#247](https://github.com/mbrobbel/narrow/issues/247)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#247](https://github.com/mbrobbel/narrow/issues/247)**
+    - Add `IntoIterator` for `VariableSizeBinaryArray` ([`3e72841`](https://github.com/mbrobbel/narrow/commit/3e728419ff5050cf454c6b6b78d4bf0ca9bc8e45))
+</details>
+
 ## v0.8.7 (2024-09-06)
 
 ### New Features
