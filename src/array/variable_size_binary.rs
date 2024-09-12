@@ -327,7 +327,7 @@ mod tests {
         let input: [Option<&[u8]>; 4] = [Some(&[1]), None, Some(&[4, 5, 6]), Some(&[7, 8, 9, 0])];
         let array = input.into_iter().collect::<VariableSizeBinaryArray<true>>();
         let output = array.into_iter().collect::<Vec<_>>();
-        assert_eq!(output, input.map(|opt| opt.map(|slice| slice.to_vec())));
+        assert_eq!(output, input.map(|opt| opt.map(<[u8]>::to_vec)));
 
         let input_vec = vec![Some(vec![1]), None, Some(vec![2, 3]), Some(vec![4])];
         let array_vec = input_vec

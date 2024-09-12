@@ -269,8 +269,8 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter().map(|bytes| {
-            // # Safety
-            // - String arrays must have valid UTF8 values.
+            // SAFETY:
+            // - String arrays contain valid UTF8.
             unsafe { String::from_utf8_unchecked(bytes) }
         })
     }
@@ -292,8 +292,8 @@ where
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter().map(|opt| {
             opt.map(|bytes| {
-                // # Safety
-                // - String arrays must have valid UTF8 values.
+                // SAFETY:
+                // - String arrays contain valid UTF8.
                 unsafe { String::from_utf8_unchecked(bytes) }
             })
         })
