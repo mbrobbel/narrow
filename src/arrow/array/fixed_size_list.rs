@@ -204,9 +204,10 @@ mod tests {
                 .iter()
                 .flatten()
                 .flat_map(|dyn_array| {
-                    let array: StringArray<false, i32, crate::arrow::buffer::ScalarBuffer> =
-                        dyn_array.into();
-                    array.into_iter().collect::<Vec<_>>()
+                    StringArray::<false, i32, crate::arrow::buffer::ScalarBuffer>::from(dyn_array)
+                        .into_iter()
+                        .map(ToOwned::to_owned)
+                        .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>(),
             INPUT_NULLABLE
@@ -282,10 +283,6 @@ mod tests {
         let fixed_size_list_array_nullable =
             arrow_array::FixedSizeListArray::from(fixed_size_list_array_nullable_input);
 
-        let owned_input_nullable = INPUT_NULLABLE
-            .into_iter()
-            .map(|item| item.map(|[first, second]| [first.to_owned(), second.to_owned()]))
-            .collect::<Vec<_>>();
         assert_eq!(
             FixedSizeListArray::<
                 2,
@@ -294,7 +291,7 @@ mod tests {
             >::from(fixed_size_list_array_nullable)
             .into_iter()
             .collect::<Vec<_>>(),
-            owned_input_nullable
+            INPUT_NULLABLE
         );
     }
 }
