@@ -15,10 +15,10 @@ fn main() {
     use parquet::arrow::{arrow_reader::ParquetRecordBatchReader, ArrowWriter};
     use uuid::Uuid;
 
-    #[derive(ArrayType, Default)]
+    #[derive(ArrayType, Clone, Debug, Default, PartialEq)]
     struct Bar(Option<bool>);
 
-    #[derive(ArrayType, Default)]
+    #[derive(ArrayType, Clone, Debug, Default, PartialEq)]
     struct Foo {
         a: u32,
         b: Option<u8>,
@@ -73,7 +73,9 @@ fn main() {
         },
     ];
 
-    let narrow_array = input.into_iter().collect::<StructArray<Foo>>();
+    let narrow_array = input.clone().into_iter().collect::<StructArray<Foo>>();
+    let output = narrow_array.clone().into_iter().collect::<Vec<_>>();
+    assert_eq!(input.as_slice(), output);
 
     let record_batch = RecordBatch::from(narrow_array);
     println!("From narrow StructArray to Arrow RecordBatch");
