@@ -1,5 +1,29 @@
 
 
+## v0.9.1 (2024-09-12)
+
+### New Features
+
+ - <csr-id-156828632e951157a45551a591849fc0c0663a40/> impl `LogicalArrayType` for `VariableSizeBinary` to fix `IntoIterator` when used in `StructArray`
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#248](https://github.com/mbrobbel/narrow/issues/248)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#248](https://github.com/mbrobbel/narrow/issues/248)**
+    - Impl `LogicalArrayType` for `VariableSizeBinary` to fix `IntoIterator` when used in `StructArray` ([`1568286`](https://github.com/mbrobbel/narrow/commit/156828632e951157a45551a591849fc0c0663a40))
+</details>
+
 ## v0.9.0 (2024-09-12)
 
 ### New Features (BREAKING)
