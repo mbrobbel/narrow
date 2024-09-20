@@ -1,5 +1,30 @@
 
 
+## v0.9.2 (2024-09-20)
+
+### New Features
+
+ - <csr-id-bc0a6114eba19f7b2d0ff23858521cf01b879362/> support `arrow` conversion of `LogicalArray` to `GenericListArray`
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 8 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#251](https://github.com/mbrobbel/narrow/issues/251)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#251](https://github.com/mbrobbel/narrow/issues/251)**
+    - Support `arrow` conversion of `LogicalArray` to `GenericListArray` ([`bc0a611`](https://github.com/mbrobbel/narrow/commit/bc0a6114eba19f7b2d0ff23858521cf01b879362))
+</details>
+
 ## v0.9.1 (2024-09-12)
 
 ### New Features
