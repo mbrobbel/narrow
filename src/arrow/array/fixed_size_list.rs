@@ -30,10 +30,13 @@ where
             clippy::cast_possible_truncation,
             clippy::cast_possible_wrap
         )]
-        Field::new(
-            name,
-            DataType::FixedSizeList(Arc::new(T::as_field("item")), N as i32),
-            NULLABLE,
+        Field::new(name, Self::data_type(), NULLABLE)
+    }
+
+    fn data_type() -> arrow_schema::DataType {
+        DataType::FixedSizeList(
+            Arc::new(T::as_field("item")),
+            i32::try_from(N).expect("overflow"),
         )
     }
 }
@@ -95,7 +98,7 @@ where
         )]
         arrow_array::FixedSizeListArray::new(
             Arc::new(T::as_field("item")),
-            N as i32,
+            i32::try_from(N).expect("overflow"),
             Arc::<<T as crate::arrow::Array>::Array>::new(value.0.into()),
             None,
         )
@@ -118,7 +121,7 @@ where
         )]
         arrow_array::FixedSizeListArray::new(
             Arc::new(T::as_field("item")),
-            N as i32,
+            i32::try_from(N).expect("overflow"),
             Arc::<<T as crate::arrow::Array>::Array>::new(value.0.data.into()),
             Some(value.0.validity.into()),
         )

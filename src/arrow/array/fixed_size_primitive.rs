@@ -66,11 +66,11 @@ where
     type Array = arrow_array::PrimitiveArray<<T as FixedSizeExt>::ArrowPrimitiveType>;
 
     fn as_field(name: &str) -> arrow_schema::Field {
-        arrow_schema::Field::new(
-            name,
-            <T as FixedSizeExt>::ArrowPrimitiveType::DATA_TYPE,
-            NULLABLE,
-        )
+        arrow_schema::Field::new(name, Self::data_type(), NULLABLE)
+    }
+
+    fn data_type() -> arrow_schema::DataType {
+        <T as FixedSizeExt>::ArrowPrimitiveType::DATA_TYPE
     }
 }
 
