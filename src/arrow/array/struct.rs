@@ -29,13 +29,11 @@ where
     type Array = arrow_array::StructArray;
 
     fn as_field(name: &str) -> arrow_schema::Field {
-        Field::new(
-            name,
-            DataType::Struct(
-                <<T as StructArrayType>::Array<Buffer> as StructArrayTypeFields>::fields(),
-            ),
-            NULLABLE,
-        )
+        Field::new(name, Self::data_type(), NULLABLE)
+    }
+
+    fn data_type() -> arrow_schema::DataType {
+        DataType::Struct(<<T as StructArrayType>::Array<Buffer> as StructArrayTypeFields>::fields())
     }
 }
 

@@ -30,7 +30,11 @@ where
             clippy::cast_possible_truncation,
             clippy::cast_possible_wrap
         )]
-        Field::new(name, DataType::FixedSizeBinary(N as i32), NULLABLE)
+        Field::new(name, Self::data_type(), NULLABLE)
+    }
+
+    fn data_type() -> arrow_schema::DataType {
+        DataType::FixedSizeBinary(N as i32)
     }
 }
 

@@ -16,6 +16,9 @@ pub trait Array: crate::array::Array + Sized {
 
     /// Returns the field of this array.
     fn as_field(name: &str) -> arrow_schema::Field;
+
+    /// Returns the data type of this array.
+    fn data_type() -> arrow_schema::DataType;
 }
 
 /// Extension trait for [`OffsetElement`] for [`arrow-rs`] interop.

@@ -40,6 +40,12 @@ where
             <T as LogicalArrayType<T>>::ArrayType,
         >>::Array<Buffer, OffsetItem, UnionLayout> as crate::arrow::Array>::as_field(name)
     }
+
+    fn data_type() -> arrow_schema::DataType {
+        <<<<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item as ArrayType<
+            <T as LogicalArrayType<T>>::ArrayType,
+        >>::Array<Buffer, OffsetItem, UnionLayout> as crate::arrow::Array>::data_type()
+    }
 }
 
 impl<

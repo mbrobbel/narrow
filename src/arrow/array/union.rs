@@ -50,21 +50,21 @@ where
     type Array = arrow_array::UnionArray;
 
     fn as_field(name: &str) -> arrow_schema::Field {
-        Field::new(
-            name,
-            DataType::Union(
-                <<T as UnionArrayType<VARIANTS>>::Array<
-                    Buffer,
-                    OffsetItem,
-                    UnionLayout,
-                > as UnionArrayTypeFields<VARIANTS>>::type_ids().iter().copied().zip(<<T as UnionArrayType<VARIANTS>>::Array<
-                    Buffer,
-                    OffsetItem,
-                    UnionLayout,
-                > as UnionArrayTypeFields<VARIANTS>>::fields().iter().map(Arc::clone)).collect(),
-                <UnionLayout as UnionLayoutExt>::MODE
-            ),
-            false
+        Field::new(name, Self::data_type(), false)
+    }
+
+    fn data_type() -> arrow_schema::DataType {
+        DataType::Union(
+            <<T as UnionArrayType<VARIANTS>>::Array<
+                Buffer,
+                OffsetItem,
+                UnionLayout,
+            > as UnionArrayTypeFields<VARIANTS>>::type_ids().iter().copied().zip(<<T as UnionArrayType<VARIANTS>>::Array<
+                Buffer,
+                OffsetItem,
+                UnionLayout,
+            > as UnionArrayTypeFields<VARIANTS>>::fields().iter().map(Arc::clone)).collect(),
+            <UnionLayout as UnionLayoutExt>::MODE
         )
     }
 }
