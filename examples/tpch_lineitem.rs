@@ -166,24 +166,23 @@ fn make_native_row_oriented(size: usize) -> Vec<LineItem> {
             l_shipinstruct: [rng.gen_range(0..u8::MAX); 25],
             l_shipmode: [rng.gen_range(0..u8::MAX); 10],
             l_comment: String::from_iter(
-                (0..rng.gen_range(0..44)).map(|_| rng.gen_range('a'..'z')),
+                (0..rng.gen_range(0..44)).map(|_| rng.gen_range('a'..='z')),
             ),
         })
         .collect()
 }
 
-const NUM_ROWS: usize = 1 << 20;
+const NUM_ROWS: usize = 1 << 24;
 
 #[rustversion::attr(nightly, allow(non_local_definitions))]
 fn main() {
     let narrow_input = make_native_row_oriented(NUM_ROWS);
-    let arrow_input = make_native_row_oriented(NUM_ROWS);
-
     let start = Instant::now();
     let narrow = make_recordbatch_narrow(narrow_input.into_iter());
     let duration = start.elapsed();
     println!("Narrow took: {:?}", duration);
 
+    let arrow_input = make_native_row_oriented(NUM_ROWS);
     let start = Instant::now();
     let arrow = make_recordbatch_arrow(arrow_input.into_iter());
     let duration = start.elapsed();
