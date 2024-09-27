@@ -12,7 +12,7 @@ where
     let mut group = c.benchmark_group("PrimitiveBuilder");
     group.warm_up_time(Duration::from_millis(100));
     group.measurement_time(Duration::from_secs(1));
-    
+
     let max: usize = num_traits::cast(T::Native::max_value()).unwrap();
 
     for size in [0, 4, 8, 16].map(|v| 1usize << v).into_iter() {
@@ -34,7 +34,7 @@ where
     T: ArrowPrimitiveType,
 {
     let mut builder: PrimitiveBuilder<T> = PrimitiveBuilder::new();
-    builder.extend(input.into_iter().map(|v| Some(v)));
+    builder.extend(input.into_iter().map(Some));
     builder.finish()
 }
 
@@ -91,7 +91,7 @@ where
     T: ArrowPrimitiveType,
 {
     let mut builder: PrimitiveBuilder<T> = PrimitiveBuilder::new();
-    builder.extend(input.into_iter());
+    builder.extend(input);
     builder.finish()
 }
 

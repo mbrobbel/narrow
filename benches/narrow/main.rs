@@ -17,6 +17,6 @@ criterion_group! {
     versus::arrow::primitive::bench_nullable<UInt16Type>,
     versus::arrow::primitive::bench_nullable<UInt32Type>,
     versus::arrow::primitive::bench_nullable<UInt64Type>,
-    
+
 }
 criterion_main!(narrow);
