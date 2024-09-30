@@ -20,26 +20,35 @@ where
             .map(|v| num_traits::cast(v % max).unwrap())
             .collect::<Vec<T::Native>>();
         group.throughput(criterion::Throughput::Elements(size as u64));
-        group.bench_with_input(BenchmarkId::new("Arrow", size), &input, |b, i| {
-            b.iter(|| arrow_build_primitive_array_from_iterator::<T>(i.clone()))
+        group.bench_with_input(BenchmarkId::new("Arrow", size), &input, |bencher, input| {
+            bencher
+                .iter(|| arrow_build_primitive_array_from_iterator::<T>(input.clone().into_iter()))
         });
-        group.bench_with_input(BenchmarkId::new("Narrow", size), &input, |b, i| {
-            b.iter(|| narrow_build_primitive_array_from_iterator::<T>(i.clone()))
-        });
+        group.bench_with_input(
+            BenchmarkId::new("Narrow", size),
+            &input,
+            |bencher, input| {
+                bencher.iter(|| {
+                    narrow_build_primitive_array_from_iterator::<T>(input.clone().into_iter())
+                })
+            },
+        );
     }
 }
 
-fn arrow_build_primitive_array_from_iterator<T>(input: Vec<T::Native>) -> PrimitiveArray<T>
+fn arrow_build_primitive_array_from_iterator<T>(
+    input: impl ExactSizeIterator<Item = T::Native>,
+) -> PrimitiveArray<T>
 where
     T: ArrowPrimitiveType,
 {
-    let mut builder: PrimitiveBuilder<T> = PrimitiveBuilder::new();
+    let mut builder: PrimitiveBuilder<T> = PrimitiveBuilder::with_capacity(input.len());
     builder.extend(input.into_iter().map(Some));
     builder.finish()
 }
 
 fn narrow_build_primitive_array_from_iterator<T>(
-    input: Vec<T::Native>,
+    input: impl Iterator<Item = T::Native>,
 ) -> FixedSizePrimitiveArray<T::Native, false>
 where
     T: ArrowPrimitiveType,
@@ -69,15 +78,23 @@ where
             group.bench_with_input(
                 BenchmarkId::new(format!("Arrow/{}/", null_fraction), size),
                 &input,
-                |b, i| {
-                    b.iter(|| arrow_build_primitive_array_from_iterator_nullable::<T>(i.clone()))
+                |bencher, input| {
+                    bencher.iter(|| {
+                        arrow_build_primitive_array_from_iterator_nullable::<T>(
+                            input.clone().into_iter(),
+                        )
+                    })
                 },
             );
             group.bench_with_input(
                 BenchmarkId::new(format!("Narrow/{}/", null_fraction), size),
                 &input,
-                |b, i| {
-                    b.iter(|| narrow_build_primitive_array_from_iterator_nullable::<T>(i.clone()))
+                |bencher, input| {
+                    bencher.iter(|| {
+                        narrow_build_primitive_array_from_iterator_nullable::<T>(
+                            input.clone().into_iter(),
+                        )
+                    })
                 },
             );
         }
@@ -85,18 +102,18 @@ where
 }
 
 fn arrow_build_primitive_array_from_iterator_nullable<T>(
-    input: Vec<Option<T::Native>>,
+    input: impl ExactSizeIterator<Item = Option<T::Native>>,
 ) -> PrimitiveArray<T>
 where
     T: ArrowPrimitiveType,
 {
-    let mut builder: PrimitiveBuilder<T> = PrimitiveBuilder::new();
+    let mut builder: PrimitiveBuilder<T> = PrimitiveBuilder::with_capacity(input.len());
     builder.extend(input);
     builder.finish()
 }
 
 fn narrow_build_primitive_array_from_iterator_nullable<T>(
-    input: Vec<Option<T::Native>>,
+    input: impl Iterator<Item = Option<T::Native>>,
 ) -> FixedSizePrimitiveArray<T::Native, true>
 where
     T: ArrowPrimitiveType,
