@@ -1,5 +1,3 @@
-use std::{sync::Arc, time::Instant};
-
 use arrow_array::{
     builder::{FixedSizeListBuilder, Float64Builder, Int64Builder, StringBuilder, UInt8Builder},
     Array, RecordBatch,
@@ -7,8 +5,9 @@ use arrow_array::{
 use arrow_schema::{DataType, Field};
 use narrow::{array::StructArray, ArrayType};
 use rand::{prelude::SmallRng, Rng, SeedableRng};
+use std::sync::Arc;
 
-#[derive(ArrayType, Debug)]
+#[derive(ArrayType, Clone, Debug)]
 struct LineItem {
     l_orderkey: i64,
     l_partkey: i64,
@@ -172,24 +171,16 @@ fn make_native_row_oriented(size: usize) -> Vec<LineItem> {
         .collect()
 }
 
-const NUM_ROWS: usize = 1 << 24;
+const NUM_ROWS: usize = 1 << 20;
 
 #[rustversion::attr(nightly, allow(non_local_definitions))]
 fn main() {
-    let narrow_input = make_native_row_oriented(NUM_ROWS);
-    let start = Instant::now();
-    let narrow = make_recordbatch_narrow(narrow_input.into_iter());
-    let duration = start.elapsed();
-    println!("Narrow took: {:?}", duration);
-
-    let arrow_input = make_native_row_oriented(NUM_ROWS);
-    let start = Instant::now();
-    let arrow = make_recordbatch_arrow(arrow_input.into_iter());
-    let duration = start.elapsed();
-    println!("Arrow took: {:?}", duration);
+    let input = make_native_row_oriented(NUM_ROWS);
+    let narrow = make_recordbatch_narrow(input.clone().into_iter());
+    let arrow = make_recordbatch_arrow(input.into_iter());
 
     // Since nullability differs in the schemas, we can't really compare the entire
-    // RecordBatch.
+    // RecordBatch without doing additional work in removing nullability.
     // assert_eq!(narrow, arrow);
 
     assert_eq!(narrow.num_rows(), arrow.num_rows());
