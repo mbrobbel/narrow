@@ -72,6 +72,7 @@ mod tests {
     const INPUT: [(); 4] = [(), (), (), ()];
 
     #[test]
+    #[cfg(feature = "derive")]
     fn derive() {
         #[derive(crate::ArrayType, Copy, Clone, Debug, Default)]
         struct Unit;

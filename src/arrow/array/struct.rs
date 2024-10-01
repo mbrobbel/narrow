@@ -16,6 +16,9 @@ use crate::{
 
 /// Arrow schema interop trait for the fields of a struct array type.
 pub trait StructArrayTypeFields {
+    /// The names of the fields.
+    const NAMES: &'static [&'static str];
+
     /// Returns the fields of this struct array.
     fn fields() -> Fields;
 }
@@ -102,13 +105,24 @@ where
 impl<T: StructArrayType, Buffer: BufferType> From<arrow_array::StructArray>
     for StructArray<T, false, Buffer>
 where
-    <T as StructArrayType>::Array<Buffer>: From<Vec<Arc<dyn arrow_array::Array>>>,
+    <T as StructArrayType>::Array<Buffer>:
+        From<Vec<Arc<dyn arrow_array::Array>>> + StructArrayTypeFields,
 {
     fn from(value: arrow_array::StructArray) -> Self {
-        let (_fields, arrays, nulls_opt) = value.into_parts();
+        let (fields, arrays, nulls_opt) = value.into_parts();
+        // Project
+        let projected = <<T as StructArrayType>::Array<Buffer> as StructArrayTypeFields>::NAMES
+            .iter()
+            .map(|field| {
+                fields
+                    .find(field)
+                    .unwrap_or_else(|| panic!("expected struct array with field: {field}"))
+            })
+            .map(|(idx, _)| Arc::clone(&arrays[idx]))
+            .collect::<Vec<_>>();
         match nulls_opt {
             Some(_) => panic!("expected array without a null buffer"),
-            None => StructArray(arrays.into()),
+            None => StructArray(projected.into()),
         }
     }
 }
@@ -116,12 +130,23 @@ where
 impl<T: StructArrayType, Buffer: BufferType> From<arrow_array::StructArray>
     for StructArray<T, true, Buffer>
 where
-    <T as StructArrayType>::Array<Buffer>: From<Vec<Arc<dyn arrow_array::Array>>> + Length,
+    <T as StructArrayType>::Array<Buffer>:
+        From<Vec<Arc<dyn arrow_array::Array>>> + Length + StructArrayTypeFields,
     Bitmap<Buffer>: From<NullBuffer> + FromIterator<bool>,
 {
     fn from(value: arrow_array::StructArray) -> Self {
-        let (_fields, arrays, nulls_opt) = value.into_parts();
-        let data = arrays.into();
+        let (fields, arrays, nulls_opt) = value.into_parts();
+        // Project
+        let projected = <<T as StructArrayType>::Array<Buffer> as StructArrayTypeFields>::NAMES
+            .iter()
+            .map(|field| {
+                fields
+                    .find(field)
+                    .unwrap_or_else(|| panic!("expected struct array with field: {field}"))
+            })
+            .map(|(idx, _)| Arc::clone(&arrays[idx]))
+            .collect::<Vec<_>>();
+        let data = projected.into();
         match nulls_opt {
             Some(null_buffer) => StructArray(Nullable {
                 data,
@@ -264,6 +289,7 @@ mod tests {
         type Array<Buffer: BufferType> = FooArray<Buffer>;
     }
     impl<Buffer: BufferType> StructArrayTypeFields for FooArray<Buffer> {
+        const NAMES: &'static [&'static str] = &["a"];
         fn fields() -> Fields {
             Fields::from(vec![Field::new("a", DataType::UInt32, false)])
         }
@@ -436,5 +462,48 @@ mod tests {
                 false
             )))
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "expected struct array with field: c")]
+    #[cfg(feature = "derive")]
+    fn projected() {
+        #[derive(narrow_derive::ArrayType)]
+        struct Foo {
+            a: u32,
+            b: bool,
+            c: u64,
+        }
+
+        #[derive(narrow_derive::ArrayType, Debug, PartialEq)]
+        struct Bar {
+            b: bool,
+            a: u32,
+        }
+
+        let foo_array = [
+            Foo {
+                a: 1,
+                b: false,
+                c: 2,
+            },
+            Foo {
+                a: 2,
+                b: true,
+                c: 3,
+            },
+        ]
+        .into_iter()
+        .collect::<StructArray<Foo>>();
+
+        let arrow_array = arrow_array::StructArray::from(foo_array);
+        let bar_array = StructArray::<Bar>::from(arrow_array);
+        assert_eq!(
+            bar_array.clone().into_iter().collect::<Vec<_>>(),
+            [Bar { b: false, a: 1 }, Bar { b: true, a: 2 }]
+        );
+
+        let bar_arrow_array = arrow_array::StructArray::from(bar_array);
+        let _ = StructArray::<Foo>::from(bar_arrow_array);
     }
 }
