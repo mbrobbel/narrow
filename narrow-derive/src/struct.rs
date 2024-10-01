@@ -272,6 +272,7 @@ impl Struct<'_> {
         let field_name = self.ident.to_string();
         let tokens = if matches!(self.fields, Fields::Unit) {
             quote!(impl #impl_generics #narrow::arrow::StructArrayTypeFields for #ident #ty_generics #where_clause {
+                const NAMES: &'static [&'static str] = &[#field_name];
                 fn fields() -> ::arrow_schema::Fields {
                     ::arrow_schema::Fields::from([
                         ::std::sync::Arc::new(::arrow_schema::Field::new(#field_name, ::arrow_schema::DataType::Null, true)),
@@ -281,6 +282,7 @@ impl Struct<'_> {
         } else {
             // Fields
             let field_ident = self.field_idents().map(|ident| ident.to_string());
+            let field_name = field_ident.clone();
             let field_ty = self.field_types();
             let field_ty_drop = self.field_types_drop_option();
             let fields = quote!(
@@ -290,6 +292,11 @@ impl Struct<'_> {
             );
             quote! {
                 impl #impl_generics #narrow::arrow::StructArrayTypeFields for #ident #ty_generics #where_clause {
+                    const NAMES: &'static [&'static str] = &[
+                        #(
+                            #field_name,
+                        )*
+                    ];
                     fn fields() -> ::arrow_schema::Fields {
                         ::arrow_schema::Fields::from([
                             #fields
