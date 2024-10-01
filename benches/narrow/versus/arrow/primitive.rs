@@ -21,7 +21,10 @@ pub fn bench_primitive<T: ArrowPrimitiveType>(c: &mut Criterion)
 where
     <T as ArrowPrimitiveType>::Native: NumCast + Bounded + Rem + FixedSize,
 {
-    let mut group = c.benchmark_group("PrimitiveBuilder");
+    let mut group = c.benchmark_group(format!(
+        "FixedSizePrimitiveArray::<{}, false>::from_iter",
+        std::any::type_name::<T>()
+    ));
     group.warm_up_time(Duration::from_millis(100));
     group.measurement_time(Duration::from_secs(1));
 
@@ -34,12 +37,17 @@ where
             .map(|v| num_traits::cast(v % max).unwrap())
             .collect::<Vec<T::Native>>();
         group.throughput(criterion::Throughput::Elements(size as u64));
-        group.bench_with_input(BenchmarkId::new("Arrow", size), &input, |bencher, input| {
-            bencher
-                .iter(|| arrow_build_primitive_array_from_iterator::<T>(input.clone().into_iter()))
-        });
         group.bench_with_input(
-            BenchmarkId::new("Narrow", size),
+            BenchmarkId::new("arrow-rs", size),
+            &input,
+            |bencher, input| {
+                bencher.iter(|| {
+                    arrow_build_primitive_array_from_iterator::<T>(input.clone().into_iter())
+                })
+            },
+        );
+        group.bench_with_input(
+            BenchmarkId::new("narrow", size),
             &input,
             |bencher, input| {
                 bencher.iter(|| {
@@ -75,7 +83,10 @@ pub fn bench_nullable_primitive<T: ArrowPrimitiveType>(c: &mut Criterion)
 where
     <T as ArrowPrimitiveType>::Native: NumCast + Bounded + Rem + FixedSize,
 {
-    let mut group = c.benchmark_group("NullablePrimitiveBuilder");
+    let mut group = c.benchmark_group(format!(
+        "FixedSizePrimitiveArray::<{}, true>::from_iter",
+        std::any::type_name::<T>()
+    ));
     group.warm_up_time(Duration::from_millis(100));
     group.measurement_time(Duration::from_secs(1));
 
@@ -92,7 +103,7 @@ where
                 .collect::<Vec<Option<T::Native>>>();
             group.throughput(criterion::Throughput::Elements(size as u64));
             group.bench_with_input(
-                BenchmarkId::new(format!("Arrow/{}/", null_fraction), size),
+                BenchmarkId::new(format!("arrow-rs/{}/", null_fraction), size),
                 &input,
                 |bencher, input| {
                     bencher.iter(|| {
@@ -103,7 +114,7 @@ where
                 },
             );
             group.bench_with_input(
-                BenchmarkId::new(format!("Narrow/{}/", null_fraction), size),
+                BenchmarkId::new(format!("narrow/{}/", null_fraction), size),
                 &input,
                 |bencher, input| {
                     bencher.iter(|| {
