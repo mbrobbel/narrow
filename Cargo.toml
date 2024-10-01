@@ -71,10 +71,15 @@ codegen-units = 1
 name = "narrow"
 harness = false
 
+
+[[example]]
+name = "basic"
+required-features = ["derive"]
+
 [[example]]
 name = "parquet"
 required-features = ["arrow-rs", "chrono", "derive", "map", "uuid"]
 
 [[example]]
-name = "basic"
-required-features = ["derive"]
+name = "tpch_lineitem"
+required-features = ["arrow-rs", "chrono", "derive"]
