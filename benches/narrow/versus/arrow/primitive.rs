@@ -103,7 +103,7 @@ where
                 .collect::<Vec<Option<T::Native>>>();
             group.throughput(criterion::Throughput::Elements(size as u64));
             group.bench_with_input(
-                BenchmarkId::new(format!("arrow-rs/{}/", null_fraction), size),
+                BenchmarkId::new(format!("arrow-rs/{null_fraction}"), size),
                 &input,
                 |bencher, input| {
                     bencher.iter(|| {
@@ -114,7 +114,7 @@ where
                 },
             );
             group.bench_with_input(
-                BenchmarkId::new(format!("narrow/{}/", null_fraction), size),
+                BenchmarkId::new(format!("narrow/{null_fraction}"), size),
                 &input,
                 |bencher, input| {
                     bencher.iter(|| {
