@@ -9,8 +9,8 @@ use std::{ops::Rem, time::Duration};
 pub fn bench(c: &mut Criterion) {
     bench_primitive::<UInt8Type>(c);
     bench_primitive::<UInt16Type>(c);
-    bench_primitive::<UInt64Type>(c);
     bench_primitive::<UInt32Type>(c);
+    bench_primitive::<UInt64Type>(c);
     bench_nullable_primitive::<UInt8Type>(c);
     bench_nullable_primitive::<UInt16Type>(c);
     bench_nullable_primitive::<UInt32Type>(c);
@@ -32,7 +32,7 @@ where
         .unwrap()
         .saturating_add(1);
 
-    for size in [0, 4, 8, 16].map(|v| 1usize << v).into_iter() {
+    for size in [0, 8, 16].map(|v| 1usize << v).into_iter() {
         let input = (0..size)
             .map(|v| num_traits::cast(v % max).unwrap())
             .collect::<Vec<T::Native>>();
