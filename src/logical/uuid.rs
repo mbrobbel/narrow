@@ -20,8 +20,9 @@ impl ArrayType<uuid::Uuid> for Option<uuid::Uuid> {
 
 #[cfg(feature = "arrow-rs")]
 impl crate::arrow::ExtensionType for uuid::Uuid {
-    fn extension_type() -> Option<arrow_schema::ExtensionType> {
-        Some(arrow_schema::ExtensionType::Uuid)
+    type ExtensionType = arrow_schema::canonical_extension_types::Uuid;
+    fn extension_type() -> Option<Self::ExtensionType> {
+        Some(arrow_schema::canonical_extension_types::Uuid::default())
     }
 }
 

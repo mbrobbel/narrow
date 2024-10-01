@@ -56,19 +56,19 @@ impl<T: Unit, Buffer: BufferType> From<arrow_array::NullArray> for NullArray<T, 
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
 
-    use crate::{
-        array::{NullArray, StructArray},
-        buffer::ArcBuffer,
-        Length,
-    };
-    use arrow_array::{cast::AsArray, Array};
+    use crate::{array::NullArray, buffer::ArcBuffer, Length};
+    use arrow_array::Array;
 
     const INPUT: [(); 4] = [(), (), (), ()];
 
     #[test]
+    #[cfg(feature = "derive")]
     fn derive() {
+        use crate::array::StructArray;
+        use arrow_array::cast::AsArray;
+        use std::sync::Arc;
+
         #[derive(crate::ArrayType, Copy, Clone, Debug, Default)]
         struct Unit;
 

@@ -103,7 +103,7 @@ where
 {
     fn from(value: arrow_array::FixedSizeBinaryArray) -> Self {
         let (n, values, nulls_opt) = value.into_parts();
-        assert_eq!(N, n.try_into().expect("size to cast to usize"));
+        assert_eq!(N, usize::try_from(n).expect("size to cast to usize"));
         match nulls_opt {
             Some(_) => panic!("expected array without a null buffer"),
             None => FixedSizeBinaryArray(FixedSizeListArray(
@@ -122,7 +122,7 @@ where
 {
     fn from(value: arrow_array::FixedSizeBinaryArray) -> Self {
         let (n, values, nulls_opt) = value.into_parts();
-        assert_eq!(N, n.try_into().expect("size to cast to usize"));
+        assert_eq!(N, usize::try_from(n).expect("size to cast to usize"));
         match nulls_opt {
             Some(null_buffer) => FixedSizeBinaryArray(FixedSizeListArray(Nullable {
                 data: arrow_buffer::ScalarBuffer::from(values).into(),
