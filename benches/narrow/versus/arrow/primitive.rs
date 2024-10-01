@@ -1,3 +1,4 @@
+use arrow_array::types::{UInt16Type, UInt32Type, UInt64Type, UInt8Type};
 use arrow_array::{builder::PrimitiveBuilder, ArrowPrimitiveType, PrimitiveArray};
 use criterion::{BenchmarkId, Criterion};
 use narrow::{array::FixedSizePrimitiveArray, FixedSize};
@@ -5,7 +6,18 @@ use num_traits::{Bounded, NumCast};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use std::{ops::Rem, time::Duration};
 
-pub fn bench<T: ArrowPrimitiveType>(c: &mut Criterion)
+pub fn bench(c: &mut Criterion) {
+    bench_primitive::<UInt8Type>(c);
+    bench_primitive::<UInt16Type>(c);
+    bench_primitive::<UInt64Type>(c);
+    bench_primitive::<UInt32Type>(c);
+    bench_nullable_primitive::<UInt8Type>(c);
+    bench_nullable_primitive::<UInt16Type>(c);
+    bench_nullable_primitive::<UInt32Type>(c);
+    bench_nullable_primitive::<UInt64Type>(c);
+}
+
+pub fn bench_primitive<T: ArrowPrimitiveType>(c: &mut Criterion)
 where
     <T as ArrowPrimitiveType>::Native: NumCast + Bounded + Rem + FixedSize,
 {
@@ -13,7 +25,9 @@ where
     group.warm_up_time(Duration::from_millis(100));
     group.measurement_time(Duration::from_secs(1));
 
-    let max: usize = num_traits::cast(T::Native::max_value()).unwrap();
+    let max = num_traits::cast::<T::Native, usize>(T::Native::max_value())
+        .unwrap()
+        .saturating_add(1);
 
     for size in [0, 4, 8, 16].map(|v| 1usize << v).into_iter() {
         let input = (0..size)
@@ -57,7 +71,7 @@ where
     input.into_iter().collect()
 }
 
-pub fn bench_nullable<T: ArrowPrimitiveType>(c: &mut Criterion)
+pub fn bench_nullable_primitive<T: ArrowPrimitiveType>(c: &mut Criterion)
 where
     <T as ArrowPrimitiveType>::Native: NumCast + Bounded + Rem + FixedSize,
 {
@@ -65,7 +79,9 @@ where
     group.warm_up_time(Duration::from_millis(100));
     group.measurement_time(Duration::from_secs(1));
 
-    let max: usize = num_traits::cast(T::Native::max_value()).unwrap();
+    let max = num_traits::cast::<T::Native, usize>(T::Native::max_value())
+        .unwrap()
+        .saturating_add(1);
     let mut rng = SmallRng::seed_from_u64(1337);
 
     for size in [0, 4, 8, 16].map(|v| 1usize << v).into_iter() {
