@@ -44,6 +44,21 @@ impl<
     'a,
     T: narrow::array::ArrayType<T>,
     Buffer: narrow::buffer::BufferType,
+> ::std::clone::Clone for FooArray<'a, T, Buffer>
+where
+    T: Copy,
+    <&'a T as narrow::array::ArrayType<
+        &'a T,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: ::std::clone::Clone,
+{
+    fn clone(&self) -> Self {
+        Self { a: self.a.clone() }
+    }
+}
+impl<
+    'a,
+    T: narrow::array::ArrayType<T>,
+    Buffer: narrow::buffer::BufferType,
 > ::std::default::Default for FooArray<'a, T, Buffer>
 where
     T: Copy,

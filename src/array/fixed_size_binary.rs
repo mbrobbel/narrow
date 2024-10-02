@@ -55,6 +55,17 @@ impl<const N: usize, Buffer: BufferType> BitmapRefMut for FixedSizeBinaryArray<N
     }
 }
 
+impl<const N: usize, const NULLABLE: bool, Buffer: BufferType> Clone
+    for FixedSizeBinaryArray<N, NULLABLE, Buffer>
+where
+    FixedSizePrimitiveArray<u8, false, Buffer>: Validity<NULLABLE>,
+    FixedSizeListArray<N, FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, Buffer>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 impl<const N: usize, const NULLABLE: bool, Buffer: BufferType> Default
     for FixedSizeBinaryArray<N, NULLABLE, Buffer>
 where

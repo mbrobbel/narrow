@@ -2,6 +2,7 @@
 
 use crate::{
     buffer::BufferType,
+    logical::{LogicalArray, LogicalArrayType},
     offset::{self, OffsetElement},
     Length,
 };
@@ -172,12 +173,24 @@ pub struct VariableSizeBinary(Vec<u8>);
 
 impl ArrayType<VariableSizeBinary> for VariableSizeBinary {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        VariableSizeBinaryArray<false, OffsetItem, Buffer>;
+        LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl ArrayType<VariableSizeBinary> for Option<VariableSizeBinary> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        VariableSizeBinaryArray<true, OffsetItem, Buffer>;
+        LogicalArray<VariableSizeBinary, true, Buffer, OffsetItem, UnionLayout>;
+}
+
+impl LogicalArrayType<VariableSizeBinary> for VariableSizeBinary {
+    type ArrayType = Vec<u8>;
+
+    fn from_array_type(item: Self::ArrayType) -> Self {
+        item.into()
+    }
+
+    fn into_array_type(self) -> Self::ArrayType {
+        self.into()
+    }
 }
 
 impl From<Vec<u8>> for VariableSizeBinary {

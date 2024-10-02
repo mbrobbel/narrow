@@ -1,6 +1,75 @@
 
 
+## v0.7.0 (2024-10-01)
+
+### Chore
+
+ - <csr-id-60f078caa9a637255d8eebd57610f19267724642/> bump once_cell from 1.19.0 to 1.20.1
+ - <csr-id-5201af299eb62f8861d8f9334a7de3cbb50028ab/> bump syn from 2.0.77 to 2.0.79
+ - <csr-id-7cddc08759f06fe8555526379e00d75b064de339/> revert bump of once_cell from 1.19.0 to 1.20.0
+ - <csr-id-ade7695f935ee00cc9bc7e6d849e704e7d4fe6f2/> bump once_cell from 1.19.0 to 1.20.0
+
+### New Features (BREAKING)
+
+ - <csr-id-22608e3bdd59da2774c74eed714d752e58c33818/> project struct array fields in `arrow` conversion
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 5 commits contributed to the release.
+ - 26 days passed between releases.
+ - 5 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 5 unique issues were worked on: [#249](https://github.com/mbrobbel/narrow/issues/249), [#252](https://github.com/mbrobbel/narrow/issues/252), [#254](https://github.com/mbrobbel/narrow/issues/254), [#257](https://github.com/mbrobbel/narrow/issues/257), [#258](https://github.com/mbrobbel/narrow/issues/258)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#249](https://github.com/mbrobbel/narrow/issues/249)**
+    - Bump once_cell from 1.19.0 to 1.20.0 ([`ade7695`](https://github.com/mbrobbel/narrow/commit/ade7695f935ee00cc9bc7e6d849e704e7d4fe6f2))
+ * **[#252](https://github.com/mbrobbel/narrow/issues/252)**
+    - Revert bump of once_cell from 1.19.0 to 1.20.0 ([`7cddc08`](https://github.com/mbrobbel/narrow/commit/7cddc08759f06fe8555526379e00d75b064de339))
+ * **[#254](https://github.com/mbrobbel/narrow/issues/254)**
+    - Project struct array fields in `arrow` conversion ([`22608e3`](https://github.com/mbrobbel/narrow/commit/22608e3bdd59da2774c74eed714d752e58c33818))
+ * **[#257](https://github.com/mbrobbel/narrow/issues/257)**
+    - Bump syn from 2.0.77 to 2.0.79 ([`5201af2`](https://github.com/mbrobbel/narrow/commit/5201af299eb62f8861d8f9334a7de3cbb50028ab))
+ * **[#258](https://github.com/mbrobbel/narrow/issues/258)**
+    - Bump once_cell from 1.19.0 to 1.20.1 ([`60f078c`](https://github.com/mbrobbel/narrow/commit/60f078caa9a637255d8eebd57610f19267724642))
+</details>
+
+## v0.6.11 (2024-09-05)
+
+### New Features
+
+ - <csr-id-e77196c759e488b8a7ab92d5864e43e13ce243f3/> impl `Clone` for arrays
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 2 commits contributed to the release.
+ - 1 day passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#242](https://github.com/mbrobbel/narrow/issues/242)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#242](https://github.com/mbrobbel/narrow/issues/242)**
+    - Impl `Clone` for arrays ([`e77196c`](https://github.com/mbrobbel/narrow/commit/e77196c759e488b8a7ab92d5864e43e13ce243f3))
+ * **Uncategorized**
+    - Release narrow-derive v0.6.11, narrow v0.8.5 ([`05377e2`](https://github.com/mbrobbel/narrow/commit/05377e22332dda43eb532fcb1682db64be6c07cd))
+</details>
+
 ## v0.6.10 (2024-09-03)
+
+<csr-id-a2eb1d971746a99544adc21da3e594cbecf9531d/>
 
 ### Chore
 
@@ -10,7 +79,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 1 commit contributed to the release.
+ - 2 commits contributed to the release.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#231](https://github.com/mbrobbel/narrow/issues/231)
 
@@ -22,6 +91,8 @@
 
  * **[#231](https://github.com/mbrobbel/narrow/issues/231)**
     - Bump syn from 2.0.76 to 2.0.77 ([`a2eb1d9`](https://github.com/mbrobbel/narrow/commit/a2eb1d971746a99544adc21da3e594cbecf9531d))
+ * **Uncategorized**
+    - Release narrow-derive v0.6.10, narrow v0.8.4 ([`9b42ca2`](https://github.com/mbrobbel/narrow/commit/9b42ca2e5b31c6d16f5a41855a504c58c16cbc18))
 </details>
 
 ## v0.6.9 (2024-09-02)

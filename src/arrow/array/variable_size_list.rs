@@ -29,15 +29,15 @@ where
     type Array = arrow_array::GenericListArray<OffsetItem>;
 
     fn as_field(name: &str) -> arrow_schema::Field {
-        Field::new(
-            name,
-            if OffsetItem::LARGE {
-                DataType::LargeList(Arc::new(T::as_field("item")))
-            } else {
-                DataType::List(Arc::new(T::as_field("item")))
-            },
-            NULLABLE,
-        )
+        Field::new(name, Self::data_type(), NULLABLE)
+    }
+
+    fn data_type() -> arrow_schema::DataType {
+        if OffsetItem::LARGE {
+            DataType::LargeList(Arc::new(T::as_field("item")))
+        } else {
+            DataType::List(Arc::new(T::as_field("item")))
+        }
     }
 }
 

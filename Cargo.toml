@@ -15,7 +15,7 @@ members = ["narrow-derive"]
 
 [package]
 name = "narrow"
-version = "0.8.4"
+version = "0.10.0"
 authors.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -51,7 +51,7 @@ arrow-buffer = { git = "https://github.com/apache/arrow-rs", rev = "065c7b8f9426
 # arrow-schema = { version = "53.0.1", default-features = false, optional = true }
 arrow-schema = { git = "https://github.com/apache/arrow-rs", rev = "065c7b8f94264eeb6a1ca23a92795fc4e0d31d51", default-features = false, optional = true }
 chrono = { version = "0.4.38", default-features = false, optional = true }
-narrow-derive = { path = "narrow-derive", version = "^0.6.10", optional = true }
+narrow-derive = { path = "narrow-derive", version = "^0.7.0", optional = true }
 uuid = { version = "1.10.0", default-features = false, optional = true }
 
 [dev-dependencies]
@@ -61,9 +61,9 @@ arrow-cast = { git = "https://github.com/apache/arrow-rs", rev = "065c7b8f94264e
 # arrow-cast = { version = "53.0.1", default-features = false, features = [
 #     "prettyprint",
 # ] }
-bytes = "1.7.1"
+bytes = "1.7.2"
 chrono = { version = "0.4.38", default-features = false, features = ["now"] }
-criterion = { version = "0.5.1", default-features = false }
+criterion = { version = "0.5.1", default-features = false, features = ["html_reports"] }
 rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
 rustversion = { version = "1.0.17", default-features = false }
 # parquet = { version = "53.0.1", default-features = false, features = ["arrow"] }
@@ -71,6 +71,7 @@ parquet = { git = "https://github.com/apache/arrow-rs", rev = "065c7b8f94264eeb6
     "arrow",
 ] }
 uuid = { version = "1.10.0", default-features = false }
+num-traits = { version = "0.2.19" }
 
 [profile.bench]
 lto = true
@@ -79,11 +80,17 @@ codegen-units = 1
 [[bench]]
 name = "narrow"
 harness = false
+required-features = ["arrow-rs"]
+
+
+[[example]]
+name = "basic"
+required-features = ["derive"]
 
 [[example]]
 name = "parquet"
 required-features = ["arrow-rs", "chrono", "derive", "map", "uuid"]
 
 [[example]]
-name = "basic"
-required-features = ["derive"]
+name = "tpch_lineitem"
+required-features = ["arrow-rs", "chrono", "derive"]

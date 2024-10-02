@@ -30,10 +30,13 @@ where
             clippy::cast_possible_truncation,
             clippy::cast_possible_wrap
         )]
-        Field::new(
-            name,
-            DataType::FixedSizeList(Arc::new(T::as_field("item")), N as i32),
-            NULLABLE,
+        Field::new(name, Self::data_type(), NULLABLE)
+    }
+
+    fn data_type() -> arrow_schema::DataType {
+        DataType::FixedSizeList(
+            Arc::new(T::as_field("item")),
+            i32::try_from(N).expect("overflow"),
         )
     }
 }
@@ -95,7 +98,7 @@ where
         )]
         arrow_array::FixedSizeListArray::new(
             Arc::new(T::as_field("item")),
-            N as i32,
+            i32::try_from(N).expect("overflow"),
             Arc::<<T as crate::arrow::Array>::Array>::new(value.0.into()),
             None,
         )
@@ -118,7 +121,7 @@ where
         )]
         arrow_array::FixedSizeListArray::new(
             Arc::new(T::as_field("item")),
-            N as i32,
+            i32::try_from(N).expect("overflow"),
             Arc::<<T as crate::arrow::Array>::Array>::new(value.0.data.into()),
             Some(value.0.validity.into()),
         )
@@ -204,9 +207,10 @@ mod tests {
                 .iter()
                 .flatten()
                 .flat_map(|dyn_array| {
-                    let array: StringArray<false, i32, crate::arrow::buffer::ScalarBuffer> =
-                        dyn_array.into();
-                    array.into_iter().collect::<Vec<_>>()
+                    StringArray::<false, i32, crate::arrow::buffer::ScalarBuffer>::from(dyn_array)
+                        .into_iter()
+                        .map(ToOwned::to_owned)
+                        .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>(),
             INPUT_NULLABLE
@@ -282,10 +286,6 @@ mod tests {
         let fixed_size_list_array_nullable =
             arrow_array::FixedSizeListArray::from(fixed_size_list_array_nullable_input);
 
-        let owned_input_nullable = INPUT_NULLABLE
-            .into_iter()
-            .map(|item| item.map(|[first, second]| [first.to_owned(), second.to_owned()]))
-            .collect::<Vec<_>>();
         assert_eq!(
             FixedSizeListArray::<
                 2,
@@ -294,7 +294,7 @@ mod tests {
             >::from(fixed_size_list_array_nullable)
             .into_iter()
             .collect::<Vec<_>>(),
-            owned_input_nullable
+            INPUT_NULLABLE
         );
     }
 }

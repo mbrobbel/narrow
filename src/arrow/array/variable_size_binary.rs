@@ -25,15 +25,15 @@ where
     type Array = arrow_array::GenericBinaryArray<OffsetItem>;
 
     fn as_field(name: &str) -> arrow_schema::Field {
-        Field::new(
-            name,
-            if OffsetItem::LARGE {
-                DataType::LargeBinary
-            } else {
-                DataType::Binary
-            },
-            NULLABLE,
-        )
+        Field::new(name, Self::data_type(), NULLABLE)
+    }
+
+    fn data_type() -> arrow_schema::DataType {
+        if OffsetItem::LARGE {
+            DataType::LargeBinary
+        } else {
+            DataType::Binary
+        }
     }
 }
 

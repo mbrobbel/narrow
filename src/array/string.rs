@@ -1,6 +1,6 @@
 //! Array with string values.
 
-use std::str;
+use std::{iter::Map, str};
 
 use super::{Array, VariableSizeBinaryArray};
 use crate::{
@@ -47,6 +47,17 @@ where
     String: Nullability<NULLABLE>,
 {
     type Item = <String as Nullability<NULLABLE>>::Item;
+}
+
+impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Clone
+    for StringArray<NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
 }
 
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Default
@@ -228,51 +239,6 @@ where
     }
 }
 
-/// An iterator over items in a [`StringArray`].
-pub struct StringIntoIter<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType>
-where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-{
-    /// Reference to the array.
-    array: StringArray<NULLABLE, OffsetItem, Buffer>,
-    /// Current index.
-    index: usize,
-}
-
-impl<OffsetItem: OffsetElement, Buffer: BufferType> Iterator
-    for StringIntoIter<false, OffsetItem, Buffer>
-{
-    type Item = String;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.array
-            .index(self.index)
-            .into_iter()
-            .inspect(|_| {
-                self.index += 1;
-            })
-            .next()
-            .map(ToOwned::to_owned)
-    }
-}
-
-impl<OffsetItem: OffsetElement, Buffer: BufferType> Iterator
-    for StringIntoIter<true, OffsetItem, Buffer>
-{
-    type Item = Option<String>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.array
-            .index(self.index)
-            .into_iter()
-            .inspect(|_| {
-                self.index += 1;
-            })
-            .next()
-            .map(|opt| opt.map(ToOwned::to_owned))
-    }
-}
-
 impl<'a, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
     for &'a StringArray<NULLABLE, OffsetItem, Buffer>
 where
@@ -290,20 +256,47 @@ where
     }
 }
 
-impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
-    for StringArray<NULLABLE, OffsetItem, Buffer>
+impl<OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
+    for StringArray<false, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    StringIntoIter<NULLABLE, OffsetItem, Buffer>: Iterator,
+    VariableSizeBinaryArray<false, OffsetItem, Buffer>: IntoIterator<Item = Vec<u8>>,
 {
-    type Item = <StringIntoIter<NULLABLE, OffsetItem, Buffer> as Iterator>::Item;
-    type IntoIter = StringIntoIter<NULLABLE, OffsetItem, Buffer>;
+    type Item = String;
+    type IntoIter = Map<
+        <VariableSizeBinaryArray<false, OffsetItem, Buffer> as IntoIterator>::IntoIter,
+        fn(<VariableSizeBinaryArray<false, OffsetItem, Buffer> as IntoIterator>::Item) -> String,
+    >;
 
     fn into_iter(self) -> Self::IntoIter {
-        StringIntoIter {
-            array: self,
-            index: 0,
-        }
+        self.0.into_iter().map(|bytes| {
+            // SAFETY:
+            // - String arrays contain valid UTF8.
+            unsafe { String::from_utf8_unchecked(bytes) }
+        })
+    }
+}
+
+impl<OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
+    for StringArray<true, OffsetItem, Buffer>
+where
+    VariableSizeBinaryArray<true, OffsetItem, Buffer>: IntoIterator<Item = Option<Vec<u8>>>,
+{
+    type Item = Option<String>;
+    type IntoIter = Map<
+        <VariableSizeBinaryArray<true, OffsetItem, Buffer> as IntoIterator>::IntoIter,
+        fn(
+            <VariableSizeBinaryArray<true, OffsetItem, Buffer> as IntoIterator>::Item,
+        ) -> Option<String>,
+    >;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter().map(|opt| {
+            opt.map(|bytes| {
+                // SAFETY:
+                // - String arrays contain valid UTF8.
+                unsafe { String::from_utf8_unchecked(bytes) }
+            })
+        })
     }
 }
 

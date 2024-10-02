@@ -52,6 +52,22 @@ impl<
     'a,
     T: Add<Foo<'a, T>> + narrow::array::ArrayType<T>,
     Buffer: narrow::buffer::BufferType,
+> ::std::clone::Clone for FooArray<'a, T, Buffer>
+where
+    Foo<'a, T>: Sized,
+    <T as Add<Foo<'a, T>>>::Output: Debug,
+    <&'a T as narrow::array::ArrayType<
+        &'a T,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: ::std::clone::Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl<
+    'a,
+    T: Add<Foo<'a, T>> + narrow::array::ArrayType<T>,
+    Buffer: narrow::buffer::BufferType,
 > ::std::default::Default for FooArray<'a, T, Buffer>
 where
     Foo<'a, T>: Sized,
@@ -218,6 +234,19 @@ struct FooBarArray<T: narrow::array::ArrayType<T>, Buffer: narrow::buffer::Buffe
         T,
     >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>,
 );
+impl<
+    T: narrow::array::ArrayType<T>,
+    Buffer: narrow::buffer::BufferType,
+> ::std::clone::Clone for FooBarArray<T, Buffer>
+where
+    <T as narrow::array::ArrayType<
+        T,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: ::std::clone::Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl<
     T: narrow::array::ArrayType<T>,
     Buffer: narrow::buffer::BufferType,

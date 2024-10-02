@@ -22,7 +22,7 @@ where
 pub type BinaryArray<const NULLABLE: bool = false, Buffer = VecBuffer> =
     VariableSizeBinaryArray<NULLABLE, i32, Buffer>;
 
-/// Variable-size binary elements, using `i64` offset value.
+/// Variable-size binary elements, using `i64` offset values.
 pub type LargeBinaryArray<const NULLABLE: bool = false, Buffer = VecBuffer> =
     VariableSizeBinaryArray<NULLABLE, i64, Buffer>;
 
@@ -33,6 +33,17 @@ where
     Vec<u8>: Nullability<NULLABLE>,
 {
     type Item = <Vec<u8> as Nullability<NULLABLE>>::Item;
+}
+
+impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Clone
+    for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Offset<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
 }
 
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Default
@@ -181,6 +192,26 @@ where
     }
 }
 
+impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
+    for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<u8>: Validity<NULLABLE>,
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Offset<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer>: IntoIterator,
+{
+    type Item = <Offset<FixedSizePrimitiveArray<u8, false, Buffer>, NULLABLE, OffsetItem, Buffer> as IntoIterator>::Item;
+    type IntoIter = <Offset<
+        FixedSizePrimitiveArray<u8, false, Buffer>,
+        NULLABLE,
+        OffsetItem,
+        Buffer,
+    > as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Length
     for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
 where
@@ -249,6 +280,22 @@ mod tests {
     }
 
     #[test]
+    fn into_iter() {
+        let input: [&[u8]; 4] = [&[1], &[2, 3], &[4, 5, 6], &[7, 8, 9, 0]];
+        let array = input.into_iter().collect::<VariableSizeBinaryArray>();
+        let output = array.into_iter().collect::<Vec<_>>();
+        assert_eq!(output, input);
+
+        let input_vec = vec![vec![1], vec![], vec![2, 3], vec![4]];
+        let array_vec = input_vec
+            .clone()
+            .into_iter()
+            .collect::<VariableSizeBinaryArray>();
+        let output_vec = array_vec.into_iter().collect::<Vec<_>>();
+        assert_eq!(output_vec, input_vec);
+    }
+
+    #[test]
     fn from_iter_nullable() {
         let input: [Option<&[u8]>; 4] = [Some(&[1]), None, Some(&[4, 5, 6]), Some(&[7, 8, 9, 0])];
         let array = input.into_iter().collect::<VariableSizeBinaryArray<true>>();
@@ -273,6 +320,38 @@ mod tests {
                 .collect::<Vec<_>>(),
             &[true, false, true, true]
         );
+    }
+
+    #[test]
+    fn into_iter_nullable() {
+        let input: [Option<&[u8]>; 4] = [Some(&[1]), None, Some(&[4, 5, 6]), Some(&[7, 8, 9, 0])];
+        let array = input.into_iter().collect::<VariableSizeBinaryArray<true>>();
+        let output = array.into_iter().collect::<Vec<_>>();
+        assert_eq!(output, input.map(|opt| opt.map(<[u8]>::to_vec)));
+
+        let input_vec = vec![Some(vec![1]), None, Some(vec![2, 3]), Some(vec![4])];
+        let array_vec = input_vec
+            .clone()
+            .into_iter()
+            .collect::<VariableSizeBinaryArray<true>>();
+        let output_vec = array_vec.into_iter().collect::<Vec<_>>();
+        assert_eq!(output_vec, input_vec);
+    }
+
+    #[cfg(feature = "derive")]
+    #[test]
+    fn with_derive() {
+        use crate::array::{StructArray, VariableSizeBinary};
+
+        #[derive(crate::ArrayType, Clone, Debug, PartialEq)]
+        struct Foo {
+            a: Option<Vec<VariableSizeBinary>>,
+        }
+
+        let input = [Foo { a: None }];
+        let array = input.clone().into_iter().collect::<StructArray<Foo>>();
+        let output = array.into_iter().collect::<Vec<_>>();
+        assert_eq!(input.as_slice(), output);
     }
 
     #[test]

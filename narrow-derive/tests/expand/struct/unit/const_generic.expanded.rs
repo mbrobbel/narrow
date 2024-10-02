@@ -24,6 +24,12 @@ impl<const N: usize> narrow::array::StructArrayType for Foo<N> {
 pub struct FooArray<const N: usize, Buffer: narrow::buffer::BufferType>(
     pub narrow::array::NullArray<Foo<N>, false, Buffer>,
 );
+impl<const N: usize, Buffer: narrow::buffer::BufferType> ::std::clone::Clone
+for FooArray<N, Buffer> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl<const N: usize, Buffer: narrow::buffer::BufferType> ::std::default::Default
 for FooArray<N, Buffer> {
     fn default() -> Self {

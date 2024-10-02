@@ -22,7 +22,11 @@ where
     type Array = arrow_array::BooleanArray;
 
     fn as_field(name: &str) -> arrow_schema::Field {
-        arrow_schema::Field::new(name, arrow_schema::DataType::Boolean, NULLABLE)
+        arrow_schema::Field::new(name, Self::data_type(), NULLABLE)
+    }
+
+    fn data_type() -> arrow_schema::DataType {
+        arrow_schema::DataType::Boolean
     }
 }
 

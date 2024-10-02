@@ -42,6 +42,17 @@ where
     }
 }
 
+impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Clone
+    for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
+where
+    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Offset<T, NULLABLE, OffsetItem, Buffer>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Default
     for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
 where

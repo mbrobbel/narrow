@@ -20,7 +20,11 @@ where
     type Array = arrow_array::NullArray;
 
     fn as_field(name: &str) -> arrow_schema::Field {
-        Field::new(name, DataType::Null, NULLABLE)
+        Field::new(name, Self::data_type(), NULLABLE)
+    }
+
+    fn data_type() -> arrow_schema::DataType {
+        DataType::Null
     }
 }
 
@@ -68,6 +72,7 @@ mod tests {
     const INPUT: [(); 4] = [(), (), (), ()];
 
     #[test]
+    #[cfg(feature = "derive")]
     fn derive() {
         #[derive(crate::ArrayType, Copy, Clone, Debug, Default)]
         struct Unit;

@@ -29,7 +29,11 @@ where
             clippy::cast_possible_truncation,
             clippy::cast_possible_wrap
         )]
-        Field::new(name, DataType::FixedSizeBinary(N as i32), NULLABLE)
+        Field::new(name, Self::data_type(), NULLABLE)
+    }
+
+    fn data_type() -> arrow_schema::DataType {
+        DataType::FixedSizeBinary(i32::try_from(N).expect("overflow"))
     }
 }
 
@@ -57,7 +61,11 @@ where
             clippy::cast_possible_truncation,
             clippy::cast_possible_wrap
         )]
-        arrow_array::FixedSizeBinaryArray::new(N as i32, value.0 .0.into(), None)
+        arrow_array::FixedSizeBinaryArray::new(
+            i32::try_from(N).expect("overflow"),
+            value.0 .0.into(),
+            None,
+        )
     }
 }
 
@@ -87,7 +95,7 @@ where
             clippy::cast_possible_wrap
         )]
         arrow_array::FixedSizeBinaryArray::new(
-            N as i32,
+            i32::try_from(N).expect("overflow"),
             value.0 .0.data.into(),
             Some(value.0 .0.validity.into()),
         )

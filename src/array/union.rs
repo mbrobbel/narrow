@@ -106,6 +106,22 @@ impl<
         UnionLayout: UnionType,
         Buffer: BufferType,
         OffsetItem: OffsetElement,
+    > Clone for UnionArray<T, VARIANTS, UnionLayout, Buffer, OffsetItem>
+where
+    for<'a> i8: From<&'a T>,
+    <UnionLayout as UnionType>::Array<T, VARIANTS, Buffer, OffsetItem>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        UnionLayout: UnionType,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
     > Default for UnionArray<T, VARIANTS, UnionLayout, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
@@ -180,6 +196,27 @@ pub struct DenseUnionArray<
     pub types: Int8Array<false, Buffer>,
     /// The offsets in the variant arrays
     pub offsets: Int32Array<false, Buffer>,
+}
+
+impl<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+    > Clone for DenseUnionArray<T, VARIANTS, Buffer, OffsetItem>
+where
+    for<'a> i8: From<&'a T>,
+    <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, DenseLayout>: Clone,
+    Int8Array<false, Buffer>: Clone,
+    Int32Array<false, Buffer>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            variants: self.variants.clone(),
+            types: self.types.clone(),
+            offsets: self.offsets.clone(),
+        }
+    }
 }
 
 impl<
@@ -265,6 +302,25 @@ pub struct SparseUnionArray<
     pub variants: <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, SparseLayout>,
     /// The types field encodes the variants
     pub types: Int8Array<false, Buffer>,
+}
+
+impl<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+    > Clone for SparseUnionArray<T, VARIANTS, Buffer, OffsetItem>
+where
+    for<'a> i8: From<&'a T>,
+    <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, SparseLayout>: Clone,
+    Int8Array<false, Buffer>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            variants: self.variants.clone(),
+            types: self.types.clone(),
+        }
+    }
 }
 
 impl<
