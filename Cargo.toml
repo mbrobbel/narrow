@@ -15,7 +15,7 @@ members = ["narrow-derive"]
 
 [package]
 name = "narrow"
-version = "0.9.2"
+version = "0.10.0"
 authors.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -48,7 +48,7 @@ arrow-array = { version = "52", default-features = false, optional = true }
 arrow-buffer = { version = "52", default-features = false, optional = true }
 arrow-schema = { version = "52", default-features = false, optional = true }
 chrono = { version = "0.4.38", default-features = false, optional = true }
-narrow-derive = { path = "narrow-derive", version = "^0.6.11", optional = true }
+narrow-derive = { path = "narrow-derive", version = "^0.7.0", optional = true }
 uuid = { version = "1.10.0", default-features = false, optional = true }
 
 [dev-dependencies]
@@ -73,10 +73,15 @@ name = "narrow"
 harness = false
 required-features = ["arrow-rs"]
 
+
+[[example]]
+name = "basic"
+required-features = ["derive"]
+
 [[example]]
 name = "parquet"
 required-features = ["arrow-rs", "chrono", "derive", "map", "uuid"]
 
 [[example]]
-name = "basic"
-required-features = ["derive"]
+name = "tpch_lineitem"
+required-features = ["arrow-rs", "chrono", "derive"]

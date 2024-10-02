@@ -1,5 +1,36 @@
 
 
+## v0.10.0 (2024-10-01)
+
+### New Features
+
+ - <csr-id-eea8fc443e5ee2e224a99d15fc50d2c40efec41f/> add `data_type` method to `arrow-rs` `Array` extension trait
+
+### New Features (BREAKING)
+
+ - <csr-id-22608e3bdd59da2774c74eed714d752e58c33818/> project struct array fields in `arrow` conversion
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 2 commits contributed to the release.
+ - 10 days passed between releases.
+ - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 2 unique issues were worked on: [#253](https://github.com/mbrobbel/narrow/issues/253), [#254](https://github.com/mbrobbel/narrow/issues/254)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#253](https://github.com/mbrobbel/narrow/issues/253)**
+    - Add `data_type` method to `arrow-rs` `Array` extension trait ([`eea8fc4`](https://github.com/mbrobbel/narrow/commit/eea8fc443e5ee2e224a99d15fc50d2c40efec41f))
+ * **[#254](https://github.com/mbrobbel/narrow/issues/254)**
+    - Project struct array fields in `arrow` conversion ([`22608e3`](https://github.com/mbrobbel/narrow/commit/22608e3bdd59da2774c74eed714d752e58c33818))
+</details>
+
 ## v0.9.2 (2024-09-20)
 
 ### New Features
