@@ -172,6 +172,16 @@ where
     }
 }
 
+impl<T: FixedSize, Buffer: BufferType> From<FixedSizePrimitiveArray<T, false, Buffer>>
+    for arrow_buffer::Buffer
+where
+    <Buffer as BufferType>::Buffer<T>: Into<arrow_buffer::Buffer>,
+{
+    fn from(value: FixedSizePrimitiveArray<T, false, Buffer>) -> Self {
+        value.0.into()
+    }
+}
+
 impl<T: FixedSize, U: arrow_array::types::ArrowPrimitiveType<Native = T>, Buffer: BufferType>
     PartialEq<arrow_array::PrimitiveArray<U>> for FixedSizePrimitiveArray<T, false, Buffer>
 {

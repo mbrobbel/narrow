@@ -167,7 +167,7 @@ mod tests {
                     assert_eq!(array.0 .1 .0, &[2, 4]);
                     assert_eq!(
                         array.0 .2 .0 .0.data.0.as_slice(),
-                        &[b'a', b's', b'd', b'f']
+                        b"asdf"
                     );
                     assert_eq!(array.0 .2 .0 .0.offsets.as_slice(), &[0, 2, 4]);
 
@@ -257,8 +257,8 @@ mod tests {
 
                 #[derive(ArrayType, Default)]
                 struct FooBar {
-                    foo: bool,
-                    bar: Bar,
+                    fooa: bool,
+                    bara: Bar,
                 }
 
                 #[test]
