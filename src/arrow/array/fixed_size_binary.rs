@@ -2,7 +2,6 @@
 
 use std::sync::Arc;
 
-use arrow_array::types::UInt8Type;
 use arrow_buffer::NullBuffer;
 use arrow_schema::{DataType, Field};
 
@@ -52,7 +51,7 @@ where
 impl<const N: usize, Buffer: BufferType> From<FixedSizeBinaryArray<N, false, Buffer>>
     for arrow_array::FixedSizeBinaryArray
 where
-    arrow_array::PrimitiveArray<UInt8Type>: From<FixedSizePrimitiveArray<u8, false, Buffer>>,
+    arrow_buffer::Buffer: From<FixedSizePrimitiveArray<u8, false, Buffer>>,
 {
     fn from(value: FixedSizeBinaryArray<N, false, Buffer>) -> Self {
         // todo(mbrobbel): const_assert
@@ -84,7 +83,7 @@ where
 impl<const N: usize, Buffer: BufferType> From<FixedSizeBinaryArray<N, true, Buffer>>
     for arrow_array::FixedSizeBinaryArray
 where
-    arrow_array::PrimitiveArray<UInt8Type>: From<FixedSizePrimitiveArray<u8, false, Buffer>>,
+    arrow_buffer::Buffer: From<FixedSizePrimitiveArray<u8, false, Buffer>>,
     Bitmap<Buffer>: Into<NullBuffer>,
 {
     fn from(value: FixedSizeBinaryArray<N, true, Buffer>) -> Self {
