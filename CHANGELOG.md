@@ -1,5 +1,30 @@
 
 
+## v0.11.0 (2024-10-10)
+
+### Chore (BREAKING)
+
+ - <csr-id-3f7bf132b07be6d15898e0a240fd8985ff3d1ff9/> bump the arrow group with 5 updates
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 6 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#239](https://github.com/mbrobbel/narrow/issues/239)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#239](https://github.com/mbrobbel/narrow/issues/239)**
+    - Bump the arrow group with 5 updates ([`3f7bf13`](https://github.com/mbrobbel/narrow/commit/3f7bf132b07be6d15898e0a240fd8985ff3d1ff9))
+</details>
+
 ## v0.10.0 (2024-10-01)
 
 ### New Features

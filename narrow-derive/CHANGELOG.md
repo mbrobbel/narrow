@@ -1,6 +1,39 @@
 
 
+## v0.7.1 (2024-10-10)
+
+### Chore
+
+ - <csr-id-22da75ee223ccfa2838ea5e8b97347c1c634b69a/> bump proc-macro2 from 1.0.86 to 1.0.87
+ - <csr-id-c8c0bd5c31cf01ec2129f7e7b0afbd93e8ffcedb/> bump once_cell from 1.20.1 to 1.20.2
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 2 commits contributed to the release.
+ - 6 days passed between releases.
+ - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 2 unique issues were worked on: [#259](https://github.com/mbrobbel/narrow/issues/259), [#260](https://github.com/mbrobbel/narrow/issues/260)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#259](https://github.com/mbrobbel/narrow/issues/259)**
+    - Bump once_cell from 1.20.1 to 1.20.2 ([`c8c0bd5`](https://github.com/mbrobbel/narrow/commit/c8c0bd5c31cf01ec2129f7e7b0afbd93e8ffcedb))
+ * **[#260](https://github.com/mbrobbel/narrow/issues/260)**
+    - Bump proc-macro2 from 1.0.86 to 1.0.87 ([`22da75e`](https://github.com/mbrobbel/narrow/commit/22da75ee223ccfa2838ea5e8b97347c1c634b69a))
+</details>
+
 ## v0.7.0 (2024-10-01)
+
+<csr-id-60f078caa9a637255d8eebd57610f19267724642/>
+<csr-id-5201af299eb62f8861d8f9334a7de3cbb50028ab/>
+<csr-id-7cddc08759f06fe8555526379e00d75b064de339/>
+<csr-id-ade7695f935ee00cc9bc7e6d849e704e7d4fe6f2/>
 
 ### Chore
 
@@ -17,7 +50,7 @@
 
 <csr-read-only-do-not-edit/>
 
- - 5 commits contributed to the release.
+ - 6 commits contributed to the release.
  - 26 days passed between releases.
  - 5 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 5 unique issues were worked on: [#249](https://github.com/mbrobbel/narrow/issues/249), [#252](https://github.com/mbrobbel/narrow/issues/252), [#254](https://github.com/mbrobbel/narrow/issues/254), [#257](https://github.com/mbrobbel/narrow/issues/257), [#258](https://github.com/mbrobbel/narrow/issues/258)
@@ -38,6 +71,8 @@
     - Bump syn from 2.0.77 to 2.0.79 ([`5201af2`](https://github.com/mbrobbel/narrow/commit/5201af299eb62f8861d8f9334a7de3cbb50028ab))
  * **[#258](https://github.com/mbrobbel/narrow/issues/258)**
     - Bump once_cell from 1.19.0 to 1.20.1 ([`60f078c`](https://github.com/mbrobbel/narrow/commit/60f078caa9a637255d8eebd57610f19267724642))
+ * **Uncategorized**
+    - Release narrow-derive v0.7.0, narrow v0.10.0, safety bump narrow v0.10.0 ([`e3f5ce6`](https://github.com/mbrobbel/narrow/commit/e3f5ce65df7b56e269f7634823d22615d514d324))
 </details>
 
 ## v0.6.11 (2024-09-05)
