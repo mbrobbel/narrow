@@ -49,7 +49,7 @@ arrow-buffer = { version = "53.1.0", default-features = false, optional = true }
 arrow-schema = { version = "53.1.0", default-features = false, optional = true }
 chrono = { version = "0.4.38", default-features = false, optional = true }
 narrow-derive = { path = "narrow-derive", version = "^0.7.1", optional = true }
-uuid = { version = "1.10.0", default-features = false, optional = true }
+uuid = { version = "1.11.0", default-features = false, optional = true }
 
 [dev-dependencies]
 arrow-cast = { version = "53.1.0", default-features = false, features = [
@@ -63,7 +63,7 @@ criterion = { version = "0.5.1", default-features = false, features = [
 rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
 rustversion = { version = "1.0.18", default-features = false }
 parquet = { version = "53.1.0", default-features = false, features = ["arrow"] }
-uuid = { version = "1.10.0", default-features = false }
+uuid = { version = "1.11.0", default-features = false }
 num-traits = { version = "0.2.19" }
 
 [profile.bench]
