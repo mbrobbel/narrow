@@ -337,17 +337,12 @@ impl<OffsetItem: OffsetElement, Buffer: BufferType> ValidityBitmap
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        array::{union, ArrayType},
-        buffer::BufferRef,
-    };
+    use crate::{array::ArrayTypeOf, buffer::BufferRef};
 
     #[test]
     fn from_iter() {
         let input = ["1", "23", "456", "7890"];
-        let array = input
-            .into_iter()
-            .collect::<<String as ArrayType<String>>::Array<VecBuffer, i64, union::NA>>();
+        let array = input.into_iter().collect::<ArrayTypeOf<String>>();
         assert_eq!(array.len(), 4);
         assert_eq!(array.0 .0.data.0, b"1234567890");
 

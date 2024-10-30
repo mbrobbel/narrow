@@ -1,9 +1,10 @@
 //! Sequences of values with known length all having the same type.
 
 use crate::{
-    buffer::BufferType,
+    buffer::{BufferType, VecBuffer},
     logical::{LogicalArray, LogicalArrayType},
     offset::{self, OffsetElement},
+    validity::Nullability,
     Length,
 };
 use std::{collections::VecDeque, marker::PhantomData};
@@ -66,6 +67,27 @@ pub trait ArrayType<T: ?Sized> {
     /// there are no default types for generic associated types.
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>: Array;
 }
+
+/// A helper type that allows extracting the [`ArrayType::Array`] type for any `ArrayType<T> for T`
+pub type ArrayTypeOf<T, Buffer = VecBuffer, OffsetItem = offset::NA, UnionLayout = union::NA> =
+    <T as ArrayType<T>>::Array<Buffer, OffsetItem, UnionLayout>;
+
+/// A helper type that allows extracting the [`ArrayType::Array`] type for any `ArrayType<Option<T>> for T`
+pub type OptionArrayTypeOf<
+    T,
+    Buffer = VecBuffer,
+    OffsetItem = offset::NA,
+    UnionLayout = union::NA,
+> = <Option<T> as ArrayType<T>>::Array<Buffer, OffsetItem, UnionLayout>;
+
+/// A helper type that allows extracting the [`ArrayType::Array`] type for any `ArrayType<T>::Item> for <T as Nullability<NULLABLE>`
+pub type NullableArrayTypeOf<
+    const NULLABLE: bool,
+    T,
+    Buffer,
+    OffsetItem = offset::NA,
+    UnionLayout = union::NA,
+> = <<T as Nullability<NULLABLE>>::Item as ArrayType<T>>::Array<Buffer, OffsetItem, UnionLayout>;
 
 impl<T: ArrayType<U> + ?Sized, U> ArrayType<U> for &T {
     type Array<Buffer: BufferType, OfsetItem: OffsetElement, UnionLayout: UnionType> =
@@ -222,45 +244,25 @@ impl IntoIterator for VariableSizeBinary {
 
 impl<T: ArrayType<T>, const N: usize> ArrayType<[T; N]> for [T; N] {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        FixedSizeListArray<
-            N,
-            <T as ArrayType<T>>::Array<Buffer, OffsetItem, UnionLayout>,
-            false,
-            Buffer,
-        >;
+        FixedSizeListArray<N, ArrayTypeOf<T, Buffer, OffsetItem, UnionLayout>, false, Buffer>;
 }
 impl<T: ArrayType<T>, const N: usize> ArrayType<[T; N]> for Option<[T; N]> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        FixedSizeListArray<
-            N,
-            <T as ArrayType<T>>::Array<Buffer, OffsetItem, UnionLayout>,
-            true,
-            Buffer,
-        >;
+        FixedSizeListArray<N, ArrayTypeOf<T, Buffer, OffsetItem, UnionLayout>, true, Buffer>;
 }
 impl<T, const N: usize> ArrayType<[Option<T>; N]> for [Option<T>; N]
 where
     Option<T>: ArrayType<T>,
 {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        FixedSizeListArray<
-            N,
-            <Option<T> as ArrayType<T>>::Array<Buffer, OffsetItem, UnionLayout>,
-            false,
-            Buffer,
-        >;
+        FixedSizeListArray<N, OptionArrayTypeOf<T, Buffer, OffsetItem, UnionLayout>, false, Buffer>;
 }
 impl<T, const N: usize> ArrayType<[Option<T>; N]> for Option<[Option<T>; N]>
 where
     Option<T>: ArrayType<T>,
 {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        FixedSizeListArray<
-            N,
-            <Option<T> as ArrayType<T>>::Array<Buffer, OffsetItem, UnionLayout>,
-            true,
-            Buffer,
-        >;
+        FixedSizeListArray<N, OptionArrayTypeOf<T, Buffer, OffsetItem, UnionLayout>, true, Buffer>;
 }
 impl ArrayType<str> for str {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
@@ -285,130 +287,70 @@ impl ArrayType<String> for Option<String> {
 
 impl<'a, T: ArrayType<T>> ArrayType<&'a [T]> for &'a [T] {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        VariableSizeListArray<
-            <T as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
-            false,
-            OffsetItem,
-            Buffer,
-        >;
+        VariableSizeListArray<ArrayTypeOf<T, Buffer>, false, OffsetItem, Buffer>;
 }
 impl<'a, T: ArrayType<T>> ArrayType<&'a [T]> for Option<&'a [T]> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        VariableSizeListArray<
-            <T as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
-            true,
-            OffsetItem,
-            Buffer,
-        >;
+        VariableSizeListArray<ArrayTypeOf<T, Buffer>, true, OffsetItem, Buffer>;
 }
 impl<'a, T> ArrayType<&'a [Option<T>]> for &'a [Option<T>]
 where
     Option<T>: ArrayType<T>,
 {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        VariableSizeListArray<
-            <Option<T> as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
-            false,
-            OffsetItem,
-            Buffer,
-        >;
+        VariableSizeListArray<OptionArrayTypeOf<T, Buffer>, false, OffsetItem, Buffer>;
 }
 impl<'a, T> ArrayType<&'a [Option<T>]> for Option<&'a [Option<T>]>
 where
     Option<T>: ArrayType<T>,
 {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        VariableSizeListArray<
-            <Option<T> as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
-            true,
-            OffsetItem,
-            Buffer,
-        >;
+        VariableSizeListArray<OptionArrayTypeOf<T, Buffer>, true, OffsetItem, Buffer>;
 }
 impl<T: ArrayType<T>> ArrayType<Vec<T>> for Vec<T> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        VariableSizeListArray<
-            <T as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
-            false,
-            OffsetItem,
-            Buffer,
-        >;
+        VariableSizeListArray<ArrayTypeOf<T, Buffer>, false, OffsetItem, Buffer>;
 }
 impl<T: ArrayType<T>> ArrayType<Vec<T>> for Option<Vec<T>> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        VariableSizeListArray<
-            <T as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
-            true,
-            OffsetItem,
-            Buffer,
-        >;
+        VariableSizeListArray<ArrayTypeOf<T, Buffer>, true, OffsetItem, Buffer>;
 }
 impl<T> ArrayType<Vec<Option<T>>> for Vec<Option<T>>
 where
     Option<T>: ArrayType<T>,
 {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        VariableSizeListArray<
-            <Option<T> as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
-            false,
-            OffsetItem,
-            Buffer,
-        >;
+        VariableSizeListArray<OptionArrayTypeOf<T, Buffer>, false, OffsetItem, Buffer>;
 }
 impl<T> ArrayType<Vec<Option<T>>> for Option<Vec<Option<T>>>
 where
     Option<T>: ArrayType<T>,
 {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        VariableSizeListArray<
-            <Option<T> as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
-            true,
-            OffsetItem,
-            Buffer,
-        >;
+        VariableSizeListArray<OptionArrayTypeOf<T, Buffer>, true, OffsetItem, Buffer>;
 }
 
 impl<T: ArrayType<T>> ArrayType<VecDeque<T>> for VecDeque<T> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        VariableSizeListArray<
-            <T as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
-            false,
-            OffsetItem,
-            Buffer,
-        >;
+        VariableSizeListArray<ArrayTypeOf<T, Buffer>, false, OffsetItem, Buffer>;
 }
 impl<T: ArrayType<T>> ArrayType<VecDeque<T>> for Option<VecDeque<T>> {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        VariableSizeListArray<
-            <T as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
-            true,
-            OffsetItem,
-            Buffer,
-        >;
+        VariableSizeListArray<ArrayTypeOf<T, Buffer>, true, OffsetItem, Buffer>;
 }
 impl<T> ArrayType<VecDeque<Option<T>>> for VecDeque<Option<T>>
 where
     Option<T>: ArrayType<T>,
 {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        VariableSizeListArray<
-            <Option<T> as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
-            false,
-            OffsetItem,
-            Buffer,
-        >;
+        VariableSizeListArray<OptionArrayTypeOf<T, Buffer>, false, OffsetItem, Buffer>;
 }
 impl<T> ArrayType<VecDeque<Option<T>>> for Option<VecDeque<Option<T>>>
 where
     Option<T>: ArrayType<T>,
 {
     type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        VariableSizeListArray<
-            <Option<T> as ArrayType<T>>::Array<Buffer, offset::NA, union::NA>,
-            true,
-            OffsetItem,
-            Buffer,
-        >;
+        VariableSizeListArray<OptionArrayTypeOf<T, Buffer>, true, OffsetItem, Buffer>;
 }
 
 impl<T> ArrayType<PhantomData<T>> for PhantomData<T> {
