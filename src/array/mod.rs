@@ -80,7 +80,7 @@ pub type OptionArrayTypeOf<
     UnionLayout = union::NA,
 > = <Option<T> as ArrayType<T>>::Array<Buffer, OffsetItem, UnionLayout>;
 
-/// A helper type that allows extracting the [`ArrayType::Array`] type for any `ArrayType<T>::Item> for <T as Nullability<NULLABLE>`
+/// A helper type that allows extracting the [`ArrayType::Array`] type for any `ArrayType<T>::Item for <T as Nullability<NULLABLE>`
 pub type NullableArrayTypeOf<
     const NULLABLE: bool,
     T,

@@ -28,7 +28,6 @@ where
         Item: ArrayType<T::ArrayType, Array<Buffer, OffsetItem, UnionLayout>: crate::arrow::Array>,
     >,
 {
-    // ArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout, NullableItem<NULLABLE, T::ArrayType>>
     type Array = <NullableArrayTypeOf<NULLABLE, T::ArrayType, Buffer, OffsetItem, UnionLayout> as crate::arrow::Array>::Array;
 
     fn as_field(name: &str) -> arrow_schema::Field {
