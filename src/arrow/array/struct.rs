@@ -198,14 +198,11 @@ mod tests {
     use arrow_array::{cast::AsArray as _, types::UInt32Type, Array as _};
 
     use crate::{
-        array::{
-            union::{self, UnionType},
-            ArrayType,
-        },
+        array::{union::UnionType, ArrayType, ArrayTypeOf},
         arrow::buffer::{BufferBuilder, ScalarBuffer},
         bitmap::ValidityBitmap,
         buffer::Buffer as _,
-        offset::{self, OffsetElement},
+        offset::OffsetElement,
     };
 
     use super::*;
@@ -215,7 +212,7 @@ mod tests {
         a: u32,
     }
     struct FooArray<Buffer: BufferType> {
-        a: <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>,
+        a: ArrayTypeOf<u32, Buffer>,
     }
     impl ArrayType<Foo> for Foo {
         type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
@@ -227,17 +224,17 @@ mod tests {
     }
     impl<Buffer: BufferType> Default for FooArray<Buffer>
     where
-        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: Default,
+        ArrayTypeOf<u32, Buffer>: Default,
     {
         fn default() -> Self {
             Self {
-                a: <u32 as ArrayType<u32>>::Array::<Buffer, offset::NA, union::NA>::default(),
+                a: <ArrayTypeOf<u32, Buffer>>::default(),
             }
         }
     }
     impl<Buffer: BufferType> Extend<Foo> for FooArray<Buffer>
     where
-        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: Extend<u32>,
+        ArrayTypeOf<u32, Buffer>: Extend<u32>,
     {
         fn extend<I: IntoIterator<Item = Foo>>(&mut self, iter: I) {
             iter.into_iter().for_each(|Foo { a }| {
@@ -247,19 +244,22 @@ mod tests {
     }
     impl<Buffer: BufferType> FromIterator<Foo> for FooArray<Buffer>
     where
-        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: Default + Extend<u32>,
+        ArrayTypeOf<u32, Buffer>: Default + Extend<u32>,
     {
         fn from_iter<T: IntoIterator<Item = Foo>>(iter: T) -> Self {
             let (a, _): (_, Vec<_>) = iter.into_iter().map(|Foo { a }| (a, ())).unzip();
             Self { a }
         }
     }
-    struct FooArrayIter<Buffer: BufferType> where <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: IntoIterator {
-        a: <<u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA> as IntoIterator>::IntoIter,
+    struct FooArrayIter<Buffer: BufferType>
+    where
+        ArrayTypeOf<u32, Buffer>: IntoIterator,
+    {
+        a: <ArrayTypeOf<u32, Buffer> as IntoIterator>::IntoIter,
     }
     impl<Buffer: BufferType> Iterator for FooArrayIter<Buffer>
     where
-        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: IntoIterator<Item = u32>,
+        ArrayTypeOf<u32, Buffer>: IntoIterator<Item = u32>,
     {
         type Item = Foo;
 
@@ -269,7 +269,7 @@ mod tests {
     }
     impl<Buffer: BufferType> IntoIterator for FooArray<Buffer>
     where
-        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>: IntoIterator<Item = u32>,
+        ArrayTypeOf<u32, Buffer>: IntoIterator<Item = u32>,
     {
         type Item = Foo;
         type IntoIter = FooArrayIter<Buffer>;
@@ -296,19 +296,17 @@ mod tests {
     }
     impl<Buffer: BufferType> From<FooArray<Buffer>> for Vec<Arc<dyn arrow_array::Array>>
     where
-        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>:
-            Into<<<u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA> as crate::arrow::Array>::Array>,
+        ArrayTypeOf<u32, Buffer>: Into<<ArrayTypeOf<u32, Buffer> as crate::arrow::Array>::Array>,
     {
         fn from(value: FooArray<Buffer>) -> Self {
             vec![Arc::<
-                <<u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA> as crate::arrow::Array>::Array,
+                <ArrayTypeOf<u32, Buffer> as crate::arrow::Array>::Array,
             >::new(value.a.into())]
         }
     }
     impl<Buffer: BufferType> From<Vec<Arc<dyn arrow_array::Array>>> for FooArray<Buffer>
     where
-        <u32 as ArrayType<u32>>::Array<Buffer, offset::NA, union::NA>:
-            From<Arc<dyn arrow_array::Array>>,
+        ArrayTypeOf<u32, Buffer>: From<Arc<dyn arrow_array::Array>>,
     {
         fn from(value: Vec<Arc<dyn arrow_array::Array>>) -> Self {
             let mut arrays = value.into_iter();

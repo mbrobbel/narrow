@@ -3,7 +3,7 @@
 use std::iter::Map;
 
 use crate::{
-    array::{Array, ArrayType, UnionType},
+    array::{Array, ArrayType, ArrayTypeOf, NullableArrayTypeOf, OptionArrayTypeOf, UnionType},
     buffer::BufferType,
     offset::OffsetElement,
     validity::Nullability,
@@ -53,18 +53,10 @@ pub struct LogicalArray<
     Buffer: BufferType,
     OffsetItem: OffsetElement,
     UnionLayout: UnionType,
->(
-    #[rustfmt::skip] // https://github.com/rust-lang/rustfmt/issues/5703
-    pub(crate)
-        <<<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item as ArrayType<
-            <T as LogicalArrayType<T>>::ArrayType,
-        >>::Array<Buffer, OffsetItem, UnionLayout>,
-)
+>(pub(crate) NullableArrayTypeOf<NULLABLE, T::ArrayType, Buffer, OffsetItem, UnionLayout>)
 where
     Option<T>: ArrayType<T>,
-    <T as LogicalArrayType<T>>::ArrayType: Nullability<NULLABLE>,
-    <<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item:
-        ArrayType<<T as LogicalArrayType<T>>::ArrayType>;
+    T::ArrayType: Nullability<NULLABLE, Item: ArrayType<T::ArrayType>>;
 
 impl<
         T: LogicalArrayType<T>,
@@ -75,11 +67,9 @@ impl<
     > Array for LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
-    <T as LogicalArrayType<T>>::ArrayType: Nullability<NULLABLE>,
-    <<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item:
-        ArrayType<<T as LogicalArrayType<T>>::ArrayType>,
+    T::ArrayType: Nullability<NULLABLE, Item: ArrayType<T::ArrayType>>,
 {
-    type Item = <<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item;
+    type Item = <T::ArrayType as Nullability<NULLABLE>>::Item;
 }
 
 impl<
@@ -91,12 +81,10 @@ impl<
     > Clone for LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
-    <T as LogicalArrayType<T>>::ArrayType: Nullability<NULLABLE>,
-    <<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item:
-        ArrayType<<T as LogicalArrayType<T>>::ArrayType>,
-    <<<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item as ArrayType<
-        <T as LogicalArrayType<T>>::ArrayType,
-    >>::Array<Buffer, OffsetItem, UnionLayout>: Clone,
+    T::ArrayType: Nullability<
+        NULLABLE,
+        Item: ArrayType<T::ArrayType, Array<Buffer, OffsetItem, UnionLayout>: Clone>,
+    >,
 {
     fn clone(&self) -> Self {
         Self(self.0.clone())
@@ -112,12 +100,10 @@ impl<
     > Default for LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
-    <T as LogicalArrayType<T>>::ArrayType: Nullability<NULLABLE>,
-    <<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item:
-        ArrayType<<T as LogicalArrayType<T>>::ArrayType>,
-    <<<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item as ArrayType<
-        <T as LogicalArrayType<T>>::ArrayType,
-    >>::Array<Buffer, OffsetItem, UnionLayout>: Default,
+    T::ArrayType: Nullability<
+        NULLABLE,
+        Item: ArrayType<T::ArrayType, Array<Buffer, OffsetItem, UnionLayout>: Default>,
+    >,
 {
     fn default() -> Self {
         Self(Default::default())
@@ -131,13 +117,12 @@ impl<
         UnionLayout: UnionType,
     > Extend<T> for LogicalArray<T, false, Buffer, OffsetItem, UnionLayout>
 where
-        Option<T>: ArrayType<T>,
-    <<T as LogicalArrayType<T>>::ArrayType as ArrayType<
-        <T as LogicalArrayType<T>>::ArrayType,
-    >>::Array<Buffer, OffsetItem, UnionLayout>: Extend<<T as LogicalArrayType<T>>::ArrayType>,
+    Option<T>: ArrayType<T>,
+    ArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout>: Extend<T::ArrayType>,
 {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        self.0.extend(iter.into_iter().map(LogicalArrayType::into_array_type));
+        self.0
+            .extend(iter.into_iter().map(LogicalArrayType::into_array_type));
     }
 }
 
@@ -149,11 +134,8 @@ impl<
     > Extend<Option<T>> for LogicalArray<T, true, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
-    Option<<T as LogicalArrayType<T>>::ArrayType>: ArrayType<<T as LogicalArrayType<T>>::ArrayType>,
-    <Option<<T as LogicalArrayType<T>>::ArrayType> as ArrayType<
-        <T as LogicalArrayType<T>>::ArrayType,
-    >>::Array<Buffer, OffsetItem, UnionLayout>:
-        Extend<Option<<T as LogicalArrayType<T>>::ArrayType>>,
+    Option<T::ArrayType>: ArrayType<T::ArrayType>,
+    OptionArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout>: Extend<Option<T::ArrayType>>,
 {
     fn extend<I: IntoIterator<Item = Option<T>>>(&mut self, iter: I) {
         self.0.extend(
@@ -170,10 +152,8 @@ impl<
         UnionLayout: UnionType,
     > FromIterator<T> for LogicalArray<T, false, Buffer, OffsetItem, UnionLayout>
 where
-        Option<T>: ArrayType<T>,
-    <<T as LogicalArrayType<T>>::ArrayType as ArrayType<
-        <T as LogicalArrayType<T>>::ArrayType,
-    >>::Array<Buffer, OffsetItem, UnionLayout>: FromIterator<<T as LogicalArrayType<T>>::ArrayType>,
+    Option<T>: ArrayType<T>,
+    ArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout>: FromIterator<T::ArrayType>,
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         Self(
@@ -192,11 +172,9 @@ impl<
     > FromIterator<Option<T>> for LogicalArray<T, true, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
-    Option<<T as LogicalArrayType<T>>::ArrayType>: ArrayType<<T as LogicalArrayType<T>>::ArrayType>,
-    <Option<<T as LogicalArrayType<T>>::ArrayType> as ArrayType<
-        <T as LogicalArrayType<T>>::ArrayType,
-    >>::Array<Buffer, OffsetItem, UnionLayout>:
-        FromIterator<Option<<T as LogicalArrayType<T>>::ArrayType>>,
+    Option<T::ArrayType>: ArrayType<T::ArrayType>,
+    OptionArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout>:
+        FromIterator<Option<T::ArrayType>>,
 {
     fn from_iter<I: IntoIterator<Item = Option<T>>>(iter: I) -> Self {
         Self(
@@ -214,25 +192,20 @@ impl<
         UnionLayout: UnionType,
     > IntoIterator for LogicalArray<T, false, Buffer, OffsetItem, UnionLayout>
 where
-        Option<T>: ArrayType<T>,
-    <<T as LogicalArrayType<T>>::ArrayType as ArrayType<
-        <T as LogicalArrayType<T>>::ArrayType,
-    >>::Array<Buffer, OffsetItem, UnionLayout>: IntoIterator,
-    <<<T as LogicalArrayType<T>>::ArrayType as ArrayType<
-        <T as LogicalArrayType<T>>::ArrayType,
-    >>::Array<Buffer, OffsetItem, UnionLayout> as IntoIterator>::Item: Into<<T as LogicalArrayType<T>>::ArrayType>,
+    Option<T>: ArrayType<T>,
+    ArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout>:
+        IntoIterator<Item: Into<T::ArrayType>>,
 {
     type Item = T;
-    type IntoIter = Map<<<<T as LogicalArrayType<T>>::ArrayType as ArrayType<
-        <T as LogicalArrayType<T>>::ArrayType,
-    >>::Array<Buffer, OffsetItem, UnionLayout> as
-        IntoIterator>::IntoIter, fn(<<<T as LogicalArrayType<T>>::ArrayType as ArrayType<
-            <T as LogicalArrayType<T>>::ArrayType,
-        >>::Array<Buffer, OffsetItem, UnionLayout> as
-            IntoIterator>::Item) -> T>;
+    type IntoIter = Map<
+        <ArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout> as IntoIterator>::IntoIter,
+        fn(<ArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout> as IntoIterator>::Item) -> T,
+    >;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter().map(|item| LogicalArrayType::from_array_type(item.into()))
+        self.0
+            .into_iter()
+            .map(|item| LogicalArrayType::from_array_type(item.into()))
     }
 }
 
@@ -244,29 +217,18 @@ impl<
     > IntoIterator for LogicalArray<T, true, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
-    Option<<T as LogicalArrayType<T>>::ArrayType>: ArrayType<<T as LogicalArrayType<T>>::ArrayType>,
-    <Option<<T as LogicalArrayType<T>>::ArrayType> as ArrayType<
-        <T as LogicalArrayType<T>>::ArrayType,
-    >>::Array<Buffer, OffsetItem, UnionLayout>: IntoIterator,
-    <<Option<<T as LogicalArrayType<T>>::ArrayType> as ArrayType<
-        <T as LogicalArrayType<T>>::ArrayType,
-    >>::Array<Buffer, OffsetItem, UnionLayout> as IntoIterator>::Item: IntoIterator,
-    <<<Option<<T as LogicalArrayType<T>>::ArrayType> as ArrayType<
-        <T as LogicalArrayType<T>>::ArrayType,
-    >>::Array<Buffer, OffsetItem, UnionLayout> as IntoIterator>::Item as IntoIterator>::Item:
-        Into<<T as LogicalArrayType<T>>::ArrayType>,
+    Option<T::ArrayType>: ArrayType<T::ArrayType>,
+    OptionArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout>:
+        IntoIterator<Item: IntoIterator<Item: Into<T::ArrayType>>>,
 {
     type Item = Option<T>;
-    type IntoIter = Map<
-        <<Option<<T as LogicalArrayType<T>>::ArrayType> as ArrayType<
-            <T as LogicalArrayType<T>>::ArrayType,
-        >>::Array<Buffer, OffsetItem, UnionLayout> as IntoIterator>::IntoIter,
-        fn(
-            <<Option<<T as LogicalArrayType<T>>::ArrayType> as ArrayType<
-                <T as LogicalArrayType<T>>::ArrayType,
-            >>::Array<Buffer, OffsetItem, UnionLayout> as IntoIterator>::Item,
-        ) -> Option<T>,
-    >;
+    type IntoIter =
+        Map<
+            <OptionArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout> as IntoIterator>::IntoIter,
+            fn(
+                <OptionArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout> as IntoIterator>::Item,
+            ) -> Option<T>,
+        >;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter().map(|opt| {
@@ -287,12 +249,10 @@ impl<
     > Length for LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
-    <T as LogicalArrayType<T>>::ArrayType: Nullability<NULLABLE>,
-    <<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item:
-        ArrayType<<T as LogicalArrayType<T>>::ArrayType>,
-    <<<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item as ArrayType<
-        <T as LogicalArrayType<T>>::ArrayType,
-    >>::Array<Buffer, OffsetItem, UnionLayout>: Length,
+    T::ArrayType: Nullability<
+        NULLABLE,
+        Item: ArrayType<T::ArrayType, Array<Buffer, OffsetItem, UnionLayout>: Length>,
+    >,
 {
     fn len(&self) -> usize {
         self.0.len()
