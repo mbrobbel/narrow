@@ -1,6 +1,33 @@
 
 
+## v0.11.1 (2024-11-04)
+
+### Refactor
+
+ - <csr-id-b2ae31cb8cbd018c518e32882342f300834ede4c/> Simplified type signatures related to `ArrayType::Array`
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 22 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 1 unique issue was worked on: [#269](https://github.com/mbrobbel/narrow/issues/269)
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **[#269](https://github.com/mbrobbel/narrow/issues/269)**
+    - Simplified type signatures related to `ArrayType::Array` ([`b2ae31c`](https://github.com/mbrobbel/narrow/commit/b2ae31cb8cbd018c518e32882342f300834ede4c))
+</details>
+
 ## v0.11.0 (2024-10-10)
+
+<csr-id-3f7bf132b07be6d15898e0a240fd8985ff3d1ff9/>
 
 ### Chore (BREAKING)
 
@@ -11,7 +38,7 @@
 <csr-read-only-do-not-edit/>
 
  - 1 commit contributed to the release.
- - 6 days passed between releases.
+ - 8 days passed between releases.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 1 unique issue was worked on: [#239](https://github.com/mbrobbel/narrow/issues/239)
 
