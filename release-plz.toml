@@ -1,11 +1,14 @@
 [workspace]
-release_always = false
 changelog_path = "./CHANGELOG.md"
+release_always = false
 
 [[package]]
 name = "narrow"
+changelog_include = ["narrow-derive"]
 version_group = "narrow"
 
 [[package]]
 name = "narrow-derive"
+changelog_update = false
+git_release_enable = false
 version_group = "narrow"
