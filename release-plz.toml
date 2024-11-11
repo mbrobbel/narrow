@@ -1,0 +1,11 @@
+[workspace]
+release_always = false
+changelog_path = "./CHANGELOG.md"
+
+[[package]]
+name = "narrow"
+version_group = "narrow"
+
+[[package]]
+name = "narrow-derive"
+version_group = "narrow"
