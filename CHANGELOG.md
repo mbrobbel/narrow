@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.3](https://github.com/mbrobbel/narrow/compare/narrow-v0.11.2...narrow-v0.11.3) - 2024-11-21
+
+### Other
+
+- *(deps)* bump the arrow group with 5 updates ([#281](https://github.com/mbrobbel/narrow/pull/281))
+- *(deps)* bump proc-macro2 from 1.0.89 to 1.0.91 ([#282](https://github.com/mbrobbel/narrow/pull/282))
+- *(deps)* bump codecov/codecov-action from 4 to 5 ([#280](https://github.com/mbrobbel/narrow/pull/280))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.83 to 0.5.84 ([#279](https://github.com/mbrobbel/narrow/pull/279))
+- *(release)* update release-plz config ([#276](https://github.com/mbrobbel/narrow/pull/276))
+
 ## [0.11.2](https://github.com/mbrobbel/narrow/compare/narrow-v0.11.1...narrow-v0.11.2) - 2024-11-11
 
 ### Other
