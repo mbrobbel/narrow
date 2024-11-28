@@ -181,9 +181,9 @@ pub struct Offset<
     T,
     const NULLABLE: bool = false,
     OffsetItem: OffsetElement = i32,
-    Buffer: BufferType = VecBuffer,
+    Buffer = VecBuffer,
 > where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE>>,
 {
     /// The data
     pub data: T,
@@ -192,10 +192,10 @@ pub struct Offset<
         <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<NULLABLE>>::Storage<Buffer>,
 }
 
-impl<const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer: BufferType>
+impl<const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer>
     Offset<T, NULLABLE, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE>>,
     Offset<T, NULLABLE, OffsetItem, Buffer>: Index,
 {
     /// Returns an iteratover over the offset items in this [`Offset`].
@@ -204,12 +204,11 @@ where
     }
 }
 
-impl<const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer: BufferType> Clone
+impl<const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer> Clone
     for Offset<T, NULLABLE, OffsetItem, Buffer>
 where
     T: Clone,
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<NULLABLE>>::Storage<Buffer>: Clone,
+    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE, Storage<Buffer>: Clone>>,
 {
     fn clone(&self) -> Self {
         Self {
@@ -219,10 +218,9 @@ where
     }
 }
 
-impl<T: Default, OffsetItem: OffsetElement, Buffer: BufferType> Default
-    for Offset<T, false, OffsetItem, Buffer>
+impl<T: Default, OffsetItem: OffsetElement, Buffer> Default for Offset<T, false, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Default + Extend<OffsetItem>,
+    Buffer: BufferType<Buffer<OffsetItem>: Default + Extend<OffsetItem>>,
 {
     fn default() -> Self {
         let mut offsets = <Buffer as BufferType>::Buffer::<OffsetItem>::default();
@@ -234,11 +232,10 @@ where
     }
 }
 
-impl<T: Default, OffsetItem: OffsetElement, Buffer: BufferType> Default
-    for Offset<T, true, OffsetItem, Buffer>
+impl<T: Default, OffsetItem: OffsetElement, Buffer> Default for Offset<T, true, OffsetItem, Buffer>
 where
-    <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<true>>::Storage<Buffer>: Default,
-    <Buffer as BufferType>::Buffer<OffsetItem>: Extend<OffsetItem>,
+    Buffer: BufferType<Buffer<OffsetItem>: Extend<OffsetItem>>,
+    Nullable<<Buffer as BufferType>::Buffer<OffsetItem>, Buffer>: Default,
 {
     fn default() -> Self {
         let mut offsets = <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<true>>::Storage::<
@@ -252,11 +249,11 @@ where
     }
 }
 
-impl<T, U: IntoIterator + Length, OffsetItem: OffsetElement, Buffer: BufferType> Extend<U>
-    for Offset<T, false, OffsetItem, Buffer>
+impl<T, U, OffsetItem: OffsetElement, Buffer> Extend<U> for Offset<T, false, OffsetItem, Buffer>
 where
     T: Extend<<U as IntoIterator>::Item>,
-    <Buffer as BufferType>::Buffer<OffsetItem>: Extend<OffsetItem>,
+    U: IntoIterator + Length,
+    Buffer: BufferType<Buffer<OffsetItem>: Extend<OffsetItem>>,
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
         let mut state = self
@@ -280,10 +277,12 @@ where
     }
 }
 
-impl<T, U: IntoIterator + Length, OffsetItem: OffsetElement, Buffer: BufferType> Extend<Option<U>>
+impl<T, U, OffsetItem: OffsetElement, Buffer: BufferType> Extend<Option<U>>
     for Offset<T, true, OffsetItem, Buffer>
 where
     T: Extend<<U as IntoIterator>::Item>,
+    U: IntoIterator + Length,
+    Buffer: BufferType,
     <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<true>>::Storage<Buffer>:
         Extend<(bool, OffsetItem)>,
 {
@@ -311,10 +310,10 @@ where
     }
 }
 
-impl<T, OffsetItem: OffsetElement, Buffer: BufferType> From<Offset<T, false, OffsetItem, Buffer>>
+impl<T, OffsetItem: OffsetElement, Buffer> From<Offset<T, false, OffsetItem, Buffer>>
     for Offset<T, true, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Length,
+    Buffer: BufferType<Buffer<OffsetItem>: Length>,
     Bitmap<Buffer>: FromIterator<bool>,
 {
     fn from(value: Offset<T, false, OffsetItem, Buffer>) -> Self {
@@ -331,12 +330,13 @@ where
     }
 }
 
-impl<T, U: IntoIterator + Length, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<U>
+impl<T, U, OffsetItem: OffsetElement, Buffer> FromIterator<U>
     for Offset<T, false, OffsetItem, Buffer>
 where
     Self: Default,
     T: Extend<<U as IntoIterator>::Item>,
-    <Buffer as BufferType>::Buffer<OffsetItem>: Extend<OffsetItem>,
+    U: IntoIterator + Length,
+    Buffer: BufferType<Buffer<OffsetItem>: Extend<OffsetItem>>,
 {
     fn from_iter<I: IntoIterator<Item = U>>(iter: I) -> Self {
         let mut offset = Self::default();
@@ -345,11 +345,12 @@ where
     }
 }
 
-impl<T, U: IntoIterator + Length, OffsetItem: OffsetElement, Buffer: BufferType>
-    FromIterator<Option<U>> for Offset<T, true, OffsetItem, Buffer>
+impl<T, U, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<Option<U>>
+    for Offset<T, true, OffsetItem, Buffer>
 where
     Self: Default,
     T: Extend<<U as IntoIterator>::Item>,
+    U: IntoIterator + Length,
     <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<true>>::Storage<Buffer>:
         Extend<(bool, OffsetItem)>,
 {
@@ -360,11 +361,12 @@ where
     }
 }
 
-impl<T, U: IntoIterator + Length, OffsetItem: OffsetElement, Buffer: BufferType>
-    FromIterator<std::option::IntoIter<U>> for Offset<T, true, OffsetItem, Buffer>
+impl<T, U, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<std::option::IntoIter<U>>
+    for Offset<T, true, OffsetItem, Buffer>
 where
     Self: Default,
     T: Extend<<U as IntoIterator>::Item>,
+    U: IntoIterator + Length,
     <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<true>>::Storage<Buffer>:
         Extend<(bool, OffsetItem)>,
 {
@@ -376,9 +378,9 @@ where
 }
 
 /// An iterator over items in an offset.
-pub struct OffsetSlice<'a, T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType>
+pub struct OffsetSlice<'a, T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE>>,
 {
     /// The offset storing the values and offsets
     offset: &'a Offset<T, NULLABLE, OffsetItem, Buffer>,
@@ -390,10 +392,10 @@ where
 
 // TODO(mbrobbel): this is the remaining items in the iterator, maybe we want
 // this to be the original slot length?
-impl<T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Length
+impl<T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer> Length
     for OffsetSlice<'_, T, NULLABLE, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE>>,
 {
     #[inline]
     fn len(&self) -> usize {
@@ -401,10 +403,10 @@ where
     }
 }
 
-impl<'a, T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Iterator
+impl<'a, T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer> Iterator
     for OffsetSlice<'a, T, NULLABLE, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE>>,
     T: Index,
 {
     type Item = <T as Index>::Item<'a>;
@@ -431,12 +433,20 @@ impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Index
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
         OffsetSlice {
             offset: self,
-            index: (*self.offsets.as_slice().get_unchecked(index))
-                .try_into()
-                .expect("offset value out of range"),
-            end: (*self.offsets.as_slice().get_unchecked(index + 1))
-                .try_into()
-                .expect("offset value out of range"),
+            index: (
+                // Safety:
+                // - Unsafe fn
+                unsafe { *self.offsets.as_slice().get_unchecked(index) }
+            )
+            .try_into()
+            .expect("offset value out of range"),
+            end: (
+                // Safety:
+                // - Unsafe fn
+                unsafe { *self.offsets.as_slice().get_unchecked(index + 1) }
+            )
+            .try_into()
+            .expect("offset value out of range"),
         }
     }
 }
@@ -477,9 +487,9 @@ impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Index
 }
 
 /// An iterator over an offset.
-pub struct OffsetIter<'a, const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer: BufferType>
+pub struct OffsetIter<'a, const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE>>,
 {
     /// The offset being iterated over
     offset: &'a Offset<T, NULLABLE, OffsetItem, Buffer>,
@@ -487,10 +497,10 @@ where
     position: usize,
 }
 
-impl<'a, const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer: BufferType> Iterator
+impl<'a, const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer> Iterator
     for OffsetIter<'a, NULLABLE, T, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE>>,
     Offset<T, NULLABLE, OffsetItem, Buffer>: Index,
 {
     type Item = <Offset<T, NULLABLE, OffsetItem, Buffer> as Index>::Item<'a>;
@@ -506,10 +516,10 @@ where
     }
 }
 
-impl<'a, const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
+impl<'a, const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer> IntoIterator
     for &'a Offset<T, NULLABLE, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE>>,
     Offset<T, NULLABLE, OffsetItem, Buffer>: Index,
 {
     type Item = <Offset<T, NULLABLE, OffsetItem, Buffer> as Index>::Item<'a>;
@@ -524,10 +534,10 @@ where
 }
 
 /// An owned iterator over an offset
-pub struct OffsetIntoIter<T, OffsetItem: OffsetElement, Buffer: BufferType>
+pub struct OffsetIntoIter<T, OffsetItem: OffsetElement, Buffer>
 where
     T: IntoIterator,
-    <Buffer as BufferType>::Buffer<OffsetItem>: IntoIterator,
+    Buffer: BufferType<Buffer<OffsetItem>: IntoIterator>,
 {
     /// The underlying array data
     data: <T as IntoIterator>::IntoIter,
@@ -535,11 +545,10 @@ where
     offsets: Peekable<<<Buffer as BufferType>::Buffer<OffsetItem> as IntoIterator>::IntoIter>,
 }
 
-impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Iterator
-    for OffsetIntoIter<T, OffsetItem, Buffer>
+impl<T, OffsetItem: OffsetElement, Buffer> Iterator for OffsetIntoIter<T, OffsetItem, Buffer>
 where
     T: IntoIterator,
-    <Buffer as BufferType>::Buffer<OffsetItem>: IntoIterator<Item = OffsetItem>,
+    Buffer: BufferType<Buffer<OffsetItem>: IntoIterator<Item = OffsetItem>>,
 {
     type Item = Vec<<T as IntoIterator>::Item>;
 
@@ -569,11 +578,10 @@ where
     }
 }
 
-impl<T, OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
-    for Offset<T, false, OffsetItem, Buffer>
+impl<T, OffsetItem: OffsetElement, Buffer> IntoIterator for Offset<T, false, OffsetItem, Buffer>
 where
     T: IntoIterator,
-    <Buffer as BufferType>::Buffer<OffsetItem>: IntoIterator<Item = OffsetItem>,
+    Buffer: BufferType<Buffer<OffsetItem>: IntoIterator<Item = OffsetItem>>,
 {
     type Item = Vec<<T as IntoIterator>::Item>;
     type IntoIter = OffsetIntoIter<T, OffsetItem, Buffer>;
@@ -586,12 +594,11 @@ where
     }
 }
 
-impl<T, OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
-    for Offset<T, true, OffsetItem, Buffer>
+impl<T, OffsetItem: OffsetElement, Buffer> IntoIterator for Offset<T, true, OffsetItem, Buffer>
 where
     T: IntoIterator,
     Bitmap<Buffer>: IntoIterator<Item = bool>,
-    <Buffer as BufferType>::Buffer<OffsetItem>: IntoIterator<Item = OffsetItem>,
+    Buffer: BufferType<Buffer<OffsetItem>: IntoIterator<Item = OffsetItem>>,
 {
     type Item = Option<Vec<<T as IntoIterator>::Item>>;
     type IntoIter = Map<

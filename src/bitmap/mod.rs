@@ -160,9 +160,9 @@ impl<Buffer: BufferType> BufferRef<u8> for Bitmap<Buffer> {
     }
 }
 
-impl<Buffer: BufferType> BufferRefMut<u8> for Bitmap<Buffer>
+impl<Buffer> BufferRefMut<u8> for Bitmap<Buffer>
 where
-    <Buffer as BufferType>::Buffer<u8>: BufferMut<u8>,
+    Buffer: BufferType<Buffer<u8>: BufferMut<u8>>,
 {
     type BufferMut = <Buffer as BufferType>::Buffer<u8>;
 
@@ -171,9 +171,9 @@ where
     }
 }
 
-impl<Buffer: BufferType> Clone for Bitmap<Buffer>
+impl<Buffer> Clone for Bitmap<Buffer>
 where
-    <Buffer as BufferType>::Buffer<u8>: Clone,
+    Buffer: BufferType<Buffer<u8>: Clone>,
 {
     fn clone(&self) -> Self {
         Bitmap {
@@ -194,9 +194,9 @@ impl<Buffer: BufferType> Debug for Bitmap<Buffer> {
     }
 }
 
-impl<Buffer: BufferType> Default for Bitmap<Buffer>
+impl<Buffer> Default for Bitmap<Buffer>
 where
-    Buffer::Buffer<u8>: Default,
+    Buffer: BufferType<Buffer<u8>: Default>,
 {
     fn default() -> Self {
         Self {
@@ -207,10 +207,10 @@ where
     }
 }
 
-impl<T, Buffer: BufferType> Extend<T> for Bitmap<Buffer>
+impl<T, Buffer> Extend<T> for Bitmap<Buffer>
 where
     T: Borrow<bool>,
-    <Buffer as BufferType>::Buffer<u8>: BufferMut<u8> + Extend<u8>,
+    Buffer: BufferType<Buffer<u8>: BufferMut<u8> + Extend<u8>>,
 {
     fn extend<I>(&mut self, iter: I)
     where
@@ -239,10 +239,10 @@ where
     }
 }
 
-impl<Buffer: BufferType, T> FromIterator<T> for Bitmap<Buffer>
+impl<Buffer, T> FromIterator<T> for Bitmap<Buffer>
 where
     T: Borrow<bool>,
-    <Buffer as BufferType>::Buffer<u8>: FromIterator<u8>,
+    Buffer: BufferType<Buffer<u8>: FromIterator<u8>>,
 {
     fn from_iter<I>(iter: I) -> Self
     where
@@ -315,9 +315,9 @@ impl<'a, Buffer: BufferType> IntoIterator for &'a Bitmap<Buffer> {
     }
 }
 
-impl<Buffer: BufferType> IntoIterator for Bitmap<Buffer>
+impl<Buffer> IntoIterator for Bitmap<Buffer>
 where
-    <Buffer as BufferType>::Buffer<u8>: IntoIterator<Item = u8>,
+    Buffer: BufferType<Buffer<u8>: IntoIterator<Item = u8>>,
 {
     type Item = bool;
     type IntoIter = BitmapIntoIter<<<Buffer as BufferType>::Buffer<u8> as IntoIterator>::IntoIter>;
