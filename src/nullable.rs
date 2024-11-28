@@ -111,10 +111,9 @@ where
     }
 }
 
-impl<T: Extend<U>, U: Default, V: Borrow<bool>, Buffer: BufferType> Extend<(V, U)>
-    for Nullable<T, Buffer>
+impl<T: Extend<U>, U: Default, V: Borrow<bool>, Buffer> Extend<(V, U)> for Nullable<T, Buffer>
 where
-    <Buffer as BufferType>::Buffer<u8>: BufferMut<u8> + Extend<u8>,
+    Buffer: BufferType<Buffer<u8>: BufferMut<u8> + Extend<u8>>,
 {
     fn extend<I: IntoIterator<Item = (V, U)>>(&mut self, iter: I) {
         // https://github.com/rust-lang/rust-clippy/issues/9378
@@ -129,9 +128,9 @@ where
     }
 }
 
-impl<T: Extend<U>, U: Default, Buffer: BufferType> Extend<Option<U>> for Nullable<T, Buffer>
+impl<T: Extend<U>, U: Default, Buffer> Extend<Option<U>> for Nullable<T, Buffer>
 where
-    <Buffer as BufferType>::Buffer<u8>: BufferMut<u8> + Extend<u8>,
+    Buffer: BufferType<Buffer<u8>: BufferMut<u8> + Extend<u8>>,
 {
     fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
         self.extend(
@@ -141,11 +140,11 @@ where
     }
 }
 
-impl<'a, T, U, Buffer: BufferType> FromIterator<&'a Option<U>> for Nullable<T, Buffer>
+impl<'a, T, U, Buffer> FromIterator<&'a Option<U>> for Nullable<T, Buffer>
 where
     T: Default + Extend<U>,
     U: Copy + Default,
-    <Buffer as BufferType>::Buffer<u8>: BufferMut<u8> + Default + Extend<u8>,
+    Buffer: BufferType<Buffer<u8>: BufferMut<u8> + Default + Extend<u8>>,
 {
     fn from_iter<I: IntoIterator<Item = &'a Option<U>>>(iter: I) -> Self {
         let (validity, data) = iter
@@ -156,11 +155,11 @@ where
     }
 }
 
-impl<T, U, Buffer: BufferType> FromIterator<Option<U>> for Nullable<T, Buffer>
+impl<T, U, Buffer> FromIterator<Option<U>> for Nullable<T, Buffer>
 where
     T: Default + Extend<U>,
     U: Default,
-    <Buffer as BufferType>::Buffer<u8>: BufferMut<u8> + Default + Extend<u8>,
+    Buffer: BufferType<Buffer<u8>: BufferMut<u8> + Default + Extend<u8>>,
 {
     fn from_iter<I: IntoIterator<Item = Option<U>>>(iter: I) -> Self {
         let (validity, data) = iter
@@ -204,10 +203,10 @@ where
     }
 }
 
-impl<T, Buffer: BufferType> IntoIterator for Nullable<T, Buffer>
+impl<T, Buffer> IntoIterator for Nullable<T, Buffer>
 where
     T: IntoIterator,
-    <Buffer as BufferType>::Buffer<u8>: IntoIterator<Item = u8>,
+    Buffer: BufferType<Buffer<u8>: IntoIterator<Item = u8>>,
 {
     type Item = Option<<T as IntoIterator>::Item>;
     type IntoIter = Map<
