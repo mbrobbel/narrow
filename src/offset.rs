@@ -83,7 +83,7 @@ pub struct OffsetSlot<'a, OffsetItem: OffsetElement, Buffer: BufferType> {
     index: usize,
 }
 
-impl<'a, OffsetItem: OffsetElement, Buffer: BufferType> OffsetSlot<'a, OffsetItem, Buffer> {
+impl<OffsetItem: OffsetElement, Buffer: BufferType> OffsetSlot<'_, OffsetItem, Buffer> {
     /// Returns the position of this slot in the buffer i.e. the index.
     #[must_use]
     pub fn position(&self) -> usize {
@@ -390,8 +390,8 @@ where
 
 // TODO(mbrobbel): this is the remaining items in the iterator, maybe we want
 // this to be the original slot length?
-impl<'a, T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Length
-    for OffsetSlice<'a, T, NULLABLE, OffsetItem, Buffer>
+impl<T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Length
+    for OffsetSlice<'_, T, NULLABLE, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
 {
@@ -423,7 +423,8 @@ where
 impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Index
     for Offset<T, false, OffsetItem, Buffer>
 {
-    type Item<'a> = OffsetSlice<'a, T, false, OffsetItem, Buffer>
+    type Item<'a>
+        = OffsetSlice<'a, T, false, OffsetItem, Buffer>
     where
         Self: 'a;
 
@@ -443,7 +444,8 @@ impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Index
 impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Index
     for Offset<T, true, OffsetItem, Buffer>
 {
-    type Item<'a> = Option<OffsetSlice<'a, T, true, OffsetItem, Buffer>>
+    type Item<'a>
+        = Option<OffsetSlice<'a, T, true, OffsetItem, Buffer>>
     where
         Self: 'a;
 
