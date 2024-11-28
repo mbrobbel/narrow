@@ -117,7 +117,8 @@ where
     <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
     Offset<T, NULLABLE, OffsetItem, Buffer>: Index,
 {
-    type Item<'a> = <Offset<T, NULLABLE, OffsetItem, Buffer> as Index>::Item<'a>
+    type Item<'a>
+        = <Offset<T, NULLABLE, OffsetItem, Buffer> as Index>::Item<'a>
     where
         Self: 'a;
 

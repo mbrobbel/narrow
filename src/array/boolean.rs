@@ -131,7 +131,8 @@ where
     Bitmap<Buffer>: Validity<NULLABLE>,
     <Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Index,
 {
-    type Item<'a> = <<Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as Index>::Item<'a>
+    type Item<'a>
+        = <<Bitmap<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as Index>::Item<'a>
     where
         Self: 'a;
 

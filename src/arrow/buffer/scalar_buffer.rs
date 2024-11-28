@@ -20,7 +20,8 @@ impl<T: FixedSize> Buffer<T> for arrow_buffer::ScalarBuffer<T> {
 }
 
 impl<T: FixedSize> Index for arrow_buffer::ScalarBuffer<T> {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 

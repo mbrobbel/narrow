@@ -159,7 +159,8 @@ impl<const N: usize, T: Array, Buffer: BufferType> Index for FixedSizeListArray<
 where
     T: Index,
 {
-    type Item<'a> = [<T as Index>::Item<'a>; N]
+    type Item<'a>
+        = [<T as Index>::Item<'a>; N]
     where
         Self: 'a;
 
@@ -185,7 +186,8 @@ impl<const N: usize, T: Array, Buffer: BufferType> Index for FixedSizeListArray<
 where
     T: Index,
 {
-    type Item<'a> = Option<[<T as Index>::Item<'a>; N]>
+    type Item<'a>
+        = Option<[<T as Index>::Item<'a>; N]>
     where
         Self: 'a;
 

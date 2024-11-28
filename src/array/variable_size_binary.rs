@@ -133,7 +133,8 @@ impl<OffsetItem: OffsetElement, Buffer: BufferType> Index
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Index,
 {
-    type Item<'a> = &'a [u8]
+    type Item<'a>
+        = &'a [u8]
     where
         Self: 'a;
 
@@ -163,7 +164,8 @@ impl<OffsetItem: OffsetElement, Buffer: BufferType> Index
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Index,
 {
-    type Item<'a> = Option<&'a [u8]>
+    type Item<'a>
+        = Option<&'a [u8]>
     where
         Self: 'a;
 

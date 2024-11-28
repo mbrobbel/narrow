@@ -28,7 +28,15 @@ pub trait UnionType {
 pub struct DenseLayout;
 
 impl UnionType for DenseLayout {
-    type Array<T: UnionArrayType<VARIANTS>, const VARIANTS: usize, Buffer: BufferType, OffsetItem: OffsetElement> = DenseUnionArray<T, VARIANTS, Buffer, OffsetItem> where for<'a> i8: From<&'a T>;
+    type Array<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+    >
+        = DenseUnionArray<T, VARIANTS, Buffer, OffsetItem>
+    where
+        for<'a> i8: From<&'a T>;
 }
 
 /// The sparse union layout.
@@ -36,7 +44,15 @@ impl UnionType for DenseLayout {
 pub struct SparseLayout;
 
 impl UnionType for SparseLayout {
-    type Array<T: UnionArrayType<VARIANTS>, const VARIANTS: usize, Buffer: BufferType, OffsetItem: OffsetElement> = SparseUnionArray<T, VARIANTS, Buffer, OffsetItem> where for<'a> i8: From<&'a T>;
+    type Array<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        Buffer: BufferType,
+        OffsetItem: OffsetElement,
+    >
+        = SparseUnionArray<T, VARIANTS, Buffer, OffsetItem>
+    where
+        for<'a> i8: From<&'a T>;
 }
 
 /// Indicates that a [`UnionType`] generic is not applicable.

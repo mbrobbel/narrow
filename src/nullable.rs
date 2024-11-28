@@ -175,7 +175,8 @@ impl<T, Buffer: BufferType> Index for Nullable<T, Buffer>
 where
     T: Index,
 {
-    type Item<'a> = Option<<T as Index>::Item<'a>>
+    type Item<'a>
+        = Option<<T as Index>::Item<'a>>
     where
         Self: 'a;
 

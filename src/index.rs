@@ -50,7 +50,8 @@ pub trait Index: Length {
 }
 
 impl<T> Index for Vec<T> {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 
@@ -60,7 +61,8 @@ impl<T> Index for Vec<T> {
 }
 
 impl<T, const N: usize> Index for [T; N] {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 
@@ -70,7 +72,8 @@ impl<T, const N: usize> Index for [T; N] {
 }
 
 impl<T> Index for [T] {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 
@@ -80,7 +83,8 @@ impl<T> Index for [T] {
 }
 
 impl<T> Index for &[T] {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 
@@ -90,7 +94,8 @@ impl<T> Index for &[T] {
 }
 
 impl<T> Index for &mut [T] {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 
@@ -100,7 +105,8 @@ impl<T> Index for &mut [T] {
 }
 
 impl<T> Index for Box<[T]> {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 
@@ -110,7 +116,8 @@ impl<T> Index for Box<[T]> {
 }
 
 impl<T> Index for Rc<[T]> {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 
@@ -120,7 +127,8 @@ impl<T> Index for Rc<[T]> {
 }
 
 impl<T> Index for Arc<[T]> {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 
@@ -130,7 +138,8 @@ impl<T> Index for Arc<[T]> {
 }
 
 impl<T> Index for VecDeque<T> {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 
