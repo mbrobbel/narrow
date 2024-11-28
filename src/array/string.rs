@@ -186,7 +186,8 @@ where
 impl<OffsetItem: OffsetElement, Buffer: BufferType> Index
     for StringArray<false, OffsetItem, Buffer>
 {
-    type Item<'a> = &'a str
+    type Item<'a>
+        = &'a str
     where
         Self: 'a;
 
@@ -198,7 +199,8 @@ impl<OffsetItem: OffsetElement, Buffer: BufferType> Index
 impl<OffsetItem: OffsetElement, Buffer: BufferType> Index
     for StringArray<true, OffsetItem, Buffer>
 {
-    type Item<'a> = Option<&'a str>
+    type Item<'a>
+        = Option<&'a str>
     where
         Self: 'a;
 

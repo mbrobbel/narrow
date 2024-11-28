@@ -111,7 +111,8 @@ where
     Nulls<T>: Validity<NULLABLE>,
     <Nulls<T> as Validity<NULLABLE>>::Storage<Buffer>: Index,
 {
-    type Item<'a> = <<Nulls<T> as Validity<NULLABLE>>::Storage<Buffer> as Index>::Item<'a>
+    type Item<'a>
+        = <<Nulls<T> as Validity<NULLABLE>>::Storage<Buffer> as Index>::Item<'a>
     where
         Self: 'a;
 
@@ -223,7 +224,8 @@ impl<T: Unit> Extend<T> for Nulls<T> {
 }
 
 impl<T: Unit> Index for Nulls<T> {
-    type Item<'a> = T
+    type Item<'a>
+        = T
     where
         Self: 'a;
 

@@ -168,7 +168,11 @@ where
     <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
     <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>: Index,
 {
-    type Item<'a> = <<<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer> as Index>::Item<'a>
+    type Item<'a>
+        =
+        <<<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer> as Index>::Item<
+            'a,
+        >
     where
         Self: 'a;
 

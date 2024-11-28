@@ -265,7 +265,8 @@ where
 }
 
 impl<Buffer: BufferType> Index for Bitmap<Buffer> {
-    type Item<'a> = bool
+    type Item<'a>
+        = bool
     where
         Self: 'a;
 

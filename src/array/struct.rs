@@ -309,7 +309,7 @@ mod tests {
         type Array<Buffer: BufferType> = FooArray<'a, Buffer>;
     }
 
-    impl<'a, Buffer: BufferType> Length for FooArray<'a, Buffer>
+    impl<Buffer: BufferType> Length for FooArray<'_, Buffer>
     where
         ArrayTypeOf<u32, Buffer>: Length,
     {
