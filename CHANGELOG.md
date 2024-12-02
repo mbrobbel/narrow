@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.5](https://github.com/mbrobbel/narrow/compare/narrow-v0.11.4...narrow-v0.11.5) - 2024-12-02
+
+### Other
+
+- update Cargo.lock dependencies
+- *(deps)* bump syn from 2.0.89 to 2.0.90 ([#291](https://github.com/mbrobbel/narrow/pull/291))
+
 ## [0.11.4](https://github.com/mbrobbel/narrow/compare/narrow-v0.11.3...narrow-v0.11.4) - 2024-11-28
 
 ### Other
