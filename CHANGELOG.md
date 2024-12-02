@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.4](https://github.com/mbrobbel/narrow/compare/narrow-v0.11.3...narrow-v0.11.4) - 2024-11-28
+
+### Other
+
+- *(deps)* bump bytes from 1.8.0 to 1.9.0 ([#288](https://github.com/mbrobbel/narrow/pull/288))
+- move more bounds to the associated type position ([#289](https://github.com/mbrobbel/narrow/pull/289))
+- fix some 1.83 clippy lints ([#287](https://github.com/mbrobbel/narrow/pull/287))
+- *(deps)* bump proc-macro2 from 1.0.91 to 1.0.92 ([#283](https://github.com/mbrobbel/narrow/pull/283))
+- *(deps)* bump syn from 2.0.87 to 2.0.89 ([#284](https://github.com/mbrobbel/narrow/pull/284))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.84 to 0.5.85 ([#285](https://github.com/mbrobbel/narrow/pull/285))
+
 ## [0.11.3](https://github.com/mbrobbel/narrow/compare/narrow-v0.11.2...narrow-v0.11.3) - 2024-11-21
 
 ### Other
