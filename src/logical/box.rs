@@ -1,4 +1,4 @@
-use crate::array::ArrayType;
+use crate::{array::ArrayType, NonNullable, Nullable};
 
 use super::{LogicalArray, LogicalArrayType};
 
@@ -8,9 +8,9 @@ where
 {
     type Array<
         Buffer: crate::buffer::BufferType,
-        OffsetItem: crate::offset::OffsetElement,
+        OffsetItem: crate::offset::Offset,
         UnionLayout: crate::array::UnionType,
-    > = LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
+    > = LogicalArray<Self, NonNullable, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl<T: ArrayType<T>> ArrayType<Box<T>> for Option<Box<T>>
@@ -19,9 +19,9 @@ where
 {
     type Array<
         Buffer: crate::buffer::BufferType,
-        OffsetItem: crate::offset::OffsetElement,
+        OffsetItem: crate::offset::Offset,
         UnionLayout: crate::array::UnionType,
-    > = LogicalArray<Box<T>, true, Buffer, OffsetItem, UnionLayout>;
+    > = LogicalArray<Box<T>, Nullable, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl<T: ArrayType<T>> LogicalArrayType<Box<T>> for Box<T>
@@ -41,8 +41,8 @@ where
 
 /// An array for [`Box`] items.
 #[allow(unused)]
-pub type BoxArray<T, const NULLABLE: bool = false, Buffer = crate::buffer::VecBuffer> =
-    LogicalArray<Box<T>, NULLABLE, Buffer, crate::offset::NA, crate::array::union::NA>;
+pub type BoxArray<T, Nullable = NonNullable, Buffer = crate::buffer::VecBuffer> =
+    LogicalArray<Box<T>, Nullable, Buffer, crate::offset::NA, crate::array::union::NA>;
 
 #[cfg(test)]
 mod tests {
@@ -59,7 +59,7 @@ mod tests {
 
         let array_nullable = [Some(Box::new(1)), None]
             .into_iter()
-            .collect::<BoxArray<i32, true>>();
+            .collect::<BoxArray<i32, Nullable>>();
         assert_eq!(array_nullable.len(), 2);
         assert_eq!(array_nullable.0.len(), 2);
     }
@@ -75,7 +75,7 @@ mod tests {
         let array_nullable = input_nullable
             .clone()
             .into_iter()
-            .collect::<BoxArray<i32, true>>();
+            .collect::<BoxArray<i32, Nullable>>();
         let output_nullable = array_nullable.into_iter().collect::<Vec<_>>();
         assert_eq!(input_nullable, output_nullable.as_slice());
     }

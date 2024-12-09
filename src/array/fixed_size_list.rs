@@ -8,8 +8,8 @@ use std::{
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferMut, BufferType, VecBuffer},
-    nullable::Nullable,
-    validity::{Nullability, Validity},
+    nullability::{NonNullable, Nullability, Nullable},
+    validity::Validity,
     Index, Length,
 };
 
@@ -19,35 +19,29 @@ use super::Array;
 pub struct FixedSizeListArray<
     const N: usize,
     T: Array,
-    const NULLABLE: bool = false,
+    Nullable: Nullability = NonNullable,
     Buffer: BufferType = VecBuffer,
->(pub(crate) <T as Validity<NULLABLE>>::Storage<Buffer>)
-where
-    T: Validity<NULLABLE>;
+>(pub(crate) Nullable::Collection<T, Buffer>);
 
-impl<const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType>
-    FixedSizeListArray<N, T, NULLABLE, Buffer>
+impl<const N: usize, T: Array + Length, Nullable: Nullability, Buffer: BufferType>
+    FixedSizeListArray<N, T, Nullable, Buffer>
 where
-    T: Validity<NULLABLE>,
-    FixedSizeListArray<N, T, NULLABLE, Buffer>: Index + Length,
+    FixedSizeListArray<N, T, Nullable, Buffer>: Index + Length,
 {
     /// Returns an iterator over items in this [`FixedSizeListArray`].
-    pub fn iter(&self) -> FixedSizeListIter<'_, N, T, NULLABLE, Buffer> {
+    pub fn iter(&self) -> FixedSizeListIter<'_, N, T, Nullable, Buffer> {
         <&Self as IntoIterator>::into_iter(self)
     }
 }
 
-impl<const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType> Array
-    for FixedSizeListArray<N, T, NULLABLE, Buffer>
-where
-    T: Validity<NULLABLE>,
-    [<T as Array>::Item; N]: Nullability<NULLABLE>,
+impl<const N: usize, T: Array, Nullable: Nullability, Buffer: BufferType> Array
+    for FixedSizeListArray<N, T, Nullable, Buffer>
 {
-    type Item = <[<T as Array>::Item; N] as Nullability<NULLABLE>>::Item;
+    type Item = Nullable::Item<[<T as Array>::Item; N]>;
 }
 
 impl<const N: usize, T: Array, Buffer: BufferType> BitmapRef
-    for FixedSizeListArray<N, T, true, Buffer>
+    for FixedSizeListArray<N, T, Nullable, Buffer>
 {
     type Buffer = Buffer;
 
@@ -57,29 +51,27 @@ impl<const N: usize, T: Array, Buffer: BufferType> BitmapRef
 }
 
 impl<const N: usize, T: Array, Buffer: BufferType> BitmapRefMut
-    for FixedSizeListArray<N, T, true, Buffer>
+    for FixedSizeListArray<N, T, Nullable, Buffer>
 {
     fn bitmap_ref_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
         self.0.bitmap_ref_mut()
     }
 }
 
-impl<const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType> Clone
-    for FixedSizeListArray<N, T, NULLABLE, Buffer>
+impl<const N: usize, T: Array, Nullable: Nullability, Buffer: BufferType> Clone
+    for FixedSizeListArray<N, T, Nullable, Buffer>
 where
-    T: Validity<NULLABLE>,
-    <T as Validity<NULLABLE>>::Storage<Buffer>: Clone,
+    Nullable::Collection<T, Buffer>: Clone,
 {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType> Default
-    for FixedSizeListArray<N, T, NULLABLE, Buffer>
+impl<const N: usize, T: Array, Nullable: Nullability, Buffer: BufferType> Default
+    for FixedSizeListArray<N, T, Nullable, Buffer>
 where
-    T: Validity<NULLABLE>,
-    <T as Validity<NULLABLE>>::Storage<Buffer>: Default,
+    Nullable::Collection<T, Buffer>: Default,
 {
     fn default() -> Self {
         Self(Default::default())
@@ -87,7 +79,7 @@ where
 }
 
 impl<U, const N: usize, T: Array, Buffer: BufferType> Extend<[U; N]>
-    for FixedSizeListArray<N, T, false, Buffer>
+    for FixedSizeListArray<N, T, NonNullable, Buffer>
 where
     T: Extend<U>,
 {
@@ -97,7 +89,7 @@ where
 }
 
 impl<U, const N: usize, T: Array, Buffer: BufferType> Extend<Option<[U; N]>>
-    for FixedSizeListArray<N, T, true, Buffer>
+    for FixedSizeListArray<N, T, Nullable, Buffer>
 where
     [U; N]: Default,
     T: Extend<U>,
@@ -114,19 +106,20 @@ where
     }
 }
 
-impl<const N: usize, T: Array, Buffer: BufferType> From<FixedSizeListArray<N, T, false, Buffer>>
-    for FixedSizeListArray<N, T, true, Buffer>
+impl<const N: usize, T: Array, Buffer: BufferType>
+    From<FixedSizeListArray<N, T, NonNullable, Buffer>>
+    for FixedSizeListArray<N, T, Nullable, Buffer>
 where
     T: Length,
     Bitmap<Buffer>: FromIterator<bool>,
 {
-    fn from(value: FixedSizeListArray<N, T, false, Buffer>) -> Self {
-        Self(Nullable::from(value.0))
+    fn from(value: FixedSizeListArray<N, T, NonNullable, Buffer>) -> Self {
+        Self(Validity::from(value.0))
     }
 }
 
 impl<U, const N: usize, T: Array, Buffer: BufferType> FromIterator<[U; N]>
-    for FixedSizeListArray<N, T, false, Buffer>
+    for FixedSizeListArray<N, T, NonNullable, Buffer>
 where
     T: FromIterator<U>,
 {
@@ -136,11 +129,11 @@ where
 }
 
 impl<U, const N: usize, T: Array, Buffer: BufferType> FromIterator<Option<[U; N]>>
-    for FixedSizeListArray<N, T, true, Buffer>
+    for FixedSizeListArray<N, T, Nullable, Buffer>
 where
     [U; N]: Default,
     T: FromIterator<U>,
-    <Buffer as BufferType>::Buffer<u8>: Default + BufferMut<u8> + Extend<u8>,
+    Buffer::Buffer<u8>: Default + BufferMut<u8> + Extend<u8>,
 {
     fn from_iter<I: IntoIterator<Item = Option<[U; N]>>>(iter: I) -> Self {
         let mut validity = Bitmap::default();
@@ -151,11 +144,12 @@ where
             })
             .flat_map(Option::unwrap_or_default)
             .collect();
-        Self(Nullable { data, validity })
+        Self(Validity { data, validity })
     }
 }
 
-impl<const N: usize, T: Array, Buffer: BufferType> Index for FixedSizeListArray<N, T, false, Buffer>
+impl<const N: usize, T: Array, Buffer: BufferType> Index
+    for FixedSizeListArray<N, T, NonNullable, Buffer>
 where
     T: Index,
 {
@@ -182,7 +176,8 @@ where
     }
 }
 
-impl<const N: usize, T: Array, Buffer: BufferType> Index for FixedSizeListArray<N, T, true, Buffer>
+impl<const N: usize, T: Array, Buffer: BufferType> Index
+    for FixedSizeListArray<N, T, Nullable, Buffer>
 where
     T: Index,
 {
@@ -213,23 +208,25 @@ where
 }
 
 /// An iterator over fixed-size lists in a [`FixedSizeListArray`].
-pub struct FixedSizeListIter<'a, const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType>
-where
-    T: Validity<NULLABLE>,
-{
+pub struct FixedSizeListIter<
+    'a,
+    const N: usize,
+    T: Array,
+    Nullable: Nullability,
+    Buffer: BufferType,
+> {
     /// Reference to the array.
-    array: &'a FixedSizeListArray<N, T, NULLABLE, Buffer>,
+    array: &'a FixedSizeListArray<N, T, Nullable, Buffer>,
     /// Current index.
     index: usize,
 }
 
-impl<'a, const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType> Iterator
-    for FixedSizeListIter<'a, N, T, NULLABLE, Buffer>
+impl<'a, const N: usize, T: Array, Nullable: Nullability, Buffer: BufferType> Iterator
+    for FixedSizeListIter<'a, N, T, Nullable, Buffer>
 where
-    T: Validity<NULLABLE>,
-    FixedSizeListArray<N, T, NULLABLE, Buffer>: Length + Index,
+    FixedSizeListArray<N, T, Nullable, Buffer>: Length + Index,
 {
-    type Item = <FixedSizeListArray<N, T, NULLABLE, Buffer> as Index>::Item<'a>;
+    type Item = <FixedSizeListArray<N, T, Nullable, Buffer> as Index>::Item<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.array
@@ -242,14 +239,13 @@ where
     }
 }
 
-impl<'a, const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType> IntoIterator
-    for &'a FixedSizeListArray<N, T, NULLABLE, Buffer>
+impl<'a, const N: usize, T: Array, Nullable: Nullability, Buffer: BufferType> IntoIterator
+    for &'a FixedSizeListArray<N, T, Nullable, Buffer>
 where
-    FixedSizeListArray<N, T, NULLABLE, Buffer>: Index + Length,
-    T: Validity<NULLABLE>,
+    FixedSizeListArray<N, T, Nullable, Buffer>: Index + Length,
 {
-    type Item = <FixedSizeListArray<N, T, NULLABLE, Buffer> as Index>::Item<'a>;
-    type IntoIter = FixedSizeListIter<'a, N, T, NULLABLE, Buffer>;
+    type Item = <FixedSizeListArray<N, T, Nullable, Buffer> as Index>::Item<'a>;
+    type IntoIter = FixedSizeListIter<'a, N, T, Nullable, Buffer>;
 
     fn into_iter(self) -> Self::IntoIter {
         FixedSizeListIter {
@@ -315,7 +311,7 @@ impl<const N: usize, I: Iterator> Iterator for FixedSizeArrayChunks<N, I> {
 }
 
 impl<const N: usize, T: Array, Buffer: BufferType> IntoIterator
-    for FixedSizeListArray<N, T, false, Buffer>
+    for FixedSizeListArray<N, T, NonNullable, Buffer>
 where
     T: IntoIterator,
     FixedSizeArrayChunks<N, <T as IntoIterator>::IntoIter>:
@@ -330,7 +326,7 @@ where
 }
 
 impl<const N: usize, T: Array, Buffer: BufferType> IntoIterator
-    for FixedSizeListArray<N, T, true, Buffer>
+    for FixedSizeListArray<N, T, Nullable, Buffer>
 where
     T: IntoIterator,
     Bitmap<Buffer>: IntoIterator<Item = bool>,
@@ -355,14 +351,13 @@ where
     }
 }
 
-impl<const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType> Length
-    for FixedSizeListArray<N, T, NULLABLE, Buffer>
+impl<const N: usize, T: Array, Nullable: Nullability, Buffer: BufferType> Length
+    for FixedSizeListArray<N, T, Nullable, Buffer>
 where
-    T: Validity<NULLABLE>,
-    <T as Validity<NULLABLE>>::Storage<Buffer>: Length,
+    Nullable::Collection<T, Buffer>: Length,
 {
     fn len(&self) -> usize {
-        if NULLABLE {
+        if Nullable::NULLABLE {
             // This uses the length of the validity bitmap
             self.0.len()
         } else {
@@ -372,7 +367,7 @@ where
 }
 
 impl<const N: usize, T: Array, Buffer: BufferType> ValidityBitmap
-    for FixedSizeListArray<N, T, true, Buffer>
+    for FixedSizeListArray<N, T, Nullable, Buffer>
 {
 }
 
@@ -396,7 +391,7 @@ mod tests {
             let input_inner_nullable = [[Some(1_u8), None], [Some(3), None]];
             let array_inner_nullable = input_inner_nullable
                 .into_iter()
-                .collect::<FixedSizeListArray<2, FixedSizePrimitiveArray<u8, true>, false>>();
+                .collect::<FixedSizeListArray<2, FixedSizePrimitiveArray<u8, Nullable>, NonNullable>>();
             assert_eq!(array_inner_nullable.len(), 2);
             assert_eq!(
                 array_inner_nullable.into_iter().collect::<Vec<_>>(),
@@ -408,7 +403,7 @@ mod tests {
             let input_outer_nullable = [Some([1_u8, 1_u8]), Some([1_u8, 1_u8]), None];
             let array_outer_nullable = input_outer_nullable
                 .into_iter()
-                .collect::<FixedSizeListArray<2, FixedSizePrimitiveArray<u8, false>, true>>();
+                .collect::<FixedSizeListArray<2, FixedSizePrimitiveArray<u8, NonNullable>, Nullable>>();
             assert_eq!(array_outer_nullable.len(), 3);
             assert_eq!(
                 array_outer_nullable.into_iter().collect::<Vec<_>>(),
@@ -420,7 +415,8 @@ mod tests {
             let input_both_nullable = [Some([Some(1_u8), None]), None];
             let array_both_nullable = input_both_nullable
                 .into_iter()
-                .collect::<FixedSizeListArray<2, FixedSizePrimitiveArray<u8, true>, true>>();
+                .collect::<FixedSizeListArray<2, FixedSizePrimitiveArray<u8, Nullable>, Nullable>>(
+                );
             assert_eq!(array_both_nullable.len(), 2);
             assert_eq!(
                 array_both_nullable.into_iter().collect::<Vec<_>>(),
@@ -443,8 +439,8 @@ mod tests {
                 .into_iter()
                 .collect::<FixedSizeListArray<
                 2,
-                FixedSizeListArray<3, FixedSizePrimitiveArray<u8, true>, false>,
-                false,
+                FixedSizeListArray<3, FixedSizePrimitiveArray<u8, Nullable>, NonNullable>,
+                NonNullable,
             >>();
             assert_eq!(array_nested_innermost_nullable.len(), 2);
             assert_eq!(
@@ -475,8 +471,8 @@ mod tests {
                 .into_iter()
                 .collect::<FixedSizeListArray<
                     4,
-                    FixedSizeListArray<3, FixedSizePrimitiveArray<u8, true>, true>,
-                    true,
+                    FixedSizeListArray<3, FixedSizePrimitiveArray<u8, Nullable>, Nullable>,
+                    Nullable,
                 >>();
             assert_eq!(array_nested_all_nullable.len(), 3);
             assert_eq!(
@@ -520,13 +516,14 @@ mod tests {
                     Some([Some("its".to_owned()), None, Some("me".to_owned())]),
                 ]),
             ];
-            let array_string_nested_all_nullable = input_string_nested_all_nullable.clone()
+            let array_string_nested_all_nullable = input_string_nested_all_nullable
+                .clone()
                 .into_iter()
                 .collect::<FixedSizeListArray<
-                4,
-                FixedSizeListArray<3, StringArray<true>, true>,
-                true,
-            >>();
+                    4,
+                    FixedSizeListArray<3, StringArray<Nullable>, Nullable>,
+                    Nullable,
+                >>();
             assert_eq!(array_string_nested_all_nullable.len(), 3);
             assert_eq!(
                 array_string_nested_all_nullable
@@ -557,8 +554,12 @@ mod tests {
                 .into_iter()
                 .collect::<FixedSizeListArray<
                 4,
-                FixedSizeListArray<3, FixedSizeListArray<1, StringArray<false>, true>, true>,
-                true,
+                FixedSizeListArray<
+                    3,
+                    FixedSizeListArray<1, StringArray<NonNullable>, Nullable>,
+                    Nullable,
+                >,
+                Nullable,
             >>();
             assert_eq!(array_string_even_more_nested.len(), 3);
             assert_eq!(
@@ -589,7 +590,7 @@ mod tests {
         let input_nullable_string = [Some(["hello", "world"]), None];
         let array_nullable_string = input_nullable_string
             .into_iter()
-            .collect::<FixedSizeListArray<2, StringArray, true>>();
+            .collect::<FixedSizeListArray<2, StringArray, Nullable>>();
         assert_eq!(
             array_nullable_string.index(0),
             Some(Some(["hello", "world"]))
@@ -604,7 +605,7 @@ mod tests {
         ];
         let array_nullable_string_nullable = input_nullable_string_nullable
             .into_iter()
-            .collect::<FixedSizeListArray<2, StringArray<true>, true>>(
+            .collect::<FixedSizeListArray<2, StringArray<Nullable>, Nullable>>(
         );
         assert_eq!(
             array_nullable_string_nullable.index(0),
@@ -662,7 +663,7 @@ mod tests {
         let array_nullable_string = input_nullable_string
             .clone()
             .into_iter()
-            .collect::<FixedSizeListArray<2, StringArray, true>>();
+            .collect::<FixedSizeListArray<2, StringArray, Nullable>>();
         assert_eq!(
             array_nullable_string.into_iter().collect::<Vec<_>>(),
             input_nullable_string
@@ -678,7 +679,7 @@ mod tests {
         let array_nullable_string_nullable = input_nullable_string_nullable
             .clone()
             .into_iter()
-            .collect::<FixedSizeListArray<2, StringArray<true>, true>>(
+            .collect::<FixedSizeListArray<2, StringArray<Nullable>, Nullable>>(
         );
         assert_eq!(
             array_nullable_string_nullable

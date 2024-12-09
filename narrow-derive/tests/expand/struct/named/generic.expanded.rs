@@ -11,9 +11,9 @@ where
 {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Foo<'a, T>, false, Buffer>;
+    > = narrow::array::StructArray<Foo<'a, T>, narrow::NonNullable, Buffer>;
 }
 impl<'a, T: narrow::array::ArrayType<T>> narrow::array::ArrayType<Foo<'a, T>>
 for ::std::option::Option<Foo<'a, T>>
@@ -22,9 +22,9 @@ where
 {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Foo<'a, T>, true, Buffer>;
+    > = narrow::array::StructArray<Foo<'a, T>, narrow::Nullable, Buffer>;
 }
 impl<'a, T: narrow::array::ArrayType<T>> narrow::array::StructArrayType for Foo<'a, T>
 where

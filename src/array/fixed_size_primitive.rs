@@ -4,8 +4,8 @@ use super::Array;
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{Buffer, BufferType, VecBuffer},
-    nullable::Nullable,
-    validity::{Nullability, Validity},
+    nullability::{NonNullable, Nullability, Nullable},
+    validity::Validity,
     FixedSize, Index, Length,
 };
 use std::{
@@ -17,11 +17,9 @@ use std::{
 /// Array with primitive values.
 pub struct FixedSizePrimitiveArray<
     T: FixedSize,
-    const NULLABLE: bool = false,
+    Nullable: Nullability = NonNullable,
     Buffer: BufferType = VecBuffer,
->(pub <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>)
-where
-    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>;
+>(pub Nullable::Collection<Buffer::Buffer<T>, Buffer>);
 
 /// Generates type definitions for fixed-size primitive arrays with the known fixed-size types.
 macro_rules! type_def {
@@ -29,8 +27,8 @@ macro_rules! type_def {
         #[doc = "Array with ["]
         #[doc = stringify!($ty)]
         #[doc = "] values."]
-        pub type $ident<const NULLABLE: bool = false, Buffer = VecBuffer> =
-            FixedSizePrimitiveArray<$ty, NULLABLE, Buffer>;
+        pub type $ident<Nullable = NonNullable, Buffer = VecBuffer> =
+            FixedSizePrimitiveArray<$ty, Nullable, Buffer>;
     };
 }
 
@@ -53,51 +51,48 @@ type_def!(UsizeArray, usize);
 type_def!(Float32Array, f32);
 type_def!(Float64Array, f64);
 
-impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType>
-    FixedSizePrimitiveArray<T, NULLABLE, Buffer>
+impl<T: FixedSize, Nullable: Nullability, Buffer: BufferType>
+    FixedSizePrimitiveArray<T, Nullable, Buffer>
 where
-    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
-    for<'a> &'a <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>:
-        IntoIterator,
+    for<'a> &'a Nullable::Collection<Buffer::Buffer<T>, Buffer>: IntoIterator,
 {
     /// Returns an iterator over the items in this [`FixedSizePrimitiveArray`].
-    pub fn iter(&self) -> <&'_ <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer> as IntoIterator>::IntoIter{
+    pub fn iter(
+        &self,
+    ) -> <&'_ Nullable::Collection<Buffer::Buffer<T>, Buffer> as IntoIterator>::IntoIter {
         <&Self as IntoIterator>::into_iter(self)
     }
 }
 
-impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType> Array
-    for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
-where
-    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
-    T: Nullability<NULLABLE>,
+impl<T: FixedSize, Nullable: Nullability, Buffer: BufferType> Array
+    for FixedSizePrimitiveArray<T, Nullable, Buffer>
 {
-    type Item = <T as Nullability<NULLABLE>>::Item;
+    type Item = Nullable::Item<T>;
 }
 
 // todo(mbrobbel): buffer_ref traits?
-impl<T: FixedSize, Buffer: BufferType> AsRef<[T]> for FixedSizePrimitiveArray<T, false, Buffer> {
+impl<T: FixedSize, Buffer: BufferType> AsRef<[T]>
+    for FixedSizePrimitiveArray<T, NonNullable, Buffer>
+{
     fn as_ref(&self) -> &[T] {
         self.0.as_slice()
     }
 }
 
-impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType> Clone
-    for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
+impl<T: FixedSize, Nullable: Nullability, Buffer: BufferType> Clone
+    for FixedSizePrimitiveArray<T, Nullable, Buffer>
 where
-    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
-    <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>: Clone,
+    Nullable::Collection<Buffer::Buffer<T>, Buffer>: Clone,
 {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType> Debug
-    for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
+impl<T: FixedSize, Nullable: Nullability, Buffer: BufferType> Debug
+    for FixedSizePrimitiveArray<T, Nullable, Buffer>
 where
-    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
-    <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>: Debug,
+    Nullable::Collection<Buffer::Buffer<T>, Buffer>: Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         f.debug_tuple("FixedSizePrimitiveArray")
@@ -106,44 +101,41 @@ where
     }
 }
 
-impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType> Default
-    for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
+impl<T: FixedSize, Nullable: Nullability, Buffer: BufferType> Default
+    for FixedSizePrimitiveArray<T, Nullable, Buffer>
 where
-    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
-    <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>: Default,
+    Nullable::Collection<Buffer::Buffer<T>, Buffer>: Default,
 {
     fn default() -> Self {
         Self(Default::default())
     }
 }
 
-impl<T: FixedSize, U, const NULLABLE: bool, Buffer: BufferType> Extend<U>
-    for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
+impl<T: FixedSize, U, Nullable: Nullability, Buffer: BufferType> Extend<U>
+    for FixedSizePrimitiveArray<T, Nullable, Buffer>
 where
-    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
-    <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>: Extend<U>,
+    Nullable::Collection<Buffer::Buffer<T>, Buffer>: Extend<U>,
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
         self.0.extend(iter);
     }
 }
 
-impl<T: FixedSize, Buffer: BufferType> From<FixedSizePrimitiveArray<T, false, Buffer>>
-    for FixedSizePrimitiveArray<T, true, Buffer>
+impl<T: FixedSize, Buffer: BufferType> From<FixedSizePrimitiveArray<T, NonNullable, Buffer>>
+    for FixedSizePrimitiveArray<T, Nullable, Buffer>
 where
-    <Buffer as BufferType>::Buffer<T>: Length,
+    Buffer::Buffer<T>: Length,
     Bitmap<Buffer>: FromIterator<bool>,
 {
-    fn from(value: FixedSizePrimitiveArray<T, false, Buffer>) -> Self {
-        Self(Nullable::from(value.0))
+    fn from(value: FixedSizePrimitiveArray<T, NonNullable, Buffer>) -> Self {
+        Self(Validity::from(value.0))
     }
 }
 
-impl<T: FixedSize, const NULLABLE: bool, U, Buffer: BufferType> FromIterator<U>
-    for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
+impl<T: FixedSize, Nullable: Nullability, U, Buffer: BufferType> FromIterator<U>
+    for FixedSizePrimitiveArray<T, Nullable, Buffer>
 where
-    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
-    <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>: FromIterator<U>,
+    Nullable::Collection<Buffer::Buffer<T>, Buffer>: FromIterator<U>,
 {
     fn from_iter<I: IntoIterator<Item = U>>(iter: I) -> Self {
         Self(iter.into_iter().collect())
@@ -151,9 +143,9 @@ where
 }
 
 impl<T: FixedSize, I: SliceIndex<[T]>, Buffer: BufferType> ops::Index<I>
-    for FixedSizePrimitiveArray<T, false, Buffer>
+    for FixedSizePrimitiveArray<T, NonNullable, Buffer>
 where
-    <Buffer as BufferType>::Buffer<T>: ops::Index<I, Output = <I as SliceIndex<[T]>>::Output>,
+    Buffer::Buffer<T>: ops::Index<I, Output = <I as SliceIndex<[T]>>::Output>,
 {
     type Output = <I as SliceIndex<[T]>>::Output;
 
@@ -162,17 +154,13 @@ where
     }
 }
 
-impl<T: FixedSize, Buffer: BufferType, const NULLABLE: bool> Index
-    for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
+impl<T: FixedSize, Nullable: Nullability, Buffer: BufferType> Index
+    for FixedSizePrimitiveArray<T, Nullable, Buffer>
 where
-    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
-    <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>: Index,
+    Nullable::Collection<Buffer::Buffer<T>, Buffer>: Index,
 {
     type Item<'a>
-        =
-        <<<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer> as Index>::Item<
-            'a,
-        >
+        = <Nullable::Collection<Buffer::Buffer<T>, Buffer> as Index>::Item<'a>
     where
         Self: 'a;
 
@@ -181,39 +169,36 @@ where
     }
 }
 
-impl<'a, T: FixedSize, const NULLABLE: bool, Buffer: BufferType> IntoIterator
-    for &'a FixedSizePrimitiveArray<T, NULLABLE, Buffer>
+impl<'a, T: FixedSize, Nullable: Nullability, Buffer: BufferType> IntoIterator
+    for &'a FixedSizePrimitiveArray<T, Nullable, Buffer>
 where
-    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
-    &'a <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>: IntoIterator,
+    &'a Nullable::Collection<Buffer::Buffer<T>, Buffer>: IntoIterator,
 {
-    type Item = <&'a <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer> as IntoIterator>::Item;
-    type IntoIter = <&'a <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer> as IntoIterator>::IntoIter;
+    type Item = <&'a Nullable::Collection<Buffer::Buffer<T>, Buffer> as IntoIterator>::Item;
+    type IntoIter = <&'a Nullable::Collection<Buffer::Buffer<T>, Buffer> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }
 }
 
-impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType> IntoIterator
-    for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
+impl<T: FixedSize, Nullable: Nullability, Buffer: BufferType> IntoIterator
+    for FixedSizePrimitiveArray<T, Nullable, Buffer>
 where
-    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
-    <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>: IntoIterator,
+    Nullable::Collection<Buffer::Buffer<T>, Buffer>: IntoIterator,
 {
-    type Item = <<<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer> as IntoIterator>::Item;
-    type IntoIter = <<<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer> as IntoIterator>::IntoIter;
+    type Item = <Nullable::Collection<Buffer::Buffer<T>, Buffer> as IntoIterator>::Item;
+    type IntoIter = <Nullable::Collection<Buffer::Buffer<T>, Buffer> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }
 }
 
-impl<T: FixedSize, const NULLABLE: bool, Buffer: BufferType> Length
-    for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
+impl<T: FixedSize, Nullable: Nullability, Buffer: BufferType> Length
+    for FixedSizePrimitiveArray<T, Nullable, Buffer>
 where
-    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
-    <<Buffer as BufferType>::Buffer<T> as Validity<NULLABLE>>::Storage<Buffer>: Length,
+    Nullable::Collection<Buffer::Buffer<T>, Buffer>: Length,
 {
     #[inline]
     fn len(&self) -> usize {
@@ -221,7 +206,7 @@ where
     }
 }
 
-impl<T: FixedSize, Buffer: BufferType> BitmapRef for FixedSizePrimitiveArray<T, true, Buffer> {
+impl<T: FixedSize, Buffer: BufferType> BitmapRef for FixedSizePrimitiveArray<T, Nullable, Buffer> {
     type Buffer = Buffer;
 
     fn bitmap_ref(&self) -> &Bitmap<Self::Buffer> {
@@ -229,19 +214,24 @@ impl<T: FixedSize, Buffer: BufferType> BitmapRef for FixedSizePrimitiveArray<T, 
     }
 }
 
-impl<T: FixedSize, Buffer: BufferType> BitmapRefMut for FixedSizePrimitiveArray<T, true, Buffer> {
+impl<T: FixedSize, Buffer: BufferType> BitmapRefMut
+    for FixedSizePrimitiveArray<T, Nullable, Buffer>
+{
     fn bitmap_ref_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
         self.0.bitmap_ref_mut()
     }
 }
 
-impl<T: FixedSize, Buffer: BufferType> PartialEq for FixedSizePrimitiveArray<T, false, Buffer> {
+impl<T: FixedSize, Buffer: BufferType> PartialEq
+    for FixedSizePrimitiveArray<T, NonNullable, Buffer>
+{
     fn eq(&self, _other: &Self) -> bool {
         todo!()
     }
 }
 
-impl<T: FixedSize, Buffer: BufferType> PartialEq<[T]> for FixedSizePrimitiveArray<T, false, Buffer>
+impl<T: FixedSize, Buffer: BufferType> PartialEq<[T]>
+    for FixedSizePrimitiveArray<T, NonNullable, Buffer>
 where
     <Buffer as BufferType>::Buffer<T>: PartialEq<[T]>,
 {
@@ -251,7 +241,7 @@ where
 }
 
 impl<T: FixedSize, Buffer: BufferType> PartialEq<[Option<T>]>
-    for FixedSizePrimitiveArray<T, true, Buffer>
+    for FixedSizePrimitiveArray<T, Nullable, Buffer>
 where
     for<'a> &'a Self: IntoIterator<Item = Option<T>>,
 {
@@ -260,7 +250,10 @@ where
     }
 }
 
-impl<T: FixedSize, Buffer: BufferType> ValidityBitmap for FixedSizePrimitiveArray<T, true, Buffer> {}
+impl<T: FixedSize, Buffer: BufferType> ValidityBitmap
+    for FixedSizePrimitiveArray<T, Nullable, Buffer>
+{
+}
 
 #[cfg(test)]
 mod tests {
@@ -289,7 +282,9 @@ mod tests {
     #[test]
     fn from_iter_nullable() {
         let input = [Some(1_u64), None, Some(3), Some(4)];
-        let array = input.iter().collect::<FixedSizePrimitiveArray<_, true>>();
+        let array = input
+            .iter()
+            .collect::<FixedSizePrimitiveArray<_, Nullable>>();
         assert_eq!(array.0.buffer_ref().as_slice(), &[1, u64::default(), 3, 4]);
         assert_eq!(array.is_valid(0), Some(true));
         assert_eq!(array.is_null(1), Some(true));
@@ -317,7 +312,9 @@ mod tests {
     #[test]
     fn into_iter_nullable() {
         let input = [Some(1_u64), None, Some(3), Some(4)];
-        let array = input.iter().collect::<FixedSizePrimitiveArray<_, true>>();
+        let array = input
+            .iter()
+            .collect::<FixedSizePrimitiveArray<_, Nullable>>();
         assert_eq!(array.into_iter().collect::<Vec<_>>(), input);
     }
 
@@ -339,7 +336,7 @@ mod tests {
         let input_nullable = [Some(1_u64), None, Some(3), Some(4)];
         let array_nullable = input_nullable
             .iter()
-            .collect::<FixedSizePrimitiveArray<_, true>>();
+            .collect::<FixedSizePrimitiveArray<_, Nullable>>();
         assert_eq!(array_nullable.len(), input_nullable.len());
     }
 
@@ -347,7 +344,7 @@ mod tests {
     fn convert_nullable() {
         let input = [1, 2, 3, 4];
         let array = input.into_iter().collect::<FixedSizePrimitiveArray<_>>();
-        let mut nullable: FixedSizePrimitiveArray<_, true> = array.into();
+        let mut nullable: FixedSizePrimitiveArray<_, Nullable> = array.into();
         nullable.bitmap_ref_mut().buffer_ref_mut().as_mut_slice()[0] = 0b0000_1101;
         assert_eq!(
             nullable.into_iter().collect::<Vec<_>>(),
@@ -366,7 +363,7 @@ mod tests {
 
         let nullable = [Some(1), None, Some(3), Some(4)]
             .into_iter()
-            .collect::<FixedSizePrimitiveArray<_, true>>();
+            .collect::<FixedSizePrimitiveArray<_, Nullable>>();
         assert_eq!(nullable.index_checked(1), None);
         assert_eq!(nullable.index_checked(3), Some(&4));
     }
@@ -375,7 +372,7 @@ mod tests {
     fn size_of() {
         assert_eq!(mem::size_of::<Int8Array>(), mem::size_of::<Vec<i8>>());
         assert_eq!(
-            std::mem::size_of::<Int8Array<true>>(),
+            std::mem::size_of::<Int8Array<Nullable>>(),
             mem::size_of::<Int8Array>() + mem::size_of::<Bitmap>()
         );
     }

@@ -4,8 +4,8 @@ use std::iter;
 
 use crate::{
     buffer::{BufferType, VecBuffer},
-    offset::{self, OffsetElement},
-    Length,
+    offset::{self, Offset},
+    Length, NonNullable,
 };
 
 use super::{Array, ArrayType, Int32Array, Int8Array};
@@ -17,7 +17,7 @@ pub trait UnionType {
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     >
     where
         for<'a> i8: From<&'a T>;
@@ -32,7 +32,7 @@ impl UnionType for DenseLayout {
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     >
         = DenseUnionArray<T, VARIANTS, Buffer, OffsetItem>
     where
@@ -48,7 +48,7 @@ impl UnionType for SparseLayout {
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     >
         = SparseUnionArray<T, VARIANTS, Buffer, OffsetItem>
     where
@@ -74,7 +74,7 @@ where
     const VARIANTS: usize = VARIANTS;
 
     /// The array type storing the variants of the union array.
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType>;
+    type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType>;
 }
 
 /// The array data for enum variants stored in union array wrappers.
@@ -98,8 +98,8 @@ pub struct UnionArray<
     const VARIANTS: usize,
     UnionLayout: UnionType = DenseLayout,
     Buffer: BufferType = VecBuffer,
-    OffsetItem: OffsetElement = offset::NA,
->(pub(crate) <UnionLayout as UnionType>::Array<T, VARIANTS, Buffer, OffsetItem>)
+    OffsetItem: Offset = offset::NA,
+>(pub(crate) UnionLayout::Array<T, VARIANTS, Buffer, OffsetItem>)
 where
     for<'a> i8: From<&'a T>;
 
@@ -108,7 +108,7 @@ impl<
         const VARIANTS: usize,
         UnionLayout: UnionType,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > Array for UnionArray<T, VARIANTS, UnionLayout, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
@@ -121,11 +121,11 @@ impl<
         const VARIANTS: usize,
         UnionLayout: UnionType,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > Clone for UnionArray<T, VARIANTS, UnionLayout, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
-    <UnionLayout as UnionType>::Array<T, VARIANTS, Buffer, OffsetItem>: Clone,
+    UnionLayout::Array<T, VARIANTS, Buffer, OffsetItem>: Clone,
 {
     fn clone(&self) -> Self {
         Self(self.0.clone())
@@ -137,11 +137,11 @@ impl<
         const VARIANTS: usize,
         UnionLayout: UnionType,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > Default for UnionArray<T, VARIANTS, UnionLayout, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
-    <UnionLayout as UnionType>::Array<T, VARIANTS, Buffer, OffsetItem>: Default,
+    UnionLayout::Array<T, VARIANTS, Buffer, OffsetItem>: Default,
 {
     fn default() -> Self {
         Self(Default::default())
@@ -153,7 +153,7 @@ impl<
         const VARIANTS: usize,
         UnionLayout: UnionType,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > Extend<T> for UnionArray<T, VARIANTS, UnionLayout, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
@@ -169,7 +169,7 @@ impl<
         const VARIANTS: usize,
         UnionLayout: UnionType,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > Length for UnionArray<T, VARIANTS, UnionLayout, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
@@ -185,11 +185,11 @@ impl<
         const VARIANTS: usize,
         UnionLayout: UnionType,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > FromIterator<T> for UnionArray<T, VARIANTS, UnionLayout, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
-    OffsetItem: OffsetElement,
+    OffsetItem: Offset,
     <UnionLayout as UnionType>::Array<T, VARIANTS, Buffer, OffsetItem>: FromIterator<T>,
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
@@ -202,29 +202,29 @@ pub struct DenseUnionArray<
     T: UnionArrayType<VARIANTS>,
     const VARIANTS: usize,
     Buffer: BufferType = VecBuffer,
-    OffsetItem: OffsetElement = i32,
+    OffsetItem: Offset = i32,
 > where
     for<'a> i8: From<&'a T>,
 {
     /// The data for the variants
     pub variants: <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, DenseLayout>,
     /// The types field encodes the variants
-    pub types: Int8Array<false, Buffer>,
+    pub types: Int8Array<NonNullable, Buffer>,
     /// The offsets in the variant arrays
-    pub offsets: Int32Array<false, Buffer>,
+    pub offsets: Int32Array<NonNullable, Buffer>,
 }
 
 impl<
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > Clone for DenseUnionArray<T, VARIANTS, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
     <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, DenseLayout>: Clone,
-    Int8Array<false, Buffer>: Clone,
-    Int32Array<false, Buffer>: Clone,
+    Int8Array<NonNullable, Buffer>: Clone,
+    Int32Array<NonNullable, Buffer>: Clone,
 {
     fn clone(&self) -> Self {
         Self {
@@ -239,13 +239,13 @@ impl<
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > Default for DenseUnionArray<T, VARIANTS, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
     <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, DenseLayout>: Default,
-    Int8Array<false, Buffer>: Default,
-    Int32Array<false, Buffer>: Default,
+    Int8Array<NonNullable, Buffer>: Default,
+    Int32Array<NonNullable, Buffer>: Default,
 {
     fn default() -> Self {
         Self {
@@ -260,7 +260,7 @@ impl<
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > Length for DenseUnionArray<T, VARIANTS, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
@@ -274,7 +274,7 @@ impl<
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > FromIterator<T> for DenseUnionArray<T, VARIANTS, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
@@ -310,26 +310,26 @@ pub struct SparseUnionArray<
     T: UnionArrayType<VARIANTS>,
     const VARIANTS: usize,
     Buffer: BufferType = VecBuffer,
-    OffsetItem: OffsetElement = i32,
+    OffsetItem: Offset = i32,
 > where
     for<'a> i8: From<&'a T>,
 {
     /// The data for the variants
     pub variants: <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, SparseLayout>,
     /// The types field encodes the variants
-    pub types: Int8Array<false, Buffer>,
+    pub types: Int8Array<NonNullable, Buffer>,
 }
 
 impl<
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > Clone for SparseUnionArray<T, VARIANTS, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
     <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, SparseLayout>: Clone,
-    Int8Array<false, Buffer>: Clone,
+    Int8Array<NonNullable, Buffer>: Clone,
 {
     fn clone(&self) -> Self {
         Self {
@@ -343,12 +343,12 @@ impl<
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > Default for SparseUnionArray<T, VARIANTS, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
     <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, SparseLayout>: Default,
-    Int8Array<false, Buffer>: Default,
+    Int8Array<NonNullable, Buffer>: Default,
 {
     fn default() -> Self {
         Self {
@@ -362,12 +362,12 @@ impl<
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > Extend<T> for SparseUnionArray<T, VARIANTS, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
     <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, SparseLayout>: Extend<T>,
-    Int8Array<false, Buffer>: Extend<i8>,
+    Int8Array<NonNullable, Buffer>: Extend<i8>,
 {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         iter.into_iter().for_each(|item| {
@@ -381,7 +381,7 @@ impl<
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > Length for SparseUnionArray<T, VARIANTS, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
@@ -395,7 +395,7 @@ impl<
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > FromIterator<T> for SparseUnionArray<T, VARIANTS, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
@@ -445,7 +445,7 @@ pub struct UnionArrayIntoIter<
     T: UnionArrayType<VARIANTS>,
     const VARIANTS: usize,
     Buffer: BufferType,
-    OffsetItem: OffsetElement,
+    OffsetItem: Offset,
     UnionLayout: UnionType,
 > where
     for<'a> i8: From<&'a T>,
@@ -453,7 +453,7 @@ pub struct UnionArrayIntoIter<
     <Buffer as BufferType>::Buffer<i8>: IntoIterator<Item = i8>,
 {
     /// Type ids of the items in the union array
-    type_ids: <Int8Array<false, Buffer> as IntoIterator>::IntoIter,
+    type_ids: <Int8Array<NonNullable, Buffer> as IntoIterator>::IntoIter,
 
     /// Iterators of variants that may be advanced to get items for a type id
     variant_iterators: VarIters<T, VARIANTS, Buffer, OffsetItem, UnionLayout>,
@@ -463,7 +463,7 @@ impl<
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
         UnionLayout: UnionType,
     > Iterator for UnionArrayIntoIter<T, VARIANTS, Buffer, OffsetItem, UnionLayout>
 where
@@ -487,7 +487,7 @@ impl<
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > IntoIterator for UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
@@ -510,7 +510,7 @@ impl<
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > IntoIterator for UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
@@ -546,15 +546,15 @@ mod tests {
         }
 
         struct FooArray<Buffer: BufferType, UnionLayout: UnionType> {
-            bar: Int32Array<false, Buffer>,
-            baz: Uint32Array<false, Buffer>,
+            bar: Int32Array<NonNullable, Buffer>,
+            baz: Uint32Array<NonNullable, Buffer>,
             _ty: PhantomData<UnionLayout>, // we can also use a const generic instead?
         }
 
         impl<Buffer: BufferType, UnionLayout: UnionType> Default for FooArray<Buffer, UnionLayout>
         where
-            Int32Array<false, Buffer>: Default,
-            Uint32Array<false, Buffer>: Default,
+            Int32Array<NonNullable, Buffer>: Default,
+            Uint32Array<NonNullable, Buffer>: Default,
         {
             fn default() -> Self {
                 Self {
@@ -567,8 +567,8 @@ mod tests {
 
         impl<Buffer: BufferType> Extend<Foo> for FooArray<Buffer, DenseLayout>
         where
-            Int32Array<false, Buffer>: Extend<i32>,
-            Uint32Array<false, Buffer>: Extend<u32>,
+            Int32Array<NonNullable, Buffer>: Extend<i32>,
+            Uint32Array<NonNullable, Buffer>: Extend<u32>,
         {
             fn extend<T: IntoIterator<Item = Foo>>(&mut self, iter: T) {
                 iter.into_iter().for_each(|item| match item {
@@ -580,8 +580,8 @@ mod tests {
 
         impl<Buffer: BufferType> Extend<Foo> for FooArray<Buffer, SparseLayout>
         where
-            Int32Array<false, Buffer>: Extend<i32>,
-            Uint32Array<false, Buffer>: Extend<u32>,
+            Int32Array<NonNullable, Buffer>: Extend<i32>,
+            Uint32Array<NonNullable, Buffer>: Extend<u32>,
         {
             fn extend<T: IntoIterator<Item = Foo>>(&mut self, iter: T) {
                 iter.into_iter().for_each(|item| match item {
@@ -599,18 +599,18 @@ mod tests {
 
         struct FooArrayIntoIter<Buffer: BufferType, UnionLayout: UnionType>
         where
-            Int32Array<false, Buffer>: IntoIterator,
-            Uint32Array<false, Buffer>: IntoIterator,
+            Int32Array<NonNullable, Buffer>: IntoIterator,
+            Uint32Array<NonNullable, Buffer>: IntoIterator,
         {
-            bar: <Int32Array<false, Buffer> as IntoIterator>::IntoIter,
-            baz: <Uint32Array<false, Buffer> as IntoIterator>::IntoIter,
+            bar: <Int32Array<NonNullable, Buffer> as IntoIterator>::IntoIter,
+            baz: <Uint32Array<NonNullable, Buffer> as IntoIterator>::IntoIter,
             _ty: PhantomData<UnionLayout>,
         }
 
         impl<Buffer: BufferType> TypeIdIterator for FooArrayIntoIter<Buffer, DenseLayout>
         where
-            Int32Array<false, Buffer>: IntoIterator<Item = i32>,
-            Uint32Array<false, Buffer>: IntoIterator<Item = u32>,
+            Int32Array<NonNullable, Buffer>: IntoIterator<Item = i32>,
+            Uint32Array<NonNullable, Buffer>: IntoIterator<Item = u32>,
         {
             type Enum = Foo;
             fn next(&mut self, type_id: i8) -> Option<Self::Enum> {
@@ -624,8 +624,8 @@ mod tests {
 
         impl<Buffer: BufferType> TypeIdIterator for FooArrayIntoIter<Buffer, SparseLayout>
         where
-            Int32Array<false, Buffer>: IntoIterator<Item = i32>,
-            Uint32Array<false, Buffer>: IntoIterator<Item = u32>,
+            Int32Array<NonNullable, Buffer>: IntoIterator<Item = i32>,
+            Uint32Array<NonNullable, Buffer>: IntoIterator<Item = u32>,
         {
             type Enum = Foo;
             fn next(&mut self, type_id: i8) -> Option<Self::Enum> {
@@ -646,8 +646,8 @@ mod tests {
         impl<Buffer: BufferType, UnionLayout: UnionType> UnionArrayIterators
             for FooArray<Buffer, UnionLayout>
         where
-            Int32Array<false, Buffer>: IntoIterator<Item = i32>,
-            Uint32Array<false, Buffer>: IntoIterator<Item = u32>,
+            Int32Array<NonNullable, Buffer>: IntoIterator<Item = i32>,
+            Uint32Array<NonNullable, Buffer>: IntoIterator<Item = u32>,
             FooArrayIntoIter<Buffer, UnionLayout>: TypeIdIterator,
         {
             type VariantIterators = FooArrayIntoIter<Buffer, UnionLayout>;
@@ -671,7 +671,7 @@ mod tests {
         }
 
         impl UnionArrayType<2> for Foo {
-            type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+            type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
                 FooArray<Buffer, UnionLayout>;
         }
 
@@ -945,16 +945,13 @@ mod tests {
         }
 
         impl UnionArrayType<3> for Foo {
-            type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
+            type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
                 FooArray<Buffer, UnionLayout>;
         }
 
         impl ArrayType<Foo> for Foo {
-            type Array<
-                Buffer: BufferType,
-                OffsetItem: offset::OffsetElement,
-                UnionLayout: UnionType,
-            > = UnionArray<Foo, { Foo::VARIANTS }, UnionLayout>;
+            type Array<Buffer: BufferType, OffsetItem: offset::Offset, UnionLayout: UnionType> =
+                UnionArray<Foo, { Foo::VARIANTS }, UnionLayout>;
         }
 
         {

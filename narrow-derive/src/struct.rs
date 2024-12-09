@@ -209,14 +209,14 @@ impl Struct<'_> {
         let ident = self.ident;
         let non_nullable = quote! {
             impl #impl_generics #narrow::array::ArrayType<#ident #ty_generics> for #ident #ty_generics #where_clause {
-                type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::OffsetElement, UnionLayout: #narrow::array::UnionType> = #narrow::array::StructArray<#ident #ty_generics, false, Buffer>;
+                type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::Offset, UnionLayout: #narrow::array::UnionType> = #narrow::array::StructArray<#ident #ty_generics, #narrow::NonNullable, Buffer>;
             }
         };
         let non_nullable: ItemImpl = parse2(non_nullable).expect("array_type_impl");
 
         let nullable = quote! {
             impl #impl_generics #narrow::array::ArrayType<#ident #ty_generics> for ::std::option::Option<#ident #ty_generics> #where_clause {
-                type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::OffsetElement, UnionLayout: #narrow::array::UnionType> = #narrow::array::StructArray<#ident #ty_generics, true, Buffer>;
+                type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::Offset, UnionLayout: #narrow::array::UnionType> = #narrow::array::StructArray<#ident #ty_generics, #narrow::Nullable, Buffer>;
             }
         };
         let nullable: ItemImpl = parse2(nullable).expect("array_type_impl");
@@ -462,7 +462,7 @@ impl Struct<'_> {
                 // We use the visibility of the item for the inner null array.
                 let vis = self.vis;
                 let (_, ty_generics, _) = self.generics.split_for_impl();
-                quote!(#vis #narrow::array::NullArray<#ident #ty_generics, false, Buffer>)
+                quote!(#vis #narrow::array::NullArray<#ident #ty_generics, #narrow::NonNullable, Buffer>)
             }
         });
 
@@ -797,14 +797,14 @@ impl Struct<'_> {
                     .make_where_clause()
                     .predicates
                     .extend(
-                       std::iter::once::<WherePredicate>(parse_quote!(#narrow::array::NullArray<#ident #ty_generics, false, Buffer>: ::std::iter::IntoIterator<Item = #ident #ty_generics>))
+                       std::iter::once::<WherePredicate>(parse_quote!(#narrow::array::NullArray<#ident #ty_generics, #narrow::NonNullable, Buffer>: ::std::iter::IntoIterator<Item = #ident #ty_generics>))
                     );
                 let (impl_generics, _, where_clause) = generics.split_for_impl();
                 let narrow = util::narrow();
                 let vis = self.vis;
                 let tokens = quote!(
                     #vis struct #array_iter_struct_ident #impl_generics(
-                        #vis <#narrow::array::NullArray<#ident #ty_generics, false, Buffer> as IntoIterator>::IntoIter
+                        #vis <#narrow::array::NullArray<#ident #ty_generics, #narrow::NonNullable, Buffer> as IntoIterator>::IntoIter
                     ) #where_clause;
                 );
                 return parse2(tokens).expect("array_iter_struct_def");

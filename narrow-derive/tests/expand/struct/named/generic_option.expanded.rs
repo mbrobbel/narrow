@@ -6,17 +6,17 @@ struct Bar<T> {
 impl<T: narrow::array::ArrayType<T>> narrow::array::ArrayType<Bar<T>> for Bar<T> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Bar<T>, false, Buffer>;
+    > = narrow::array::StructArray<Bar<T>, narrow::NonNullable, Buffer>;
 }
 impl<T: narrow::array::ArrayType<T>> narrow::array::ArrayType<Bar<T>>
 for ::std::option::Option<Bar<T>> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Bar<T>, true, Buffer>;
+    > = narrow::array::StructArray<Bar<T>, narrow::Nullable, Buffer>;
 }
 impl<T: narrow::array::ArrayType<T>> narrow::array::StructArrayType for Bar<T> {
     type Array<Buffer: narrow::buffer::BufferType> = BarArray<T, Buffer>;

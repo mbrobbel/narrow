@@ -21,17 +21,17 @@ pub trait Array: crate::array::Array + Sized {
     fn data_type() -> arrow_schema::DataType;
 }
 
-/// Extension trait for [`OffsetElement`] for [`arrow-rs`] interop.
-pub trait OffsetElement: crate::offset::OffsetElement {
+/// Extension trait for [`Offset`] for [`arrow-rs`] interop.
+pub trait Offset: crate::offset::Offset {
     /// This constant is true when this offset maps to the large variant of a
     /// datatype.
     const LARGE: bool;
 }
 
-impl OffsetElement for i32 {
+impl Offset for i32 {
     const LARGE: bool = false;
 }
 
-impl OffsetElement for i64 {
+impl Offset for i64 {
     const LARGE: bool = true;
 }

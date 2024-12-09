@@ -12,9 +12,9 @@ where
 {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Foo<'a, T>, false, Buffer>;
+    > = narrow::array::StructArray<Foo<'a, T>, narrow::NonNullable, Buffer>;
 }
 impl<'a, T: Add<Self> + narrow::array::ArrayType<T>> narrow::array::ArrayType<Foo<'a, T>>
 for ::std::option::Option<Foo<'a, T>>
@@ -24,9 +24,9 @@ where
 {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Foo<'a, T>, true, Buffer>;
+    > = narrow::array::StructArray<Foo<'a, T>, narrow::Nullable, Buffer>;
 }
 impl<'a, T: Add<Self> + narrow::array::ArrayType<T>> narrow::array::StructArrayType
 for Foo<'a, T>
@@ -214,17 +214,17 @@ struct FooBar<T>(T);
 impl<T: narrow::array::ArrayType<T>> narrow::array::ArrayType<FooBar<T>> for FooBar<T> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<FooBar<T>, false, Buffer>;
+    > = narrow::array::StructArray<FooBar<T>, narrow::NonNullable, Buffer>;
 }
 impl<T: narrow::array::ArrayType<T>> narrow::array::ArrayType<FooBar<T>>
 for ::std::option::Option<FooBar<T>> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<FooBar<T>, true, Buffer>;
+    > = narrow::array::StructArray<FooBar<T>, narrow::Nullable, Buffer>;
 }
 impl<T: narrow::array::ArrayType<T>> narrow::array::StructArrayType for FooBar<T> {
     type Array<Buffer: narrow::buffer::BufferType> = FooBarArray<T, Buffer>;

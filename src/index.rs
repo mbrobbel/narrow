@@ -56,7 +56,9 @@ impl<T> Index for Vec<T> {
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.get_unchecked(index)
+        // Safety:
+        // - unsafe fn
+        unsafe { self.get_unchecked(index) }
     }
 }
 
@@ -67,7 +69,9 @@ impl<T, const N: usize> Index for [T; N] {
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.get_unchecked(index)
+        // Safety:
+        // - unsafe fn
+        unsafe { self.get_unchecked(index) }
     }
 }
 
@@ -78,7 +82,9 @@ impl<T> Index for [T] {
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.get_unchecked(index)
+        // Safety:
+        // - unsafe fn
+        unsafe { self.get_unchecked(index) }
     }
 }
 
@@ -89,7 +95,9 @@ impl<T> Index for &[T] {
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.get_unchecked(index)
+        // Safety:
+        // - unsafe fn
+        unsafe { self.get_unchecked(index) }
     }
 }
 
@@ -100,7 +108,9 @@ impl<T> Index for &mut [T] {
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.get_unchecked(index)
+        // Safety:
+        // - unsafe fn
+        unsafe { self.get_unchecked(index) }
     }
 }
 
@@ -111,7 +121,9 @@ impl<T> Index for Box<[T]> {
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.get_unchecked(index)
+        // Safety:
+        // - unsafe fn
+        unsafe { self.get_unchecked(index) }
     }
 }
 
@@ -122,7 +134,9 @@ impl<T> Index for Rc<[T]> {
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.get_unchecked(index)
+        // Safety:
+        // - unsafe fn
+        unsafe { self.get_unchecked(index) }
     }
 }
 
@@ -133,7 +147,9 @@ impl<T> Index for Arc<[T]> {
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.get_unchecked(index)
+        // Safety:
+        // - unsafe fn
+        unsafe { self.get_unchecked(index) }
     }
 }
 
