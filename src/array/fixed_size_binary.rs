@@ -7,7 +7,7 @@ use crate::{
     Index, Length,
 };
 
-use super::{Array, FixedSizePrimitiveArray, FixedSizeListArray};
+use super::{Array, FixedSizeListArray, FixedSizePrimitiveArray};
 
 /// Array with fixed-size binary elements.
 // to support `arrow-rs` interop we can't use
@@ -16,7 +16,11 @@ pub struct FixedSizeBinaryArray<
     const N: usize,
     Nullable: Nullability = NonNullable,
     Buffer: BufferType = VecBuffer,
->(pub(crate) FixedSizeListArray<N, FixedSizePrimitiveArray<u8, NonNullable, Buffer>, Nullable, Buffer>);
+>(
+    #[rustfmt::skip]
+    pub(crate)
+        FixedSizeListArray<N, FixedSizePrimitiveArray<u8, NonNullable, Buffer>, Nullable, Buffer>,
+);
 
 impl<const N: usize, Nullable: Nullability, Buffer: BufferType>
     FixedSizeBinaryArray<N, Nullable, Buffer>
@@ -43,7 +47,9 @@ impl<const N: usize, Buffer: BufferType> BitmapRef for FixedSizeBinaryArray<N, N
     }
 }
 
-impl<const N: usize, Buffer: BufferType> BitmapRefMut for FixedSizeBinaryArray<N, Nullable, Buffer> {
+impl<const N: usize, Buffer: BufferType> BitmapRefMut
+    for FixedSizeBinaryArray<N, Nullable, Buffer>
+{
     fn bitmap_ref_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
         self.0.bitmap_ref_mut()
     }
@@ -52,7 +58,8 @@ impl<const N: usize, Buffer: BufferType> BitmapRefMut for FixedSizeBinaryArray<N
 impl<const N: usize, Nullable: Nullability, Buffer: BufferType> Clone
     for FixedSizeBinaryArray<N, Nullable, Buffer>
 where
-    FixedSizeListArray<N, FixedSizePrimitiveArray<u8, NonNullable, Buffer>, Nullable, Buffer>: Clone,
+    FixedSizeListArray<N, FixedSizePrimitiveArray<u8, NonNullable, Buffer>, Nullable, Buffer>:
+        Clone,
 {
     fn clone(&self) -> Self {
         Self(self.0.clone())
@@ -62,14 +69,16 @@ where
 impl<const N: usize, Nullable: Nullability, Buffer: BufferType> Default
     for FixedSizeBinaryArray<N, Nullable, Buffer>
 where
-    FixedSizeListArray<N, FixedSizePrimitiveArray<u8, NonNullable, Buffer>, Nullable, Buffer>: Default,
+    FixedSizeListArray<N, FixedSizePrimitiveArray<u8, NonNullable, Buffer>, Nullable, Buffer>:
+        Default,
 {
     fn default() -> Self {
         Self(FixedSizeListArray::default())
     }
 }
 
-impl<T, const N: usize, Buffer: BufferType> Extend<T> for FixedSizeBinaryArray<N, NonNullable, Buffer>
+impl<T, const N: usize, Buffer: BufferType> Extend<T>
+    for FixedSizeBinaryArray<N, NonNullable, Buffer>
 where
     T: Into<[u8; N]>,
     FixedSizeListArray<N, FixedSizePrimitiveArray<u8, NonNullable, Buffer>, NonNullable, Buffer>:
@@ -96,8 +105,14 @@ where
 impl<const N: usize, Buffer: BufferType> From<FixedSizeBinaryArray<N, NonNullable, Buffer>>
     for FixedSizeBinaryArray<N, Nullable, Buffer>
 where
-    FixedSizeListArray<N, FixedSizePrimitiveArray<u8, NonNullable, Buffer>, Nullable, Buffer>:
-        From<FixedSizeListArray<N, FixedSizePrimitiveArray<u8, NonNullable, Buffer>, NonNullable, Buffer>>,
+    FixedSizeListArray<N, FixedSizePrimitiveArray<u8, NonNullable, Buffer>, Nullable, Buffer>: From<
+        FixedSizeListArray<
+            N,
+            FixedSizePrimitiveArray<u8, NonNullable, Buffer>,
+            NonNullable,
+            Buffer,
+        >,
+    >,
 {
     fn from(value: FixedSizeBinaryArray<N, NonNullable, Buffer>) -> Self {
         Self(value.0.into())
@@ -131,7 +146,8 @@ where
 impl<const N: usize, Nullable: Nullability, Buffer: BufferType> Index
     for FixedSizeBinaryArray<N, Nullable, Buffer>
 where
-    FixedSizeListArray<N, FixedSizePrimitiveArray<u8, NonNullable, Buffer>, Nullable, Buffer>: Index,
+    FixedSizeListArray<N, FixedSizePrimitiveArray<u8, NonNullable, Buffer>, Nullable, Buffer>:
+        Index,
 {
     type Item<'a> = <FixedSizeListArray<N, FixedSizePrimitiveArray<u8, NonNullable, Buffer>, Nullable, Buffer> as Index>::Item<'a>
     where
@@ -143,15 +159,16 @@ where
 }
 
 /// An iterator over fixed-size lists in a [`FixedSizeBinaryArray`].
-pub struct FixedSizeBinaryIntoIter<const N: usize, Nullable: Nullability, Buffer: BufferType>
-{
+pub struct FixedSizeBinaryIntoIter<const N: usize, Nullable: Nullability, Buffer: BufferType> {
     /// Reference to the array.
     array: FixedSizeBinaryArray<N, Nullable, Buffer>,
     /// Current index.
     index: usize,
 }
 
-impl<const N: usize, Buffer: BufferType> Iterator for FixedSizeBinaryIntoIter<N, NonNullable, Buffer> {
+impl<const N: usize, Buffer: BufferType> Iterator
+    for FixedSizeBinaryIntoIter<N, NonNullable, Buffer>
+{
     type Item = [u8; N];
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -184,9 +201,7 @@ impl<const N: usize, Buffer: BufferType> Iterator for FixedSizeBinaryIntoIter<N,
 }
 
 /// An iterator over fixed-size lists in a [`FixedSizeBinaryArray`].
-pub struct FixedSizeBinaryIter<'a, const N: usize, Nullable: Nullability, Buffer: BufferType>
-where
-{
+pub struct FixedSizeBinaryIter<'a, const N: usize, Nullable: Nullability, Buffer: BufferType> {
     /// Reference to the array.
     array: &'a FixedSizeBinaryArray<N, Nullable, Buffer>,
     /// Current index.
@@ -246,14 +261,18 @@ where
 impl<const N: usize, Nullable: Nullability, Buffer: BufferType> Length
     for FixedSizeBinaryArray<N, Nullable, Buffer>
 where
-    FixedSizeListArray<N, FixedSizePrimitiveArray<u8, NonNullable, Buffer>, Nullable, Buffer>: Length,
+    FixedSizeListArray<N, FixedSizePrimitiveArray<u8, NonNullable, Buffer>, Nullable, Buffer>:
+        Length,
 {
     fn len(&self) -> usize {
         self.0.len()
     }
 }
 
-impl<const N: usize, Buffer: BufferType> ValidityBitmap for FixedSizeBinaryArray<N, Nullable, Buffer> {}
+impl<const N: usize, Buffer: BufferType> ValidityBitmap
+    for FixedSizeBinaryArray<N, Nullable, Buffer>
+{
+}
 
 #[cfg(test)]
 mod tests {
