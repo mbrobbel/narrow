@@ -3,19 +3,20 @@ use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta,
 use crate::{
     array::{ArrayType, UnionType},
     buffer::BufferType,
-    offset::OffsetElement,
+    offset::Offset,
+    NonNullable, Nullable,
 };
 
 use super::{LogicalArray, LogicalArrayType};
 
 impl ArrayType<DateTime<Utc>> for DateTime<Utc> {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
+    type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+        LogicalArray<Self, NonNullable, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl ArrayType<DateTime<Utc>> for Option<DateTime<Utc>> {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<DateTime<Utc>, true, Buffer, OffsetItem, UnionLayout>;
+    type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+        LogicalArray<DateTime<Utc>, Nullable, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl LogicalArrayType<DateTime<Utc>> for DateTime<Utc> {
@@ -31,17 +32,17 @@ impl LogicalArrayType<DateTime<Utc>> for DateTime<Utc> {
 }
 
 /// An array for [`DateTime`] items.
-pub type DateTimeArray<const NULLABLE: bool = false, Buffer = crate::buffer::VecBuffer> =
-    LogicalArray<DateTime<Utc>, NULLABLE, Buffer, crate::offset::NA, crate::array::union::NA>;
+pub type DateTimeArray<Nullable = NonNullable, Buffer = crate::buffer::VecBuffer> =
+    LogicalArray<DateTime<Utc>, Nullable, Buffer>;
 
 impl ArrayType<NaiveDateTime> for NaiveDateTime {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
+    type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+        LogicalArray<Self, NonNullable, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl ArrayType<NaiveDateTime> for Option<NaiveDateTime> {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<NaiveDateTime, true, Buffer, OffsetItem, UnionLayout>;
+    type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+        LogicalArray<NaiveDateTime, Nullable, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl LogicalArrayType<NaiveDateTime> for NaiveDateTime {
@@ -57,17 +58,17 @@ impl LogicalArrayType<NaiveDateTime> for NaiveDateTime {
 }
 
 /// An array for [`NaiveDateTime`] items.
-pub type NaiveDateTimeArray<const NULLABLE: bool = false, Buffer = crate::buffer::VecBuffer> =
-    LogicalArray<NaiveDateTime, NULLABLE, Buffer, crate::offset::NA, crate::array::union::NA>;
+pub type NaiveDateTimeArray<Nullable = NonNullable, Buffer = crate::buffer::VecBuffer> =
+    LogicalArray<NaiveDateTime, Nullable, Buffer>;
 
 impl ArrayType<NaiveDate> for NaiveDate {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
+    type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+        LogicalArray<Self, NonNullable, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl ArrayType<NaiveDate> for Option<NaiveDate> {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<NaiveDate, true, Buffer, OffsetItem, UnionLayout>;
+    type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+        LogicalArray<NaiveDate, Nullable, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl LogicalArrayType<NaiveDate> for NaiveDate {
@@ -83,17 +84,17 @@ impl LogicalArrayType<NaiveDate> for NaiveDate {
 }
 
 /// An array for [`NaiveDate`] items.
-pub type NaiveDateArray<const NULLABLE: bool = false, Buffer = crate::buffer::VecBuffer> =
-    LogicalArray<NaiveDate, NULLABLE, Buffer, crate::offset::NA, crate::array::union::NA>;
+pub type NaiveDateArray<Nullable = NonNullable, Buffer = crate::buffer::VecBuffer> =
+    LogicalArray<NaiveDate, Nullable, Buffer>;
 
 impl ArrayType<NaiveTime> for NaiveTime {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
+    type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+        LogicalArray<Self, NonNullable, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl ArrayType<NaiveTime> for Option<NaiveTime> {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<NaiveTime, true, Buffer, OffsetItem, UnionLayout>;
+    type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+        LogicalArray<NaiveTime, Nullable, Buffer, OffsetItem, UnionLayout>;
 }
 
 /// The number of nano seconds in a second.
@@ -117,17 +118,17 @@ impl LogicalArrayType<NaiveTime> for NaiveTime {
 }
 
 /// An array for [`NaiveTime`] items.
-pub type NaiveTimeArray<const NULLABLE: bool = false, Buffer = crate::buffer::VecBuffer> =
-    LogicalArray<NaiveTime, NULLABLE, Buffer, crate::offset::NA, crate::array::union::NA>;
+pub type NaiveTimeArray<Nullable = NonNullable, Buffer = crate::buffer::VecBuffer> =
+    LogicalArray<NaiveTime, Nullable, Buffer>;
 
 impl ArrayType<TimeDelta> for TimeDelta {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
+    type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+        LogicalArray<Self, NonNullable, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl ArrayType<TimeDelta> for Option<TimeDelta> {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<TimeDelta, true, Buffer, OffsetItem, UnionLayout>;
+    type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+        LogicalArray<TimeDelta, Nullable, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl LogicalArrayType<TimeDelta> for TimeDelta {
@@ -143,13 +144,13 @@ impl LogicalArrayType<TimeDelta> for TimeDelta {
 }
 
 /// An array for [`TimeDelta`] items.
-pub type TimeDeltaArray<const NULLABLE: bool = false, Buffer = crate::buffer::VecBuffer> =
-    LogicalArray<TimeDelta, NULLABLE, Buffer, crate::offset::NA, crate::array::union::NA>;
+pub type TimeDeltaArray<Nullable = NonNullable, Buffer = crate::buffer::VecBuffer> =
+    LogicalArray<TimeDelta, Nullable, Buffer>;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Length;
+    use crate::{Length, Nullable};
 
     #[test]
     fn round_trip_naivedate() {
@@ -203,7 +204,7 @@ mod tests {
             Some(DateTime::<Utc>::UNIX_EPOCH),
         ]
         .into_iter()
-        .collect::<DateTimeArray<true>>();
+        .collect::<DateTimeArray<Nullable>>();
         assert_eq!(array_nullable.len(), 3);
         assert_eq!(array_nullable.0.len(), 3);
     }
@@ -220,7 +221,9 @@ mod tests {
             None,
             Some(DateTime::<Utc>::UNIX_EPOCH),
         ];
-        let array_nullable = input_nullable.into_iter().collect::<DateTimeArray<true>>();
+        let array_nullable = input_nullable
+            .into_iter()
+            .collect::<DateTimeArray<Nullable>>();
         let output_nullable = array_nullable.into_iter().collect::<Vec<_>>();
         assert_eq!(input_nullable, output_nullable.as_slice());
     }

@@ -3,17 +3,17 @@ impl<T: Sized + narrow::array::ArrayType<T>> narrow::array::ArrayType<Foo<T>>
 for Foo<T> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Foo<T>, false, Buffer>;
+    > = narrow::array::StructArray<Foo<T>, narrow::NonNullable, Buffer>;
 }
 impl<T: Sized + narrow::array::ArrayType<T>> narrow::array::ArrayType<Foo<T>>
 for ::std::option::Option<Foo<T>> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Foo<T>, true, Buffer>;
+    > = narrow::array::StructArray<Foo<T>, narrow::Nullable, Buffer>;
 }
 impl<T: Sized + narrow::array::ArrayType<T>> narrow::array::StructArrayType for Foo<T> {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<T, Buffer>;

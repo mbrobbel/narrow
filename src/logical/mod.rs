@@ -3,11 +3,11 @@
 use std::iter::Map;
 
 use crate::{
-    array::{Array, ArrayType, ArrayTypeOf, NullableArrayTypeOf, OptionArrayTypeOf, UnionType},
-    buffer::BufferType,
-    offset::OffsetElement,
-    validity::Nullability,
-    Length,
+    array::{Array, ArrayType, ArrayTypeOf, SparseLayout, UnionType},
+    buffer::{BufferType, VecBuffer},
+    nullability::NonNullable,
+    offset::Offset,
+    Length, Nullability, Nullable,
 };
 
 /// Box support via logical arrays.
@@ -17,8 +17,8 @@ pub mod r#box;
 /// Chrono support via logical arrays.
 pub mod chrono;
 
-#[cfg(feature = "map")]
 /// Map arrays via logical arrays.
+#[cfg(feature = "map")]
 pub mod map;
 
 #[cfg(feature = "uuid")]
@@ -49,42 +49,53 @@ where
 #[allow(clippy::type_complexity)]
 pub struct LogicalArray<
     T: LogicalArrayType<T>,
-    const NULLABLE: bool,
-    Buffer: BufferType,
-    OffsetItem: OffsetElement,
-    UnionLayout: UnionType,
->(pub(crate) NullableArrayTypeOf<NULLABLE, T::ArrayType, Buffer, OffsetItem, UnionLayout>)
+    Nullable: Nullability = NonNullable,
+    Buffer: BufferType = VecBuffer,
+    OffsetItem: Offset = i32,
+    UnionLayout: UnionType = SparseLayout,
+>(
+    pub(crate)  <Nullable::Item<T::ArrayType> as ArrayType<T::ArrayType>>::Array<
+        Buffer,
+        OffsetItem,
+        UnionLayout,
+    >, //     <<T as LogicalArrayType<T>>::ArrayType as ArrayType<
+       //         <T as LogicalArrayType<T>>::ArrayType,
+       //     >>::Array<Buffer, OffsetItem, UnionLayout>,
+       // >,
+)
 where
     Option<T>: ArrayType<T>,
-    T::ArrayType: Nullability<NULLABLE, Item: ArrayType<T::ArrayType>>;
+    Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>;
 
 impl<
         T: LogicalArrayType<T>,
-        const NULLABLE: bool,
+        Nullable: Nullability,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
         UnionLayout: UnionType,
-    > Array for LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
+    > Array for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
-    T::ArrayType: Nullability<NULLABLE, Item: ArrayType<T::ArrayType>>,
+    Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
 {
-    type Item = <T::ArrayType as Nullability<NULLABLE>>::Item;
+    type Item = Nullable::Item<T::ArrayType>;
 }
 
 impl<
         T: LogicalArrayType<T>,
-        const NULLABLE: bool,
+        Nullable: Nullability,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
         UnionLayout: UnionType,
-    > Clone for LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
+    > Clone for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
-    T::ArrayType: Nullability<
-        NULLABLE,
-        Item: ArrayType<T::ArrayType, Array<Buffer, OffsetItem, UnionLayout>: Clone>,
-    >,
+    Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
+    <Nullable::Item<T::ArrayType> as ArrayType<T::ArrayType>>::Array<
+        Buffer,
+        OffsetItem,
+        UnionLayout,
+    >: Clone,
 {
     fn clone(&self) -> Self {
         Self(self.0.clone())
@@ -93,29 +104,27 @@ where
 
 impl<
         T: LogicalArrayType<T>,
-        const NULLABLE: bool,
+        Nullable: Nullability,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
         UnionLayout: UnionType,
-    > Default for LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
+    > Default for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
-    T::ArrayType: Nullability<
-        NULLABLE,
-        Item: ArrayType<T::ArrayType, Array<Buffer, OffsetItem, UnionLayout>: Default>,
-    >,
+    Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
+    <Nullable::Item<T::ArrayType> as ArrayType<T::ArrayType>>::Array<
+        Buffer,
+        OffsetItem,
+        UnionLayout,
+    >: Default,
 {
     fn default() -> Self {
         Self(Default::default())
     }
 }
 
-impl<
-        T: LogicalArrayType<T>,
-        Buffer: BufferType,
-        OffsetItem: OffsetElement,
-        UnionLayout: UnionType,
-    > Extend<T> for LogicalArray<T, false, Buffer, OffsetItem, UnionLayout>
+impl<T: LogicalArrayType<T>, Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType>
+    Extend<T> for LogicalArray<T, NonNullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
     ArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout>: Extend<T::ArrayType>,
@@ -126,16 +135,13 @@ where
     }
 }
 
-impl<
-        T: LogicalArrayType<T>,
-        Buffer: BufferType,
-        OffsetItem: OffsetElement,
-        UnionLayout: UnionType,
-    > Extend<Option<T>> for LogicalArray<T, true, Buffer, OffsetItem, UnionLayout>
+impl<T: LogicalArrayType<T>, Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType>
+    Extend<Option<T>> for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
     Option<T::ArrayType>: ArrayType<T::ArrayType>,
-    OptionArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout>: Extend<Option<T::ArrayType>>,
+    <Option<T::ArrayType> as ArrayType<T::ArrayType>>::Array<Buffer, OffsetItem, UnionLayout>:
+        Extend<Option<T::ArrayType>>,
 {
     fn extend<I: IntoIterator<Item = Option<T>>>(&mut self, iter: I) {
         self.0.extend(
@@ -145,12 +151,8 @@ where
     }
 }
 
-impl<
-        T: LogicalArrayType<T>,
-        Buffer: BufferType,
-        OffsetItem: OffsetElement,
-        UnionLayout: UnionType,
-    > FromIterator<T> for LogicalArray<T, false, Buffer, OffsetItem, UnionLayout>
+impl<T: LogicalArrayType<T>, Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType>
+    FromIterator<T> for LogicalArray<T, NonNullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
     ArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout>: FromIterator<T::ArrayType>,
@@ -164,16 +166,12 @@ where
     }
 }
 
-impl<
-        T: LogicalArrayType<T>,
-        Buffer: BufferType,
-        OffsetItem: OffsetElement,
-        UnionLayout: UnionType,
-    > FromIterator<Option<T>> for LogicalArray<T, true, Buffer, OffsetItem, UnionLayout>
+impl<T: LogicalArrayType<T>, Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType>
+    FromIterator<Option<T>> for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
     Option<T::ArrayType>: ArrayType<T::ArrayType>,
-    OptionArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout>:
+    <Option<T::ArrayType> as ArrayType<T::ArrayType>>::Array<Buffer, OffsetItem, UnionLayout>:
         FromIterator<Option<T::ArrayType>>,
 {
     fn from_iter<I: IntoIterator<Item = Option<T>>>(iter: I) -> Self {
@@ -185,12 +183,8 @@ where
     }
 }
 
-impl<
-        T: LogicalArrayType<T>,
-        Buffer: BufferType,
-        OffsetItem: OffsetElement,
-        UnionLayout: UnionType,
-    > IntoIterator for LogicalArray<T, false, Buffer, OffsetItem, UnionLayout>
+impl<T: LogicalArrayType<T>, Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType>
+    IntoIterator for LogicalArray<T, NonNullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
     ArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout>:
@@ -209,24 +203,28 @@ where
     }
 }
 
-impl<
-        T: LogicalArrayType<T>,
-        Buffer: BufferType,
-        OffsetItem: OffsetElement,
-        UnionLayout: UnionType,
-    > IntoIterator for LogicalArray<T, true, Buffer, OffsetItem, UnionLayout>
+impl<T: LogicalArrayType<T>, Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType>
+    IntoIterator for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
     Option<T::ArrayType>: ArrayType<T::ArrayType>,
-    OptionArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout>:
+    <Option<T::ArrayType> as ArrayType<T::ArrayType>>::Array<Buffer, OffsetItem, UnionLayout>:
         IntoIterator<Item: IntoIterator<Item: Into<T::ArrayType>>>,
 {
     type Item = Option<T>;
     type IntoIter =
         Map<
-            <OptionArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout> as IntoIterator>::IntoIter,
+            <<Option<T::ArrayType> as ArrayType<T::ArrayType>>::Array<
+                Buffer,
+                OffsetItem,
+                UnionLayout,
+            > as IntoIterator>::IntoIter,
             fn(
-                <OptionArrayTypeOf<T::ArrayType, Buffer, OffsetItem, UnionLayout> as IntoIterator>::Item,
+                <<Option<T::ArrayType> as ArrayType<T::ArrayType>>::Array<
+                    Buffer,
+                    OffsetItem,
+                    UnionLayout,
+                > as IntoIterator>::Item,
             ) -> Option<T>,
         >;
 
@@ -242,17 +240,19 @@ where
 
 impl<
         T: LogicalArrayType<T>,
-        const NULLABLE: bool,
+        Nullable: Nullability,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
         UnionLayout: UnionType,
-    > Length for LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
+    > Length for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
-    T::ArrayType: Nullability<
-        NULLABLE,
-        Item: ArrayType<T::ArrayType, Array<Buffer, OffsetItem, UnionLayout>: Length>,
-    >,
+    Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
+    <Nullable::Item<T::ArrayType> as ArrayType<T::ArrayType>>::Array<
+        Buffer,
+        OffsetItem,
+        UnionLayout,
+    >: Length,
 {
     fn len(&self) -> usize {
         self.0.len()
@@ -261,19 +261,17 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{array::union, buffer::VecBuffer, offset};
-
     use super::*;
 
     #[derive(Copy, Clone, Debug, PartialEq)]
     struct Foo(u8);
     impl ArrayType<Foo> for Foo {
-        type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-            LogicalArray<Foo, false, Buffer, OffsetItem, UnionLayout>;
+        type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+            LogicalArray<Foo, NonNullable, Buffer, OffsetItem, UnionLayout>;
     }
     impl ArrayType<Foo> for Option<Foo> {
-        type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-            LogicalArray<Foo, true, Buffer, OffsetItem, UnionLayout>;
+        type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+            LogicalArray<Foo, Nullable, Buffer, OffsetItem, UnionLayout>;
     }
 
     impl LogicalArrayType<Foo> for Foo {
@@ -288,8 +286,7 @@ mod tests {
         }
     }
 
-    type FooArray<const NULLABLE: bool = false, Buffer = VecBuffer> =
-        LogicalArray<Foo, NULLABLE, Buffer, offset::NA, union::NA>;
+    type FooArray<Nullable = NonNullable, Buffer = VecBuffer> = LogicalArray<Foo, Nullable, Buffer>;
 
     #[test]
     fn from_iter() {
@@ -299,7 +296,7 @@ mod tests {
         assert_eq!(array.0 .0, [1, 2, 3, 4]);
 
         let input_nullable = [Some(Foo(1)), None, Some(Foo(3)), Some(Foo(4))];
-        let array_nullable = input_nullable.into_iter().collect::<FooArray<true>>();
+        let array_nullable = input_nullable.into_iter().collect::<FooArray<Nullable>>();
         assert_eq!(array_nullable.len(), 4);
         assert_eq!(array_nullable.0 .0.data, [1, u8::default(), 3, 4]);
         assert_eq!(array_nullable.0 .0.validity, [true, false, true, true]);
@@ -313,7 +310,7 @@ mod tests {
         assert_eq!(output, input);
 
         let input_nullable = [Some(Foo(1)), None, Some(Foo(3)), Some(Foo(4))];
-        let array_nullable = input_nullable.into_iter().collect::<FooArray<true>>();
+        let array_nullable = input_nullable.into_iter().collect::<FooArray<Nullable>>();
         let output_nullable = array_nullable.into_iter().collect::<Vec<_>>();
         assert_eq!(output_nullable, input_nullable);
     }

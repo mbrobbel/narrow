@@ -53,7 +53,7 @@ impl<T> narrow::array::union::EnumVariant<2> for Foo<T> {
 struct FooArray<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
     UnionLayout: narrow::array::UnionType,
 >(
     <<Foo<
@@ -81,7 +81,7 @@ struct FooArray<
 impl<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
     UnionLayout: narrow::array::UnionType,
 > ::std::clone::Clone for FooArray<T, Buffer, OffsetItem, UnionLayout>
 where
@@ -114,7 +114,7 @@ where
 impl<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
     UnionLayout: narrow::array::UnionType,
 > ::std::default::Default for FooArray<T, Buffer, OffsetItem, UnionLayout>
 where
@@ -151,7 +151,7 @@ where
 impl<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
 > ::std::iter::Extend<Foo<T>>
 for FooArray<T, Buffer, OffsetItem, narrow::array::DenseLayout>
 where
@@ -208,7 +208,7 @@ where
 impl<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
 > ::std::iter::Extend<Foo<T>>
 for FooArray<T, Buffer, OffsetItem, narrow::array::SparseLayout>
 where
@@ -289,7 +289,7 @@ where
 struct FooArrayIntoIter<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
     UnionLayout: narrow::array::UnionType,
 >(
     <<<Foo<
@@ -339,7 +339,7 @@ where
 impl<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
 > narrow::array::union::TypeIdIterator
 for FooArrayIntoIter<T, Buffer, OffsetItem, narrow::array::DenseLayout>
 where
@@ -417,7 +417,7 @@ where
 impl<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
 > narrow::array::union::TypeIdIterator
 for FooArrayIntoIter<T, Buffer, OffsetItem, narrow::array::SparseLayout>
 where
@@ -501,7 +501,7 @@ where
 impl<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
     UnionLayout: narrow::array::UnionType,
 > narrow::array::union::UnionArrayIterators
 for FooArray<T, Buffer, OffsetItem, UnionLayout>
@@ -565,14 +565,14 @@ where
 impl<T: narrow::array::ArrayType> narrow::array::UnionArrayType<3> for Foo<T> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
     > = FooArray<T, Buffer, OffsetItem, UnionLayout>;
 }
 impl<T: narrow::array::ArrayType> narrow::array::ArrayType<Foo<T>> for Foo<T> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
     > = narrow::array::UnionArray<
         Self,

@@ -6,76 +6,67 @@ use super::{Array, VariableSizeBinaryArray};
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
-    offset::OffsetElement,
-    validity::{Nullability, Validity},
+    nullability::{NonNullable, Nullability, Nullable},
+    offset::Offset,
     Index, Length,
 };
 
 /// Array with string values.
 pub struct StringArray<
-    const NULLABLE: bool = false,
-    OffsetItem: OffsetElement = i32,
+    Nullable: Nullability = NonNullable,
+    OffsetItem: Offset = i32,
     Buffer: BufferType = VecBuffer,
->(pub VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>)
-where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>;
+>(pub VariableSizeBinaryArray<Nullable, OffsetItem, Buffer>);
 
 /// Array with string values, using `i32` offset values.
-pub type Utf8Array<const NULLABLE: bool = false, Buffer = VecBuffer> =
-    StringArray<NULLABLE, i32, Buffer>;
+pub type Utf8Array<Nullable = NonNullable, Buffer = VecBuffer> = StringArray<Nullable, i32, Buffer>;
 
 /// Array with string values, using `i64` offset values.
-pub type LargeUtf8Array<const NULLABLE: bool = false, Buffer = VecBuffer> =
-    StringArray<NULLABLE, i64, Buffer>;
+pub type LargeUtf8Array<Nullable = NonNullable, Buffer = VecBuffer> =
+    StringArray<Nullable, i64, Buffer>;
 
-impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType>
-    StringArray<NULLABLE, OffsetItem, Buffer>
+impl<Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType>
+    StringArray<Nullable, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    StringArray<NULLABLE, OffsetItem, Buffer>: Index + Length,
+    StringArray<Nullable, OffsetItem, Buffer>: Index + Length,
 {
     /// Returns an iterator over the items in this [`StringArray`].
-    pub fn iter(&self) -> StringIter<'_, NULLABLE, OffsetItem, Buffer> {
+    pub fn iter(&self) -> StringIter<'_, Nullable, OffsetItem, Buffer> {
         <&Self as IntoIterator>::into_iter(self)
     }
 }
 
-impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Array
-    for StringArray<NULLABLE, OffsetItem, Buffer>
-where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    String: Nullability<NULLABLE>,
+impl<Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> Array
+    for StringArray<Nullable, OffsetItem, Buffer>
 {
-    type Item = <String as Nullability<NULLABLE>>::Item;
+    type Item = Nullable::Item<String>;
 }
 
-impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Clone
-    for StringArray<NULLABLE, OffsetItem, Buffer>
+impl<Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> Clone
+    for StringArray<Nullable, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>: Clone,
+    VariableSizeBinaryArray<Nullable, OffsetItem, Buffer>: Clone,
 {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Default
-    for StringArray<NULLABLE, OffsetItem, Buffer>
+impl<Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> Default
+    for StringArray<Nullable, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>: Default,
+    VariableSizeBinaryArray<Nullable, OffsetItem, Buffer>: Default,
 {
     fn default() -> Self {
         Self(VariableSizeBinaryArray::default())
     }
 }
 
-impl<'a, T: ?Sized, OffsetItem: OffsetElement, Buffer: BufferType> Extend<&'a T>
-    for StringArray<false, OffsetItem, Buffer>
+impl<'a, T: ?Sized, OffsetItem: Offset, Buffer: BufferType> Extend<&'a T>
+    for StringArray<NonNullable, OffsetItem, Buffer>
 where
     T: AsRef<str>,
-    VariableSizeBinaryArray<false, OffsetItem, Buffer>: Extend<&'a [u8]>,
+    VariableSizeBinaryArray<NonNullable, OffsetItem, Buffer>: Extend<&'a [u8]>,
 {
     fn extend<I: IntoIterator<Item = &'a T>>(&mut self, iter: I) {
         self.0
@@ -83,11 +74,11 @@ where
     }
 }
 
-impl<'a, T: ?Sized, OffsetItem: OffsetElement, Buffer: BufferType> Extend<Option<&'a T>>
-    for StringArray<true, OffsetItem, Buffer>
+impl<'a, T: ?Sized, OffsetItem: Offset, Buffer: BufferType> Extend<Option<&'a T>>
+    for StringArray<Nullable, OffsetItem, Buffer>
 where
     T: AsRef<str>,
-    VariableSizeBinaryArray<true, OffsetItem, Buffer>: Extend<Option<&'a [u8]>>,
+    VariableSizeBinaryArray<Nullable, OffsetItem, Buffer>: Extend<Option<&'a [u8]>>,
 {
     fn extend<I: IntoIterator<Item = Option<&'a T>>>(&mut self, iter: I) {
         self.0.extend(
@@ -97,20 +88,20 @@ where
     }
 }
 
-impl<OffsetItem: OffsetElement, Buffer: BufferType> Extend<String>
-    for StringArray<false, OffsetItem, Buffer>
+impl<OffsetItem: Offset, Buffer: BufferType> Extend<String>
+    for StringArray<NonNullable, OffsetItem, Buffer>
 where
-    VariableSizeBinaryArray<false, OffsetItem, Buffer>: Extend<Vec<u8>>,
+    VariableSizeBinaryArray<NonNullable, OffsetItem, Buffer>: Extend<Vec<u8>>,
 {
     fn extend<I: IntoIterator<Item = String>>(&mut self, iter: I) {
         self.0.extend(iter.into_iter().map(String::into_bytes));
     }
 }
 
-impl<OffsetItem: OffsetElement, Buffer: BufferType> Extend<Option<String>>
-    for StringArray<true, OffsetItem, Buffer>
+impl<OffsetItem: Offset, Buffer: BufferType> Extend<Option<String>>
+    for StringArray<Nullable, OffsetItem, Buffer>
 where
-    VariableSizeBinaryArray<true, OffsetItem, Buffer>: Extend<Option<Vec<u8>>>,
+    VariableSizeBinaryArray<Nullable, OffsetItem, Buffer>: Extend<Option<Vec<u8>>>,
 {
     fn extend<I: IntoIterator<Item = Option<String>>>(&mut self, iter: I) {
         self.0
@@ -118,22 +109,22 @@ where
     }
 }
 
-impl<OffsetItem: OffsetElement, Buffer: BufferType> From<StringArray<false, OffsetItem, Buffer>>
-    for StringArray<true, OffsetItem, Buffer>
+impl<OffsetItem: Offset, Buffer: BufferType> From<StringArray<NonNullable, OffsetItem, Buffer>>
+    for StringArray<Nullable, OffsetItem, Buffer>
 where
-    VariableSizeBinaryArray<false, OffsetItem, Buffer>:
-        Into<VariableSizeBinaryArray<true, OffsetItem, Buffer>>,
+    VariableSizeBinaryArray<NonNullable, OffsetItem, Buffer>:
+        Into<VariableSizeBinaryArray<Nullable, OffsetItem, Buffer>>,
 {
-    fn from(value: StringArray<false, OffsetItem, Buffer>) -> Self {
+    fn from(value: StringArray<NonNullable, OffsetItem, Buffer>) -> Self {
         Self(value.0.into())
     }
 }
 
-impl<'a, T: ?Sized, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<&'a T>
-    for StringArray<false, OffsetItem, Buffer>
+impl<'a, T: ?Sized, OffsetItem: Offset, Buffer: BufferType> FromIterator<&'a T>
+    for StringArray<NonNullable, OffsetItem, Buffer>
 where
     T: AsRef<str>,
-    VariableSizeBinaryArray<false, OffsetItem, Buffer>: FromIterator<&'a [u8]>,
+    VariableSizeBinaryArray<NonNullable, OffsetItem, Buffer>: FromIterator<&'a [u8]>,
 {
     fn from_iter<I: IntoIterator<Item = &'a T>>(iter: I) -> Self {
         Self(
@@ -144,11 +135,11 @@ where
     }
 }
 
-impl<'a, T: ?Sized, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<Option<&'a T>>
-    for StringArray<true, OffsetItem, Buffer>
+impl<'a, T: ?Sized, OffsetItem: Offset, Buffer: BufferType> FromIterator<Option<&'a T>>
+    for StringArray<Nullable, OffsetItem, Buffer>
 where
     T: AsRef<str>,
-    VariableSizeBinaryArray<true, OffsetItem, Buffer>: FromIterator<Option<&'a [u8]>>,
+    VariableSizeBinaryArray<Nullable, OffsetItem, Buffer>: FromIterator<Option<&'a [u8]>>,
 {
     fn from_iter<I: IntoIterator<Item = Option<&'a T>>>(iter: I) -> Self {
         Self(
@@ -159,20 +150,20 @@ where
     }
 }
 
-impl<OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<String>
-    for StringArray<false, OffsetItem, Buffer>
+impl<OffsetItem: Offset, Buffer: BufferType> FromIterator<String>
+    for StringArray<NonNullable, OffsetItem, Buffer>
 where
-    VariableSizeBinaryArray<false, OffsetItem, Buffer>: FromIterator<Vec<u8>>,
+    VariableSizeBinaryArray<NonNullable, OffsetItem, Buffer>: FromIterator<Vec<u8>>,
 {
     fn from_iter<I: IntoIterator<Item = String>>(iter: I) -> Self {
         Self(iter.into_iter().map(String::into_bytes).collect())
     }
 }
 
-impl<OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<Option<String>>
-    for StringArray<true, OffsetItem, Buffer>
+impl<OffsetItem: Offset, Buffer: BufferType> FromIterator<Option<String>>
+    for StringArray<Nullable, OffsetItem, Buffer>
 where
-    VariableSizeBinaryArray<true, OffsetItem, Buffer>: FromIterator<Option<Vec<u8>>>,
+    VariableSizeBinaryArray<Nullable, OffsetItem, Buffer>: FromIterator<Option<Vec<u8>>>,
 {
     fn from_iter<I: IntoIterator<Item = Option<String>>>(iter: I) -> Self {
         Self(
@@ -183,8 +174,8 @@ where
     }
 }
 
-impl<OffsetItem: OffsetElement, Buffer: BufferType> Index
-    for StringArray<false, OffsetItem, Buffer>
+impl<OffsetItem: Offset, Buffer: BufferType> Index
+    for StringArray<NonNullable, OffsetItem, Buffer>
 {
     type Item<'a>
         = &'a str
@@ -196,9 +187,7 @@ impl<OffsetItem: OffsetElement, Buffer: BufferType> Index
     }
 }
 
-impl<OffsetItem: OffsetElement, Buffer: BufferType> Index
-    for StringArray<true, OffsetItem, Buffer>
-{
+impl<OffsetItem: Offset, Buffer: BufferType> Index for StringArray<Nullable, OffsetItem, Buffer> {
     type Item<'a>
         = Option<&'a str>
     where
@@ -212,23 +201,19 @@ impl<OffsetItem: OffsetElement, Buffer: BufferType> Index
 }
 
 /// An iterator over strings in a [`StringArray`].
-pub struct StringIter<'a, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType>
-where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-{
+pub struct StringIter<'a, Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> {
     /// Reference to the array.
-    array: &'a StringArray<NULLABLE, OffsetItem, Buffer>,
+    array: &'a StringArray<Nullable, OffsetItem, Buffer>,
     /// Current index.
     index: usize,
 }
 
-impl<'a, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Iterator
-    for StringIter<'a, NULLABLE, OffsetItem, Buffer>
+impl<'a, Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> Iterator
+    for StringIter<'a, Nullable, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    StringArray<NULLABLE, OffsetItem, Buffer>: Length + Index,
+    StringArray<Nullable, OffsetItem, Buffer>: Length + Index,
 {
-    type Item = <StringArray<NULLABLE, OffsetItem, Buffer> as Index>::Item<'a>;
+    type Item = <StringArray<Nullable, OffsetItem, Buffer> as Index>::Item<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.array
@@ -241,14 +226,13 @@ where
     }
 }
 
-impl<'a, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
-    for &'a StringArray<NULLABLE, OffsetItem, Buffer>
+impl<'a, Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> IntoIterator
+    for &'a StringArray<Nullable, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    StringArray<NULLABLE, OffsetItem, Buffer>: Index + Length,
+    StringArray<Nullable, OffsetItem, Buffer>: Index + Length,
 {
-    type Item = <StringArray<NULLABLE, OffsetItem, Buffer> as Index>::Item<'a>;
-    type IntoIter = StringIter<'a, NULLABLE, OffsetItem, Buffer>;
+    type Item = <StringArray<Nullable, OffsetItem, Buffer> as Index>::Item<'a>;
+    type IntoIter = StringIter<'a, Nullable, OffsetItem, Buffer>;
 
     fn into_iter(self) -> Self::IntoIter {
         StringIter {
@@ -258,15 +242,17 @@ where
     }
 }
 
-impl<OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
-    for StringArray<false, OffsetItem, Buffer>
+impl<OffsetItem: Offset, Buffer: BufferType> IntoIterator
+    for StringArray<NonNullable, OffsetItem, Buffer>
 where
-    VariableSizeBinaryArray<false, OffsetItem, Buffer>: IntoIterator<Item = Vec<u8>>,
+    VariableSizeBinaryArray<NonNullable, OffsetItem, Buffer>: IntoIterator<Item = Vec<u8>>,
 {
     type Item = String;
     type IntoIter = Map<
-        <VariableSizeBinaryArray<false, OffsetItem, Buffer> as IntoIterator>::IntoIter,
-        fn(<VariableSizeBinaryArray<false, OffsetItem, Buffer> as IntoIterator>::Item) -> String,
+        <VariableSizeBinaryArray<NonNullable, OffsetItem, Buffer> as IntoIterator>::IntoIter,
+        fn(
+            <VariableSizeBinaryArray<NonNullable, OffsetItem, Buffer> as IntoIterator>::Item,
+        ) -> String,
     >;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -278,16 +264,16 @@ where
     }
 }
 
-impl<OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
-    for StringArray<true, OffsetItem, Buffer>
+impl<OffsetItem: Offset, Buffer: BufferType> IntoIterator
+    for StringArray<Nullable, OffsetItem, Buffer>
 where
-    VariableSizeBinaryArray<true, OffsetItem, Buffer>: IntoIterator<Item = Option<Vec<u8>>>,
+    VariableSizeBinaryArray<Nullable, OffsetItem, Buffer>: IntoIterator<Item = Option<Vec<u8>>>,
 {
     type Item = Option<String>;
     type IntoIter = Map<
-        <VariableSizeBinaryArray<true, OffsetItem, Buffer> as IntoIterator>::IntoIter,
+        <VariableSizeBinaryArray<Nullable, OffsetItem, Buffer> as IntoIterator>::IntoIter,
         fn(
-            <VariableSizeBinaryArray<true, OffsetItem, Buffer> as IntoIterator>::Item,
+            <VariableSizeBinaryArray<Nullable, OffsetItem, Buffer> as IntoIterator>::Item,
         ) -> Option<String>,
     >;
 
@@ -302,19 +288,18 @@ where
     }
 }
 
-impl<const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Length
-    for StringArray<NULLABLE, OffsetItem, Buffer>
+impl<Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> Length
+    for StringArray<Nullable, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>: Length,
+    VariableSizeBinaryArray<Nullable, OffsetItem, Buffer>: Length,
 {
     fn len(&self) -> usize {
         self.0.len()
     }
 }
 
-impl<OffsetItem: OffsetElement, Buffer: BufferType> BitmapRef
-    for StringArray<true, OffsetItem, Buffer>
+impl<OffsetItem: Offset, Buffer: BufferType> BitmapRef
+    for StringArray<Nullable, OffsetItem, Buffer>
 {
     type Buffer = Buffer;
 
@@ -323,16 +308,16 @@ impl<OffsetItem: OffsetElement, Buffer: BufferType> BitmapRef
     }
 }
 
-impl<OffsetItem: OffsetElement, Buffer: BufferType> BitmapRefMut
-    for StringArray<true, OffsetItem, Buffer>
+impl<OffsetItem: Offset, Buffer: BufferType> BitmapRefMut
+    for StringArray<Nullable, OffsetItem, Buffer>
 {
     fn bitmap_ref_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
         self.0.bitmap_ref_mut()
     }
 }
 
-impl<OffsetItem: OffsetElement, Buffer: BufferType> ValidityBitmap
-    for StringArray<true, OffsetItem, Buffer>
+impl<OffsetItem: Offset, Buffer: BufferType> ValidityBitmap
+    for StringArray<Nullable, OffsetItem, Buffer>
 {
 }
 
@@ -358,7 +343,7 @@ mod tests {
     #[test]
     fn from_iter_nullable() {
         let input = vec![Some("a"), None, Some("sd"), Some("f"), None];
-        let array = input.into_iter().collect::<StringArray<true>>();
+        let array = input.into_iter().collect::<StringArray<Nullable>>();
         assert_eq!(array.len(), 5);
         assert_eq!(array.is_valid(0), Some(true));
         assert_eq!(array.is_valid(1), Some(false));
@@ -390,7 +375,7 @@ mod tests {
         let array_nullable = input_nullable
             .clone()
             .into_iter()
-            .collect::<StringArray<true>>();
+            .collect::<StringArray<Nullable>>();
         let output = array_nullable.into_iter().collect::<Vec<_>>();
         assert_eq!(output, input_nullable);
     }
@@ -402,7 +387,7 @@ mod tests {
             .into_iter()
             .map(ToOwned::to_owned)
             .collect::<StringArray>();
-        let nullable: StringArray<true> = array.into();
+        let nullable: StringArray<Nullable> = array.into();
         assert_eq!(nullable.bitmap_ref().buffer_ref(), &[0b0000_0111]);
     }
 }

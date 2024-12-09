@@ -3,7 +3,7 @@
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{Buffer, BufferType, VecBuffer},
-    nullable::Nullable,
+    nullability::{NonNullable, Nullability, Nullable},
     validity::Validity,
     FixedSize, Index, Length,
 };
@@ -18,7 +18,7 @@ use std::{
 /// Values with these types can be used to represent offset values.
 ///
 /// This trait is sealed to prevent downstream implementations.
-pub trait OffsetElement:
+pub trait Offset:
     FixedSize
     + AddAssign
     + Default
@@ -33,11 +33,12 @@ pub trait OffsetElement:
 
     /// Checked addition. Computes `self + rhs`, returning `None` if overflow occurred.
     fn checked_add(self, rhs: Self) -> Option<Self>;
+
     /// Checked addition with an unsigned value. Computes `self + rhs`, returning `None` if overflow occurred.
     fn checked_add_unsigned(self, rhs: Self::Unsigned) -> Option<Self>;
 }
 
-/// Indicates that an [`OffsetElement`] generic is not applicable.
+/// Indicates that an [`Offset`] generic is not applicable.
 ///
 /// This is used instead to prevent confusion in code because we don't have default
 /// types for generic associated types.
@@ -48,13 +49,15 @@ pub type NA = i32;
 
 /// Private module for a seal trait.
 mod sealed {
-    /// Sealed trait to seal [`super::OffsetElement`].
+    /// Sealed trait to seal [`super::Offset`].
     pub trait Sealed {}
-    impl<T> Sealed for T where T: super::OffsetElement {}
+
+    impl<T> Sealed for T where T: super::Offset {}
 }
 
-impl OffsetElement for i32 {
+impl Offset for i32 {
     type Unsigned = u32;
+
     fn checked_add(self, rhs: Self) -> Option<Self> {
         i32::checked_add(self, rhs)
     }
@@ -64,11 +67,13 @@ impl OffsetElement for i32 {
     }
 }
 
-impl OffsetElement for i64 {
+impl Offset for i64 {
     type Unsigned = u64;
+
     fn checked_add(self, rhs: Self) -> Option<Self> {
         i64::checked_add(self, rhs)
     }
+
     fn checked_add_unsigned(self, rhs: Self::Unsigned) -> Option<Self> {
         i64::checked_add_unsigned(self, rhs)
     }
@@ -76,14 +81,14 @@ impl OffsetElement for i64 {
 
 /// A reference to a slot in an offset
 #[allow(unused)]
-pub struct OffsetSlot<'a, OffsetItem: OffsetElement, Buffer: BufferType> {
+pub struct OffsetSlot<'a, OffsetItem: Offset, Buffer: BufferType> {
     /// The offset buffer
     offset: &'a <Buffer as BufferType>::Buffer<OffsetItem>,
     /// The position in the offset
     index: usize,
 }
 
-impl<OffsetItem: OffsetElement, Buffer: BufferType> OffsetSlot<'_, OffsetItem, Buffer> {
+impl<OffsetItem: Offset, Buffer: BufferType> OffsetSlot<'_, OffsetItem, Buffer> {
     /// Returns the position of this slot in the buffer i.e. the index.
     #[must_use]
     pub fn position(&self) -> usize {
@@ -176,39 +181,36 @@ impl<OffsetItem: OffsetElement, Buffer: BufferType> OffsetSlot<'_, OffsetItem, B
     }
 }
 
-/// Offset abstraction.
-pub struct Offset<
+/// Offsets abstraction.
+pub struct Offsets<
     T,
-    const NULLABLE: bool = false,
-    OffsetItem: OffsetElement = i32,
-    Buffer = VecBuffer,
-> where
-    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE>>,
-{
+    Nulls: Nullability = NonNullable,
+    OffsetItem: Offset = i32,
+    Buffer: BufferType = VecBuffer,
+> {
     /// The data
     pub data: T,
+
     /// The offsets
-    pub offsets:
-        <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<NULLABLE>>::Storage<Buffer>,
+    pub offsets: Nulls::Collection<Buffer::Buffer<OffsetItem>, Buffer>,
 }
 
-impl<const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer>
-    Offset<T, NULLABLE, OffsetItem, Buffer>
+impl<T, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType>
+    Offsets<T, Nulls, OffsetItem, Buffer>
 where
-    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE>>,
-    Offset<T, NULLABLE, OffsetItem, Buffer>: Index,
+    Offsets<T, Nulls, OffsetItem, Buffer>: Index,
 {
-    /// Returns an iteratover over the offset items in this [`Offset`].
-    pub fn iter(&self) -> OffsetIter<'_, NULLABLE, T, OffsetItem, Buffer> {
+    /// Returns an iteratover over the offset items in this [`Offsets`].
+    pub fn iter(&self) -> OffsetIter<'_, Nulls, T, OffsetItem, Buffer> {
         <&Self as IntoIterator>::into_iter(self)
     }
 }
 
-impl<const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer> Clone
-    for Offset<T, NULLABLE, OffsetItem, Buffer>
+impl<T, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Clone
+    for Offsets<T, Nulls, OffsetItem, Buffer>
 where
     T: Clone,
-    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE, Storage<Buffer>: Clone>>,
+    Nulls::Collection<Buffer::Buffer<OffsetItem>, Buffer>: Clone,
 {
     fn clone(&self) -> Self {
         Self {
@@ -218,12 +220,12 @@ where
     }
 }
 
-impl<T: Default, OffsetItem: OffsetElement, Buffer> Default for Offset<T, false, OffsetItem, Buffer>
+impl<T: Default, OffsetItem: Offset, Buffer> Default for Offsets<T, NonNullable, OffsetItem, Buffer>
 where
     Buffer: BufferType<Buffer<OffsetItem>: Default + Extend<OffsetItem>>,
 {
     fn default() -> Self {
-        let mut offsets = <Buffer as BufferType>::Buffer::<OffsetItem>::default();
+        let mut offsets = Buffer::Buffer::<OffsetItem>::default();
         offsets.extend(iter::once(OffsetItem::default()));
         Self {
             data: T::default(),
@@ -232,15 +234,14 @@ where
     }
 }
 
-impl<T: Default, OffsetItem: OffsetElement, Buffer> Default for Offset<T, true, OffsetItem, Buffer>
+impl<T: Default, OffsetItem: Offset, Buffer> Default for Offsets<T, Nullable, OffsetItem, Buffer>
 where
     Buffer: BufferType<Buffer<OffsetItem>: Extend<OffsetItem>>,
-    Nullable<<Buffer as BufferType>::Buffer<OffsetItem>, Buffer>: Default,
+    Validity<<Buffer as BufferType>::Buffer<OffsetItem>, Buffer>: Default,
 {
     fn default() -> Self {
-        let mut offsets = <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<true>>::Storage::<
-            Buffer,
-        >::default();
+        let mut offsets =
+            <Nullable as Nullability>::Collection::<Buffer::Buffer<OffsetItem>, Buffer>::default();
         offsets.data.extend(iter::once(OffsetItem::default()));
         Self {
             data: T::default(),
@@ -249,7 +250,7 @@ where
     }
 }
 
-impl<T, U, OffsetItem: OffsetElement, Buffer> Extend<U> for Offset<T, false, OffsetItem, Buffer>
+impl<T, U, OffsetItem: Offset, Buffer> Extend<U> for Offsets<T, NonNullable, OffsetItem, Buffer>
 where
     T: Extend<<U as IntoIterator>::Item>,
     U: IntoIterator + Length,
@@ -277,14 +278,13 @@ where
     }
 }
 
-impl<T, U, OffsetItem: OffsetElement, Buffer: BufferType> Extend<Option<U>>
-    for Offset<T, true, OffsetItem, Buffer>
+impl<T, U, OffsetItem: Offset, Buffer: BufferType> Extend<Option<U>>
+    for Offsets<T, Nullable, OffsetItem, Buffer>
 where
     T: Extend<<U as IntoIterator>::Item>,
     U: IntoIterator + Length,
     Buffer: BufferType,
-    <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<true>>::Storage<Buffer>:
-        Extend<(bool, OffsetItem)>,
+    Validity<Buffer::Buffer<OffsetItem>, Buffer>: Extend<(bool, OffsetItem)>,
 {
     fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
         let mut state = self
@@ -310,19 +310,19 @@ where
     }
 }
 
-impl<T, OffsetItem: OffsetElement, Buffer> From<Offset<T, false, OffsetItem, Buffer>>
-    for Offset<T, true, OffsetItem, Buffer>
+impl<T, OffsetItem: Offset, Buffer> From<Offsets<T, NonNullable, OffsetItem, Buffer>>
+    for Offsets<T, Nullable, OffsetItem, Buffer>
 where
     Buffer: BufferType<Buffer<OffsetItem>: Length>,
     Bitmap<Buffer>: FromIterator<bool>,
 {
-    fn from(value: Offset<T, false, OffsetItem, Buffer>) -> Self {
+    fn from(value: Offsets<T, NonNullable, OffsetItem, Buffer>) -> Self {
         // Not using `Nullable::wrap` because the offset buffer has one more
         // element than the length.
         let validity = Bitmap::new_valid(value.len());
         Self {
             data: value.data,
-            offsets: Nullable {
+            offsets: Validity {
                 data: value.offsets,
                 validity,
             },
@@ -330,8 +330,8 @@ where
     }
 }
 
-impl<T, U, OffsetItem: OffsetElement, Buffer> FromIterator<U>
-    for Offset<T, false, OffsetItem, Buffer>
+impl<T, U, OffsetItem: Offset, Buffer> FromIterator<U>
+    for Offsets<T, NonNullable, OffsetItem, Buffer>
 where
     Self: Default,
     T: Extend<<U as IntoIterator>::Item>,
@@ -345,13 +345,13 @@ where
     }
 }
 
-impl<T, U, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<Option<U>>
-    for Offset<T, true, OffsetItem, Buffer>
+impl<T, U, OffsetItem: Offset, Buffer: BufferType> FromIterator<Option<U>>
+    for Offsets<T, Nullable, OffsetItem, Buffer>
 where
     Self: Default,
     T: Extend<<U as IntoIterator>::Item>,
     U: IntoIterator + Length,
-    <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<true>>::Storage<Buffer>:
+    <Nullable as Nullability>::Collection<Buffer::Buffer<OffsetItem>, Buffer>:
         Extend<(bool, OffsetItem)>,
 {
     fn from_iter<I: IntoIterator<Item = Option<U>>>(iter: I) -> Self {
@@ -361,13 +361,13 @@ where
     }
 }
 
-impl<T, U, OffsetItem: OffsetElement, Buffer: BufferType> FromIterator<std::option::IntoIter<U>>
-    for Offset<T, true, OffsetItem, Buffer>
+impl<T, U, OffsetItem: Offset, Buffer: BufferType> FromIterator<std::option::IntoIter<U>>
+    for Offsets<T, Nullable, OffsetItem, Buffer>
 where
     Self: Default,
     T: Extend<<U as IntoIterator>::Item>,
     U: IntoIterator + Length,
-    <<Buffer as BufferType>::Buffer<OffsetItem> as Validity<true>>::Storage<Buffer>:
+    <Nullable as Nullability>::Collection<Buffer::Buffer<OffsetItem>, Buffer>:
         Extend<(bool, OffsetItem)>,
 {
     fn from_iter<I: IntoIterator<Item = std::option::IntoIter<U>>>(iter: I) -> Self {
@@ -378,12 +378,9 @@ where
 }
 
 /// An iterator over items in an offset.
-pub struct OffsetSlice<'a, T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer>
-where
-    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE>>,
-{
-    /// The offset storing the values and offsets
-    offset: &'a Offset<T, NULLABLE, OffsetItem, Buffer>,
+pub struct OffsetSlice<'a, T, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> {
+    /// The offsets storing the values and offsets
+    offset: &'a Offsets<T, Nulls, OffsetItem, Buffer>,
     /// The current position
     index: usize,
     /// Then end of this slice
@@ -392,10 +389,8 @@ where
 
 // TODO(mbrobbel): this is the remaining items in the iterator, maybe we want
 // this to be the original slot length?
-impl<T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer> Length
-    for OffsetSlice<'_, T, NULLABLE, OffsetItem, Buffer>
-where
-    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE>>,
+impl<T, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Length
+    for OffsetSlice<'_, T, Nulls, OffsetItem, Buffer>
 {
     #[inline]
     fn len(&self) -> usize {
@@ -403,10 +398,9 @@ where
     }
 }
 
-impl<'a, T, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer> Iterator
-    for OffsetSlice<'a, T, NULLABLE, OffsetItem, Buffer>
+impl<'a, T, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Iterator
+    for OffsetSlice<'a, T, Nulls, OffsetItem, Buffer>
 where
-    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE>>,
     T: Index,
 {
     type Item = <T as Index>::Item<'a>;
@@ -422,11 +416,11 @@ where
     }
 }
 
-impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Index
-    for Offset<T, false, OffsetItem, Buffer>
+impl<T, OffsetItem: Offset, Buffer: BufferType> Index
+    for Offsets<T, NonNullable, OffsetItem, Buffer>
 {
     type Item<'a>
-        = OffsetSlice<'a, T, false, OffsetItem, Buffer>
+        = OffsetSlice<'a, T, NonNullable, OffsetItem, Buffer>
     where
         Self: 'a;
 
@@ -451,11 +445,9 @@ impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Index
     }
 }
 
-impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Index
-    for Offset<T, true, OffsetItem, Buffer>
-{
+impl<T, OffsetItem: Offset, Buffer: BufferType> Index for Offsets<T, Nullable, OffsetItem, Buffer> {
     type Item<'a>
-        = Option<OffsetSlice<'a, T, true, OffsetItem, Buffer>>
+        = Option<OffsetSlice<'a, T, Nullable, OffsetItem, Buffer>>
     where
         Self: 'a;
 
@@ -487,23 +479,20 @@ impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Index
 }
 
 /// An iterator over an offset.
-pub struct OffsetIter<'a, const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer>
-where
-    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE>>,
-{
+pub struct OffsetIter<'a, Nulls: Nullability, T, OffsetItem: Offset, Buffer: BufferType> {
     /// The offset being iterated over
-    offset: &'a Offset<T, NULLABLE, OffsetItem, Buffer>,
+    offset: &'a Offsets<T, Nulls, OffsetItem, Buffer>,
     /// The current position of this iterator
     position: usize,
 }
 
-impl<'a, const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer> Iterator
-    for OffsetIter<'a, NULLABLE, T, OffsetItem, Buffer>
+impl<'a, Nulls: Nullability, T, OffsetItem: Offset, Buffer> Iterator
+    for OffsetIter<'a, Nulls, T, OffsetItem, Buffer>
 where
-    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE>>,
-    Offset<T, NULLABLE, OffsetItem, Buffer>: Index,
+    Buffer: BufferType,
+    Offsets<T, Nulls, OffsetItem, Buffer>: Index,
 {
-    type Item = <Offset<T, NULLABLE, OffsetItem, Buffer> as Index>::Item<'a>;
+    type Item = <Offsets<T, Nulls, OffsetItem, Buffer> as Index>::Item<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         (self.position < self.offset.len()).then(|| {
@@ -516,14 +505,14 @@ where
     }
 }
 
-impl<'a, const NULLABLE: bool, T, OffsetItem: OffsetElement, Buffer> IntoIterator
-    for &'a Offset<T, NULLABLE, OffsetItem, Buffer>
+impl<'a, Nulls: Nullability, T, OffsetItem: Offset, Buffer> IntoIterator
+    for &'a Offsets<T, Nulls, OffsetItem, Buffer>
 where
-    Buffer: BufferType<Buffer<OffsetItem>: Validity<NULLABLE>>,
-    Offset<T, NULLABLE, OffsetItem, Buffer>: Index,
+    Buffer: BufferType,
+    Offsets<T, Nulls, OffsetItem, Buffer>: Index,
 {
-    type Item = <Offset<T, NULLABLE, OffsetItem, Buffer> as Index>::Item<'a>;
-    type IntoIter = OffsetIter<'a, NULLABLE, T, OffsetItem, Buffer>;
+    type Item = <Offsets<T, Nulls, OffsetItem, Buffer> as Index>::Item<'a>;
+    type IntoIter = OffsetIter<'a, Nulls, T, OffsetItem, Buffer>;
 
     fn into_iter(self) -> Self::IntoIter {
         OffsetIter {
@@ -534,7 +523,7 @@ where
 }
 
 /// An owned iterator over an offset
-pub struct OffsetIntoIter<T, OffsetItem: OffsetElement, Buffer>
+pub struct OffsetIntoIter<T, OffsetItem: Offset, Buffer>
 where
     T: IntoIterator,
     Buffer: BufferType<Buffer<OffsetItem>: IntoIterator>,
@@ -545,7 +534,7 @@ where
     offsets: Peekable<<<Buffer as BufferType>::Buffer<OffsetItem> as IntoIterator>::IntoIter>,
 }
 
-impl<T, OffsetItem: OffsetElement, Buffer> Iterator for OffsetIntoIter<T, OffsetItem, Buffer>
+impl<T, OffsetItem: Offset, Buffer> Iterator for OffsetIntoIter<T, OffsetItem, Buffer>
 where
     T: IntoIterator,
     Buffer: BufferType<Buffer<OffsetItem>: IntoIterator<Item = OffsetItem>>,
@@ -578,7 +567,7 @@ where
     }
 }
 
-impl<T, OffsetItem: OffsetElement, Buffer> IntoIterator for Offset<T, false, OffsetItem, Buffer>
+impl<T, OffsetItem: Offset, Buffer> IntoIterator for Offsets<T, NonNullable, OffsetItem, Buffer>
 where
     T: IntoIterator,
     Buffer: BufferType<Buffer<OffsetItem>: IntoIterator<Item = OffsetItem>>,
@@ -594,7 +583,7 @@ where
     }
 }
 
-impl<T, OffsetItem: OffsetElement, Buffer> IntoIterator for Offset<T, true, OffsetItem, Buffer>
+impl<T, OffsetItem: Offset, Buffer> IntoIterator for Offsets<T, Nullable, OffsetItem, Buffer>
 where
     T: IntoIterator,
     Bitmap<Buffer>: IntoIterator<Item = bool>,
@@ -626,8 +615,8 @@ where
     }
 }
 
-impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Length
-    for Offset<T, false, OffsetItem, Buffer>
+impl<T, OffsetItem: Offset, Buffer: BufferType> Length
+    for Offsets<T, NonNullable, OffsetItem, Buffer>
 {
     fn len(&self) -> usize {
         // The offsets buffer has an additional value
@@ -638,8 +627,8 @@ impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Length
     }
 }
 
-impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Length
-    for Offset<T, true, OffsetItem, Buffer>
+impl<T, OffsetItem: Offset, Buffer: BufferType> Length
+    for Offsets<T, Nullable, OffsetItem, Buffer>
 {
     fn len(&self) -> usize {
         // The offsets contains a bitmap that uses the number of bits as length
@@ -647,8 +636,8 @@ impl<T, OffsetItem: OffsetElement, Buffer: BufferType> Length
     }
 }
 
-impl<T, OffsetItem: OffsetElement, Buffer: BufferType> BitmapRef
-    for Offset<T, true, OffsetItem, Buffer>
+impl<T, OffsetItem: Offset, Buffer: BufferType> BitmapRef
+    for Offsets<T, Nullable, OffsetItem, Buffer>
 {
     type Buffer = Buffer;
 
@@ -657,16 +646,16 @@ impl<T, OffsetItem: OffsetElement, Buffer: BufferType> BitmapRef
     }
 }
 
-impl<T, OffsetItem: OffsetElement, Buffer: BufferType> BitmapRefMut
-    for Offset<T, true, OffsetItem, Buffer>
+impl<T, OffsetItem: Offset, Buffer: BufferType> BitmapRefMut
+    for Offsets<T, Nullable, OffsetItem, Buffer>
 {
     fn bitmap_ref_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
         self.offsets.bitmap_ref_mut()
     }
 }
 
-impl<T, OffsetItem: OffsetElement, Buffer: BufferType> ValidityBitmap
-    for Offset<T, true, OffsetItem, Buffer>
+impl<T, OffsetItem: Offset, Buffer: BufferType> ValidityBitmap
+    for Offsets<T, Nullable, OffsetItem, Buffer>
 {
 }
 
@@ -676,20 +665,20 @@ mod tests {
 
     #[test]
     fn default() {
-        let offset = Offset::<()>::default();
+        let offset = Offsets::<()>::default();
         assert_eq!(offset.offsets.as_slice(), &[0]);
     }
 
     #[test]
     fn default_nullable() {
-        let offset = Offset::<(), true>::default();
+        let offset = Offsets::<(), Nullable>::default();
         assert_eq!(offset.offsets.data.as_slice(), &[0]);
         assert_eq!(offset.len(), 0);
     }
 
     #[test]
     fn extend() {
-        let mut offset = Offset::<Vec<Vec<u8>>>::default();
+        let mut offset = Offsets::<Vec<Vec<u8>>>::default();
         offset.extend(std::iter::once(vec![vec![1, 2, 3, 4], vec![5]]));
         dbg!(&offset.data);
         dbg!(&offset.offsets);
@@ -702,7 +691,7 @@ mod tests {
 
     #[test]
     fn extend_nullable() {
-        let mut offset = Offset::<Vec<u8>, true>::default();
+        let mut offset = Offsets::<Vec<u8>, Nullable>::default();
         offset.extend(vec![Some(vec![1, 2, 3, 4]), None, None]);
         assert_eq!(offset.offsets.as_ref().as_slice(), &[0, 4, 4, 4]);
         assert_eq!(offset.len(), 3);
@@ -710,7 +699,7 @@ mod tests {
 
     #[test]
     fn extend_nullable_string() {
-        let mut offset = Offset::<Vec<u8>, true>::default();
+        let mut offset = Offsets::<Vec<u8>, Nullable>::default();
         offset.extend(vec![
             Some("as".to_owned().into_bytes()),
             None,
@@ -725,7 +714,7 @@ mod tests {
     #[test]
     fn from_iter() {
         let input = vec![vec![1, 2, 3, 4], vec![5, 6], vec![7, 8, 9]];
-        let offset = input.into_iter().collect::<Offset<Vec<u8>>>();
+        let offset = input.into_iter().collect::<Offsets<Vec<u8>>>();
         assert_eq!(offset.len(), 3);
         assert_eq!(offset.offsets.as_slice(), &[0, 4, 6, 9]);
         assert_eq!(offset.data, &[1, 2, 3, 4, 5, 6, 7, 8, 9]);
@@ -734,7 +723,7 @@ mod tests {
     #[test]
     fn from_iter_nullable() {
         let input = vec![Some(["a".to_owned()]), None, Some(["b".to_owned()]), None];
-        let offset = input.into_iter().collect::<Offset<String, true>>();
+        let offset = input.into_iter().collect::<Offsets<String, Nullable>>();
         assert_eq!(offset.len(), 4);
         assert_eq!(offset.offsets.as_ref().as_slice(), &[0, 1, 1, 2, 2]);
         assert_eq!(offset.data, "ab");
@@ -743,7 +732,7 @@ mod tests {
     #[test]
     fn index() {
         let input = vec![vec![1, 2, 3, 4], vec![5, 6], vec![7, 8, 9]];
-        let offset = input.into_iter().collect::<Offset<Vec<u8>>>();
+        let offset = input.into_iter().collect::<Offsets<Vec<u8>>>();
         let mut first = offset.index_checked(0);
         assert_eq!(first.next(), Some(&1));
         assert_eq!(first.next(), Some(&2));
@@ -754,7 +743,7 @@ mod tests {
         let input_nullable = vec![Some(vec![1, 2, 3, 4]), None, Some(vec![5, 6, 7, 8])];
         let offset_nullable = input_nullable
             .into_iter()
-            .collect::<Offset<Vec<u8>, true>>();
+            .collect::<Offsets<Vec<u8>, Nullable>>();
         let first_opt = offset_nullable.index_checked(0).expect("a value");
         assert_eq!(first_opt.copied().collect::<Vec<_>>(), [1, 2, 3, 4]);
         assert!(offset_nullable.index_checked(1).is_none());
@@ -763,7 +752,7 @@ mod tests {
     #[test]
     fn iter() {
         let input = vec![vec![1, 2, 3, 4], vec![5, 6], vec![7, 8, 9]];
-        let offset = input.clone().into_iter().collect::<Offset<Vec<u8>>>();
+        let offset = input.clone().into_iter().collect::<Offsets<Vec<u8>>>();
         let mut iter = offset.iter();
         assert_eq!(iter.next().expect("a value").len(), 4);
         assert_eq!(iter.next().expect("a value").len(), 2);
@@ -778,7 +767,7 @@ mod tests {
     #[test]
     fn into_iter() {
         let input = vec![vec![1, 2, 3, 4], vec![5, 6], vec![7, 8, 9]];
-        let offset = input.clone().into_iter().collect::<Offset<Vec<u8>>>();
+        let offset = input.clone().into_iter().collect::<Offsets<Vec<u8>>>();
         assert_eq!(offset.into_iter().collect::<Vec<_>>(), input);
     }
 
@@ -788,7 +777,7 @@ mod tests {
         let mut offset_nullable = input_nullable
             .clone()
             .into_iter()
-            .collect::<Offset<Vec<u8>, true>>();
+            .collect::<Offsets<Vec<u8>, Nullable>>();
 
         assert_eq!(
             offset_nullable.offsets.bitmap_ref_mut().is_valid(0),
@@ -826,9 +815,9 @@ mod tests {
     #[test]
     fn convert() {
         let input = vec![vec![1, 2, 3, 4], vec![5, 6], vec![7, 8, 9]];
-        let offset = input.into_iter().collect::<Offset<Vec<u8>>>();
+        let offset = input.into_iter().collect::<Offsets<Vec<u8>>>();
         assert_eq!(offset.len(), 3);
-        let offset_nullable: Offset<Vec<u8>, true> = offset.into();
+        let offset_nullable: Offsets<Vec<u8>, Nullable> = offset.into();
         assert_eq!(offset_nullable.len(), 3);
         assert!(offset_nullable.all_valid());
     }

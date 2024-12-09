@@ -15,9 +15,9 @@ where
 {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Foo, false, Buffer>;
+    > = narrow::array::StructArray<Foo, narrow::NonNullable, Buffer>;
 }
 impl narrow::array::ArrayType<Foo> for ::std::option::Option<Foo>
 where
@@ -25,9 +25,9 @@ where
 {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Foo, true, Buffer>;
+    > = narrow::array::StructArray<Foo, narrow::Nullable, Buffer>;
 }
 impl narrow::array::StructArrayType for Foo
 where
@@ -36,7 +36,7 @@ where
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<Buffer>;
 }
 struct FooArray<Buffer: narrow::buffer::BufferType>(
-    narrow::array::NullArray<Foo, false, Buffer>,
+    narrow::array::NullArray<Foo, narrow::NonNullable, Buffer>,
 )
 where
     Foo: Debug;
@@ -82,11 +82,19 @@ where
     }
 }
 struct FooArrayIter<Buffer: narrow::buffer::BufferType>(
-    <narrow::array::NullArray<Foo, false, Buffer> as IntoIterator>::IntoIter,
+    <narrow::array::NullArray<
+        Foo,
+        narrow::NonNullable,
+        Buffer,
+    > as IntoIterator>::IntoIter,
 )
 where
     Self: Debug,
-    narrow::array::NullArray<Foo, false, Buffer>: ::std::iter::IntoIterator<Item = Foo>;
+    narrow::array::NullArray<
+        Foo,
+        narrow::NonNullable,
+        Buffer,
+    >: ::std::iter::IntoIterator<Item = Foo>;
 impl<Buffer: narrow::buffer::BufferType> ::std::iter::Iterator for FooArrayIter<Buffer>
 where
     Self: Debug,

@@ -6,10 +6,10 @@ use std::{
 };
 
 use crate::{
-    array::{self, UnionType},
+    array::{self, SparseLayout, UnionType},
     buffer::BufferType,
-    offset::OffsetElement,
-    ArrayType,
+    offset::Offset,
+    NonNullable, Nullable,
 };
 
 use super::{LogicalArray, LogicalArrayType};
@@ -17,21 +17,21 @@ use super::{LogicalArray, LogicalArrayType};
 impl<K: array::ArrayType<K> + Eq + Hash, V: array::ArrayType<V>, S: BuildHasher + Default>
     array::ArrayType<HashMap<K, V, S>> for HashMap<K, V, S>
 {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
+    type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+        LogicalArray<Self, NonNullable, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl<K: array::ArrayType<K> + Eq + Hash, V: array::ArrayType<V>, S: BuildHasher + Default>
     array::ArrayType<HashMap<K, V, S>> for Option<HashMap<K, V, S>>
 {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<HashMap<K, V, S>, true, Buffer, OffsetItem, UnionLayout>;
+    type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+        LogicalArray<HashMap<K, V, S>, Nullable, Buffer, OffsetItem, UnionLayout>;
 }
 
 // TODO(mbrobbel): support HashMap<K, Option<V>>
 
 /// An item in a map.
-#[derive(ArrayType)]
+#[derive(crate::ArrayType)]
 pub struct KeyValue<K, V> {
     /// The key.
     key: K,
@@ -62,10 +62,11 @@ impl<K: array::ArrayType<K> + Hash + Eq, V: array::ArrayType<V>, S: BuildHasher 
 pub type HashMapArray<
     K,
     V,
-    const NULLABLE: bool = false,
+    Nullable = NonNullable,
     Buffer = crate::buffer::VecBuffer,
     OffsetItem = i32,
-> = LogicalArray<HashMap<K, V>, NULLABLE, Buffer, OffsetItem, crate::array::union::NA>;
+    UnionType = SparseLayout,
+> = LogicalArray<HashMap<K, V>, Nullable, Buffer, OffsetItem, UnionType>;
 
 #[cfg(test)]
 mod tests {
@@ -91,7 +92,7 @@ mod tests {
             None,
         ]
         .into_iter()
-        .collect::<HashMapArray<String, i8, true>>();
+        .collect::<HashMapArray<String, i8, Nullable>>();
         assert_eq!(array_nullable.len(), 2);
         assert_eq!(array_nullable.0.len(), 2);
     }
@@ -119,7 +120,7 @@ mod tests {
         let array_nullable = input_nullable
             .clone()
             .into_iter()
-            .collect::<HashMapArray<String, u64, true>>();
+            .collect::<HashMapArray<String, u64, Nullable>>();
         let output_nullable = array_nullable.into_iter().collect::<Vec<_>>();
         assert_eq!(input_nullable, output_nullable.as_slice());
     }

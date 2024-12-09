@@ -378,7 +378,7 @@ impl<'a> Enum<'a> {
         AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
-        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::Offset))
             .visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(UnionLayout: #narrow::array::UnionType))
             .visit_generics_mut(&mut generics);
@@ -415,7 +415,7 @@ impl<'a> Enum<'a> {
         AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
-        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::Offset))
             .visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(UnionLayout: #narrow::array::UnionType))
             .visit_generics_mut(&mut generics);
@@ -460,7 +460,7 @@ impl<'a> Enum<'a> {
         AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
-        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::Offset))
             .visit_generics_mut(&mut generics);
         generics
             .make_where_clause()
@@ -538,7 +538,7 @@ impl<'a> Enum<'a> {
         AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
-        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::Offset))
             .visit_generics_mut(&mut generics);
         generics
             .make_where_clause()
@@ -620,7 +620,7 @@ impl<'a> Enum<'a> {
         AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
-        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::Offset))
             .visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(UnionLayout: #narrow::array::UnionType))
             .visit_generics_mut(&mut generics);
@@ -687,7 +687,7 @@ impl<'a> Enum<'a> {
         AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
-        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::Offset))
             .visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(UnionLayout: #narrow::array::UnionType))
             .visit_generics_mut(&mut generics);
@@ -737,7 +737,7 @@ impl<'a> Enum<'a> {
         AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
-        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::Offset))
             .visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(UnionLayout: #narrow::array::UnionType))
             .visit_generics_mut(&mut generics);
@@ -786,7 +786,7 @@ impl<'a> Enum<'a> {
         AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
-        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::Offset))
             .visit_generics_mut(&mut generics);
 
         let struct_defs = self
@@ -885,7 +885,7 @@ impl<'a> Enum<'a> {
         AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
-        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::Offset))
             .visit_generics_mut(&mut generics);
 
         let struct_defs = self
@@ -1001,7 +1001,7 @@ impl<'a> Enum<'a> {
         let ident = self.array_struct_ident();
         let tokens = quote! {
             impl #impl_generics #narrow::array::UnionArrayType<#variants> for #self_ident #ty_generics #where_clause {
-                type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::OffsetElement, UnionLayout: #narrow::array::UnionType> = #ident #array_ty_generics;
+                type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::Offset, UnionLayout: #narrow::array::UnionType> = #ident #array_ty_generics;
             }
         };
         parse2(tokens).expect("union_array_type_impl")
@@ -1019,7 +1019,7 @@ impl<'a> Enum<'a> {
         let variants = Literal::usize_unsuffixed(self.variants.len());
         let tokens = quote! {
             impl #impl_generics #narrow::array::ArrayType<#ident #ty_generics> for #ident #ty_generics #where_clause {
-                type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::OffsetElement, UnionLayout: #narrow::array::UnionType> = #narrow::array::UnionArray<Self, { <Self as #narrow::array::UnionArrayType<#variants>>::VARIANTS }, UnionLayout, Buffer, OffsetItem>;
+                type Array<Buffer: #narrow::buffer::BufferType, OffsetItem: #narrow::offset::Offset, UnionLayout: #narrow::array::UnionType> = #narrow::array::UnionArray<Self, { <Self as #narrow::array::UnionArrayType<#variants>>::VARIANTS }, UnionLayout, Buffer, OffsetItem>;
             }
         };
         parse2(tokens).expect("array_type_impl")
@@ -1033,7 +1033,7 @@ impl<'a> Enum<'a> {
         let mut generics = self.generics.clone();
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
-        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::Offset))
             .visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(UnionLayout: #narrow::array::UnionType))
             .visit_generics_mut(&mut generics);
@@ -1078,7 +1078,7 @@ impl<'a> Enum<'a> {
         let mut generics = self.generics.clone();
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
-        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::Offset))
             .visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(UnionLayout: #narrow::array::r#union::UnionType))
             .visit_generics_mut(&mut generics);
@@ -1123,7 +1123,7 @@ impl<'a> Enum<'a> {
         let mut generics = self.generics.clone();
         AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
             .visit_generics_mut(&mut generics);
-        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::OffsetElement))
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::Offset))
             .visit_generics_mut(&mut generics);
         AddTypeParam(parse_quote!(UnionLayout: #narrow::array::UnionType))
             .visit_generics_mut(&mut generics);

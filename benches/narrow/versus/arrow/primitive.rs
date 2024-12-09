@@ -2,6 +2,7 @@ use arrow_array::types::{UInt16Type, UInt32Type, UInt64Type, UInt8Type};
 use arrow_array::{builder::PrimitiveBuilder, ArrowPrimitiveType, PrimitiveArray};
 use criterion::{BenchmarkId, Criterion};
 use narrow::{array::FixedSizePrimitiveArray, FixedSize};
+use narrow::{NonNullable, Nullable};
 use num_traits::{Bounded, NumCast};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use std::{ops::Rem, time::Duration};
@@ -71,7 +72,7 @@ where
 
 fn narrow_build_primitive_array_from_iterator<T>(
     input: impl Iterator<Item = T::Native>,
-) -> FixedSizePrimitiveArray<T::Native, false>
+) -> FixedSizePrimitiveArray<T::Native, NonNullable>
 where
     T: ArrowPrimitiveType,
     <T as ArrowPrimitiveType>::Native: FixedSize,
@@ -141,7 +142,7 @@ where
 
 fn narrow_build_primitive_array_from_iterator_nullable<T>(
     input: impl Iterator<Item = Option<T::Native>>,
-) -> FixedSizePrimitiveArray<T::Native, true>
+) -> FixedSizePrimitiveArray<T::Native, Nullable>
 where
     T: ArrowPrimitiveType,
     <T as ArrowPrimitiveType>::Native: FixedSize,

@@ -8,24 +8,21 @@ use arrow_schema::{DataType, Field};
 
 use crate::{
     array::{FixedSizePrimitiveArray, VariableSizeBinaryArray},
-    arrow::OffsetElement,
+    arrow::Offset,
     bitmap::Bitmap,
     buffer::BufferType,
-    nullable::Nullable,
-    offset::Offset,
-    validity::{Nullability, Validity},
+    nullability::{NonNullable, Nullability, Nullable},
+    offset::Offsets,
+    validity::Validity,
 };
 
-impl<const NULLABLE: bool, OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
-    crate::arrow::Array for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
-where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    Vec<u8>: Nullability<NULLABLE>,
+impl<Nullable: Nullability, OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType>
+    crate::arrow::Array for VariableSizeBinaryArray<Nullable, OffsetItem, Buffer>
 {
     type Array = arrow_array::GenericBinaryArray<OffsetItem>;
 
     fn as_field(name: &str) -> arrow_schema::Field {
-        Field::new(name, Self::data_type(), NULLABLE)
+        Field::new(name, Self::data_type(), Nullable::NULLABLE)
     }
 
     fn data_type() -> arrow_schema::DataType {
@@ -37,10 +34,9 @@ where
     }
 }
 
-impl<const NULLABLE: bool, OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
-    From<Arc<dyn arrow_array::Array>> for VariableSizeBinaryArray<NULLABLE, OffsetItem, Buffer>
+impl<Nullable: Nullability, OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType>
+    From<Arc<dyn arrow_array::Array>> for VariableSizeBinaryArray<Nullable, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
     Self: From<arrow_array::GenericBinaryArray<OffsetItem>>,
 {
     fn from(value: Arc<dyn arrow_array::Array>) -> Self {
@@ -50,39 +46,39 @@ where
     }
 }
 
-impl<OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
-    From<VariableSizeBinaryArray<false, OffsetItem, Buffer>> for Arc<dyn arrow_array::Array>
+impl<OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType>
+    From<VariableSizeBinaryArray<NonNullable, OffsetItem, Buffer>> for Arc<dyn arrow_array::Array>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
-    FixedSizePrimitiveArray<u8, false, Buffer>: Into<arrow_buffer::ScalarBuffer<u8>>,
+    FixedSizePrimitiveArray<u8, NonNullable, Buffer>: Into<arrow_buffer::ScalarBuffer<u8>>,
 {
-    fn from(value: VariableSizeBinaryArray<false, OffsetItem, Buffer>) -> Self {
+    fn from(value: VariableSizeBinaryArray<NonNullable, OffsetItem, Buffer>) -> Self {
         let array: arrow_array::GenericBinaryArray<OffsetItem> = value.into();
         Arc::new(array)
     }
 }
 
-impl<OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
-    From<VariableSizeBinaryArray<true, OffsetItem, Buffer>> for Arc<dyn arrow_array::Array>
+impl<OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType>
+    From<VariableSizeBinaryArray<Nullable, OffsetItem, Buffer>> for Arc<dyn arrow_array::Array>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
-    FixedSizePrimitiveArray<u8, false, Buffer>: Into<arrow_buffer::ScalarBuffer<u8>>,
+    FixedSizePrimitiveArray<u8, NonNullable, Buffer>: Into<arrow_buffer::ScalarBuffer<u8>>,
     Bitmap<Buffer>: Into<NullBuffer>,
 {
-    fn from(value: VariableSizeBinaryArray<true, OffsetItem, Buffer>) -> Self {
+    fn from(value: VariableSizeBinaryArray<Nullable, OffsetItem, Buffer>) -> Self {
         let array: arrow_array::GenericBinaryArray<OffsetItem> = value.into();
         Arc::new(array)
     }
 }
 
-impl<OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
-    From<VariableSizeBinaryArray<false, OffsetItem, Buffer>>
+impl<OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType>
+    From<VariableSizeBinaryArray<NonNullable, OffsetItem, Buffer>>
     for arrow_array::GenericBinaryArray<OffsetItem>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
-    FixedSizePrimitiveArray<u8, false, Buffer>: Into<arrow_buffer::ScalarBuffer<u8>>,
+    FixedSizePrimitiveArray<u8, NonNullable, Buffer>: Into<arrow_buffer::ScalarBuffer<u8>>,
 {
-    fn from(value: VariableSizeBinaryArray<false, OffsetItem, Buffer>) -> Self {
+    fn from(value: VariableSizeBinaryArray<NonNullable, OffsetItem, Buffer>) -> Self {
         arrow_array::GenericBinaryArray::new(
             // Safety:
             // - The narrow offset buffer contains valid offset data
@@ -93,15 +89,15 @@ where
     }
 }
 
-impl<OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
-    From<VariableSizeBinaryArray<true, OffsetItem, Buffer>>
+impl<OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType>
+    From<VariableSizeBinaryArray<Nullable, OffsetItem, Buffer>>
     for arrow_array::GenericBinaryArray<OffsetItem>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
-    FixedSizePrimitiveArray<u8, false, Buffer>: Into<arrow_buffer::ScalarBuffer<u8>>,
+    FixedSizePrimitiveArray<u8, NonNullable, Buffer>: Into<arrow_buffer::ScalarBuffer<u8>>,
     Bitmap<Buffer>: Into<NullBuffer>,
 {
-    fn from(value: VariableSizeBinaryArray<true, OffsetItem, Buffer>) -> Self {
+    fn from(value: VariableSizeBinaryArray<Nullable, OffsetItem, Buffer>) -> Self {
         arrow_array::GenericBinaryArray::new(
             // Safety:
             // - The narrow offset buffer contains valid offset data
@@ -113,18 +109,18 @@ where
 }
 
 /// Panics when there are nulls
-impl<OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
+impl<OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType>
     From<arrow_array::GenericBinaryArray<OffsetItem>>
-    for VariableSizeBinaryArray<false, OffsetItem, Buffer>
+    for VariableSizeBinaryArray<NonNullable, OffsetItem, Buffer>
 where
-    FixedSizePrimitiveArray<u8, false, Buffer>: From<ScalarBuffer<u8>>,
+    FixedSizePrimitiveArray<u8, NonNullable, Buffer>: From<ScalarBuffer<u8>>,
     <Buffer as BufferType>::Buffer<OffsetItem>: From<ScalarBuffer<OffsetItem>>,
 {
     fn from(value: arrow_array::GenericBinaryArray<OffsetItem>) -> Self {
         let (offsets, values, nulls_opt) = value.into_parts();
         match nulls_opt {
             Some(_) => panic!("expected array without a null buffer"),
-            None => VariableSizeBinaryArray(Offset {
+            None => VariableSizeBinaryArray(Offsets {
                 data: ScalarBuffer::from(values).into(),
                 offsets: offsets.into_inner().into(),
             }),
@@ -132,11 +128,11 @@ where
     }
 }
 
-impl<OffsetItem: OffsetElement + OffsetSizeTrait, Buffer: BufferType>
+impl<OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType>
     From<arrow_array::GenericBinaryArray<OffsetItem>>
-    for VariableSizeBinaryArray<true, OffsetItem, Buffer>
+    for VariableSizeBinaryArray<Nullable, OffsetItem, Buffer>
 where
-    FixedSizePrimitiveArray<u8, false, Buffer>: From<ScalarBuffer<u8>>,
+    FixedSizePrimitiveArray<u8, NonNullable, Buffer>: From<ScalarBuffer<u8>>,
     <Buffer as BufferType>::Buffer<OffsetItem>: From<ScalarBuffer<OffsetItem>>,
     Bitmap<Buffer>: From<NullBuffer> + FromIterator<bool>,
 {
@@ -145,22 +141,25 @@ where
         let data = ScalarBuffer::from(values).into();
         let offsets = offsets_buffer.into_inner().into();
         match nulls_opt {
-            Some(null_buffer) => VariableSizeBinaryArray(Offset {
+            Some(null_buffer) => VariableSizeBinaryArray(Offsets {
                 data,
-                offsets: Nullable {
+                offsets: Validity {
                     data: offsets,
                     validity: null_buffer.into(),
                 },
             }),
-            None => VariableSizeBinaryArray::<false, OffsetItem, Buffer>(Offset { data, offsets })
-                .into(),
+            None => VariableSizeBinaryArray::<NonNullable, OffsetItem, Buffer>(Offsets {
+                data,
+                offsets,
+            })
+            .into(),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{array::VariableSizeBinaryArray, bitmap::ValidityBitmap};
+    use crate::{array::VariableSizeBinaryArray, bitmap::ValidityBitmap, NonNullable, Nullable};
 
     fn input() -> [Vec<u8>; 3] {
         [vec![0, 1, 2], vec![3], vec![]]
@@ -183,7 +182,7 @@ mod tests {
 
         let vsb_array_nullable = input_nullable()
             .into_iter()
-            .collect::<VariableSizeBinaryArray<true, i64>>();
+            .collect::<VariableSizeBinaryArray<Nullable, i64>>();
         assert_eq!(
             arrow_array::GenericBinaryArray::<i64>::from(vsb_array_nullable)
                 .into_iter()
@@ -200,7 +199,7 @@ mod tests {
             .map(Option::Some)
             .collect::<arrow_array::BinaryArray>();
         assert!(
-            !VariableSizeBinaryArray::<true, i32, crate::arrow::buffer::ScalarBuffer>::from(
+            !VariableSizeBinaryArray::<Nullable, i32, crate::arrow::buffer::ScalarBuffer>::from(
                 vsb_array
             )
             .any_null()
@@ -213,7 +212,7 @@ mod tests {
         let vsb_array_nullable = input_nullable()
             .into_iter()
             .collect::<arrow_array::BinaryArray>();
-        let _: VariableSizeBinaryArray<false, i32, crate::arrow::buffer::ScalarBuffer> =
+        let _: VariableSizeBinaryArray<NonNullable, i32, crate::arrow::buffer::ScalarBuffer> =
             vsb_array_nullable.into();
     }
 
@@ -223,14 +222,14 @@ mod tests {
             .into_iter()
             .map(Option::Some)
             .collect::<arrow_array::BinaryArray>();
-        let _: VariableSizeBinaryArray<false, i32, crate::arrow::buffer::ScalarBuffer> =
+        let _: VariableSizeBinaryArray<NonNullable, i32, crate::arrow::buffer::ScalarBuffer> =
             vsb_array.into();
         // todo(mbrobbel): intoiterator for Binaryarray
 
         let vsb_array_nullable = input_nullable()
             .into_iter()
             .collect::<arrow_array::BinaryArray>();
-        let _: VariableSizeBinaryArray<true, i32, crate::arrow::buffer::ScalarBuffer> =
+        let _: VariableSizeBinaryArray<Nullable, i32, crate::arrow::buffer::ScalarBuffer> =
             vsb_array_nullable.into();
         // todo(mbrobbel): intoiterator for Binaryarray
     }

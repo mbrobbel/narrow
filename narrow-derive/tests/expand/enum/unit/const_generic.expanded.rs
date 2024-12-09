@@ -25,7 +25,7 @@ impl<const X: bool> narrow::array::union::EnumVariant<1> for FooBar<X> {
 struct FooBarArray<
     const X: bool,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
     UnionLayout: narrow::array::UnionType,
 >(
     <<FooBar<
@@ -46,7 +46,7 @@ struct FooBarArray<
 impl<
     const X: bool,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
     UnionLayout: narrow::array::UnionType,
 > ::std::clone::Clone for FooBarArray<X, Buffer, OffsetItem, UnionLayout>
 where
@@ -72,7 +72,7 @@ where
 impl<
     const X: bool,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
     UnionLayout: narrow::array::UnionType,
 > ::std::default::Default for FooBarArray<X, Buffer, OffsetItem, UnionLayout>
 where
@@ -98,7 +98,7 @@ where
 impl<
     const X: bool,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
 > ::std::iter::Extend<FooBar<X>>
 for FooBarArray<X, Buffer, OffsetItem, narrow::array::DenseLayout>
 where
@@ -137,7 +137,7 @@ where
 impl<
     const X: bool,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
 > ::std::iter::Extend<FooBar<X>>
 for FooBarArray<X, Buffer, OffsetItem, narrow::array::SparseLayout>
 where
@@ -184,7 +184,7 @@ where
 struct FooBarArrayIntoIter<
     const X: bool,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
     UnionLayout: narrow::array::UnionType,
 >(
     <<<FooBar<
@@ -220,7 +220,7 @@ where
 impl<
     const X: bool,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
 > narrow::array::union::TypeIdIterator
 for FooBarArrayIntoIter<X, Buffer, OffsetItem, narrow::array::DenseLayout>
 where
@@ -280,7 +280,7 @@ where
 impl<
     const X: bool,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
 > narrow::array::union::TypeIdIterator
 for FooBarArrayIntoIter<X, Buffer, OffsetItem, narrow::array::SparseLayout>
 where
@@ -342,7 +342,7 @@ where
 impl<
     const X: bool,
     Buffer: narrow::buffer::BufferType,
-    OffsetItem: narrow::offset::OffsetElement,
+    OffsetItem: narrow::offset::Offset,
     UnionLayout: narrow::array::UnionType,
 > narrow::array::union::UnionArrayIterators
 for FooBarArray<X, Buffer, OffsetItem, UnionLayout>
@@ -393,14 +393,14 @@ where
 impl<const X: bool> narrow::array::UnionArrayType<2> for FooBar<X> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
     > = FooBarArray<X, Buffer, OffsetItem, UnionLayout>;
 }
 impl<const X: bool> narrow::array::ArrayType<FooBar<X>> for FooBar<X> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
     > = narrow::array::UnionArray<
         Self,

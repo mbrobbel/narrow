@@ -5,22 +5,19 @@ use std::sync::Arc;
 use crate::{
     array::{NullArray, Nulls, Unit},
     buffer::BufferType,
-    validity::{Nullability, Validity},
+    nullability::{NonNullable, Nullability},
     Length,
 };
 use arrow_array::Array;
 use arrow_schema::{DataType, Field};
 
-impl<T: Unit, const NULLABLE: bool, Buffer: BufferType> crate::arrow::Array
-    for NullArray<T, NULLABLE, Buffer>
-where
-    T: Nullability<NULLABLE>,
-    Nulls<T>: Validity<NULLABLE>,
+impl<T: Unit, Nullable: Nullability, Buffer: BufferType> crate::arrow::Array
+    for NullArray<T, Nullable, Buffer>
 {
     type Array = arrow_array::NullArray;
 
     fn as_field(name: &str) -> arrow_schema::Field {
-        Field::new(name, Self::data_type(), NULLABLE)
+        Field::new(name, Self::data_type(), Nullable::NULLABLE)
     }
 
     fn data_type() -> arrow_schema::DataType {
@@ -28,7 +25,8 @@ where
     }
 }
 
-impl<T: Unit, Buffer: BufferType> From<Arc<dyn arrow_array::Array>> for NullArray<T, false, Buffer>
+impl<T: Unit, Buffer: BufferType> From<Arc<dyn arrow_array::Array>>
+    for NullArray<T, NonNullable, Buffer>
 where
     Self: From<arrow_array::NullArray>,
 {
@@ -37,22 +35,27 @@ where
     }
 }
 
-impl<T: Unit, Buffer: BufferType> From<NullArray<T, false, Buffer>> for Arc<dyn arrow_array::Array>
+impl<T: Unit, Buffer: BufferType> From<NullArray<T, NonNullable, Buffer>>
+    for Arc<dyn arrow_array::Array>
 where
-    arrow_array::NullArray: From<NullArray<T, false, Buffer>>,
+    arrow_array::NullArray: From<NullArray<T, NonNullable, Buffer>>,
 {
-    fn from(value: NullArray<T, false, Buffer>) -> Self {
+    fn from(value: NullArray<T, NonNullable, Buffer>) -> Self {
         Arc::new(arrow_array::NullArray::from(value))
     }
 }
 
-impl<T: Unit, Buffer: BufferType> From<NullArray<T, false, Buffer>> for arrow_array::NullArray {
-    fn from(value: NullArray<T, false, Buffer>) -> Self {
+impl<T: Unit, Buffer: BufferType> From<NullArray<T, NonNullable, Buffer>>
+    for arrow_array::NullArray
+{
+    fn from(value: NullArray<T, NonNullable, Buffer>) -> Self {
         arrow_array::NullArray::new(value.len())
     }
 }
 
-impl<T: Unit, Buffer: BufferType> From<arrow_array::NullArray> for NullArray<T, false, Buffer> {
+impl<T: Unit, Buffer: BufferType> From<arrow_array::NullArray>
+    for NullArray<T, NonNullable, Buffer>
+{
     fn from(value: arrow_array::NullArray) -> Self {
         NullArray(Nulls::new(value.len()))
     }
@@ -60,20 +63,18 @@ impl<T: Unit, Buffer: BufferType> From<arrow_array::NullArray> for NullArray<T, 
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use super::*;
 
-    use crate::{
-        array::{NullArray, StructArray},
-        buffer::ArcBuffer,
-        Length,
-    };
-    use arrow_array::{cast::AsArray, Array};
+    use crate::buffer::ArcBuffer;
 
     const INPUT: [(); 4] = [(), (), (), ()];
 
     #[test]
     #[cfg(feature = "derive")]
     fn derive() {
+        use crate::array::StructArray;
+        use arrow_array::{cast::AsArray, Array};
+        use std::sync::Arc;
         #[derive(crate::ArrayType, Copy, Clone, Debug, Default)]
         struct Unit;
 
@@ -116,7 +117,7 @@ mod tests {
 
         let null_array_arc = INPUT
             .into_iter()
-            .collect::<NullArray<_, false, ArcBuffer>>();
+            .collect::<NullArray<_, NonNullable, ArcBuffer>>();
         assert_eq!(
             arrow_array::NullArray::new(null_array_arc.len()).len(),
             INPUT.len()
@@ -127,7 +128,7 @@ mod tests {
     fn into() {
         let null_array = arrow_array::NullArray::new(INPUT.len());
         assert_eq!(
-            NullArray::<(), false, crate::arrow::buffer::ScalarBuffer>::from(null_array)
+            NullArray::<(), NonNullable, crate::arrow::buffer::ScalarBuffer>::from(null_array)
                 .into_iter()
                 .collect::<Vec<_>>(),
             INPUT
