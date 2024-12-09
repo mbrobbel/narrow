@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0](https://github.com/mbrobbel/narrow/compare/narrow-v0.11.5...narrow-v0.12.0) - 2024-12-09
+
+### Added
+
+- [**breaking**] change nullability abstraction to use non-const generic (#294)
+
+### Fixed
+
+- restore `ArrayType<Self>` supertrait for `FixedSize` trait (#297)
+
+### Other
+
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.85 to 0.5.86 (#298)
+- *(deps)* bump chrono from 0.4.38 to 0.4.39 (#299)
+- some small README improvements (#296)
+
 ## [0.11.5](https://github.com/mbrobbel/narrow/compare/narrow-v0.11.4...narrow-v0.11.5) - 2024-12-02
 
 ### Other
