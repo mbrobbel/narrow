@@ -76,7 +76,6 @@ name = "narrow"
 harness = false
 required-features = ["arrow-rs"]
 
-
 [[example]]
 name = "basic"
 required-features = ["derive"]
