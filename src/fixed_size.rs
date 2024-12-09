@@ -18,6 +18,8 @@ mod arrow_rs {
 }
 use arrow_rs::_arrow_rs_trait;
 
+use crate::array::ArrayType;
+
 /// Subtrait for fixed-size types.
 ///
 /// This exists to be used as trait bound where one or more of the supertraits
@@ -26,8 +28,7 @@ use arrow_rs::_arrow_rs_trait;
 ///
 /// This trait is sealed to prevent downstream implementations.
 pub trait FixedSize:
-    // ArrayType<Self> + Copy + Debug + PartialEq + Sized + sealed::Sealed + 'static + _arrow_rs_trait
-    Copy + Debug + PartialEq + Sized + sealed::Sealed + 'static + _arrow_rs_trait
+    ArrayType<Self> + Copy + Debug + PartialEq + Sized + sealed::Sealed + 'static + _arrow_rs_trait
 {
     /// The fixed-size of this type in bytes.
     const SIZE: usize = mem::size_of::<Self>();
