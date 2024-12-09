@@ -102,7 +102,8 @@ mod tests {
         let inner_unit = Arc::clone(arrow_array_nested.column(0).as_struct().column(0));
         let narrow_array_inner = NullArray::<Unit>::from(inner_unit);
         assert_eq!(narrow_array_inner.len(), 4);
-        let narrow_array_nested = StructArray::<NestedUnit>::from(arrow_array_nested);
+        let narrow_array_nested =
+            StructArray::<NestedUnit>::try_from(arrow_array_nested).expect("successful conversion");
         assert_eq!(narrow_array_nested.len(), 4);
     }
 
