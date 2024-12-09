@@ -112,7 +112,7 @@ impl<OffsetItem: Offset, Buffer: BufferType> OffsetSlot<'_, OffsetItem, Buffer> 
     ///
     /// # Panics
     ///
-    /// This function panics if the conversion of [`OffsetElement`] to [`usize`] fails.
+    /// This function panics if the conversion of [`Offset`] to [`usize`] fails.
     #[must_use]
     pub fn start_usize(&self) -> usize {
         self.start().try_into().expect("convert fail")
@@ -146,7 +146,7 @@ impl<OffsetItem: Offset, Buffer: BufferType> OffsetSlot<'_, OffsetItem, Buffer> 
     /// Returns the end index of this offset slot as usize.
     /// # Panics
     ///
-    /// This function panics if the conversion of [`OffsetElement`] to [`usize`] fails.
+    /// This function panics if the conversion of [`Offset`] to [`usize`] fails.
     #[must_use]
     pub fn end_usize(&self) -> usize {
         self.end().try_into().expect("convert fail")
@@ -162,7 +162,7 @@ impl<OffsetItem: Offset, Buffer: BufferType> OffsetSlot<'_, OffsetItem, Buffer> 
     ///
     /// # Panics
     ///
-    /// This function panics if the conversion of [`OffsetElement`] to [`usize`] fails.
+    /// This function panics if the conversion of [`Offset`] to [`usize`] fails.
     #[must_use]
     pub fn len_usize(&self) -> usize {
         self.len().try_into().expect("convert fail")

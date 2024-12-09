@@ -41,7 +41,8 @@ impl Nullability for Nullable {
     /// Nullable items are wrapped in an [`Option`].
     type Item<T> = Option<T>;
 
-    /// Nullable collections are wrapped in a [`Validity`].
+    /// Nullable collections are wrapped together with a
+    /// [`crate::bitmap::Bitmap`].
     type Collection<T, Buffer: BufferType> = Validity<T, Buffer>;
 }
 
