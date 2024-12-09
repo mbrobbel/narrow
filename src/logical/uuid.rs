@@ -3,19 +3,20 @@ use uuid::Uuid;
 use crate::{
     array::{ArrayType, FixedSizeBinary, UnionType},
     buffer::BufferType,
-    offset::OffsetElement,
+    offset::Offset,
+    NonNullable, Nullable,
 };
 
 use super::{LogicalArray, LogicalArrayType};
 
 impl ArrayType<uuid::Uuid> for uuid::Uuid {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<Self, false, Buffer, OffsetItem, UnionLayout>;
+    type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+        LogicalArray<Self, NonNullable, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl ArrayType<uuid::Uuid> for Option<uuid::Uuid> {
-    type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-        LogicalArray<uuid::Uuid, true, Buffer, OffsetItem, UnionLayout>;
+    type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+        LogicalArray<uuid::Uuid, Nullable, Buffer, OffsetItem, UnionLayout>;
 }
 
 impl LogicalArrayType<uuid::Uuid> for uuid::Uuid {
@@ -32,8 +33,8 @@ impl LogicalArrayType<uuid::Uuid> for uuid::Uuid {
 
 /// An array for [`Uuid`] items.
 #[allow(unused)]
-pub type UuidArray<const NULLABLE: bool = false, Buffer = crate::buffer::VecBuffer> =
-    LogicalArray<Uuid, NULLABLE, Buffer, crate::offset::NA, crate::array::union::NA>;
+pub type UuidArray<Nullable = NonNullable, Buffer = crate::buffer::VecBuffer> =
+    LogicalArray<Uuid, Nullable, Buffer>;
 
 #[cfg(test)]
 mod tests {
@@ -50,7 +51,7 @@ mod tests {
 
         let array_nullable = [Some(Uuid::from_u128(1)), None]
             .into_iter()
-            .collect::<UuidArray<true>>();
+            .collect::<UuidArray<Nullable>>();
         assert_eq!(array_nullable.len(), 2);
         assert_eq!(array_nullable.0.len(), 2);
     }
@@ -63,7 +64,7 @@ mod tests {
         assert_eq!(input, output.as_slice());
 
         let input_nullable = [Some(Uuid::from_u128(1)), None];
-        let array_nullable = input_nullable.into_iter().collect::<UuidArray<true>>();
+        let array_nullable = input_nullable.into_iter().collect::<UuidArray<Nullable>>();
         let output_nullable = array_nullable.into_iter().collect::<Vec<_>>();
         assert_eq!(input_nullable, output_nullable.as_slice());
     }

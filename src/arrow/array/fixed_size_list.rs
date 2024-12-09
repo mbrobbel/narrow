@@ -9,16 +9,13 @@ use crate::{
     array::{Array, FixedSizeListArray},
     bitmap::Bitmap,
     buffer::BufferType,
-    nullable::Nullable,
-    validity::{Nullability, Validity},
+    nullability::{NonNullable, Nullability, Nullable},
+    validity::Validity,
     Length,
 };
 
-impl<const N: usize, T: crate::arrow::Array, const NULLABLE: bool, Buffer: BufferType>
-    crate::arrow::Array for FixedSizeListArray<N, T, NULLABLE, Buffer>
-where
-    T: Validity<NULLABLE>,
-    [<T as Array>::Item; N]: Nullability<NULLABLE>,
+impl<const N: usize, T: crate::arrow::Array, Nullable: Nullability, Buffer: BufferType>
+    crate::arrow::Array for FixedSizeListArray<N, T, Nullable, Buffer>
 {
     type Array = arrow_array::FixedSizeListArray;
 
@@ -30,7 +27,7 @@ where
             clippy::cast_possible_truncation,
             clippy::cast_possible_wrap
         )]
-        Field::new(name, Self::data_type(), NULLABLE)
+        Field::new(name, Self::data_type(), Nullable::NULLABLE)
     }
 
     fn data_type() -> arrow_schema::DataType {
@@ -41,10 +38,9 @@ where
     }
 }
 
-impl<const N: usize, T: Array, const NULLABLE: bool, Buffer: BufferType>
-    From<Arc<dyn arrow_array::Array>> for FixedSizeListArray<N, T, NULLABLE, Buffer>
+impl<const N: usize, T: Array, Nullable: Nullability, Buffer: BufferType>
+    From<Arc<dyn arrow_array::Array>> for FixedSizeListArray<N, T, Nullable, Buffer>
 where
-    T: Validity<NULLABLE>,
     Self: From<arrow_array::FixedSizeListArray>,
 {
     fn from(value: Arc<dyn arrow_array::Array>) -> Self {
@@ -52,12 +48,12 @@ where
     }
 }
 
-impl<const N: usize, T: Array, Buffer: BufferType> From<FixedSizeListArray<N, T, false, Buffer>>
-    for Arc<dyn arrow_array::Array>
+impl<const N: usize, T: Array, Buffer: BufferType>
+    From<FixedSizeListArray<N, T, NonNullable, Buffer>> for Arc<dyn arrow_array::Array>
 where
     T: crate::arrow::Array + Into<Arc<dyn arrow_array::Array>>,
 {
-    fn from(value: FixedSizeListArray<N, T, false, Buffer>) -> Self {
+    fn from(value: FixedSizeListArray<N, T, NonNullable, Buffer>) -> Self {
         Arc::new(arrow_array::FixedSizeListArray::new(
             Arc::new(T::as_field("item")),
             i32::try_from(N).expect("overflow"),
@@ -67,13 +63,13 @@ where
     }
 }
 
-impl<const N: usize, T: Array, Buffer: BufferType> From<FixedSizeListArray<N, T, true, Buffer>>
+impl<const N: usize, T: Array, Buffer: BufferType> From<FixedSizeListArray<N, T, Nullable, Buffer>>
     for Arc<dyn arrow_array::Array>
 where
     T: crate::arrow::Array + Into<Arc<dyn arrow_array::Array>>,
     Bitmap<Buffer>: Into<NullBuffer>,
 {
-    fn from(value: FixedSizeListArray<N, T, true, Buffer>) -> Self {
+    fn from(value: FixedSizeListArray<N, T, Nullable, Buffer>) -> Self {
         Arc::new(arrow_array::FixedSizeListArray::new(
             Arc::new(T::as_field("item")),
             i32::try_from(N).expect("overflow"),
@@ -84,11 +80,11 @@ where
 }
 
 impl<const N: usize, T: crate::arrow::Array, Buffer: BufferType>
-    From<FixedSizeListArray<N, T, false, Buffer>> for arrow_array::FixedSizeListArray
+    From<FixedSizeListArray<N, T, NonNullable, Buffer>> for arrow_array::FixedSizeListArray
 where
     <T as crate::arrow::Array>::Array: From<T> + 'static,
 {
-    fn from(value: FixedSizeListArray<N, T, false, Buffer>) -> Self {
+    fn from(value: FixedSizeListArray<N, T, NonNullable, Buffer>) -> Self {
         // todo(mbrobbel): const_assert
         assert!(N <= 0x7FFF_FFFF); // i32::MAX
         #[allow(
@@ -106,12 +102,12 @@ where
 }
 
 impl<const N: usize, T: crate::arrow::Array, Buffer: BufferType>
-    From<FixedSizeListArray<N, T, true, Buffer>> for arrow_array::FixedSizeListArray
+    From<FixedSizeListArray<N, T, Nullable, Buffer>> for arrow_array::FixedSizeListArray
 where
     <T as crate::arrow::Array>::Array: From<T> + 'static,
     Bitmap<Buffer>: Into<NullBuffer>,
 {
-    fn from(value: FixedSizeListArray<N, T, true, Buffer>) -> Self {
+    fn from(value: FixedSizeListArray<N, T, Nullable, Buffer>) -> Self {
         // todo(mbrobbel): const_assert
         assert!(N <= 0x7FFF_FFFF); // i32::MAX
         #[allow(
@@ -130,7 +126,7 @@ where
 
 /// Panics when there are nulls
 impl<const N: usize, T: crate::arrow::Array, Buffer: BufferType>
-    From<arrow_array::FixedSizeListArray> for FixedSizeListArray<N, T, false, Buffer>
+    From<arrow_array::FixedSizeListArray> for FixedSizeListArray<N, T, NonNullable, Buffer>
 where
     T: From<Arc<dyn arrow_array::Array>>,
 {
@@ -146,7 +142,7 @@ where
 }
 
 impl<const N: usize, T: crate::arrow::Array, Buffer: BufferType>
-    From<arrow_array::FixedSizeListArray> for FixedSizeListArray<N, T, true, Buffer>
+    From<arrow_array::FixedSizeListArray> for FixedSizeListArray<N, T, Nullable, Buffer>
 where
     T: From<Arc<dyn arrow_array::Array>> + Length,
     Bitmap<Buffer>: From<NullBuffer> + FromIterator<bool>,
@@ -157,11 +153,11 @@ where
         assert_eq!(N, n);
         let data = values.into();
         match nulls_opt {
-            Some(null_buffer) => FixedSizeListArray(Nullable {
+            Some(null_buffer) => FixedSizeListArray(Validity {
                 data,
                 validity: null_buffer.into(),
             }),
-            None => FixedSizeListArray::<N, T, false, Buffer>(data).into(),
+            None => FixedSizeListArray::<N, T, NonNullable, Buffer>(data).into(),
         }
     }
 }
@@ -191,7 +187,7 @@ mod tests {
                 .iter()
                 .flatten()
                 .flat_map(|dyn_array| {
-                    let array: Uint32Array<false, crate::arrow::buffer::ScalarBuffer> =
+                    let array: Uint32Array<NonNullable, crate::arrow::buffer::ScalarBuffer> =
                         dyn_array.into();
                     array.into_iter().copied().collect::<Vec<_>>()
                 })
@@ -201,16 +197,18 @@ mod tests {
 
         let fixed_size_list_array_nullable = INPUT_NULLABLE
             .into_iter()
-            .collect::<FixedSizeListArray<2, StringArray, true>>();
+            .collect::<FixedSizeListArray<2, StringArray, Nullable>>();
         assert_eq!(
             arrow_array::FixedSizeListArray::from(fixed_size_list_array_nullable)
                 .iter()
                 .flatten()
                 .flat_map(|dyn_array| {
-                    StringArray::<false, i32, crate::arrow::buffer::ScalarBuffer>::from(dyn_array)
-                        .into_iter()
-                        .map(ToOwned::to_owned)
-                        .collect::<Vec<_>>()
+                    StringArray::<NonNullable, i32, crate::arrow::buffer::ScalarBuffer>::from(
+                        dyn_array,
+                    )
+                    .into_iter()
+                    .map(ToOwned::to_owned)
+                    .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>(),
             INPUT_NULLABLE
@@ -233,8 +231,8 @@ mod tests {
             );
         assert!(!FixedSizeListArray::<
             2,
-            Uint32Array<false, crate::arrow::buffer::ScalarBuffer>,
-            true,
+            Uint32Array<NonNullable, crate::arrow::buffer::ScalarBuffer>,
+            Nullable,
             crate::arrow::buffer::ScalarBuffer,
         >::from(fixed_size_list_array)
         .any_null());
@@ -250,8 +248,8 @@ mod tests {
             );
         let _ = FixedSizeListArray::<
             3,
-            Uint32Array<false, crate::arrow::buffer::ScalarBuffer>,
-            false,
+            Uint32Array<NonNullable, crate::arrow::buffer::ScalarBuffer>,
+            NonNullable,
             crate::arrow::buffer::ScalarBuffer,
         >::from(fixed_size_list_array_nullable);
     }
@@ -269,8 +267,8 @@ mod tests {
         assert_eq!(
             FixedSizeListArray::<
                 2,
-                Uint32Array<false, crate::arrow::buffer::ScalarBuffer>,
-                false,
+                Uint32Array<NonNullable, crate::arrow::buffer::ScalarBuffer>,
+                NonNullable,
                 crate::arrow::buffer::ScalarBuffer,
             >::from(fixed_size_list_array)
             .into_iter()
@@ -282,15 +280,15 @@ mod tests {
 
         let fixed_size_list_array_nullable_input = INPUT_NULLABLE
             .into_iter()
-            .collect::<FixedSizeListArray<2, StringArray, true>>();
+            .collect::<FixedSizeListArray<2, StringArray, Nullable>>();
         let fixed_size_list_array_nullable =
             arrow_array::FixedSizeListArray::from(fixed_size_list_array_nullable_input);
 
         assert_eq!(
             FixedSizeListArray::<
                 2,
-                StringArray<false, i32, crate::arrow::buffer::ScalarBuffer>,
-                true,
+                StringArray<NonNullable, i32, crate::arrow::buffer::ScalarBuffer>,
+                Nullable,
             >::from(fixed_size_list_array_nullable)
             .into_iter()
             .collect::<Vec<_>>(),

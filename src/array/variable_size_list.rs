@@ -4,36 +4,30 @@ use crate::{
     array::Array,
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
-    offset::{Offset, OffsetElement},
-    validity::{Nullability, Validity},
+    nullability::{NonNullable, Nullability, Nullable},
+    offset::{Offset, Offsets},
     Index, Length,
 };
 use std::fmt::{Debug, Formatter, Result};
 
 /// Array with variable-size list elements.
 pub struct VariableSizeListArray<
-    T: Array,
-    const NULLABLE: bool = false,
-    OffsetItem: OffsetElement = i32,
+    T: Array, // todo(mbrobbel): move this bound?
+    Nullable: Nullability = NonNullable,
+    OffsetItem: Offset = i32,
     Buffer: BufferType = VecBuffer,
->(pub Offset<T, NULLABLE, OffsetItem, Buffer>)
-where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>;
+>(pub Offsets<T, Nullable, OffsetItem, Buffer>);
 
-impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Array
-    for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
-where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    Vec<T>: Nullability<NULLABLE>,
+impl<T: Array, Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> Array
+    for VariableSizeListArray<T, Nullable, OffsetItem, Buffer>
 {
-    type Item = <Vec<T> as Nullability<NULLABLE>>::Item;
+    type Item = Nullable::Item<Vec<T>>;
 }
 
-impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Debug
-    for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
+impl<T: Array, Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> Debug
+    for VariableSizeListArray<T, Nullable, OffsetItem, Buffer>
 where
-    Offset<T, NULLABLE, OffsetItem, Buffer>: Debug,
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
+    Offsets<T, Nullable, OffsetItem, Buffer>: Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         f.debug_tuple("VariableSizeListArray")
@@ -42,83 +36,77 @@ where
     }
 }
 
-impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Clone
-    for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
+impl<T: Array, Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> Clone
+    for VariableSizeListArray<T, Nullable, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    Offset<T, NULLABLE, OffsetItem, Buffer>: Clone,
+    Offsets<T, Nullable, OffsetItem, Buffer>: Clone,
 {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Default
-    for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
+impl<T: Array, Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> Default
+    for VariableSizeListArray<T, Nullable, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    Offset<T, NULLABLE, OffsetItem, Buffer>: Default,
+    Offsets<T, Nullable, OffsetItem, Buffer>: Default,
 {
     fn default() -> Self {
-        Self(Offset::default())
+        Self(Offsets::default())
     }
 }
 
-impl<T: Array, U, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Extend<U>
-    for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
+impl<T: Array, U, Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> Extend<U>
+    for VariableSizeListArray<T, Nullable, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    Offset<T, NULLABLE, OffsetItem, Buffer>: Extend<U>,
+    Offsets<T, Nullable, OffsetItem, Buffer>: Extend<U>,
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
         self.0.extend(iter);
     }
 }
 
-impl<T: Array, OffsetItem: OffsetElement, Buffer: BufferType>
-    From<VariableSizeListArray<T, false, OffsetItem, Buffer>>
-    for VariableSizeListArray<T, true, OffsetItem, Buffer>
+impl<T: Array, OffsetItem: Offset, Buffer: BufferType>
+    From<VariableSizeListArray<T, NonNullable, OffsetItem, Buffer>>
+    for VariableSizeListArray<T, Nullable, OffsetItem, Buffer>
 where
-    Offset<T, false, OffsetItem, Buffer>: Into<Offset<T, true, OffsetItem, Buffer>>,
+    Offsets<T, NonNullable, OffsetItem, Buffer>: Into<Offsets<T, Nullable, OffsetItem, Buffer>>,
 {
-    fn from(value: VariableSizeListArray<T, false, OffsetItem, Buffer>) -> Self {
+    fn from(value: VariableSizeListArray<T, NonNullable, OffsetItem, Buffer>) -> Self {
         Self(value.0.into())
     }
 }
 
-impl<T: Array, U, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType>
-    FromIterator<U> for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
+impl<T: Array, U, Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> FromIterator<U>
+    for VariableSizeListArray<T, Nullable, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    Offset<T, NULLABLE, OffsetItem, Buffer>: FromIterator<U>,
+    Offsets<T, Nullable, OffsetItem, Buffer>: FromIterator<U>,
 {
     fn from_iter<I: IntoIterator<Item = U>>(iter: I) -> Self {
         Self(iter.into_iter().collect())
     }
 }
 
-impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> IntoIterator
-    for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
+impl<T: Array, Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> IntoIterator
+    for VariableSizeListArray<T, Nullable, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    Offset<T, NULLABLE, OffsetItem, Buffer>: IntoIterator,
+    Offsets<T, Nullable, OffsetItem, Buffer>: IntoIterator,
 {
-    type IntoIter = <Offset<T, NULLABLE, OffsetItem, Buffer> as IntoIterator>::IntoIter;
-    type Item = <Offset<T, NULLABLE, OffsetItem, Buffer> as IntoIterator>::Item;
+    type IntoIter = <Offsets<T, Nullable, OffsetItem, Buffer> as IntoIterator>::IntoIter;
+    type Item = <Offsets<T, Nullable, OffsetItem, Buffer> as IntoIterator>::Item;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }
 }
 
-impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Index
-    for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
+impl<T: Array, Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> Index
+    for VariableSizeListArray<T, Nullable, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    Offset<T, NULLABLE, OffsetItem, Buffer>: Index,
+    Offsets<T, Nullable, OffsetItem, Buffer>: Index,
 {
     type Item<'a>
-        = <Offset<T, NULLABLE, OffsetItem, Buffer> as Index>::Item<'a>
+        = <Offsets<T, Nullable, OffsetItem, Buffer> as Index>::Item<'a>
     where
         Self: 'a;
 
@@ -127,19 +115,18 @@ where
     }
 }
 
-impl<T: Array, const NULLABLE: bool, OffsetItem: OffsetElement, Buffer: BufferType> Length
-    for VariableSizeListArray<T, NULLABLE, OffsetItem, Buffer>
+impl<T: Array, Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> Length
+    for VariableSizeListArray<T, Nullable, OffsetItem, Buffer>
 where
-    <Buffer as BufferType>::Buffer<OffsetItem>: Validity<NULLABLE>,
-    Offset<T, NULLABLE, OffsetItem, Buffer>: Length,
+    Offsets<T, Nullable, OffsetItem, Buffer>: Length,
 {
     fn len(&self) -> usize {
         self.0.len()
     }
 }
 
-impl<T: Array, OffsetItem: OffsetElement, Buffer: BufferType> BitmapRef
-    for VariableSizeListArray<T, true, OffsetItem, Buffer>
+impl<T: Array, OffsetItem: Offset, Buffer: BufferType> BitmapRef
+    for VariableSizeListArray<T, Nullable, OffsetItem, Buffer>
 {
     type Buffer = Buffer;
 
@@ -148,16 +135,16 @@ impl<T: Array, OffsetItem: OffsetElement, Buffer: BufferType> BitmapRef
     }
 }
 
-impl<T: Array, OffsetItem: OffsetElement, Buffer: BufferType> BitmapRefMut
-    for VariableSizeListArray<T, true, OffsetItem, Buffer>
+impl<T: Array, OffsetItem: Offset, Buffer: BufferType> BitmapRefMut
+    for VariableSizeListArray<T, Nullable, OffsetItem, Buffer>
 {
     fn bitmap_ref_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
         self.0.bitmap_ref_mut()
     }
 }
 
-impl<T: Array, OffsetItem: OffsetElement, Buffer: BufferType> ValidityBitmap
-    for VariableSizeListArray<T, true, OffsetItem, Buffer>
+impl<T: Array, OffsetItem: Offset, Buffer: BufferType> ValidityBitmap
+    for VariableSizeListArray<T, Nullable, OffsetItem, Buffer>
 {
 }
 
@@ -181,7 +168,7 @@ mod tests {
         let input = vec![Some(vec![1]), None, Some(vec![2, 3]), Some(vec![4])];
         let array = input
             .into_iter()
-            .collect::<VariableSizeListArray<FixedSizePrimitiveArray<u8>, true>>();
+            .collect::<VariableSizeListArray<FixedSizePrimitiveArray<u8>, Nullable>>();
         assert_eq!(array.len(), 4);
         assert_eq!(array.0.data.0, &[1, 2, 3, 4]);
         assert_eq!(array.0.offsets.bitmap_ref().is_valid(0), Some(true));
@@ -225,8 +212,11 @@ mod tests {
             ]),
         ];
         let array = input.into_iter().collect::<VariableSizeListArray<
-            VariableSizeListArray<VariableSizeListArray<FixedSizePrimitiveArray<u8>, true>, true>,
-            true,
+            VariableSizeListArray<
+                VariableSizeListArray<FixedSizePrimitiveArray<u8>, Nullable>,
+                Nullable,
+            >,
+            Nullable,
         >>();
         assert_eq!(array.0.data.0.data.0.data.0, &[1, 2, 3, 1, 2, 3, 4, 5, 6]);
         assert_eq!(array.0.offsets.as_ref(), &[0, 0, 3]);
@@ -255,10 +245,10 @@ mod tests {
         ];
         let array_3 = input_3.into_iter().collect::<VariableSizeListArray<
             VariableSizeListArray<
-                VariableSizeListArray<FixedSizePrimitiveArray<u8, true>, true>,
-                true,
+                VariableSizeListArray<FixedSizePrimitiveArray<u8, Nullable>, Nullable>,
+                Nullable,
             >,
-            true,
+            Nullable,
         >>();
         assert_eq!(
             array_3.0.data.0.data.0.data.0.as_ref(),
@@ -346,8 +336,11 @@ mod tests {
             ]),
         ];
         let array = input.clone().into_iter().collect::<VariableSizeListArray<
-            VariableSizeListArray<VariableSizeListArray<FixedSizePrimitiveArray<u8>, true>, true>,
-            true,
+            VariableSizeListArray<
+                VariableSizeListArray<FixedSizePrimitiveArray<u8>, Nullable>,
+                Nullable,
+            >,
+            Nullable,
         >>();
         assert_eq!(array.into_iter().collect::<Vec<_>>(), input);
     }

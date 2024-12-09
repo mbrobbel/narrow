@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, NaiveDate, NaiveTime, TimeDelta, Utc};
+use narrow::NonNullable;
 
 #[rustversion::attr(nightly, allow(non_local_definitions))]
 fn main() {
@@ -92,7 +93,7 @@ fn main() {
     pretty::print_batches(&[read.clone()]).unwrap();
     assert_eq!(record_batch, read.clone());
 
-    let round_trip: StructArray<Foo, false, ScalarBuffer> = read.into();
+    let round_trip: StructArray<Foo, NonNullable, ScalarBuffer> = read.into();
     let arrow_struct_array_round_trip = arrow_array::StructArray::from(round_trip);
     let record_batch_round_trip = arrow_array::RecordBatch::from(arrow_struct_array_round_trip);
     println!(

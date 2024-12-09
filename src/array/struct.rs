@@ -4,8 +4,8 @@ use super::{Array, ArrayType};
 use crate::{
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
-    nullable::Nullable,
-    validity::{Nullability, Validity},
+    nullability::{NonNullable, Nullability, Nullable},
+    validity::Validity,
     Length,
 };
 
@@ -21,15 +21,12 @@ pub trait StructArrayType: ArrayType<Self> {
 /// Array for product types.
 pub struct StructArray<
     T: StructArrayType,
-    const NULLABLE: bool = false,
+    Nullable: Nullability = NonNullable,
     Buffer: BufferType = VecBuffer,
->(pub <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>)
-where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>;
+>(pub Nullable::Collection<<T as StructArrayType>::Array<Buffer>, Buffer>);
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> StructArray<T, NULLABLE, Buffer>
+impl<T: StructArrayType, Nullable: Nullability, Buffer: BufferType> StructArray<T, Nullable, Buffer>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
     for<'a> &'a Self: IntoIterator,
 {
     /// Returns an iterator over the items in this [`StructArray`].
@@ -38,60 +35,54 @@ where
     }
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> Array
-    for StructArray<T, NULLABLE, Buffer>
-where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    T: Nullability<NULLABLE>,
+impl<T: StructArrayType, Nullable: Nullability, Buffer: BufferType> Array
+    for StructArray<T, Nullable, Buffer>
 {
-    type Item = <T as Nullability<NULLABLE>>::Item;
+    type Item = Nullable::Item<T>;
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> Clone
-    for StructArray<T, NULLABLE, Buffer>
+impl<T: StructArrayType, Nullable: Nullability, Buffer: BufferType> Clone
+    for StructArray<T, Nullable, Buffer>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Clone,
+    Nullable::Collection<<T as StructArrayType>::Array<Buffer>, Buffer>: Clone,
 {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> Default
-    for StructArray<T, NULLABLE, Buffer>
+impl<T: StructArrayType, Nullable: Nullability, Buffer: BufferType> Default
+    for StructArray<T, Nullable, Buffer>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Default,
+    Nullable::Collection<<T as StructArrayType>::Array<Buffer>, Buffer>: Default,
 {
     fn default() -> Self {
         Self(Default::default())
     }
 }
 
-impl<T: StructArrayType, Buffer: BufferType> From<StructArray<T, false, Buffer>>
-    for StructArray<T, true, Buffer>
+impl<T: StructArrayType, Buffer: BufferType> From<StructArray<T, NonNullable, Buffer>>
+    for StructArray<T, Nullable, Buffer>
 where
     <T as StructArrayType>::Array<Buffer>: Length,
     Bitmap<Buffer>: FromIterator<bool>,
 {
-    fn from(value: StructArray<T, false, Buffer>) -> Self {
-        Self(Nullable::from(value.0))
+    fn from(value: StructArray<T, NonNullable, Buffer>) -> Self {
+        Self(Validity::from(value.0))
     }
 }
 
-impl<T: StructArrayType, U, const NULLABLE: bool, Buffer: BufferType> FromIterator<U>
-    for StructArray<T, NULLABLE, Buffer>
+impl<T: StructArrayType, U, Nullable: Nullability, Buffer: BufferType> FromIterator<U>
+    for StructArray<T, Nullable, Buffer>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: FromIterator<U>,
+    Nullable::Collection<<T as StructArrayType>::Array<Buffer>, Buffer>: FromIterator<U>,
 {
     fn from_iter<I: IntoIterator<Item = U>>(iter: I) -> Self {
         Self(iter.into_iter().collect())
     }
 }
 
-impl<T: StructArrayType, U, Buffer: BufferType> Extend<U> for StructArray<T, false, Buffer>
+impl<T: StructArrayType, U, Buffer: BufferType> Extend<U> for StructArray<T, NonNullable, Buffer>
 where
     <T as StructArrayType>::Array<Buffer>: Extend<U>,
 {
@@ -100,25 +91,24 @@ where
     }
 }
 
-impl<T: StructArrayType, U, Buffer: BufferType> Extend<Option<U>> for StructArray<T, true, Buffer>
+impl<T: StructArrayType, U, Buffer: BufferType> Extend<Option<U>>
+    for StructArray<T, Nullable, Buffer>
 where
-    Nullable<<T as StructArrayType>::Array<Buffer>, Buffer>: Extend<Option<U>>,
+    Validity<<T as StructArrayType>::Array<Buffer>, Buffer>: Extend<Option<U>>,
 {
     fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
         self.0.extend(iter);
     }
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> IntoIterator
-    for StructArray<T, NULLABLE, Buffer>
+impl<T: StructArrayType, Nullable: Nullability, Buffer: BufferType> IntoIterator
+    for StructArray<T, Nullable, Buffer>
 where
-    T: Nullability<NULLABLE>,
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: IntoIterator,
+    Nullable::Collection<<T as StructArrayType>::Array<Buffer>, Buffer>: IntoIterator,
 {
-    type Item = <<<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as
-        IntoIterator>::Item;
-    type IntoIter = <<<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as
+    type Item =
+        <Nullable::Collection<<T as StructArrayType>::Array<Buffer>, Buffer> as IntoIterator>::Item;
+    type IntoIter = <Nullable::Collection<<T as StructArrayType>::Array<Buffer>, Buffer> as
         IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -126,37 +116,31 @@ where
     }
 }
 
-impl<'a, T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> IntoIterator
-    for &'a StructArray<T, NULLABLE, Buffer>
+impl<'a, T: StructArrayType, Nullable: Nullability, Buffer: BufferType> IntoIterator
+    for &'a StructArray<T, Nullable, Buffer>
 where
-    T: Nullability<NULLABLE>,
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    &'a <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>:
-        IntoIterator,
+    &'a Nullable::Collection<<T as StructArrayType>::Array<Buffer>, Buffer>: IntoIterator,
 {
-    type Item = <&'a <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer> as
+    type Item = <&'a Nullable::Collection<<T as StructArrayType>::Array<Buffer>, Buffer> as
         IntoIterator>::Item;
-    type IntoIter = <&'a <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<
-        Buffer,
-    > as IntoIterator>::IntoIter;
+    type IntoIter = <&'a Nullable::Collection<<T as StructArrayType>::Array<Buffer>, Buffer> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> Length
-    for StructArray<T, NULLABLE, Buffer>
+impl<T: StructArrayType, Nullable: Nullability, Buffer: BufferType> Length
+    for StructArray<T, Nullable, Buffer>
 where
-    <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    <<T as StructArrayType>::Array<Buffer> as Validity<NULLABLE>>::Storage<Buffer>: Length,
+    Nullable::Collection<<T as StructArrayType>::Array<Buffer>, Buffer>: Length,
 {
     fn len(&self) -> usize {
         self.0.len()
     }
 }
 
-impl<T: StructArrayType, Buffer: BufferType> BitmapRef for StructArray<T, true, Buffer> {
+impl<T: StructArrayType, Buffer: BufferType> BitmapRef for StructArray<T, Nullable, Buffer> {
     type Buffer = Buffer;
 
     fn bitmap_ref(&self) -> &Bitmap<Self::Buffer> {
@@ -164,19 +148,19 @@ impl<T: StructArrayType, Buffer: BufferType> BitmapRef for StructArray<T, true, 
     }
 }
 
-impl<T: StructArrayType, Buffer: BufferType> BitmapRefMut for StructArray<T, true, Buffer> {
+impl<T: StructArrayType, Buffer: BufferType> BitmapRefMut for StructArray<T, Nullable, Buffer> {
     fn bitmap_ref_mut(&mut self) -> &mut Bitmap<Self::Buffer> {
         self.0.bitmap_ref_mut()
     }
 }
 
-impl<T: StructArrayType, Buffer: BufferType> ValidityBitmap for StructArray<T, true, Buffer> {}
+impl<T: StructArrayType, Buffer: BufferType> ValidityBitmap for StructArray<T, Nullable, Buffer> {}
 
 #[cfg(test)]
 mod tests {
     use crate::{
         array::{ArrayTypeOf, OptionArrayTypeOf, UnionType},
-        offset::OffsetElement,
+        offset::Offset,
     };
 
     use super::*;
@@ -194,12 +178,12 @@ mod tests {
     }
     // These impls below can all be generated.
     impl<'a> ArrayType<Self> for Foo<'a> {
-        type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-            StructArray<Foo<'a>, false, Buffer>;
+        type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+            StructArray<Foo<'a>, NonNullable, Buffer>;
     }
     impl<'a> ArrayType<Foo<'a>> for Option<Foo<'a>> {
-        type Array<Buffer: BufferType, OffsetItem: OffsetElement, UnionLayout: UnionType> =
-            StructArray<Foo<'a>, true, Buffer>;
+        type Array<Buffer: BufferType, OffsetItem: Offset, UnionLayout: UnionType> =
+            StructArray<Foo<'a>, Nullable, Buffer>;
     }
 
     struct FooArray<'a, Buffer: BufferType> {
@@ -405,7 +389,7 @@ mod tests {
         ];
         let array_nullable = input_nullable
             .into_iter()
-            .collect::<StructArray<Foo, true>>();
+            .collect::<StructArray<Foo, Nullable>>();
         assert_eq!(array_nullable.len(), 2);
         assert_eq!(array_nullable.is_null(0), Some(true));
         assert_eq!(array_nullable.is_valid(1), Some(true));
@@ -427,10 +411,10 @@ mod tests {
         #[derive(crate::ArrayType, Default)]
         struct FooBar(Option<Vec<Option<u32>>>);
 
-        let mut foo_bar = StructArray::<FooBar, false>::default();
+        let mut foo_bar = StructArray::<FooBar, NonNullable>::default();
         foo_bar.extend(std::iter::once(FooBar(None)));
         foo_bar.extend(std::iter::once(FooBar(Some(vec![None]))));
-        let mut foo_bar_nullable = StructArray::<FooBar, true>::default();
+        let mut foo_bar_nullable = StructArray::<FooBar, Nullable>::default();
         foo_bar_nullable.extend(std::iter::once(Some(FooBar(None))));
         foo_bar_nullable.extend(std::iter::once(None));
     }
@@ -462,7 +446,7 @@ mod tests {
         let unit_input_nullable = unit_input.map(Option::Some);
         let unit_array_nullable = unit_input_nullable
             .into_iter()
-            .collect::<StructArray<Unit, true>>();
+            .collect::<StructArray<Unit, Nullable>>();
         assert_eq!(unit_array_nullable.len(), unit_input_nullable.len());
         let unit_output_nullable = unit_array_nullable.into_iter().collect::<Vec<_>>();
         assert_eq!(unit_output_nullable, unit_input_nullable);
@@ -475,7 +459,7 @@ mod tests {
         let unnamed_input_nullable = unnamed_input.map(Option::Some);
         let unnamed_array_nullable = unnamed_input_nullable
             .into_iter()
-            .collect::<StructArray<Unnamed, true>>();
+            .collect::<StructArray<Unnamed, Nullable>>();
         assert_eq!(unnamed_array_nullable.len(), unnamed_input_nullable.len());
         let unnamed_output_nullable = unnamed_array_nullable.into_iter().collect::<Vec<_>>();
         assert_eq!(unnamed_output_nullable, unnamed_input_nullable);
@@ -502,7 +486,7 @@ mod tests {
         let named_array_nullable = named_input_nullable
             .clone()
             .into_iter()
-            .collect::<StructArray<Named, true>>();
+            .collect::<StructArray<Named, Nullable>>();
         assert_eq!(named_array_nullable.len(), named_input_nullable.len());
         let named_output_nullable = named_array_nullable.into_iter().collect::<Vec<_>>();
         assert_eq!(named_output_nullable, named_input_nullable);

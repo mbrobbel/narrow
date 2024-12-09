@@ -9,9 +9,9 @@ where
 {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Foo<T>, false, Buffer>;
+    > = narrow::array::StructArray<Foo<T>, narrow::NonNullable, Buffer>;
 }
 impl<T: narrow::array::ArrayType<T>> narrow::array::ArrayType<Foo<T>>
 for ::std::option::Option<Foo<T>>
@@ -20,9 +20,9 @@ where
 {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Foo<T>, true, Buffer>;
+    > = narrow::array::StructArray<Foo<T>, narrow::Nullable, Buffer>;
 }
 impl<T: narrow::array::ArrayType<T>> narrow::array::StructArrayType for Foo<T>
 where
@@ -183,17 +183,17 @@ impl<'a, T: narrow::array::ArrayType<T>> narrow::array::ArrayType<Bar<'a, T>>
 for Bar<'a, T> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Bar<'a, T>, false, Buffer>;
+    > = narrow::array::StructArray<Bar<'a, T>, narrow::NonNullable, Buffer>;
 }
 impl<'a, T: narrow::array::ArrayType<T>> narrow::array::ArrayType<Bar<'a, T>>
 for ::std::option::Option<Bar<'a, T>> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Bar<'a, T>, true, Buffer>;
+    > = narrow::array::StructArray<Bar<'a, T>, narrow::Nullable, Buffer>;
 }
 impl<'a, T: narrow::array::ArrayType<T>> narrow::array::StructArrayType for Bar<'a, T> {
     type Array<Buffer: narrow::buffer::BufferType> = BarArray<'a, T, Buffer>;
@@ -373,16 +373,16 @@ struct FooBar<'a>(Bar<'a, u32>);
 impl<'a> narrow::array::ArrayType<FooBar<'a>> for FooBar<'a> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<FooBar<'a>, false, Buffer>;
+    > = narrow::array::StructArray<FooBar<'a>, narrow::NonNullable, Buffer>;
 }
 impl<'a> narrow::array::ArrayType<FooBar<'a>> for ::std::option::Option<FooBar<'a>> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<FooBar<'a>, true, Buffer>;
+    > = narrow::array::StructArray<FooBar<'a>, narrow::Nullable, Buffer>;
 }
 impl<'a> narrow::array::StructArrayType for FooBar<'a> {
     type Array<Buffer: narrow::buffer::BufferType> = FooBarArray<'a, Buffer>;

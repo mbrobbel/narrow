@@ -2,16 +2,16 @@ struct Bar(u8, u16, u32, u64);
 impl narrow::array::ArrayType<Bar> for Bar {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Bar, false, Buffer>;
+    > = narrow::array::StructArray<Bar, narrow::NonNullable, Buffer>;
 }
 impl narrow::array::ArrayType<Bar> for ::std::option::Option<Bar> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Bar, true, Buffer>;
+    > = narrow::array::StructArray<Bar, narrow::Nullable, Buffer>;
 }
 impl narrow::array::StructArrayType for Bar {
     type Array<Buffer: narrow::buffer::BufferType> = BarArray<Buffer>;
