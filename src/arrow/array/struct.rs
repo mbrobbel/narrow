@@ -40,14 +40,16 @@ where
     }
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> From<Arc<dyn arrow_array::Array>>
-    for StructArray<T, NULLABLE, Buffer>
+impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType>
+    TryFrom<Arc<dyn arrow_array::Array>> for StructArray<T, NULLABLE, Buffer>
 where
     <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    Self: From<arrow_array::StructArray>,
+    Self: TryFrom<arrow_array::StructArray>,
 {
-    fn from(value: Arc<dyn arrow_array::Array>) -> Self {
-        Self::from(arrow_array::StructArray::from(value.to_data()))
+    type Error = <Self as TryFrom<arrow_array::StructArray>>::Error;
+
+    fn try_from(value: Arc<dyn arrow_array::Array>) -> Result<Self, Self::Error> {
+        Self::try_from(arrow_array::StructArray::from(value.to_data()))
     }
 }
 
@@ -102,13 +104,15 @@ where
 }
 
 /// Panics when there are nulls
-impl<T: StructArrayType, Buffer: BufferType> From<arrow_array::StructArray>
+impl<T: StructArrayType, Buffer: BufferType> TryFrom<arrow_array::StructArray>
     for StructArray<T, false, Buffer>
 where
     <T as StructArrayType>::Array<Buffer>:
         From<Vec<Arc<dyn arrow_array::Array>>> + StructArrayTypeFields,
 {
-    fn from(value: arrow_array::StructArray) -> Self {
+    type Error = String;
+
+    fn try_from(value: arrow_array::StructArray) -> Result<Self, Self::Error> {
         let (fields, arrays, nulls_opt) = value.into_parts();
         // Project
         let projected = <<T as StructArrayType>::Array<Buffer> as StructArrayTypeFields>::NAMES
@@ -116,25 +120,27 @@ where
             .map(|field| {
                 fields
                     .find(field)
-                    .unwrap_or_else(|| panic!("expected struct array with field: {field}"))
+                    .map(|(idx, _)| Arc::clone(&arrays[idx]))
+                    .ok_or_else(|| format!("expected struct array with field: {field}"))
             })
-            .map(|(idx, _)| Arc::clone(&arrays[idx]))
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>, _>>()?;
         match nulls_opt {
-            Some(_) => panic!("expected array without a null buffer"),
-            None => StructArray(projected.into()),
+            Some(_) => Err("expected array without a null buffer".to_string()),
+            None => Ok(StructArray(projected.into())),
         }
     }
 }
 
-impl<T: StructArrayType, Buffer: BufferType> From<arrow_array::StructArray>
+impl<T: StructArrayType, Buffer: BufferType> TryFrom<arrow_array::StructArray>
     for StructArray<T, true, Buffer>
 where
     <T as StructArrayType>::Array<Buffer>:
         From<Vec<Arc<dyn arrow_array::Array>>> + Length + StructArrayTypeFields,
     Bitmap<Buffer>: From<NullBuffer> + FromIterator<bool>,
 {
-    fn from(value: arrow_array::StructArray) -> Self {
+    type Error = String;
+
+    fn try_from(value: arrow_array::StructArray) -> Result<Self, Self::Error> {
         let (fields, arrays, nulls_opt) = value.into_parts();
         // Project
         let projected = <<T as StructArrayType>::Array<Buffer> as StructArrayTypeFields>::NAMES
@@ -142,17 +148,18 @@ where
             .map(|field| {
                 fields
                     .find(field)
-                    .unwrap_or_else(|| panic!("expected struct array with field: {field}"))
+                    .map(|(idx, _)| Arc::clone(&arrays[idx]))
+                    .ok_or_else(|| format!("expected struct array with field: {field}"))
             })
-            .map(|(idx, _)| Arc::clone(&arrays[idx]))
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>, _>>()?;
+
         let data = projected.into();
         match nulls_opt {
-            Some(null_buffer) => StructArray(Nullable {
+            Some(null_buffer) => Ok(StructArray(Nullable {
                 data,
                 validity: null_buffer.into(),
-            }),
-            None => StructArray::<T, false, Buffer>(data).into(),
+            })),
+            None => Ok(StructArray::<T, false, Buffer>(data).into()),
         }
     }
 }
@@ -168,14 +175,27 @@ where
     }
 }
 
-impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> From<arrow_array::RecordBatch>
+// impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> From<arrow_array::RecordBatch>
+//     for StructArray<T, NULLABLE, Buffer>
+// where
+//     <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
+//     Self: From<arrow_array::StructArray>,
+// {
+//     fn from(value: arrow_array::RecordBatch) -> Self {
+//         Self::from(arrow_array::StructArray::from(value))
+//     }
+// }
+
+impl<T: StructArrayType, const NULLABLE: bool, Buffer: BufferType> TryFrom<arrow_array::RecordBatch>
     for StructArray<T, NULLABLE, Buffer>
 where
     <T as StructArrayType>::Array<Buffer>: Validity<NULLABLE>,
-    Self: From<arrow_array::StructArray>,
+    Self: TryFrom<arrow_array::StructArray>,
 {
-    fn from(value: arrow_array::RecordBatch) -> Self {
-        Self::from(arrow_array::StructArray::from(value))
+    type Error = <Self as TryFrom<arrow_array::StructArray>>::Error;
+
+    fn try_from(record_batch: arrow_array::RecordBatch) -> Result<Self, Self::Error> {
+        Self::try_from(arrow_array::StructArray::from(record_batch))
     }
 }
 
@@ -195,7 +215,7 @@ where
 #[cfg(test)]
 mod tests {
 
-    use arrow_array::{cast::AsArray as _, types::UInt32Type, Array as _};
+    use arrow_array::{cast::AsArray as _, types::UInt32Type, Array as _, RecordBatch};
 
     use crate::{
         array::{union::UnionType, ArrayType, ArrayTypeOf},
@@ -319,12 +339,19 @@ mod tests {
     }
 
     #[test]
-    fn from() {
-        let struct_array = [Foo { a: 1 }, Foo { a: 2 }]
-            .into_iter()
-            .collect::<StructArray<Foo, false, BufferBuilder>>();
-        let struct_array_arrow = arrow_array::StructArray::from(struct_array);
-        assert_eq!(struct_array_arrow.len(), 2);
+    fn try_from() {
+        {
+            let struct_array = [Foo { a: 1 }, Foo { a: 2 }]
+                .into_iter()
+                .collect::<StructArray<Foo, false, BufferBuilder>>();
+
+            let record_batch = RecordBatch::from(struct_array);
+            let _: StructArray<Foo, false, ScalarBuffer> = record_batch.try_into().unwrap();
+        }
+
+        //     let struct_array_arrow = arrow_array::StructArray::from(struct_array);
+        //     assert_eq!(struct_array_arrow.len(), 2);
+        // }
 
         let struct_array_nullable = [Some(Foo { a: 1234 }), None]
             .into_iter()
@@ -343,7 +370,8 @@ mod tests {
         );
 
         // And convert back
-        let roundtrip: StructArray<Foo, true, ScalarBuffer> = struct_array_arrow_nullable.into();
+        let roundtrip: StructArray<Foo, true, ScalarBuffer> =
+            struct_array_arrow_nullable.try_into().expect("no errors");
         assert_eq!(roundtrip.0.data.a.0, [1234, u32::default()]);
     }
 
@@ -353,17 +381,25 @@ mod tests {
             .into_iter()
             .collect::<StructArray<Foo, false, BufferBuilder>>();
         let struct_array_arrow = arrow_array::StructArray::from(struct_array);
-        assert!(!StructArray::<Foo, true, ScalarBuffer>::from(struct_array_arrow).any_null());
+        assert!(
+            !StructArray::<Foo, true, ScalarBuffer>::try_from(struct_array_arrow)
+                .unwrap()
+                .any_null()
+        );
     }
 
     #[test]
-    #[should_panic(expected = "expected array without a null buffer")]
+    // #[should_panic(expected = "expected array without a null buffer")]
     fn into_non_nullable() {
         let struct_array_nullable = [Some(Foo { a: 1234 }), None]
             .into_iter()
             .collect::<StructArray<Foo, true, BufferBuilder>>();
         let struct_array_arrow_nullable = arrow_array::StructArray::from(struct_array_nullable);
-        let _ = StructArray::<Foo, false, ScalarBuffer>::from(struct_array_arrow_nullable);
+        let result = StructArray::<Foo, false, ScalarBuffer>::try_from(struct_array_arrow_nullable);
+        assert_eq!(
+            result.err(),
+            Some("expected array without a null buffer".to_owned())
+        );
     }
 
     #[test]
@@ -373,7 +409,8 @@ mod tests {
             .collect::<StructArray<Foo, false, BufferBuilder>>();
         let struct_array_arrow = arrow_array::StructArray::from(struct_array);
         assert_eq!(
-            StructArray::<Foo, false, ScalarBuffer>::from(struct_array_arrow)
+            StructArray::<Foo, false, ScalarBuffer>::try_from(struct_array_arrow)
+                .unwrap()
                 .0
                 .a
                 .0,
@@ -384,7 +421,8 @@ mod tests {
             .collect::<StructArray<Foo, true, BufferBuilder>>();
         let struct_array_arrow_nullable = arrow_array::StructArray::from(struct_array_nullable);
         assert_eq!(
-            StructArray::<Foo, true, ScalarBuffer>::from(struct_array_arrow_nullable)
+            StructArray::<Foo, true, ScalarBuffer>::try_from(struct_array_arrow_nullable)
+                .unwrap()
                 .0
                 .data
                 .a
@@ -427,7 +465,7 @@ mod tests {
         let struct_array_arrow = arrow_array::StructArray::from(struct_array);
         assert_eq!(struct_array_arrow.len(), 2);
 
-        let struct_array_roundtrip: StructArray<Foo<i32>> = struct_array_arrow.into();
+        let struct_array_roundtrip: StructArray<Foo<i32>> = struct_array_arrow.try_into().unwrap();
         assert_eq!(struct_array_roundtrip.len(), 2);
     }
 
@@ -463,7 +501,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "expected struct array with field: c")]
+    // #[should_panic(expected = "expected struct array with field: c")]
     #[cfg(feature = "derive")]
     fn projected() {
         #[derive(narrow_derive::ArrayType)]
@@ -495,13 +533,17 @@ mod tests {
         .collect::<StructArray<Foo>>();
 
         let arrow_array = arrow_array::StructArray::from(foo_array);
-        let bar_array = StructArray::<Bar>::from(arrow_array);
+        let bar_array = StructArray::<Bar>::try_from(arrow_array).unwrap();
         assert_eq!(
             bar_array.clone().into_iter().collect::<Vec<_>>(),
             [Bar { b: false, a: 1 }, Bar { b: true, a: 2 }]
         );
 
         let bar_arrow_array = arrow_array::StructArray::from(bar_array);
-        let _ = StructArray::<Foo>::from(bar_arrow_array);
+        let result = StructArray::<Foo>::try_from(bar_arrow_array);
+        assert_eq!(
+            result.err(),
+            Some("expected struct array with field: c".to_owned())
+        );
     }
 }
