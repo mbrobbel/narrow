@@ -1,6 +1,30 @@
 //! Nullable and non-nullable types.
 
-use crate::{buffer::BufferType, validity::Validity};
+use crate::{buffer::BufferType, validity::Validity, Index, Length};
+
+pub trait Collection: Index + Length {
+    /// The items stored in this collection.
+    type Item;
+
+    /// Reference to items stored in this collection.
+    type RefItem<'a>
+    where
+        Self: 'a;
+
+    /// Iterator over ref items.
+    type Iter<'a>: Iterator<Item = Self::RefItem<'a>>
+    where
+        Self: 'a;
+
+    /// Iterator over items in this collection.
+    type IntoIter: Iterator<Item = <Self as Collection>::Item>;
+
+    /// Iterate over reference items.
+    fn iter(&self) -> Self::Iter<'_>;
+
+    /// Turn collection into iterator.
+    fn into_iter(self) -> Self::IntoIter;
+}
 
 /// Nullability trait for nullable and non-nullable type constructors
 pub trait Nullability: sealed::Sealed {
@@ -15,7 +39,7 @@ pub trait Nullability: sealed::Sealed {
     /// Constructor for nullable and non-nullable collections.
     ///
     /// Generic over a collection `T` and a [`BufferType`].
-    type Collection<T, Buffer: BufferType>;
+    type Collection<T: Collection<Item = Self::Item<T>>, Buffer: BufferType>: Collection;
 }
 
 /// Private module for [`sealed::Sealed`] trait.
@@ -43,7 +67,7 @@ impl Nullability for Nullable {
 
     /// Nullable collections are wrapped together with a
     /// [`crate::bitmap::Bitmap`].
-    type Collection<T, Buffer: BufferType> = Validity<T, Buffer>;
+    type Collection<T: Collection<Item = Self::Item<T>>, Buffer: BufferType> = Validity<T, Buffer>;
 }
 
 /// Non-nullable types.
@@ -61,5 +85,5 @@ impl Nullability for NonNullable {
     type Item<T> = T;
 
     /// Non-nullable collections are just `T`.
-    type Collection<T, Buffer: BufferType> = T;
+    type Collection<T: Collection<Item = Self::Item<T>>, Buffer: BufferType> = T;
 }

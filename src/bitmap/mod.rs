@@ -2,6 +2,7 @@
 
 use crate::{
     buffer::{Buffer, BufferMut, BufferRef, BufferRefMut, BufferType, VecBuffer},
+    nullability::Collection,
     Index, Length,
 };
 use std::{
@@ -42,7 +43,7 @@ pub trait BitmapRefMut: BitmapRef {
 // todo(mb): implement ops
 pub struct Bitmap<Buffer: BufferType = VecBuffer> {
     /// The bits are stored in this buffer of bytes.
-    pub(crate) buffer: <Buffer as BufferType>::Buffer<u8>,
+    pub(crate) buffer: Buffer::Buffer<u8>,
 
     /// The number of bits stored in the bitmap.
     pub(crate) bits: usize,
@@ -50,6 +51,29 @@ pub struct Bitmap<Buffer: BufferType = VecBuffer> {
     /// An offset (in number of bits) in the buffer. This enables zero-copy
     /// slicing of the bitmap on non-byte boundaries.
     pub(crate) offset: usize,
+}
+
+impl<Buffer: BufferType> Collection for Bitmap<Buffer> {
+    type Item = bool;
+    type RefItem<'a>
+        = &'static bool
+    where
+        Self: 'a;
+
+    type Iter<'a>
+        = <&'a Self as IntoIterator>::IntoIter
+    where
+        Self: 'a;
+
+    type IntoIter = <Self as IntoIterator>::IntoIter;
+
+    fn iter(&self) -> Self::Iter<'_> {
+        <&Self as IntoIterator>::into_iter(self)
+    }
+
+    fn into_iter(self) -> Self::IntoIter {
+        <Self as IntoIterator>::into_iter(self)
+    }
 }
 
 impl<Buffer: BufferType> BitmapRef for Bitmap<Buffer> {
@@ -302,7 +326,7 @@ impl<Buffer: BufferType> ops::Index<usize> for Bitmap<Buffer> {
 }
 
 impl<'a, Buffer: BufferType> IntoIterator for &'a Bitmap<Buffer> {
-    type Item = bool;
+    type Item = &'static bool;
     type IntoIter = BitmapIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -315,19 +339,18 @@ impl<'a, Buffer: BufferType> IntoIterator for &'a Bitmap<Buffer> {
     }
 }
 
-impl<Buffer> IntoIterator for Bitmap<Buffer>
-where
-    Buffer: BufferType<Buffer<u8>: IntoIterator<Item = u8>>,
-{
+impl<Buffer: BufferType<Buffer<u8>: Collection<Item = u8>>> IntoIterator for Bitmap<Buffer> {
     type Item = bool;
-    type IntoIter = BitmapIntoIter<<<Buffer as BufferType>::Buffer<u8> as IntoIterator>::IntoIter>;
+    type IntoIter = BitmapIntoIter<<Buffer::Buffer<u8> as Collection>::IntoIter>;
 
     fn into_iter(self) -> Self::IntoIter {
+        // <Buffer::Buffer<u8> as Collection>::into_iter(self.buffer)
         self.buffer
             .into_iter()
             .bit_unpacked()
             .skip(self.offset)
             .take(self.bits)
+            .copied()
     }
 }
 
@@ -345,7 +368,7 @@ impl<Buffer: BufferType> PartialEq for Bitmap<Buffer> {
 
 impl<const N: usize, Buffer: BufferType> PartialEq<[bool; N]> for Bitmap<Buffer> {
     fn eq(&self, other: &[bool; N]) -> bool {
-        self.len() == other.len() && self.iter().zip(other).all(|(a, b)| a == *b)
+        self.len() == other.len() && self.iter().zip(other).all(|(a, b)| a == b)
     }
 }
 
@@ -383,10 +406,10 @@ mod tests {
         assert_eq!(bitmap.get(0), Some(false));
         assert_eq!(bitmap.get(1), Some(true));
         assert_eq!(bitmap.get(2), Some(false));
-        assert_eq!((&bitmap).into_iter().filter(|x| !x).count(), 2);
-        assert_eq!((&bitmap).into_iter().filter(|x| *x).count(), 1);
+        assert_eq!((&bitmap).into_iter().filter(|x| !*x).count(), 2);
+        assert_eq!((&bitmap).into_iter().filter(|x| **x).count(), 1);
         assert_eq!(
-            (&bitmap).into_iter().collect::<Vec<_>>(),
+            (&bitmap).into_iter().copied().collect::<Vec<_>>(),
             [false, true, false]
         );
     }
@@ -493,7 +516,7 @@ mod tests {
         let vec = vec![true, false, true, false];
         let bitmap = vec.iter().collect::<Bitmap>();
         assert_eq!(bitmap.len(), vec.len());
-        assert_eq!(vec, bitmap.into_iter().collect::<Vec<_>>());
+        assert_eq!(vec, Collection::into_iter(bitmap).collect::<Vec<_>>());
     }
 
     #[test]
@@ -501,14 +524,17 @@ mod tests {
         let array = [true, false, true, false];
         let bitmap = array.iter().collect::<Bitmap>();
         assert_eq!(bitmap.len(), array.len());
-        assert_eq!(array.to_vec(), bitmap.into_iter().collect::<Vec<_>>());
+        assert_eq!(
+            array.to_vec(),
+            Collection::into_iter(bitmap).collect::<Vec<_>>()
+        );
     }
 
     #[test]
     fn into_iter() {
         let vec = vec![true, false, true, false];
         let bitmap = vec.iter().collect::<Bitmap>();
-        assert_eq!(bitmap.into_iter().collect::<Vec<_>>(), vec);
+        assert_eq!(Collection::into_iter(bitmap).collect::<Vec<_>>(), vec);
     }
 
     #[test]

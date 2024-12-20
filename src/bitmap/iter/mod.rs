@@ -1,7 +1,7 @@
 //! Iterators for bitmaps.
 
 use std::{
-    iter::{Skip, Take},
+    iter::{Copied, Skip, Take},
     slice,
 };
 
@@ -18,7 +18,7 @@ pub use self::bit_unpacked::*;
 pub type BitmapIter<'a> = Take<Skip<BitUnpacked<slice::Iter<'a, u8>, &'a u8>>>;
 
 /// An iterator over the bits in a Bitmap. Consumes the Bitmap.
-pub type BitmapIntoIter<I> = Take<Skip<BitUnpacked<I, u8>>>;
+pub type BitmapIntoIter<I> = Copied<Take<Skip<BitUnpacked<I, u8>>>>;
 
 #[cfg(test)]
 mod tests {
@@ -33,6 +33,7 @@ mod tests {
                 .bit_packed()
                 .bit_unpacked()
                 .take(input.len())
+                .copied()
                 .collect::<Vec<bool>>(),
             input
         );
@@ -46,6 +47,7 @@ mod tests {
                 .iter()
                 .bit_packed()
                 .bit_unpacked()
+                .copied()
                 .collect::<Vec<bool>>(),
             [false, true, false, false, false, false, false, false]
         );
@@ -59,6 +61,7 @@ mod tests {
                 .iter()
                 .bit_packed()
                 .bit_unpacked()
+                .copied()
                 .collect::<Vec<bool>>(),
             input
         );

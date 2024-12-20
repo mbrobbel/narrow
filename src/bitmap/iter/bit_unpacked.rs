@@ -27,7 +27,7 @@ where
     I: Iterator<Item = T>,
     T: Borrow<u8>,
 {
-    type Item = bool;
+    type Item = &'static bool;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -40,7 +40,11 @@ where
         self.byte.map(|byte| {
             let next = (byte & self.mask) != 0;
             self.mask = self.mask.rotate_left(1);
-            next
+            if next {
+                &true
+            } else {
+                &false
+            }
         })
     }
 
@@ -100,7 +104,7 @@ mod tests {
     fn iter() {
         let iter = [u8::MAX, 1].iter().bit_unpacked();
         assert_eq!(
-            iter.collect::<Vec<_>>(),
+            iter.copied().collect::<Vec<_>>(),
             vec![
                 true, true, true, true, true, true, true, true, true, false, false, false, false,
                 false, false, false

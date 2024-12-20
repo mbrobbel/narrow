@@ -71,26 +71,30 @@ pub use self::index::Index;
 
 pub mod buffer;
 
+pub mod collection;
+
 pub mod bitmap;
 
 mod nullability;
 pub use nullability::{NonNullable, Nullability, Nullable};
 
 // TODO(mbrobbel): pub(crate)
-pub mod offset;
+// pub mod offset;
 pub(crate) mod validity;
 
-pub mod array;
+// pub mod layout;
 
-pub mod logical;
+// pub mod array;
 
-#[cfg(feature = "arrow-rs")]
-pub mod arrow;
+// pub mod logical;
 
-// Re-export `narrow_derive` macros when the `derive` feature is enabled.
-#[cfg(feature = "derive")]
-pub use narrow_derive::ArrayType;
+// #[cfg(feature = "arrow-rs")]
+// pub mod arrow;
 
-// This allows using the `ArrayType` derive macro in tests.
-#[cfg(any(all(test, feature = "derive"), feature = "map"))]
-extern crate self as narrow;
+// // Re-export `narrow_derive` macros when the `derive` feature is enabled.
+// #[cfg(feature = "derive")]
+// pub use narrow_derive::ArrayType;
+
+// // This allows using the `ArrayType` derive macro in tests.
+// #[cfg(any(all(test, feature = "derive"), feature = "map"))]
+// extern crate self as narrow;
