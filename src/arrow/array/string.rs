@@ -46,63 +46,67 @@ where
     }
 }
 
-impl<OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType>
-    From<StringArray<NonNullable, OffsetItem, Buffer>> for Arc<dyn arrow_array::Array>
+
+impl<OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType> Into<Arc<dyn arrow_array::Array>>
+    for StringArray<NonNullable, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
     FixedSizePrimitiveArray<u8, NonNullable, Buffer>: Into<arrow_buffer::ScalarBuffer<u8>>,
 {
-    fn from(value: StringArray<NonNullable, OffsetItem, Buffer>) -> Self {
-        let array: arrow_array::GenericStringArray<OffsetItem> = value.into();
+    fn into(self) -> Arc<dyn arrow_array::Array> {
+        let array: arrow_array::GenericStringArray<OffsetItem> = self.into();
         Arc::new(array)
     }
 }
 
-impl<OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType>
-    From<StringArray<Nullable, OffsetItem, Buffer>> for Arc<dyn arrow_array::Array>
+
+impl<OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType> Into<Arc<dyn arrow_array::Array>>
+    for StringArray<Nullable, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
     FixedSizePrimitiveArray<u8, NonNullable, Buffer>: Into<arrow_buffer::ScalarBuffer<u8>>,
     Bitmap<Buffer>: Into<NullBuffer>,
 {
-    fn from(value: StringArray<Nullable, OffsetItem, Buffer>) -> Self {
-        let array: arrow_array::GenericStringArray<OffsetItem> = value.into();
+    fn into(self) -> Arc<dyn arrow_array::Array> {
+        let array: arrow_array::GenericStringArray<OffsetItem> = self.into();
         Arc::new(array)
     }
 }
 
+
 impl<OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType>
-    From<StringArray<NonNullable, OffsetItem, Buffer>>
-    for arrow_array::GenericStringArray<OffsetItem>
+    Into<arrow_array::GenericStringArray<OffsetItem>>
+    for StringArray<NonNullable, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
     FixedSizePrimitiveArray<u8, NonNullable, Buffer>: Into<arrow_buffer::ScalarBuffer<u8>>,
 {
-    fn from(value: StringArray<NonNullable, OffsetItem, Buffer>) -> Self {
+    fn into(self) -> arrow_array::GenericStringArray<OffsetItem> {
         arrow_array::GenericStringArray::new(
             // Safety:
             // - The narrow offfset buffer contains valid offset data
-            unsafe { OffsetBuffer::new_unchecked(value.0 .0.offsets.into()) },
-            value.0 .0.data.into().into_inner(),
+            unsafe { OffsetBuffer::new_unchecked(self.0 .0.offsets.into()) },
+            self.0 .0.data.into().into_inner(),
             None,
         )
     }
 }
 
+
 impl<OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType>
-    From<StringArray<Nullable, OffsetItem, Buffer>> for arrow_array::GenericStringArray<OffsetItem>
+    Into<arrow_array::GenericStringArray<OffsetItem>> for StringArray<Nullable, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
     FixedSizePrimitiveArray<u8, NonNullable, Buffer>: Into<arrow_buffer::ScalarBuffer<u8>>,
     Bitmap<Buffer>: Into<NullBuffer>,
 {
-    fn from(value: StringArray<Nullable, OffsetItem, Buffer>) -> Self {
+    fn into(self) -> arrow_array::GenericStringArray<OffsetItem> {
         arrow_array::GenericStringArray::new(
             // Safety:
             // - The narrow offfset buffer contains valid offset data
-            unsafe { OffsetBuffer::new_unchecked(value.0 .0.offsets.data.into()) },
-            value.0 .0.data.into().into_inner(),
-            Some(value.0 .0.offsets.validity.into()),
+            unsafe { OffsetBuffer::new_unchecked(self.0 .0.offsets.data.into()) },
+            self.0 .0.data.into().into_inner(),
+            Some(self.0 .0.offsets.validity.into()),
         )
     }
 }
@@ -168,7 +172,7 @@ mod tests {
     fn from() {
         let string_array = INPUT.into_iter().collect::<StringArray>();
         assert_eq!(
-            arrow_array::StringArray::from(string_array)
+            Into::<arrow_array::StringArray>::into(string_array)
                 .into_iter()
                 .flatten()
                 .collect::<Vec<_>>(),
@@ -179,7 +183,7 @@ mod tests {
             .into_iter()
             .collect::<StringArray<Nullable, i64>>();
         assert_eq!(
-            arrow_array::GenericStringArray::<i64>::from(string_array_nullable)
+            Into::<arrow_array::GenericStringArray::<i64>>::into(string_array_nullable)
                 .into_iter()
                 .collect::<Vec<_>>(),
             INPUT_NULLABLE

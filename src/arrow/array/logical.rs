@@ -60,14 +60,15 @@ where
     }
 }
 
+
 impl<
         T: LogicalArrayType<T>,
         Nullable: Nullability,
         Buffer: BufferType,
         OffsetItem: Offset,
         UnionLayout: UnionType,
-    > From<LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>>
-    for Arc<dyn arrow_array::Array>
+    > Into<Arc<dyn arrow_array::Array>>
+    for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
     Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
@@ -77,10 +78,11 @@ where
         UnionLayout,
     >: Into<Arc<dyn arrow_array::Array>>,
 {
-    fn from(value: LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>) -> Self {
-        Arc::new(value.0.into())
+    fn into(self) -> Arc<dyn arrow_array::Array> {
+        Arc::new(self.0.into())
     }
 }
+
 
 impl<
         T: LogicalArrayType<T>,
@@ -88,23 +90,22 @@ impl<
         Buffer: BufferType,
         OffsetItem: Offset,
         UnionLayout: UnionType,
-    > From<LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>>
-    for arrow_array::FixedSizeListArray
+    > Into<arrow_array::FixedSizeListArray>
+    for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
     Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
-    arrow_array::FixedSizeListArray: From<
-        <Nullable::Item<T::ArrayType> as ArrayType<T::ArrayType>>::Array<
-            Buffer,
-            OffsetItem,
-            UnionLayout,
-        >,
-    >,
+    <Nullable::Item<T::ArrayType> as ArrayType<T::ArrayType>>::Array<
+        Buffer,
+        OffsetItem,
+        UnionLayout,
+    >: Into<arrow_array::FixedSizeListArray>,
 {
-    fn from(value: LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>) -> Self {
-        value.0.into()
+    fn into(self) -> arrow_array::FixedSizeListArray {
+        self.0.into()
     }
 }
+
 
 impl<
         T: LogicalArrayType<T>,
@@ -112,23 +113,22 @@ impl<
         Buffer: BufferType,
         OffsetItem: Offset,
         UnionLayout: UnionType,
-    > From<LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>>
-    for arrow_array::FixedSizeBinaryArray
+    > Into<arrow_array::FixedSizeBinaryArray>
+    for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
     Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
-    arrow_array::FixedSizeBinaryArray: From<
-        <Nullable::Item<T::ArrayType> as ArrayType<T::ArrayType>>::Array<
-            Buffer,
-            OffsetItem,
-            UnionLayout,
-        >,
-    >,
+    <Nullable::Item<T::ArrayType> as ArrayType<T::ArrayType>>::Array<
+        Buffer,
+        OffsetItem,
+        UnionLayout,
+    >: Into<arrow_array::FixedSizeBinaryArray>,
 {
-    fn from(value: LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>) -> Self {
-        value.0.into()
+    fn into(self) -> arrow_array::FixedSizeBinaryArray {
+        self.0.into()
     }
 }
+
 
 impl<
         T: LogicalArrayType<T>,
@@ -137,21 +137,19 @@ impl<
         OffsetItem: Offset,
         UnionLayout: UnionType,
         O: OffsetSizeTrait,
-    > From<LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>>
-    for arrow_array::GenericListArray<O>
+    > Into<arrow_array::GenericListArray<O>>
+    for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
     Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
-    arrow_array::GenericListArray<O>: From<
-        <Nullable::Item<T::ArrayType> as ArrayType<T::ArrayType>>::Array<
-            Buffer,
-            OffsetItem,
-            UnionLayout,
-        >,
-    >,
+    <Nullable::Item<T::ArrayType> as ArrayType<T::ArrayType>>::Array<
+        Buffer,
+        OffsetItem,
+        UnionLayout,
+    >: Into<arrow_array::GenericListArray<O>>,
 {
-    fn from(value: LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>) -> Self {
-        value.0.into()
+    fn into(self) -> arrow_array::GenericListArray<O> {
+        self.0.into()
     }
 }
 
@@ -169,7 +167,7 @@ mod tests {
 
         let input = [Foo { items: None }];
         let array = input.into_iter().collect::<StructArray<Foo>>();
-        let record_batch = arrow_array::RecordBatch::from(array);
+        let record_batch: arrow_array::RecordBatch = array.into();
         assert_eq!(record_batch.num_rows(), 1);
     }
 }

@@ -2,21 +2,21 @@
 
 use crate::{bitmap::Bitmap, buffer::BufferType, Length};
 
-impl<Buffer: BufferType> From<Bitmap<Buffer>> for arrow_buffer::BooleanBuffer
+impl<Buffer: BufferType> Into<arrow_buffer::BooleanBuffer> for Bitmap<Buffer>
 where
     <Buffer as BufferType>::Buffer<u8>: Into<arrow_buffer::Buffer>,
 {
-    fn from(value: Bitmap<Buffer>) -> Self {
-        Self::new(value.buffer.into(), value.offset, value.bits)
+    fn into(self) -> arrow_buffer::BooleanBuffer {
+        arrow_buffer::BooleanBuffer::new(self.buffer.into(), self.offset, self.bits)
     }
 }
 
-impl<Buffer: BufferType> From<Bitmap<Buffer>> for arrow_buffer::NullBuffer
+impl<Buffer: BufferType> Into<arrow_buffer::NullBuffer> for Bitmap<Buffer>
 where
-    arrow_buffer::BooleanBuffer: From<Bitmap<Buffer>>,
+    Bitmap<Buffer>: Into<arrow_buffer::BooleanBuffer>,
 {
-    fn from(value: Bitmap<Buffer>) -> Self {
-        Self::new(value.into())
+    fn into(self) -> arrow_buffer::NullBuffer {
+        arrow_buffer::NullBuffer::new(self.into())
     }
 }
 
