@@ -44,12 +44,13 @@ where
     }
 }
 
-impl<const N: usize, Buffer: BufferType> From<FixedSizeBinaryArray<N, NonNullable, Buffer>>
-    for arrow_array::FixedSizeBinaryArray
+
+impl<const N: usize, Buffer: BufferType> Into<arrow_array::FixedSizeBinaryArray>
+    for FixedSizeBinaryArray<N, NonNullable, Buffer>
 where
-    arrow_buffer::Buffer: From<FixedSizePrimitiveArray<u8, NonNullable, Buffer>>,
+    FixedSizePrimitiveArray<u8, NonNullable, Buffer>: Into<arrow_buffer::Buffer>,
 {
-    fn from(value: FixedSizeBinaryArray<N, NonNullable, Buffer>) -> Self {
+    fn into(self) -> arrow_array::FixedSizeBinaryArray {
         // todo(mbrobbel): const_assert
         assert!(N <= 0x7FFF_FFFF); // i32::MAX
         #[allow(
@@ -59,29 +60,31 @@ where
         )]
         arrow_array::FixedSizeBinaryArray::new(
             i32::try_from(N).expect("overflow"),
-            value.0 .0.into(),
+            self.0 .0.into(),
             None,
         )
     }
 }
 
-impl<Nullable: Nullability, const N: usize, Buffer: BufferType>
-    From<FixedSizeBinaryArray<N, Nullable, Buffer>> for Arc<dyn arrow_array::Array>
+
+impl<Nullable: Nullability, const N: usize, Buffer: BufferType> Into<Arc<dyn arrow_array::Array>>
+    for FixedSizeBinaryArray<N, Nullable, Buffer>
 where
-    arrow_array::FixedSizeBinaryArray: From<FixedSizeBinaryArray<N, Nullable, Buffer>>,
+    FixedSizeBinaryArray<N, Nullable, Buffer>: Into<arrow_array::FixedSizeBinaryArray>,
 {
-    fn from(value: FixedSizeBinaryArray<N, Nullable, Buffer>) -> Self {
-        Arc::new(arrow_array::FixedSizeBinaryArray::from(value))
+    fn into(self) -> Arc<dyn arrow_array::Array> {
+        Arc::new(self.into())
     }
 }
 
-impl<const N: usize, Buffer: BufferType> From<FixedSizeBinaryArray<N, Nullable, Buffer>>
-    for arrow_array::FixedSizeBinaryArray
+
+impl<const N: usize, Buffer: BufferType> Into<arrow_array::FixedSizeBinaryArray>
+    for FixedSizeBinaryArray<N, Nullable, Buffer>
 where
-    arrow_buffer::Buffer: From<FixedSizePrimitiveArray<u8, NonNullable, Buffer>>,
+    FixedSizePrimitiveArray<u8, NonNullable, Buffer>: Into<arrow_buffer::Buffer>,
     Bitmap<Buffer>: Into<NullBuffer>,
 {
-    fn from(value: FixedSizeBinaryArray<N, Nullable, Buffer>) -> Self {
+    fn into(self) -> arrow_array::FixedSizeBinaryArray {
         // todo(mbrobbel): const_assert
         assert!(N <= 0x7FFF_FFFF); // i32::MAX
         #[allow(
@@ -91,8 +94,8 @@ where
         )]
         arrow_array::FixedSizeBinaryArray::new(
             i32::try_from(N).expect("overflow"),
-            value.0 .0.data.into(),
-            Some(value.0 .0.validity.into()),
+            self.0 .0.data.into(),
+            Some(self.0 .0.validity.into()),
         )
     }
 }
@@ -148,7 +151,7 @@ mod tests {
     fn from() {
         let fixed_size_binary_array = INPUT.into_iter().collect::<FixedSizeBinaryArray<2>>();
         assert_eq!(
-            arrow_array::FixedSizeBinaryArray::from(fixed_size_binary_array)
+            Into::<arrow_array::FixedSizeBinaryArray>::into(fixed_size_binary_array)
                 .iter()
                 .flatten()
                 .flatten()
@@ -161,7 +164,7 @@ mod tests {
             .into_iter()
             .collect::<FixedSizeBinaryArray<2, Nullable>>();
         assert_eq!(
-            arrow_array::FixedSizeBinaryArray::from(fixed_size_binary_array_nullable)
+            Into::<arrow_array::FixedSizeBinaryArray>::into(fixed_size_binary_array_nullable)
                 .iter()
                 .flatten()
                 .flatten()
@@ -206,7 +209,7 @@ mod tests {
             .into_iter()
             .collect::<FixedSizeBinaryArray<2, Nullable>>();
         let fixed_size_binary_array_nullable =
-            arrow_array::FixedSizeBinaryArray::from(fixed_size_binary_array_nullable_input);
+            Into::<arrow_array::FixedSizeBinaryArray>::into(fixed_size_binary_array_nullable_input);
         assert_eq!(
             FixedSizeBinaryArray::<2, Nullable>::from(fixed_size_binary_array_nullable)
                 .into_iter()

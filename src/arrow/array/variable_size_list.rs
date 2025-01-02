@@ -50,66 +50,70 @@ where
     }
 }
 
+
 impl<T: Array + crate::arrow::Array, OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType>
-    From<VariableSizeListArray<T, NonNullable, OffsetItem, Buffer>> for Arc<dyn arrow_array::Array>
+    Into<Arc<dyn arrow_array::Array>> for VariableSizeListArray<T, NonNullable, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
-    <T as crate::arrow::Array>::Array: From<T> + 'static,
+    T: Into<<T as crate::arrow::Array>::Array> + 'static,
 {
-    fn from(value: VariableSizeListArray<T, NonNullable, OffsetItem, Buffer>) -> Self {
-        let array: arrow_array::GenericListArray<OffsetItem> = value.into();
+    fn into(self) -> Arc<dyn arrow_array::Array> {
+        let array: arrow_array::GenericListArray<OffsetItem> = self.into();
         Arc::new(array)
     }
 }
 
+
 impl<T: Array + crate::arrow::Array, OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType>
-    From<VariableSizeListArray<T, Nullable, OffsetItem, Buffer>> for Arc<dyn arrow_array::Array>
+    Into<Arc<dyn arrow_array::Array>> for VariableSizeListArray<T, Nullable, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
     Bitmap<Buffer>: Into<NullBuffer>,
-    <T as crate::arrow::Array>::Array: From<T> + 'static,
+    T: Into<<T as crate::arrow::Array>::Array> + 'static,
 {
-    fn from(value: VariableSizeListArray<T, Nullable, OffsetItem, Buffer>) -> Self {
-        let array: arrow_array::GenericListArray<OffsetItem> = value.into();
+    fn into(self) -> Arc<dyn arrow_array::Array> {
+        let array: arrow_array::GenericListArray<OffsetItem> = self.into();
         Arc::new(array)
     }
 }
 
+
 impl<T: Array + crate::arrow::Array, OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType>
-    From<VariableSizeListArray<T, NonNullable, OffsetItem, Buffer>>
-    for arrow_array::GenericListArray<OffsetItem>
+    Into<arrow_array::GenericListArray<OffsetItem>>
+    for VariableSizeListArray<T, NonNullable, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
-    <T as crate::arrow::Array>::Array: From<T> + 'static,
+    T: Into<<T as crate::arrow::Array>::Array> + 'static,
 {
-    fn from(value: VariableSizeListArray<T, NonNullable, OffsetItem, Buffer>) -> Self {
+    fn into(self) -> arrow_array::GenericListArray<OffsetItem> {
         arrow_array::GenericListArray::new(
             Arc::new(T::as_field("item")),
             // Safety:
             // - The narrow offfset buffer contains valid offset data
-            unsafe { OffsetBuffer::new_unchecked(value.0.offsets.into()) },
-            Arc::<<T as crate::arrow::Array>::Array>::new(value.0.data.into()),
+            unsafe { OffsetBuffer::new_unchecked(self.0.offsets.into()) },
+            Arc::<<T as crate::arrow::Array>::Array>::new(self.0.data.into()),
             None,
         )
     }
 }
 
+
 impl<T: Array + crate::arrow::Array, OffsetItem: Offset + OffsetSizeTrait, Buffer: BufferType>
-    From<VariableSizeListArray<T, Nullable, OffsetItem, Buffer>>
-    for arrow_array::GenericListArray<OffsetItem>
+    Into<arrow_array::GenericListArray<OffsetItem>>
+    for VariableSizeListArray<T, Nullable, OffsetItem, Buffer>
 where
     <Buffer as BufferType>::Buffer<OffsetItem>: Into<ScalarBuffer<OffsetItem>>,
     Bitmap<Buffer>: Into<NullBuffer>,
-    <T as crate::arrow::Array>::Array: From<T> + 'static,
+    T: Into<<T as crate::arrow::Array>::Array> + 'static,
 {
-    fn from(value: VariableSizeListArray<T, Nullable, OffsetItem, Buffer>) -> Self {
+    fn into(self) -> arrow_array::GenericListArray<OffsetItem> {
         arrow_array::GenericListArray::new(
             Arc::new(T::as_field("item")),
             // Safety:
             // - The narrow offfset buffer contains valid offset data
-            unsafe { OffsetBuffer::new_unchecked(value.0.offsets.data.into()) },
-            Arc::<<T as crate::arrow::Array>::Array>::new(value.0.data.into()),
-            Some(value.0.offsets.validity.into()),
+            unsafe { OffsetBuffer::new_unchecked(self.0.offsets.data.into()) },
+            Arc::<<T as crate::arrow::Array>::Array>::new(self.0.data.into()),
+            Some(self.0.offsets.validity.into()),
         )
     }
 }
@@ -187,13 +191,13 @@ mod tests {
         let variable_size_list_array = INPUT
             .into_iter()
             .collect::<VariableSizeListArray<Uint16Array>>();
-        let list_array = arrow_array::ListArray::from(variable_size_list_array);
+        let list_array: arrow_array::ListArray = variable_size_list_array.into();
         assert_eq!(list_array.len(), INPUT.len());
 
         let variable_size_list_array_nullable = INPUT_NULLABLE
             .into_iter()
             .collect::<VariableSizeListArray<StringArray, Nullable>>();
-        let list_array_nullable = arrow_array::ListArray::from(variable_size_list_array_nullable);
+        let list_array_nullable: arrow_array::ListArray = variable_size_list_array_nullable.into();
         assert_eq!(list_array_nullable.len(), INPUT_NULLABLE.len());
     }
 

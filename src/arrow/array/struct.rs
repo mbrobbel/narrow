@@ -49,50 +49,53 @@ where
     }
 }
 
+
 impl<T: StructArrayType, Nullable: Nullability, Buffer: BufferType>
-    From<StructArray<T, Nullable, Buffer>> for Arc<dyn arrow_array::Array>
+    Into<Arc<dyn arrow_array::Array>> for StructArray<T, Nullable, Buffer>
 where
-    arrow_array::StructArray: From<StructArray<T, Nullable, Buffer>>,
+    StructArray<T, Nullable, Buffer>: Into<arrow_array::StructArray>,
 {
-    fn from(value: StructArray<T, Nullable, Buffer>) -> Self {
-        Arc::new(arrow_array::StructArray::from(value))
+    fn into(self) -> Arc<dyn arrow_array::Array> {
+        Arc::new(self.into())
     }
 }
 
-impl<T: StructArrayType, Buffer: BufferType> From<StructArray<T, NonNullable, Buffer>>
-    for arrow_array::StructArray
+
+impl<T: StructArrayType, Buffer: BufferType> Into<arrow_array::StructArray>
+    for StructArray<T, NonNullable, Buffer>
 where
     <T as StructArrayType>::Array<Buffer>:
         StructArrayTypeFields + Into<Vec<Arc<dyn arrow_array::Array>>>,
 {
-    fn from(value: StructArray<T, NonNullable, Buffer>) -> Self {
+    fn into(self) -> arrow_array::StructArray {
         // Safety:
         // - struct arrays are valid by construction
         unsafe {
             arrow_array::StructArray::new_unchecked(
                 <<T as StructArrayType>::Array<Buffer> as StructArrayTypeFields>::fields(),
-                value.0.into(),
+                self.0.into(),
                 None,
             )
         }
     }
 }
 
-impl<T: StructArrayType, Buffer: BufferType> From<StructArray<T, Nullable, Buffer>>
-    for arrow_array::StructArray
+
+impl<T: StructArrayType, Buffer: BufferType> Into<arrow_array::StructArray>
+    for StructArray<T, Nullable, Buffer>
 where
     <T as StructArrayType>::Array<Buffer>:
         StructArrayTypeFields + Into<Vec<Arc<dyn arrow_array::Array>>>,
     Bitmap<Buffer>: Into<NullBuffer>,
 {
-    fn from(value: StructArray<T, Nullable, Buffer>) -> Self {
+    fn into(self) -> arrow_array::StructArray {
         // Safety:
         // - struct arrays are valid by construction
         unsafe {
             arrow_array::StructArray::new_unchecked(
                 <<T as StructArrayType>::Array<Buffer> as StructArrayTypeFields>::fields(),
-                value.0.data.into(),
-                Some(value.0.validity.into()),
+                self.0.data.into(),
+                Some(self.0.validity.into()),
             )
         }
     }
@@ -154,13 +157,15 @@ where
     }
 }
 
-impl<T: StructArrayType, Nullable: Nullability, Buffer: BufferType>
-    From<StructArray<T, Nullable, Buffer>> for arrow_array::RecordBatch
+
+impl<T: StructArrayType, Nullable: Nullability, Buffer: BufferType> Into<arrow_array::RecordBatch>
+    for StructArray<T, Nullable, Buffer>
 where
-    arrow_array::StructArray: From<StructArray<T, Nullable, Buffer>>,
+    StructArray<T, Nullable, Buffer>: Into<arrow_array::StructArray>,
 {
-    fn from(value: StructArray<T, Nullable, Buffer>) -> Self {
-        Self::from(arrow_array::StructArray::from(value))
+    fn into(self) -> arrow_array::RecordBatch {
+        let arrow_struct_array: arrow_array::StructArray = self.into();
+        arrow_array::RecordBatch::from(arrow_struct_array)
     }
 }
 
@@ -318,13 +323,13 @@ mod tests {
         let struct_array = [Foo { a: 1 }, Foo { a: 2 }]
             .into_iter()
             .collect::<StructArray<Foo, NonNullable, BufferBuilder>>();
-        let struct_array_arrow = arrow_array::StructArray::from(struct_array);
+        let struct_array_arrow: arrow_array::StructArray = struct_array.into();
         assert_eq!(struct_array_arrow.len(), 2);
 
         let struct_array_nullable = [Some(Foo { a: 1234 }), None]
             .into_iter()
             .collect::<StructArray<Foo, Nullable, BufferBuilder>>();
-        let struct_array_arrow_nullable = arrow_array::StructArray::from(struct_array_nullable);
+        let struct_array_arrow_nullable: arrow_array::StructArray = struct_array_nullable.into();
         assert_eq!(struct_array_arrow_nullable.len(), 2);
         assert!(struct_array_arrow_nullable.is_valid(0));
         assert!(struct_array_arrow_nullable.is_null(1));
@@ -348,7 +353,7 @@ mod tests {
         let struct_array = [Foo { a: 1 }, Foo { a: 2 }]
             .into_iter()
             .collect::<StructArray<Foo, NonNullable, BufferBuilder>>();
-        let struct_array_arrow = arrow_array::StructArray::from(struct_array);
+        let struct_array_arrow: arrow_array::StructArray = struct_array.into();
         assert!(!StructArray::<Foo, Nullable, ScalarBuffer>::from(struct_array_arrow).any_null());
     }
 
@@ -358,7 +363,7 @@ mod tests {
         let struct_array_nullable = [Some(Foo { a: 1234 }), None]
             .into_iter()
             .collect::<StructArray<Foo, Nullable, BufferBuilder>>();
-        let struct_array_arrow_nullable = arrow_array::StructArray::from(struct_array_nullable);
+        let struct_array_arrow_nullable: arrow_array::StructArray = struct_array_nullable.into();
         let _ = StructArray::<Foo, NonNullable, ScalarBuffer>::from(struct_array_arrow_nullable);
     }
 
@@ -367,7 +372,7 @@ mod tests {
         let struct_array = [Foo { a: 1 }, Foo { a: 2 }]
             .into_iter()
             .collect::<StructArray<Foo, NonNullable, BufferBuilder>>();
-        let struct_array_arrow = arrow_array::StructArray::from(struct_array);
+        let struct_array_arrow: arrow_array::StructArray = struct_array.into();
         assert_eq!(
             StructArray::<Foo, NonNullable, ScalarBuffer>::from(struct_array_arrow)
                 .0
@@ -378,7 +383,7 @@ mod tests {
         let struct_array_nullable = [Some(Foo { a: 1234 }), None]
             .into_iter()
             .collect::<StructArray<Foo, Nullable, BufferBuilder>>();
-        let struct_array_arrow_nullable = arrow_array::StructArray::from(struct_array_nullable);
+        let struct_array_arrow_nullable: arrow_array::StructArray = struct_array_nullable.into();
         assert_eq!(
             StructArray::<Foo, Nullable, ScalarBuffer>::from(struct_array_arrow_nullable)
                 .0
@@ -420,7 +425,7 @@ mod tests {
         let struct_array = [Foo(1_i32, 2), Foo(3, 4)]
             .into_iter()
             .collect::<StructArray<Foo<_>, NonNullable>>();
-        let struct_array_arrow = arrow_array::StructArray::from(struct_array);
+        let struct_array_arrow: arrow_array::StructArray = struct_array.into();
         assert_eq!(struct_array_arrow.len(), 2);
 
         let struct_array_roundtrip: StructArray<Foo<i32>> = struct_array_arrow.into();
@@ -490,14 +495,14 @@ mod tests {
         .into_iter()
         .collect::<StructArray<Foo>>();
 
-        let arrow_array = arrow_array::StructArray::from(foo_array);
+        let arrow_array: arrow_array::StructArray = foo_array.into();
         let bar_array = StructArray::<Bar>::from(arrow_array);
         assert_eq!(
             bar_array.clone().into_iter().collect::<Vec<_>>(),
             [Bar { b: false, a: 1 }, Bar { b: true, a: 2 }]
         );
 
-        let bar_arrow_array = arrow_array::StructArray::from(bar_array);
+        let bar_arrow_array: arrow_array::StructArray = bar_array.into();
         let _ = StructArray::<Foo>::from(bar_arrow_array);
     }
 }

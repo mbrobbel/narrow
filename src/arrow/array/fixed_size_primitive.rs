@@ -9,7 +9,6 @@ use arrow_array::{
     },
     Array as _,
 };
-use arrow_buffer::ScalarBuffer;
 
 use crate::{
     array::FixedSizePrimitiveArray,
@@ -72,34 +71,34 @@ impl<Nullable: Nullability, T: FixedSize + FixedSizeExt, Buffer: BufferType> cra
 }
 
 impl<T: FixedSize, U: arrow_array::types::ArrowPrimitiveType<Native = T>, Buffer: BufferType>
-    From<FixedSizePrimitiveArray<T, NonNullable, Buffer>> for arrow_array::PrimitiveArray<U>
+    Into<arrow_array::PrimitiveArray<U>> for FixedSizePrimitiveArray<T, NonNullable, Buffer>
 where
-    arrow_buffer::ScalarBuffer<T>: From<<Buffer as BufferType>::Buffer<T>>,
+    <Buffer as BufferType>::Buffer<T>: Into<arrow_buffer::ScalarBuffer<T>>,
 {
-    fn from(value: FixedSizePrimitiveArray<T, NonNullable, Buffer>) -> Self {
-        arrow_array::PrimitiveArray::new(value.0.into(), None)
+    fn into(self) -> arrow_array::PrimitiveArray<U> {
+        arrow_array::PrimitiveArray::new(self.0.into(), None)
     }
 }
 
 impl<T: FixedSize, U: arrow_array::types::ArrowPrimitiveType<Native = T>, Buffer: BufferType>
-    From<FixedSizePrimitiveArray<T, Nullable, Buffer>> for arrow_array::PrimitiveArray<U>
+    Into<arrow_array::PrimitiveArray<U>> for FixedSizePrimitiveArray<T, Nullable, Buffer>
 where
-    arrow_buffer::ScalarBuffer<T>: From<<Buffer as BufferType>::Buffer<T>>,
-    arrow_buffer::NullBuffer: From<Bitmap<Buffer>>,
+    <Buffer as BufferType>::Buffer<T>: Into<arrow_buffer::ScalarBuffer<T>>,
+    Bitmap<Buffer>: Into<arrow_buffer::NullBuffer>,
 {
-    fn from(value: FixedSizePrimitiveArray<T, Nullable, Buffer>) -> Self {
-        arrow_array::PrimitiveArray::new(value.0.data.into(), Some(value.0.validity.into()))
+    fn into(self) -> arrow_array::PrimitiveArray<U> {
+        arrow_array::PrimitiveArray::new(self.0.data.into(), Some(self.0.validity.into()))
     }
 }
 
-impl<T: FixedSizeExt, Nullable: Nullability, Buffer: BufferType>
-    From<FixedSizePrimitiveArray<T, Nullable, Buffer>> for Arc<dyn arrow_array::Array>
+impl<T: FixedSizeExt, Nullable: Nullability, Buffer: BufferType> Into<Arc<dyn arrow_array::Array>>
+    for FixedSizePrimitiveArray<T, Nullable, Buffer>
 where
-    arrow_array::PrimitiveArray<<T as FixedSizeExt>::ArrowPrimitiveType>:
-        From<FixedSizePrimitiveArray<T, Nullable, Buffer>>,
+    FixedSizePrimitiveArray<T, Nullable, Buffer>:
+        Into<arrow_array::PrimitiveArray<<T as FixedSizeExt>::ArrowPrimitiveType>>,
 {
-    fn from(value: FixedSizePrimitiveArray<T, Nullable, Buffer>) -> Self {
-        Arc::new(arrow_array::PrimitiveArray::from(value))
+    fn into(self) -> Arc<dyn arrow_array::Array> {
+        Arc::new(self.into())
     }
 }
 
@@ -150,30 +149,30 @@ where
 impl<T: FixedSize, Buffer: BufferType> From<arrow_buffer::ScalarBuffer<T>>
     for FixedSizePrimitiveArray<T, NonNullable, Buffer>
 where
-    <Buffer as BufferType>::Buffer<T>: From<ScalarBuffer<T>>,
+    <Buffer as BufferType>::Buffer<T>: From<arrow_buffer::ScalarBuffer<T>>,
 {
     fn from(value: arrow_buffer::ScalarBuffer<T>) -> Self {
         Self(value.into())
     }
 }
 
-impl<T: FixedSize, Buffer: BufferType> From<FixedSizePrimitiveArray<T, NonNullable, Buffer>>
-    for ScalarBuffer<T>
+impl<T: FixedSize, Buffer: BufferType> Into<arrow_buffer::ScalarBuffer<T>>
+    for FixedSizePrimitiveArray<T, NonNullable, Buffer>
 where
-    <Buffer as BufferType>::Buffer<T>: Into<ScalarBuffer<T>>,
+    <Buffer as BufferType>::Buffer<T>: Into<arrow_buffer::ScalarBuffer<T>>,
 {
-    fn from(value: FixedSizePrimitiveArray<T, NonNullable, Buffer>) -> Self {
-        value.0.into()
+    fn into(self) -> arrow_buffer::ScalarBuffer<T> {
+        self.0.into()
     }
 }
 
-impl<T: FixedSize, Buffer: BufferType> From<FixedSizePrimitiveArray<T, NonNullable, Buffer>>
-    for arrow_buffer::Buffer
+impl<T: FixedSize, Buffer: BufferType> Into<arrow_buffer::Buffer>
+    for FixedSizePrimitiveArray<T, NonNullable, Buffer>
 where
     <Buffer as BufferType>::Buffer<T>: Into<arrow_buffer::Buffer>,
 {
-    fn from(value: FixedSizePrimitiveArray<T, NonNullable, Buffer>) -> Self {
-        value.0.into()
+    fn into(self) -> arrow_buffer::Buffer {
+        self.0.into()
     }
 }
 

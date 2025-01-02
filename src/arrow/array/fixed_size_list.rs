@@ -48,43 +48,46 @@ where
     }
 }
 
-impl<const N: usize, T: Array, Buffer: BufferType>
-    From<FixedSizeListArray<N, T, NonNullable, Buffer>> for Arc<dyn arrow_array::Array>
+
+impl<const N: usize, T: Array, Buffer: BufferType> Into<Arc<dyn arrow_array::Array>>
+    for FixedSizeListArray<N, T, NonNullable, Buffer>
 where
     T: crate::arrow::Array + Into<Arc<dyn arrow_array::Array>>,
 {
-    fn from(value: FixedSizeListArray<N, T, NonNullable, Buffer>) -> Self {
+    fn into(self) -> Arc<dyn arrow_array::Array> {
         Arc::new(arrow_array::FixedSizeListArray::new(
             Arc::new(T::as_field("item")),
             i32::try_from(N).expect("overflow"),
-            value.0.into(),
+            self.0.into(),
             None,
         ))
     }
 }
 
-impl<const N: usize, T: Array, Buffer: BufferType> From<FixedSizeListArray<N, T, Nullable, Buffer>>
-    for Arc<dyn arrow_array::Array>
+
+impl<const N: usize, T: Array, Buffer: BufferType> Into<Arc<dyn arrow_array::Array>>
+    for FixedSizeListArray<N, T, Nullable, Buffer>
 where
     T: crate::arrow::Array + Into<Arc<dyn arrow_array::Array>>,
     Bitmap<Buffer>: Into<NullBuffer>,
 {
-    fn from(value: FixedSizeListArray<N, T, Nullable, Buffer>) -> Self {
+    fn into(self) -> Arc<dyn arrow_array::Array> {
         Arc::new(arrow_array::FixedSizeListArray::new(
             Arc::new(T::as_field("item")),
             i32::try_from(N).expect("overflow"),
-            value.0.data.into(),
-            Some(value.0.validity.into()),
+            self.0.data.into(),
+            Some(self.0.validity.into()),
         ))
     }
 }
 
+
 impl<const N: usize, T: crate::arrow::Array, Buffer: BufferType>
-    From<FixedSizeListArray<N, T, NonNullable, Buffer>> for arrow_array::FixedSizeListArray
+    Into<arrow_array::FixedSizeListArray> for FixedSizeListArray<N, T, NonNullable, Buffer>
 where
-    <T as crate::arrow::Array>::Array: From<T> + 'static,
+    T: Into<<T as crate::arrow::Array>::Array> + 'static,
 {
-    fn from(value: FixedSizeListArray<N, T, NonNullable, Buffer>) -> Self {
+    fn into(self) -> arrow_array::FixedSizeListArray {
         // todo(mbrobbel): const_assert
         assert!(N <= 0x7FFF_FFFF); // i32::MAX
         #[allow(
@@ -95,19 +98,20 @@ where
         arrow_array::FixedSizeListArray::new(
             Arc::new(T::as_field("item")),
             i32::try_from(N).expect("overflow"),
-            Arc::<<T as crate::arrow::Array>::Array>::new(value.0.into()),
+            Arc::<<T as crate::arrow::Array>::Array>::new(self.0.into()),
             None,
         )
     }
 }
 
+
 impl<const N: usize, T: crate::arrow::Array, Buffer: BufferType>
-    From<FixedSizeListArray<N, T, Nullable, Buffer>> for arrow_array::FixedSizeListArray
+    Into<arrow_array::FixedSizeListArray> for FixedSizeListArray<N, T, Nullable, Buffer>
 where
-    <T as crate::arrow::Array>::Array: From<T> + 'static,
+    T: Into<<T as crate::arrow::Array>::Array> + 'static,
     Bitmap<Buffer>: Into<NullBuffer>,
 {
-    fn from(value: FixedSizeListArray<N, T, Nullable, Buffer>) -> Self {
+    fn into(self) -> arrow_array::FixedSizeListArray {
         // todo(mbrobbel): const_assert
         assert!(N <= 0x7FFF_FFFF); // i32::MAX
         #[allow(
@@ -118,8 +122,8 @@ where
         arrow_array::FixedSizeListArray::new(
             Arc::new(T::as_field("item")),
             i32::try_from(N).expect("overflow"),
-            Arc::<<T as crate::arrow::Array>::Array>::new(value.0.data.into()),
-            Some(value.0.validity.into()),
+            Arc::<<T as crate::arrow::Array>::Array>::new(self.0.data.into()),
+            Some(self.0.validity.into()),
         )
     }
 }
@@ -183,7 +187,7 @@ mod tests {
             .into_iter()
             .collect::<FixedSizeListArray<2, Uint32Array>>();
         assert_eq!(
-            arrow_array::FixedSizeListArray::from(fixed_size_list_array)
+            Into::<arrow_array::FixedSizeListArray>::into(fixed_size_list_array)
                 .iter()
                 .flatten()
                 .flat_map(|dyn_array| {
@@ -199,7 +203,7 @@ mod tests {
             .into_iter()
             .collect::<FixedSizeListArray<2, StringArray, Nullable>>();
         assert_eq!(
-            arrow_array::FixedSizeListArray::from(fixed_size_list_array_nullable)
+            Into::<arrow_array::FixedSizeListArray>::into(fixed_size_list_array_nullable)
                 .iter()
                 .flatten()
                 .flat_map(|dyn_array| {
@@ -281,8 +285,8 @@ mod tests {
         let fixed_size_list_array_nullable_input = INPUT_NULLABLE
             .into_iter()
             .collect::<FixedSizeListArray<2, StringArray, Nullable>>();
-        let fixed_size_list_array_nullable =
-            arrow_array::FixedSizeListArray::from(fixed_size_list_array_nullable_input);
+        let fixed_size_list_array_nullable: arrow_array::FixedSizeListArray =
+            fixed_size_list_array_nullable_input.into();
 
         assert_eq!(
             FixedSizeListArray::<

@@ -332,7 +332,7 @@ impl Struct<'_> {
                 let field_ident = self.field_idents();
                 quote!(
                     #(
-                        value.#field_ident.into(),
+                        self.#field_ident.into(),
                     )*
                 )
             }
@@ -344,19 +344,20 @@ impl Struct<'_> {
                     .map(|(idx, _)| Index::from(idx));
                 quote!(
                     #(
-                        value.#field_idx.into(),
+                        self.#field_idx.into(),
                     )*
                 )
             }
             Fields::Unit => {
-                quote!(value.0.into())
+                quote!(self.0.into())
             }
         };
 
         let ident = self.array_struct_ident();
         let tokens = quote! {
-            impl #impl_generics ::std::convert::From<#ident #ty_generics> for ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>> #where_clause  {
-                fn from(value: #ident #ty_generics) -> Self {
+            #[allow(clippy::from_over_into)]
+            impl #impl_generics std::convert::Into<::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>> for #ident #ty_generics #where_clause  {
+                fn into(self) -> ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>> {
                     vec![
                         #field_arrays
                     ]

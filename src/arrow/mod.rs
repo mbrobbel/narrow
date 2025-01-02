@@ -2,6 +2,13 @@
 //!
 //! [`arrow-rs`]: https://crates.io/crates/arrow
 
+// Allow preferring Into over From when converting from a narrow type to an
+// arrow-rs type, to allow following the guideline specified in
+// https://doc.rust-lang.org/stable/std/convert/index.html :
+// > Implement the Into trait for consuming value-to-value conversions to types
+// outside the current crate
+#![allow(clippy::from_over_into)]
+
 mod array;
 pub use array::{StructArrayTypeFields, UnionArrayTypeFields};
 
