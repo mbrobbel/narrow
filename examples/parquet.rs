@@ -78,7 +78,7 @@ fn main() {
     let output = narrow_array.clone().into_iter().collect::<Vec<_>>();
     assert_eq!(input.as_slice(), output);
 
-    let record_batch = RecordBatch::from(narrow_array);
+    let record_batch: RecordBatch = narrow_array.into();
     println!("From narrow StructArray to Arrow RecordBatch");
     pretty::print_batches(&[record_batch.clone()]).unwrap();
 
@@ -94,7 +94,7 @@ fn main() {
     assert_eq!(record_batch, read.clone());
 
     let round_trip: StructArray<Foo, NonNullable, ScalarBuffer> = read.into();
-    let arrow_struct_array_round_trip = arrow_array::StructArray::from(round_trip);
+    let arrow_struct_array_round_trip: arrow_array::StructArray = round_trip.into();
     let record_batch_round_trip = arrow_array::RecordBatch::from(arrow_struct_array_round_trip);
     println!(
         "From Arrow RecordBatch (via Parquet) to narrow StructArray and back to Arrow RecordBatch"

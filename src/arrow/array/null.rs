@@ -35,21 +35,23 @@ where
     }
 }
 
-impl<T: Unit, Buffer: BufferType> From<NullArray<T, NonNullable, Buffer>>
-    for Arc<dyn arrow_array::Array>
+
+impl<T: Unit, Buffer: BufferType> Into<Arc<dyn arrow_array::Array>>
+    for NullArray<T, NonNullable, Buffer>
 where
-    arrow_array::NullArray: From<NullArray<T, NonNullable, Buffer>>,
+    NullArray<T, NonNullable, Buffer>: Into<arrow_array::NullArray>,
 {
-    fn from(value: NullArray<T, NonNullable, Buffer>) -> Self {
-        Arc::new(arrow_array::NullArray::from(value))
+    fn into(self) -> Arc<dyn arrow_array::Array> {
+        Arc::new(self.into())
     }
 }
 
-impl<T: Unit, Buffer: BufferType> From<NullArray<T, NonNullable, Buffer>>
-    for arrow_array::NullArray
+
+impl<T: Unit, Buffer: BufferType> Into<arrow_array::NullArray>
+    for NullArray<T, NonNullable, Buffer>
 {
-    fn from(value: NullArray<T, NonNullable, Buffer>) -> Self {
-        arrow_array::NullArray::new(value.len())
+    fn into(self) -> arrow_array::NullArray {
+        arrow_array::NullArray::new(self.len())
     }
 }
 
@@ -83,7 +85,7 @@ mod tests {
 
         let input = [Unit; 4];
         let array = input.into_iter().collect::<NullArray<Unit>>();
-        let arrow_array = arrow_array::NullArray::from(array);
+        let arrow_array: arrow_array::NullArray = array.into();
         assert!(arrow_array.data_type().is_null());
         let narrow_array = NullArray::<Unit>::from(arrow_array);
         assert_eq!(narrow_array.len(), 4);
@@ -92,7 +94,7 @@ mod tests {
         let array_nested = input_nested
             .into_iter()
             .collect::<StructArray<NestedUnit>>();
-        let arrow_array_nested = arrow_array::StructArray::from(array_nested);
+        let arrow_array_nested: arrow_array::StructArray = array_nested.into();
         assert!(arrow_array_nested
             .column(0)
             .as_struct()

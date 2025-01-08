@@ -23,32 +23,32 @@ impl<Nullable: Nullability, Buffer: BufferType> crate::arrow::Array
     }
 }
 
-impl<Buffer: BufferType> From<BooleanArray<NonNullable, Buffer>> for arrow_array::BooleanArray
+impl<Buffer: BufferType> Into<arrow_array::BooleanArray> for BooleanArray<NonNullable, Buffer>
 where
-    arrow_buffer::BooleanBuffer: From<Bitmap<Buffer>>,
+    Bitmap<Buffer>: Into<arrow_buffer::BooleanBuffer>,
 {
-    fn from(value: BooleanArray<NonNullable, Buffer>) -> Self {
-        arrow_array::BooleanArray::new(value.0.into(), None)
+    fn into(self) -> arrow_array::BooleanArray {
+        arrow_array::BooleanArray::new(self.0.into(), None)
     }
 }
 
-impl<Buffer: BufferType> From<BooleanArray<Nullable, Buffer>> for arrow_array::BooleanArray
+impl<Buffer: BufferType> Into<arrow_array::BooleanArray> for BooleanArray<Nullable, Buffer>
 where
-    arrow_buffer::BooleanBuffer: From<Bitmap<Buffer>>,
-    arrow_buffer::NullBuffer: From<Bitmap<Buffer>>,
+    Bitmap<Buffer>: Into<arrow_buffer::BooleanBuffer>,
+    Bitmap<Buffer>: Into<arrow_buffer::NullBuffer>,
 {
-    fn from(value: BooleanArray<Nullable, Buffer>) -> Self {
-        arrow_array::BooleanArray::new(value.0.data.into(), Some(value.0.validity.into()))
+    fn into(self) -> arrow_array::BooleanArray {
+        arrow_array::BooleanArray::new(self.0.data.into(), Some(self.0.validity.into()))
     }
 }
 
-impl<Nullable: Nullability, Buffer: BufferType> From<BooleanArray<Nullable, Buffer>>
-    for Arc<dyn arrow_array::Array>
+impl<Nullable: Nullability, Buffer: BufferType> Into<Arc<dyn arrow_array::Array>>
+    for BooleanArray<Nullable, Buffer>
 where
-    arrow_array::BooleanArray: From<BooleanArray<Nullable, Buffer>>,
+    BooleanArray<Nullable, Buffer>: Into<arrow_array::BooleanArray>,
 {
-    fn from(value: BooleanArray<Nullable, Buffer>) -> Self {
-        Arc::new(arrow_array::BooleanArray::from(value))
+    fn into(self) -> Arc<dyn arrow_array::Array> {
+        Arc::new(self.into())
     }
 }
 
