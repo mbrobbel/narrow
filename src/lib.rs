@@ -87,6 +87,14 @@ pub mod logical;
 #[cfg(feature = "arrow-rs")]
 pub mod arrow;
 
+// Re-export arrow crates.
+#[cfg(feature = "arrow-rs")]
+pub use arrow_array;
+#[cfg(feature = "arrow-rs")]
+pub use arrow_buffer;
+#[cfg(feature = "arrow-rs")]
+pub use arrow_schema;
+
 // Re-export `narrow_derive` macros when the `derive` feature is enabled.
 #[cfg(feature = "derive")]
 pub use narrow_derive::ArrayType;

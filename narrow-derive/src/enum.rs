@@ -1047,8 +1047,8 @@ impl<'a> Enum<'a> {
         let variant_idx = (0..self.variants.len()).map(|idx| idx.to_string());
         let tokens = quote! {
             impl #impl_generics #narrow::arrow::UnionArrayTypeFields<#variants> for #ident #ty_generics #where_clause {
-                fn fields() -> ::arrow_schema::Fields {
-                    ::arrow_schema::Fields::from(vec![
+                fn fields() -> #narrow::arrow_schema::Fields {
+                    #narrow::arrow_schema::Fields::from(vec![
                         #(
                             <<<#self_ident as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<
                                 Buffer,
@@ -1087,7 +1087,7 @@ impl<'a> Enum<'a> {
         let (_, self_ty_generics, _) = self.generics.split_for_impl();
         generics.make_where_clause().predicates.extend(
             self.variant_indices().map::<WherePredicate, _>(|idx| {
-                parse_quote!(::std::sync::Arc<dyn ::arrow_array::Array>: From<
+                parse_quote!(::std::sync::Arc<dyn #narrow::arrow_array::Array>: From<
                 <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<
                     Buffer,
                     OffsetItem,
@@ -1101,7 +1101,7 @@ impl<'a> Enum<'a> {
         let (_, ty_generics, _) = generics.split_for_impl();
         let idx = self.variant_indices();
         let tokens = quote! {
-            impl #impl_generics ::std::convert::From<#ident #ty_generics> for ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>> #where_clause {
+            impl #impl_generics ::std::convert::From<#ident #ty_generics> for ::std::vec::Vec<::std::sync::Arc<dyn #narrow::arrow_array::Array>> #where_clause {
                 fn from(value: #ident #ty_generics) -> Self {
                     vec![
                         #(
@@ -1129,7 +1129,7 @@ impl<'a> Enum<'a> {
             .visit_generics_mut(&mut generics);
         generics.make_where_clause().predicates.extend(
             self.variant_indices().map::<WherePredicate, _>(|idx| {
-                parse_quote!(::std::sync::Arc<dyn ::arrow_array::Array>: Into<
+                parse_quote!(::std::sync::Arc<dyn #narrow::arrow_array::Array>: Into<
                 <<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data as #narrow::array::ArrayType<<#self_ident #self_ty_generics as #narrow::array::union::EnumVariant<#idx>>::Data>>::Array<
                     Buffer,
                     OffsetItem,
@@ -1149,8 +1149,8 @@ impl<'a> Enum<'a> {
                 .into())
         });
         let tokens = quote! {
-            impl #impl_generics ::std::iter::FromIterator<::std::sync::Arc<dyn ::arrow_array::Array>> for #ident #ty_generics #where_clause {
-                fn from_iter<_I: ::std::iter::IntoIterator<Item = ::std::sync::Arc<dyn ::arrow_array::Array>>>(iter: _I) -> Self {
+            impl #impl_generics ::std::iter::FromIterator<::std::sync::Arc<dyn #narrow::arrow_array::Array>> for #ident #ty_generics #where_clause {
+                fn from_iter<_I: ::std::iter::IntoIterator<Item = ::std::sync::Arc<dyn #narrow::arrow_array::Array>>>(iter: _I) -> Self {
                     let mut iter = iter.into_iter();
                     const VARIANTS: usize = #len;
                     Self(

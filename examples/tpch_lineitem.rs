@@ -5,9 +5,12 @@ use arrow_array::{
     },
     Array, RecordBatch,
 };
-use arrow_schema::{DataType, Field, TimeUnit};
 use chrono::{DateTime, Utc};
-use narrow::{array::StructArray, ArrayType};
+use narrow::{
+    array::StructArray,
+    arrow_schema::{DataType, Field, TimeUnit},
+    ArrayType,
+};
 use rand::{prelude::SmallRng, Rng, SeedableRng};
 use std::sync::Arc;
 

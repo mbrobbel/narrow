@@ -5,12 +5,12 @@ use narrow::NonNullable;
 
 #[rustversion::attr(nightly, allow(non_local_definitions))]
 fn main() {
-    use arrow_array::RecordBatch;
     use arrow_cast::pretty;
     use bytes::Bytes;
     use narrow::{
         array::{StructArray, VariableSizeBinary},
         arrow::buffer::ScalarBuffer,
+        arrow_array::{self, RecordBatch},
         ArrayType,
     };
     use parquet::arrow::{arrow_reader::ParquetRecordBatchReader, ArrowWriter};

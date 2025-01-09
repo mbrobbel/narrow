@@ -273,9 +273,9 @@ impl Struct<'_> {
         let tokens = if matches!(self.fields, Fields::Unit) {
             quote!(impl #impl_generics #narrow::arrow::StructArrayTypeFields for #ident #ty_generics #where_clause {
                 const NAMES: &'static [&'static str] = &[#field_name];
-                fn fields() -> ::arrow_schema::Fields {
-                    ::arrow_schema::Fields::from([
-                        ::std::sync::Arc::new(::arrow_schema::Field::new(#field_name, ::arrow_schema::DataType::Null, true)),
+                fn fields() -> #narrow::arrow_schema::Fields {
+                    #narrow::arrow_schema::Fields::from([
+                        ::std::sync::Arc::new(#narrow::arrow_schema::Field::new(#field_name, #narrow::arrow_schema::DataType::Null, true)),
                     ])
                 }
             })
@@ -297,8 +297,8 @@ impl Struct<'_> {
                             #field_name,
                         )*
                     ];
-                    fn fields() -> ::arrow_schema::Fields {
-                        ::arrow_schema::Fields::from([
+                    fn fields() -> #narrow::arrow_schema::Fields {
+                        #narrow::arrow_schema::Fields::from([
                             #fields
                         ])
                     }
@@ -355,7 +355,7 @@ impl Struct<'_> {
 
         let ident = self.array_struct_ident();
         let tokens = quote! {
-            impl #impl_generics ::std::convert::From<#ident #ty_generics> for ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>> #where_clause  {
+            impl #impl_generics ::std::convert::From<#ident #ty_generics> for ::std::vec::Vec<::std::sync::Arc<dyn #narrow::arrow_array::Array>> #where_clause  {
                 fn from(value: #ident #ty_generics) -> Self {
                     vec![
                         #field_arrays
@@ -381,7 +381,7 @@ impl Struct<'_> {
             .make_where_clause()
             .predicates
             .extend(self.where_predicate_fields(parse_quote!(
-                ::std::convert::From<::std::sync::Arc<dyn ::arrow_array::Array>>
+                ::std::convert::From<::std::sync::Arc<dyn #narrow::arrow_array::Array>>
             )));
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
@@ -410,8 +410,8 @@ impl Struct<'_> {
         });
         let ident = self.array_struct_ident();
         let tokens = quote! {
-            impl #impl_generics ::std::convert::From<::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>> for #ident #ty_generics #where_clause  {
-                fn from(value: ::std::vec::Vec<::std::sync::Arc<dyn ::arrow_array::Array>>) -> Self {
+            impl #impl_generics ::std::convert::From<::std::vec::Vec<::std::sync::Arc<dyn #narrow::arrow_array::Array>>> for #ident #ty_generics #where_clause  {
+                fn from(value: ::std::vec::Vec<::std::sync::Arc<dyn #narrow::arrow_array::Array>>) -> Self {
                     let mut arrays = value.into_iter();
                     let result = Self #field_arrays;
                     assert!(arrays.next().is_none());
@@ -979,7 +979,7 @@ impl Struct<'_> {
                 parse_quote!(
                 <#ty as #narrow::array::ArrayType<#ty_drop>>::Array<Buffer, #narrow::offset::NA, #narrow::array::union::NA>:
                     ::std::convert::Into<
-                        ::std::sync::Arc<dyn ::arrow_array::Array>
+                        ::std::sync::Arc<dyn #narrow::arrow_array::Array>
                     >
             )})
     }
