@@ -39,6 +39,14 @@ where
     }
 }
 
+#[cfg(feature = "arrow-rs")]
+impl<T: ArrayType<T>> crate::arrow::LogicalArrayType<Box<T>> for Box<T>
+where
+    Option<T>: ArrayType<T>,
+{
+    type ExtensionType = crate::arrow::NoExtensionType;
+}
+
 /// An array for [`Box`] items.
 #[allow(unused)]
 pub type BoxArray<T, Nullable = NonNullable, Buffer = crate::buffer::VecBuffer> =

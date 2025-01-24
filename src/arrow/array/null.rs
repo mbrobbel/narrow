@@ -75,6 +75,7 @@ mod tests {
         use crate::array::StructArray;
         use arrow_array::{cast::AsArray, Array};
         use std::sync::Arc;
+
         #[derive(crate::ArrayType, Copy, Clone, Debug, Default)]
         struct Unit;
 

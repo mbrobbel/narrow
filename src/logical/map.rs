@@ -57,6 +57,13 @@ impl<K: array::ArrayType<K> + Hash + Eq, V: array::ArrayType<V>, S: BuildHasher 
     }
 }
 
+#[cfg(feature = "arrow-rs")]
+impl<K: array::ArrayType<K> + Hash + Eq, V: array::ArrayType<V>, S: BuildHasher + Default>
+    crate::arrow::LogicalArrayType<HashMap<K, V, S>> for HashMap<K, V, S>
+{
+    type ExtensionType = crate::arrow::NoExtensionType;
+}
+
 /// An array for [`HashMap`] items.
 #[allow(unused)]
 pub type HashMapArray<

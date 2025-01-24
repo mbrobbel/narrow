@@ -31,6 +31,11 @@ impl LogicalArrayType<DateTime<Utc>> for DateTime<Utc> {
     }
 }
 
+#[cfg(feature = "arrow-rs")]
+impl crate::arrow::LogicalArrayType<DateTime<Utc>> for DateTime<Utc> {
+    type ExtensionType = crate::arrow::NoExtensionType;
+}
+
 /// An array for [`DateTime`] items.
 pub type DateTimeArray<Nullable = NonNullable, Buffer = crate::buffer::VecBuffer> =
     LogicalArray<DateTime<Utc>, Nullable, Buffer>;
@@ -57,6 +62,11 @@ impl LogicalArrayType<NaiveDateTime> for NaiveDateTime {
     }
 }
 
+#[cfg(feature = "arrow-rs")]
+impl crate::arrow::LogicalArrayType<NaiveDateTime> for NaiveDateTime {
+    type ExtensionType = crate::arrow::NoExtensionType;
+}
+
 /// An array for [`NaiveDateTime`] items.
 pub type NaiveDateTimeArray<Nullable = NonNullable, Buffer = crate::buffer::VecBuffer> =
     LogicalArray<NaiveDateTime, Nullable, Buffer>;
@@ -81,6 +91,11 @@ impl LogicalArrayType<NaiveDate> for NaiveDate {
     fn into_array_type(self) -> Self::ArrayType {
         self.num_days_from_ce()
     }
+}
+
+#[cfg(feature = "arrow-rs")]
+impl crate::arrow::LogicalArrayType<NaiveDate> for NaiveDate {
+    type ExtensionType = crate::arrow::NoExtensionType;
 }
 
 /// An array for [`NaiveDate`] items.
@@ -117,6 +132,11 @@ impl LogicalArrayType<NaiveTime> for NaiveTime {
     }
 }
 
+#[cfg(feature = "arrow-rs")]
+impl crate::arrow::LogicalArrayType<NaiveTime> for NaiveTime {
+    type ExtensionType = crate::arrow::NoExtensionType;
+}
+
 /// An array for [`NaiveTime`] items.
 pub type NaiveTimeArray<Nullable = NonNullable, Buffer = crate::buffer::VecBuffer> =
     LogicalArray<NaiveTime, Nullable, Buffer>;
@@ -141,6 +161,11 @@ impl LogicalArrayType<TimeDelta> for TimeDelta {
     fn into_array_type(self) -> Self::ArrayType {
         self.num_nanoseconds().expect("out of range")
     }
+}
+
+#[cfg(feature = "arrow-rs")]
+impl crate::arrow::LogicalArrayType<TimeDelta> for TimeDelta {
+    type ExtensionType = crate::arrow::NoExtensionType;
 }
 
 /// An array for [`TimeDelta`] items.
