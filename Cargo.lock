@@ -54,8 +54,8 @@ checksum = "7079075b41f533b8c61d2a4d073c4676e1f8b249ff94a393b0595db304e0dd87"
 
 [[package]]
 name = "arrow-array"
-version = "53.0.0"
-source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=374d017d88edfeb28233ee0713efe12d41adc16a#374d017d88edfeb28233ee0713efe12d41adc16a"
+version = "54.0.0"
+source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=75f56a497df774c6c2f3bc2c1315d847c452e3dd#75f56a497df774c6c2f3bc2c1315d847c452e3dd"
 dependencies = [
  "ahash",
  "arrow-buffer",
@@ -63,14 +63,14 @@ dependencies = [
  "arrow-schema",
  "chrono",
  "half 2.3.1",
- "hashbrown",
+ "hashbrown 0.15.2",
  "num",
 ]
 
 [[package]]
 name = "arrow-buffer"
-version = "53.0.0"
-source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=374d017d88edfeb28233ee0713efe12d41adc16a#374d017d88edfeb28233ee0713efe12d41adc16a"
+version = "54.0.0"
+source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=75f56a497df774c6c2f3bc2c1315d847c452e3dd#75f56a497df774c6c2f3bc2c1315d847c452e3dd"
 dependencies = [
  "bytes",
  "half 2.3.1",
@@ -79,8 +79,8 @@ dependencies = [
 
 [[package]]
 name = "arrow-cast"
-version = "53.0.0"
-source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=374d017d88edfeb28233ee0713efe12d41adc16a#374d017d88edfeb28233ee0713efe12d41adc16a"
+version = "54.0.0"
+source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=75f56a497df774c6c2f3bc2c1315d847c452e3dd#75f56a497df774c6c2f3bc2c1315d847c452e3dd"
 dependencies = [
  "arrow-array",
  "arrow-buffer",
@@ -99,8 +99,8 @@ dependencies = [
 
 [[package]]
 name = "arrow-data"
-version = "53.0.0"
-source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=374d017d88edfeb28233ee0713efe12d41adc16a#374d017d88edfeb28233ee0713efe12d41adc16a"
+version = "54.0.0"
+source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=75f56a497df774c6c2f3bc2c1315d847c452e3dd#75f56a497df774c6c2f3bc2c1315d847c452e3dd"
 dependencies = [
  "arrow-buffer",
  "arrow-schema",
@@ -110,12 +110,11 @@ dependencies = [
 
 [[package]]
 name = "arrow-ipc"
-version = "53.0.0"
-source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=374d017d88edfeb28233ee0713efe12d41adc16a#374d017d88edfeb28233ee0713efe12d41adc16a"
+version = "54.0.0"
+source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=75f56a497df774c6c2f3bc2c1315d847c452e3dd#75f56a497df774c6c2f3bc2c1315d847c452e3dd"
 dependencies = [
  "arrow-array",
  "arrow-buffer",
- "arrow-cast",
  "arrow-data",
  "arrow-schema",
  "flatbuffers",
@@ -123,16 +122,17 @@ dependencies = [
 
 [[package]]
 name = "arrow-schema"
-version = "53.0.0"
-source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=374d017d88edfeb28233ee0713efe12d41adc16a#374d017d88edfeb28233ee0713efe12d41adc16a"
+version = "54.0.0"
+source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=75f56a497df774c6c2f3bc2c1315d847c452e3dd#75f56a497df774c6c2f3bc2c1315d847c452e3dd"
 dependencies = [
+ "serde",
  "serde_json",
 ]
 
 [[package]]
 name = "arrow-select"
-version = "53.0.0"
-source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=374d017d88edfeb28233ee0713efe12d41adc16a#374d017d88edfeb28233ee0713efe12d41adc16a"
+version = "54.0.0"
+source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=75f56a497df774c6c2f3bc2c1315d847c452e3dd#75f56a497df774c6c2f3bc2c1315d847c452e3dd"
 dependencies = [
  "ahash",
  "arrow-array",
@@ -385,9 +385,9 @@ dependencies = [
 
 [[package]]
 name = "flatbuffers"
-version = "24.3.25"
+version = "24.12.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8add37afff2d4ffa83bc748a70b4b1370984f6980768554182424ef71447c35f"
+checksum = "4f1baf0dbf96932ec9a3038d57900329c015b0bfb7b63d904f3bc27e2b02a096"
 dependencies = [
  "bitflags 1.3.2",
  "rustc_version",
@@ -434,6 +434,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290f1a1d9242c78d09ce40a5e87e7554ee637af1351968159f4952f028f75604"
 
 [[package]]
+name = "hashbrown"
+version = "0.15.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf151400ff0baff5465007dd2f3e717f3fe502074ca563069ce3a6629d07b289"
+
+[[package]]
 name = "heck"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -475,7 +481,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d530e1a18b1cb4c484e6e34556a0d948706958449fca0cab753d649f2bce3d1f"
 dependencies = [
  "equivalent",
- "hashbrown",
+ "hashbrown 0.14.3",
 ]
 
 [[package]]
@@ -757,8 +763,8 @@ dependencies = [
 
 [[package]]
 name = "parquet"
-version = "53.0.0"
-source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=374d017d88edfeb28233ee0713efe12d41adc16a#374d017d88edfeb28233ee0713efe12d41adc16a"
+version = "54.0.0"
+source = "git+https://github.com/mbrobbel/arrow-rs.git?rev=75f56a497df774c6c2f3bc2c1315d847c452e3dd#75f56a497df774c6c2f3bc2c1315d847c452e3dd"
 dependencies = [
  "ahash",
  "arrow-array",
@@ -772,7 +778,7 @@ dependencies = [
  "bytes",
  "chrono",
  "half 2.3.1",
- "hashbrown",
+ "hashbrown 0.15.2",
  "num",
  "num-bigint",
  "paste",

@@ -13,7 +13,7 @@ use crate::{
 /// Trait to update [`arrow_schema::Field`]s with an `[arrow_schema::ExtensionType`].
 pub trait ExtensionType {
     /// Arrow extension type.
-    type ExtensionType: arrow_schema::ExtensionType;
+    type ExtensionType: arrow_schema::extension::ExtensionType;
 
     /// Returns the `[arrow_schema::ExtensionType`] of this logical type, if
     /// there is one.
