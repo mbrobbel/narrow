@@ -12,7 +12,7 @@
     // missing_debug_implementations,
     missing_docs,
     noop_method_call,
-    warnings,
+    // warnings,
     unused,
     // Clippy
     clippy::all,
@@ -52,9 +52,13 @@
     clippy::unseparated_literal_suffix,
     clippy::unwrap_used,
     // Rustdoc
-    rustdoc::all
+    // rustdoc::all
 )]
-#![allow(clippy::module_name_repetitions, clippy::pub_use)]
+#![allow(
+    clippy::module_name_repetitions,
+    clippy::pub_use,
+    unsafe_op_in_unsafe_fn
+)]
 
 mod fixed_size;
 pub use self::fixed_size::FixedSize;
@@ -69,7 +73,9 @@ pub mod buffer;
 
 pub mod bitmap;
 
-pub(crate) mod nullable;
+mod nullability;
+pub use nullability::{NonNullable, Nullability, Nullable};
+
 // TODO(mbrobbel): pub(crate)
 pub mod offset;
 pub(crate) mod validity;
@@ -81,10 +87,18 @@ pub mod logical;
 #[cfg(feature = "arrow-rs")]
 pub mod arrow;
 
+// Re-export arrow crates.
+#[cfg(feature = "arrow-rs")]
+pub use arrow_array;
+#[cfg(feature = "arrow-rs")]
+pub use arrow_buffer;
+#[cfg(feature = "arrow-rs")]
+pub use arrow_schema;
+
 // Re-export `narrow_derive` macros when the `derive` feature is enabled.
 #[cfg(feature = "derive")]
 pub use narrow_derive::ArrayType;
 
 // This allows using the `ArrayType` derive macro in tests.
-#[cfg(all(test, feature = "derive"))]
+#[cfg(any(all(test, feature = "derive"), feature = "map"))]
 extern crate self as narrow;

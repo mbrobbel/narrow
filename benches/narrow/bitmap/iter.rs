@@ -1,10 +1,14 @@
 use criterion::{BenchmarkId, Criterion, Throughput};
 use narrow::{bitmap::Bitmap, buffer::BoxBuffer};
 use rand::{prelude::SmallRng, Rng, SeedableRng};
+use std::time::Duration;
 
 pub(super) fn bench(c: &mut Criterion) {
     {
         let mut group = c.benchmark_group("Bitmap::from_iter");
+        group.warm_up_time(Duration::from_millis(100));
+        group.measurement_time(Duration::from_secs(1));
+
         let mut rng = SmallRng::seed_from_u64(1234);
 
         for size in [12345] {

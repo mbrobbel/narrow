@@ -5,59 +5,55 @@ use std::sync::Arc;
 use arrow_array::Array as _;
 
 use crate::{
-    array::BooleanArray,
-    bitmap::Bitmap,
-    buffer::BufferType,
-    nullable::Nullable,
-    validity::{Nullability, Validity},
-    Length,
+    array::BooleanArray, bitmap::Bitmap, buffer::BufferType, nullability::Nullable,
+    validity::Validity, Length, NonNullable, Nullability,
 };
 
-impl<const NULLABLE: bool, Buffer: BufferType> crate::arrow::Array
-    for BooleanArray<NULLABLE, Buffer>
-where
-    Bitmap<Buffer>: Validity<NULLABLE>,
-    bool: Nullability<NULLABLE>,
+impl<Nullable: Nullability, Buffer: BufferType> crate::arrow::Array
+    for BooleanArray<Nullable, Buffer>
 {
     type Array = arrow_array::BooleanArray;
 
     fn as_field(name: &str) -> arrow_schema::Field {
-        arrow_schema::Field::new(name, arrow_schema::DataType::Boolean, NULLABLE)
+        arrow_schema::Field::new(name, Self::data_type(), Nullable::NULLABLE)
+    }
+
+    fn data_type() -> arrow_schema::DataType {
+        arrow_schema::DataType::Boolean
     }
 }
 
-impl<Buffer: BufferType> From<BooleanArray<false, Buffer>> for arrow_array::BooleanArray
+impl<Buffer: BufferType> From<BooleanArray<NonNullable, Buffer>> for arrow_array::BooleanArray
 where
     arrow_buffer::BooleanBuffer: From<Bitmap<Buffer>>,
 {
-    fn from(value: BooleanArray<false, Buffer>) -> Self {
+    fn from(value: BooleanArray<NonNullable, Buffer>) -> Self {
         arrow_array::BooleanArray::new(value.0.into(), None)
     }
 }
 
-impl<Buffer: BufferType> From<BooleanArray<true, Buffer>> for arrow_array::BooleanArray
+impl<Buffer: BufferType> From<BooleanArray<Nullable, Buffer>> for arrow_array::BooleanArray
 where
     arrow_buffer::BooleanBuffer: From<Bitmap<Buffer>>,
     arrow_buffer::NullBuffer: From<Bitmap<Buffer>>,
 {
-    fn from(value: BooleanArray<true, Buffer>) -> Self {
+    fn from(value: BooleanArray<Nullable, Buffer>) -> Self {
         arrow_array::BooleanArray::new(value.0.data.into(), Some(value.0.validity.into()))
     }
 }
 
-impl<const NULLABLE: bool, Buffer: BufferType> From<BooleanArray<NULLABLE, Buffer>>
+impl<Nullable: Nullability, Buffer: BufferType> From<BooleanArray<Nullable, Buffer>>
     for Arc<dyn arrow_array::Array>
 where
-    Bitmap<Buffer>: Validity<NULLABLE>,
-    arrow_array::BooleanArray: From<BooleanArray<NULLABLE, Buffer>>,
+    arrow_array::BooleanArray: From<BooleanArray<Nullable, Buffer>>,
 {
-    fn from(value: BooleanArray<NULLABLE, Buffer>) -> Self {
+    fn from(value: BooleanArray<Nullable, Buffer>) -> Self {
         Arc::new(arrow_array::BooleanArray::from(value))
     }
 }
 
 /// Panics when there are nulls
-impl<Buffer: BufferType> From<arrow_array::BooleanArray> for BooleanArray<false, Buffer>
+impl<Buffer: BufferType> From<arrow_array::BooleanArray> for BooleanArray<NonNullable, Buffer>
 where
     Bitmap<Buffer>: From<arrow_buffer::BooleanBuffer>,
 {
@@ -70,28 +66,27 @@ where
     }
 }
 
-/// Panics when there are no nulls
-// OR allocate one instead and use `TryFrom` conversion?
-impl<Buffer: BufferType> From<arrow_array::BooleanArray> for BooleanArray<true, Buffer>
+impl<Buffer: BufferType> From<arrow_array::BooleanArray> for BooleanArray<Nullable, Buffer>
 where
-    Bitmap<Buffer>: From<arrow_buffer::BooleanBuffer> + From<arrow_buffer::NullBuffer>,
+    Bitmap<Buffer>:
+        From<arrow_buffer::BooleanBuffer> + From<arrow_buffer::NullBuffer> + FromIterator<bool>,
 {
     fn from(value: arrow_array::BooleanArray) -> Self {
         let (boolean_buffer, nulls_opt) = value.into_parts();
+        let data = boolean_buffer.into();
         match nulls_opt {
-            Some(null_buffer) => BooleanArray(Nullable {
-                data: boolean_buffer.into(),
+            Some(null_buffer) => BooleanArray(Validity {
+                data,
                 validity: null_buffer.into(),
             }),
-            None => panic!("expected array with a null buffer"),
+            None => BooleanArray::<NonNullable, Buffer>(data).into(),
         }
     }
 }
 
-impl<const NULLABLE: bool, Buffer: BufferType> From<Arc<dyn arrow_array::Array>>
-    for BooleanArray<NULLABLE, Buffer>
+impl<Nullable: Nullability, Buffer: BufferType> From<Arc<dyn arrow_array::Array>>
+    for BooleanArray<Nullable, Buffer>
 where
-    Bitmap<Buffer>: Validity<NULLABLE>,
     Self: From<arrow_array::BooleanArray>,
 {
     fn from(value: Arc<dyn arrow_array::Array>) -> Self {
@@ -99,7 +94,9 @@ where
     }
 }
 
-impl<Buffer: BufferType> PartialEq<arrow_array::BooleanArray> for BooleanArray<false, Buffer> {
+impl<Buffer: BufferType> PartialEq<arrow_array::BooleanArray>
+    for BooleanArray<NonNullable, Buffer>
+{
     fn eq(&self, other: &arrow_array::BooleanArray) -> bool {
         other.nulls().is_none()
             && self.len() == other.len()
@@ -107,7 +104,7 @@ impl<Buffer: BufferType> PartialEq<arrow_array::BooleanArray> for BooleanArray<f
     }
 }
 
-impl<Buffer: BufferType> PartialEq<arrow_array::BooleanArray> for BooleanArray<true, Buffer> {
+impl<Buffer: BufferType> PartialEq<arrow_array::BooleanArray> for BooleanArray<Nullable, Buffer> {
     fn eq(&self, other: &arrow_array::BooleanArray) -> bool {
         self.len() == other.len() && self.iter().zip(other).all(|(a, b)| a == b)
     }
@@ -117,7 +114,9 @@ impl<Buffer: BufferType> PartialEq<arrow_array::BooleanArray> for BooleanArray<t
 mod tests {
     use crate::{
         array::BooleanArray,
+        bitmap::ValidityBitmap,
         buffer::{BufferType, VecBuffer},
+        NonNullable, Nullable,
     };
 
     const INPUT: [bool; 4] = [true, true, false, true];
@@ -127,38 +126,40 @@ mod tests {
     fn convert() {
         fn from<Buffer: BufferType>()
         where
-            BooleanArray<false, Buffer>: FromIterator<bool> + Into<arrow_array::BooleanArray>,
-            BooleanArray<true, Buffer>:
+            BooleanArray<NonNullable, Buffer>: FromIterator<bool> + Into<arrow_array::BooleanArray>,
+            BooleanArray<Nullable, Buffer>:
                 FromIterator<Option<bool>> + Into<arrow_array::BooleanArray>,
         {
             let array_arrow: arrow_array::BooleanArray = INPUT
                 .into_iter()
-                .collect::<BooleanArray<false, Buffer>>()
+                .collect::<BooleanArray<NonNullable, Buffer>>()
                 .into();
             let array_arrow_nullable: arrow_array::BooleanArray = INPUT_NULLABLE
                 .into_iter()
-                .collect::<BooleanArray<true, Buffer>>()
+                .collect::<BooleanArray<Nullable, Buffer>>()
                 .into();
-            let array = INPUT.into_iter().collect::<BooleanArray<false, Buffer>>();
+            let array = INPUT
+                .into_iter()
+                .collect::<BooleanArray<NonNullable, Buffer>>();
             let array_nullable = INPUT_NULLABLE
                 .into_iter()
-                .collect::<BooleanArray<true, Buffer>>();
+                .collect::<BooleanArray<Nullable, Buffer>>();
             assert_eq!(array, array_arrow);
             assert_eq!(array_nullable, array_arrow_nullable);
         }
         fn into<Buffer: BufferType>()
         where
-            BooleanArray<false, Buffer>: From<arrow_array::BooleanArray>,
-            BooleanArray<true, Buffer>: From<arrow_array::BooleanArray>,
+            BooleanArray<NonNullable, Buffer>: From<arrow_array::BooleanArray>,
+            BooleanArray<Nullable, Buffer>: From<arrow_array::BooleanArray>,
         {
             let array_arrow = arrow_array::BooleanArray::from(INPUT.to_vec());
             let array_arrow_nullable = arrow_array::BooleanArray::from(INPUT_NULLABLE.to_vec());
             assert_eq!(
-                BooleanArray::<false, Buffer>::from(array_arrow.clone()),
+                BooleanArray::<NonNullable, Buffer>::from(array_arrow.clone()),
                 array_arrow
             );
             assert_eq!(
-                BooleanArray::<true, Buffer>::from(array_arrow_nullable.clone()),
+                BooleanArray::<Nullable, Buffer>::from(array_arrow_nullable.clone()),
                 array_arrow_nullable
             );
         }
@@ -177,16 +178,15 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "expected array with a null buffer")]
     fn into_nullable() {
         let array = arrow_array::BooleanArray::from(INPUT.to_vec());
-        let _ = BooleanArray::<true>::from(array);
+        assert!(!BooleanArray::<Nullable>::from(array).any_null());
     }
 
     #[test]
     #[should_panic(expected = "expected array without a null buffer")]
     fn into_non_nullable() {
         let array_nullable = arrow_array::BooleanArray::from(INPUT_NULLABLE.to_vec());
-        let _ = BooleanArray::<false>::from(array_nullable);
+        let _ = BooleanArray::<NonNullable>::from(array_nullable);
     }
 }

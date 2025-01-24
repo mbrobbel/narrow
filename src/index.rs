@@ -50,87 +50,112 @@ pub trait Index: Length {
 }
 
 impl<T> Index for Vec<T> {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.get_unchecked(index)
+        // Safety:
+        // - unsafe fn
+        unsafe { self.get_unchecked(index) }
     }
 }
 
 impl<T, const N: usize> Index for [T; N] {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.get_unchecked(index)
+        // Safety:
+        // - unsafe fn
+        unsafe { self.get_unchecked(index) }
     }
 }
 
 impl<T> Index for [T] {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.get_unchecked(index)
+        // Safety:
+        // - unsafe fn
+        unsafe { self.get_unchecked(index) }
     }
 }
 
 impl<T> Index for &[T] {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.get_unchecked(index)
+        // Safety:
+        // - unsafe fn
+        unsafe { self.get_unchecked(index) }
     }
 }
 
 impl<T> Index for &mut [T] {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.get_unchecked(index)
+        // Safety:
+        // - unsafe fn
+        unsafe { self.get_unchecked(index) }
     }
 }
 
 impl<T> Index for Box<[T]> {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.get_unchecked(index)
+        // Safety:
+        // - unsafe fn
+        unsafe { self.get_unchecked(index) }
     }
 }
 
 impl<T> Index for Rc<[T]> {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.get_unchecked(index)
+        // Safety:
+        // - unsafe fn
+        unsafe { self.get_unchecked(index) }
     }
 }
 
 impl<T> Index for Arc<[T]> {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.get_unchecked(index)
+        // Safety:
+        // - unsafe fn
+        unsafe { self.get_unchecked(index) }
     }
 }
 
 impl<T> Index for VecDeque<T> {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 

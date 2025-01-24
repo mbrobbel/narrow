@@ -15,8 +15,8 @@ use crate::{
     array::FixedSizePrimitiveArray,
     bitmap::Bitmap,
     buffer::{Buffer, BufferType},
-    nullable::Nullable,
-    validity::{Nullability, Validity},
+    nullability::{NonNullable, Nullability, Nullable},
+    validity::Validity,
     FixedSize, Length,
 };
 
@@ -57,59 +57,55 @@ impl FixedSizeExt for f64 {
     type ArrowPrimitiveType = Float64Type;
 }
 
-impl<const NULLABLE: bool, T: FixedSize + FixedSizeExt, Buffer: BufferType> crate::arrow::Array
-    for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
-where
-    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
-    T: Nullability<NULLABLE>,
+impl<Nullable: Nullability, T: FixedSize + FixedSizeExt, Buffer: BufferType> crate::arrow::Array
+    for FixedSizePrimitiveArray<T, Nullable, Buffer>
 {
     type Array = arrow_array::PrimitiveArray<<T as FixedSizeExt>::ArrowPrimitiveType>;
 
     fn as_field(name: &str) -> arrow_schema::Field {
-        arrow_schema::Field::new(
-            name,
-            <T as FixedSizeExt>::ArrowPrimitiveType::DATA_TYPE,
-            NULLABLE,
-        )
+        arrow_schema::Field::new(name, Self::data_type(), Nullable::NULLABLE)
+    }
+
+    fn data_type() -> arrow_schema::DataType {
+        <T as FixedSizeExt>::ArrowPrimitiveType::DATA_TYPE
     }
 }
 
 impl<T: FixedSize, U: arrow_array::types::ArrowPrimitiveType<Native = T>, Buffer: BufferType>
-    From<FixedSizePrimitiveArray<T, false, Buffer>> for arrow_array::PrimitiveArray<U>
+    From<FixedSizePrimitiveArray<T, NonNullable, Buffer>> for arrow_array::PrimitiveArray<U>
 where
     arrow_buffer::ScalarBuffer<T>: From<<Buffer as BufferType>::Buffer<T>>,
 {
-    fn from(value: FixedSizePrimitiveArray<T, false, Buffer>) -> Self {
+    fn from(value: FixedSizePrimitiveArray<T, NonNullable, Buffer>) -> Self {
         arrow_array::PrimitiveArray::new(value.0.into(), None)
     }
 }
 
 impl<T: FixedSize, U: arrow_array::types::ArrowPrimitiveType<Native = T>, Buffer: BufferType>
-    From<FixedSizePrimitiveArray<T, true, Buffer>> for arrow_array::PrimitiveArray<U>
+    From<FixedSizePrimitiveArray<T, Nullable, Buffer>> for arrow_array::PrimitiveArray<U>
 where
     arrow_buffer::ScalarBuffer<T>: From<<Buffer as BufferType>::Buffer<T>>,
     arrow_buffer::NullBuffer: From<Bitmap<Buffer>>,
 {
-    fn from(value: FixedSizePrimitiveArray<T, true, Buffer>) -> Self {
+    fn from(value: FixedSizePrimitiveArray<T, Nullable, Buffer>) -> Self {
         arrow_array::PrimitiveArray::new(value.0.data.into(), Some(value.0.validity.into()))
     }
 }
 
-impl<T: FixedSizeExt, const NULLABLE: bool, Buffer: BufferType>
-    From<FixedSizePrimitiveArray<T, NULLABLE, Buffer>> for Arc<dyn arrow_array::Array>
+impl<T: FixedSizeExt, Nullable: Nullability, Buffer: BufferType>
+    From<FixedSizePrimitiveArray<T, Nullable, Buffer>> for Arc<dyn arrow_array::Array>
 where
-    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
     arrow_array::PrimitiveArray<<T as FixedSizeExt>::ArrowPrimitiveType>:
-        From<FixedSizePrimitiveArray<T, NULLABLE, Buffer>>,
+        From<FixedSizePrimitiveArray<T, Nullable, Buffer>>,
 {
-    fn from(value: FixedSizePrimitiveArray<T, NULLABLE, Buffer>) -> Self {
+    fn from(value: FixedSizePrimitiveArray<T, Nullable, Buffer>) -> Self {
         Arc::new(arrow_array::PrimitiveArray::from(value))
     }
 }
 
 /// Panics when there are nulls.
 impl<T: FixedSize, U: arrow_array::types::ArrowPrimitiveType<Native = T>, Buffer: BufferType>
-    From<arrow_array::PrimitiveArray<U>> for FixedSizePrimitiveArray<T, false, Buffer>
+    From<arrow_array::PrimitiveArray<U>> for FixedSizePrimitiveArray<T, NonNullable, Buffer>
 where
     <Buffer as BufferType>::Buffer<T>: From<arrow_buffer::ScalarBuffer<T>>,
 {
@@ -122,29 +118,28 @@ where
     }
 }
 
-/// Panics when there are no nulls.
 impl<T: FixedSize, U: arrow_array::types::ArrowPrimitiveType<Native = T>, Buffer: BufferType>
-    From<arrow_array::PrimitiveArray<U>> for FixedSizePrimitiveArray<T, true, Buffer>
+    From<arrow_array::PrimitiveArray<U>> for FixedSizePrimitiveArray<T, Nullable, Buffer>
 where
     <Buffer as BufferType>::Buffer<T>: From<arrow_buffer::ScalarBuffer<T>>,
-    Bitmap<Buffer>: From<arrow_buffer::NullBuffer>,
+    Bitmap<Buffer>: From<arrow_buffer::NullBuffer> + FromIterator<bool>,
 {
     fn from(value: arrow_array::PrimitiveArray<U>) -> Self {
         let (_data_type, values, nulls_opt) = value.into_parts();
+        let data = values.into();
         match nulls_opt {
-            Some(null_buffer) => FixedSizePrimitiveArray(Nullable {
-                data: values.into(),
+            Some(null_buffer) => FixedSizePrimitiveArray(Validity {
+                data,
                 validity: null_buffer.into(),
             }),
-            None => panic!("expected array with a null buffer"),
+            None => FixedSizePrimitiveArray::<T, NonNullable, Buffer>(data).into(),
         }
     }
 }
 
-impl<const NULLABLE: bool, T: FixedSizeExt, Buffer: BufferType> From<Arc<dyn arrow_array::Array>>
-    for FixedSizePrimitiveArray<T, NULLABLE, Buffer>
+impl<Nullable: Nullability, T: FixedSizeExt, Buffer: BufferType> From<Arc<dyn arrow_array::Array>>
+    for FixedSizePrimitiveArray<T, Nullable, Buffer>
 where
-    <Buffer as BufferType>::Buffer<T>: Validity<NULLABLE>,
     Self: From<arrow_array::PrimitiveArray<<T as FixedSizeExt>::ArrowPrimitiveType>>,
 {
     fn from(value: Arc<dyn arrow_array::Array>) -> Self {
@@ -153,7 +148,7 @@ where
 }
 
 impl<T: FixedSize, Buffer: BufferType> From<arrow_buffer::ScalarBuffer<T>>
-    for FixedSizePrimitiveArray<T, false, Buffer>
+    for FixedSizePrimitiveArray<T, NonNullable, Buffer>
 where
     <Buffer as BufferType>::Buffer<T>: From<ScalarBuffer<T>>,
 {
@@ -162,18 +157,28 @@ where
     }
 }
 
-impl<T: FixedSize, Buffer: BufferType> From<FixedSizePrimitiveArray<T, false, Buffer>>
+impl<T: FixedSize, Buffer: BufferType> From<FixedSizePrimitiveArray<T, NonNullable, Buffer>>
     for ScalarBuffer<T>
 where
     <Buffer as BufferType>::Buffer<T>: Into<ScalarBuffer<T>>,
 {
-    fn from(value: FixedSizePrimitiveArray<T, false, Buffer>) -> Self {
+    fn from(value: FixedSizePrimitiveArray<T, NonNullable, Buffer>) -> Self {
+        value.0.into()
+    }
+}
+
+impl<T: FixedSize, Buffer: BufferType> From<FixedSizePrimitiveArray<T, NonNullable, Buffer>>
+    for arrow_buffer::Buffer
+where
+    <Buffer as BufferType>::Buffer<T>: Into<arrow_buffer::Buffer>,
+{
+    fn from(value: FixedSizePrimitiveArray<T, NonNullable, Buffer>) -> Self {
         value.0.into()
     }
 }
 
 impl<T: FixedSize, U: arrow_array::types::ArrowPrimitiveType<Native = T>, Buffer: BufferType>
-    PartialEq<arrow_array::PrimitiveArray<U>> for FixedSizePrimitiveArray<T, false, Buffer>
+    PartialEq<arrow_array::PrimitiveArray<U>> for FixedSizePrimitiveArray<T, NonNullable, Buffer>
 {
     fn eq(&self, other: &arrow_array::PrimitiveArray<U>) -> bool {
         other.nulls().is_none() && other.values().as_slice() == self.as_ref()
@@ -181,7 +186,7 @@ impl<T: FixedSize, U: arrow_array::types::ArrowPrimitiveType<Native = T>, Buffer
 }
 
 impl<T: FixedSize, U: arrow_array::types::ArrowPrimitiveType<Native = T>, Buffer: BufferType>
-    PartialEq<arrow_array::PrimitiveArray<U>> for FixedSizePrimitiveArray<T, true, Buffer>
+    PartialEq<arrow_array::PrimitiveArray<U>> for FixedSizePrimitiveArray<T, Nullable, Buffer>
 where
     for<'a> &'a Self: IntoIterator<Item = Option<&'a T>>,
 {
@@ -192,12 +197,15 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use std::fmt::Debug;
 
     use arrow_array::types::UInt32Type;
 
     use crate::{
         array::FixedSizePrimitiveArray,
+        bitmap::ValidityBitmap,
         buffer::{BufferType, VecBuffer},
     };
 
@@ -208,35 +216,35 @@ mod tests {
     fn convert() {
         fn from<Buffer: BufferType>()
         where
-            FixedSizePrimitiveArray<u32, false, Buffer>:
+            FixedSizePrimitiveArray<u32, NonNullable, Buffer>:
                 Debug + FromIterator<u32> + Into<arrow_array::PrimitiveArray<UInt32Type>>,
-            FixedSizePrimitiveArray<u32, true, Buffer>: Debug
+            FixedSizePrimitiveArray<u32, Nullable, Buffer>: Debug
                 + FromIterator<Option<u32>>
                 + Into<arrow_array::PrimitiveArray<UInt32Type>>
                 + PartialEq<arrow_array::PrimitiveArray<UInt32Type>>,
         {
             let array_arrow: arrow_array::PrimitiveArray<UInt32Type> = INPUT
                 .into_iter()
-                .collect::<FixedSizePrimitiveArray<u32, false, Buffer>>()
+                .collect::<FixedSizePrimitiveArray<u32, NonNullable, Buffer>>()
                 .into();
             let array_arrow_nullable: arrow_array::PrimitiveArray<UInt32Type> = INPUT_NULLABLE
                 .into_iter()
-                .collect::<FixedSizePrimitiveArray<u32, true, Buffer>>()
+                .collect::<FixedSizePrimitiveArray<u32, Nullable, Buffer>>()
                 .into();
             let array = INPUT
                 .into_iter()
-                .collect::<FixedSizePrimitiveArray<u32, false, Buffer>>();
+                .collect::<FixedSizePrimitiveArray<u32, NonNullable, Buffer>>();
             let array_nullable = INPUT_NULLABLE
                 .into_iter()
-                .collect::<FixedSizePrimitiveArray<u32, true, Buffer>>();
+                .collect::<FixedSizePrimitiveArray<u32, Nullable, Buffer>>();
             assert_eq!(array, array_arrow);
             assert_eq!(array_nullable, array_arrow_nullable);
         }
         fn into<Buffer: BufferType>()
         where
-            FixedSizePrimitiveArray<u32, false, Buffer>:
+            FixedSizePrimitiveArray<u32, NonNullable, Buffer>:
                 From<arrow_array::PrimitiveArray<UInt32Type>> + Debug,
-            FixedSizePrimitiveArray<u32, true, Buffer>: From<arrow_array::PrimitiveArray<UInt32Type>>
+            FixedSizePrimitiveArray<u32, Nullable, Buffer>: From<arrow_array::PrimitiveArray<UInt32Type>>
                 + Debug
                 + PartialEq<arrow_array::PrimitiveArray<UInt32Type>>,
         {
@@ -244,11 +252,13 @@ mod tests {
             let array_arrow_nullable =
                 arrow_array::PrimitiveArray::<UInt32Type>::from(INPUT_NULLABLE.to_vec());
             assert_eq!(
-                FixedSizePrimitiveArray::<u32, false, Buffer>::from(array_arrow.clone()),
+                FixedSizePrimitiveArray::<u32, NonNullable, Buffer>::from(array_arrow.clone()),
                 array_arrow
             );
             assert_eq!(
-                FixedSizePrimitiveArray::<u32, true, Buffer>::from(array_arrow_nullable.clone()),
+                FixedSizePrimitiveArray::<u32, Nullable, Buffer>::from(
+                    array_arrow_nullable.clone()
+                ),
                 array_arrow_nullable
             );
         }
@@ -260,12 +270,11 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "expected array with a null buffer")]
     fn into_nullable() {
         let array = INPUT
             .into_iter()
             .collect::<arrow_array::PrimitiveArray<UInt32Type>>();
-        let _ = FixedSizePrimitiveArray::<u32, true>::from(array);
+        assert!(!FixedSizePrimitiveArray::<u32, Nullable>::from(array).any_null());
     }
 
     #[test]
@@ -274,6 +283,6 @@ mod tests {
         let array_nullable = INPUT_NULLABLE
             .into_iter()
             .collect::<arrow_array::PrimitiveArray<UInt32Type>>();
-        let _ = FixedSizePrimitiveArray::<u32, false>::from(array_nullable);
+        let _ = FixedSizePrimitiveArray::<u32, NonNullable>::from(array_nullable);
     }
 }

@@ -7,23 +7,29 @@ unsafe impl<const N: usize> narrow::array::Unit for Foo<N> {
 impl<const N: usize> narrow::array::ArrayType<Foo<N>> for Foo<N> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Foo<N>, false, Buffer>;
+    > = narrow::array::StructArray<Foo<N>, narrow::NonNullable, Buffer>;
 }
 impl<const N: usize> narrow::array::ArrayType<Foo<N>> for ::std::option::Option<Foo<N>> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Foo<N>, true, Buffer>;
+    > = narrow::array::StructArray<Foo<N>, narrow::Nullable, Buffer>;
 }
 impl<const N: usize> narrow::array::StructArrayType for Foo<N> {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<N, Buffer>;
 }
 pub struct FooArray<const N: usize, Buffer: narrow::buffer::BufferType>(
-    pub narrow::array::NullArray<Foo<N>, false, Buffer>,
+    pub narrow::array::NullArray<Foo<N>, narrow::NonNullable, Buffer>,
 );
+impl<const N: usize, Buffer: narrow::buffer::BufferType> ::std::clone::Clone
+for FooArray<N, Buffer> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl<const N: usize, Buffer: narrow::buffer::BufferType> ::std::default::Default
 for FooArray<N, Buffer> {
     fn default() -> Self {
@@ -51,12 +57,16 @@ impl<
     }
 }
 pub struct FooArrayIter<const N: usize, Buffer: narrow::buffer::BufferType>(
-    pub <narrow::array::NullArray<Foo<N>, false, Buffer> as IntoIterator>::IntoIter,
+    pub <narrow::array::NullArray<
+        Foo<N>,
+        narrow::NonNullable,
+        Buffer,
+    > as IntoIterator>::IntoIter,
 )
 where
     narrow::array::NullArray<
         Foo<N>,
-        false,
+        narrow::NonNullable,
         Buffer,
     >: ::std::iter::IntoIterator<Item = Foo<N>>;
 impl<const N: usize, Buffer: narrow::buffer::BufferType> ::std::iter::Iterator

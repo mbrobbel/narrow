@@ -6,17 +6,17 @@ struct Bar<T> {
 impl<T: narrow::array::ArrayType<T>> narrow::array::ArrayType<Bar<T>> for Bar<T> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Bar<T>, false, Buffer>;
+    > = narrow::array::StructArray<Bar<T>, narrow::NonNullable, Buffer>;
 }
 impl<T: narrow::array::ArrayType<T>> narrow::array::ArrayType<Bar<T>>
 for ::std::option::Option<Bar<T>> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Bar<T>, true, Buffer>;
+    > = narrow::array::StructArray<Bar<T>, narrow::Nullable, Buffer>;
 }
 impl<T: narrow::array::ArrayType<T>> narrow::array::StructArrayType for Bar<T> {
     type Array<Buffer: narrow::buffer::BufferType> = BarArray<T, Buffer>;
@@ -35,6 +35,33 @@ struct BarArray<T: narrow::array::ArrayType<T>, Buffer: narrow::buffer::BufferTy
     > as narrow::array::ArrayType<
         T,
     >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>,
+}
+impl<
+    T: narrow::array::ArrayType<T>,
+    Buffer: narrow::buffer::BufferType,
+> ::std::clone::Clone for BarArray<T, Buffer>
+where
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: ::std::clone::Clone,
+    <Option<
+        bool,
+    > as narrow::array::ArrayType<
+        bool,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: ::std::clone::Clone,
+    <Option<
+        T,
+    > as narrow::array::ArrayType<
+        T,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: ::std::clone::Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            a: self.a.clone(),
+            b: self.b.clone(),
+            c: self.c.clone(),
+        }
+    }
 }
 impl<
     T: narrow::array::ArrayType<T>,

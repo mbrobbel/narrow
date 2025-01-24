@@ -2,79 +2,63 @@
 
 use std::sync::Arc;
 
+use arrow_array::OffsetSizeTrait;
+
 use crate::{
-    array::{ArrayType, UnionType},
+    array::{ArrayType, NullableArrayTypeOf, UnionType},
+    arrow::LogicalArrayType,
     buffer::BufferType,
-    logical::{LogicalArray, LogicalArrayType},
-    offset::OffsetElement,
-    validity::Nullability,
+    logical::LogicalArray,
+    nullability::Nullability,
+    offset::Offset,
 };
 
-/// Trait to update [`arrow_schema::Field`]s with an `[arrow_schema::ExtensionType`].
-pub trait ExtensionType {
-    /// Arrow extension type.
-    type ExtensionType: arrow_schema::extension::ExtensionType;
-
-    /// Returns the `[arrow_schema::ExtensionType`] of this logical type, if
-    /// there is one.
-    #[must_use]
-    fn extension_type() -> Option<Self::ExtensionType> {
-        None
-    }
-}
-
 impl<
-        T: LogicalArrayType<T> + ExtensionType,
-        const NULLABLE: bool,
+        T: LogicalArrayType<T>,
+        Nullable: Nullability,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
         UnionLayout: UnionType,
-    > crate::arrow::Array for LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
+    > crate::arrow::Array for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
-    <T as LogicalArrayType<T>>::ArrayType: Nullability<NULLABLE>,
-    <<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item:
-        ArrayType<<T as LogicalArrayType<T>>::ArrayType>,
-    <<<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item as ArrayType<
-        <T as LogicalArrayType<T>>::ArrayType,
-    >>::Array<Buffer, OffsetItem, UnionLayout>: crate::arrow::Array,
+    Nullable::Item<T::ArrayType>:
+        ArrayType<T::ArrayType, Array<Buffer, OffsetItem, UnionLayout>: crate::arrow::Array>,
 {
-    type Array =
-        <<<<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item as ArrayType<
-            <T as LogicalArrayType<T>>::ArrayType,
-        >>::Array<Buffer, OffsetItem, UnionLayout> as crate::arrow::Array>::Array;
+    type Array = <NullableArrayTypeOf<Nullable, T::ArrayType, Buffer, OffsetItem, UnionLayout> as crate::arrow::Array>::Array;
 
     fn as_field(name: &str) -> arrow_schema::Field {
         let field =
-            <<<<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item as ArrayType<
-                <T as LogicalArrayType<T>>::ArrayType,
-            >>::Array<Buffer, OffsetItem, UnionLayout> as crate::arrow::Array>::as_field(
-                name
-            );
-        if let Some(extension_type) = <T as ExtensionType>::extension_type() {
+        <NullableArrayTypeOf<Nullable, T::ArrayType, Buffer, OffsetItem, UnionLayout> as crate::arrow::Array>::as_field(name);
+        if let Some(extension_type) = <T as LogicalArrayType<T>>::extension_type() {
             field.with_extension_type(extension_type)
         } else {
             field
         }
     }
+
+    fn data_type() -> arrow_schema::DataType {
+        <NullableArrayTypeOf<Nullable, T::ArrayType, Buffer, OffsetItem, UnionLayout> as crate::arrow::Array>::data_type()
+    }
 }
 
 impl<
         T: LogicalArrayType<T>,
-        const NULLABLE: bool,
+        Nullable: Nullability,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
         UnionLayout: UnionType,
     > From<Arc<dyn arrow_array::Array>>
-    for LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>
+    for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
-    <T as LogicalArrayType<T>>::ArrayType: Nullability<NULLABLE>,
-    <<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item:
-        ArrayType<<T as LogicalArrayType<T>>::ArrayType>,
-    <<<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item as ArrayType<
-        <T as LogicalArrayType<T>>::ArrayType,
-    >>::Array<Buffer, OffsetItem, UnionLayout>: From<Arc<dyn arrow_array::Array>>,
+    Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
+    crate::bitmap::Bitmap<Buffer>: FromIterator<bool>,
+    <Nullable::Item<T::ArrayType> as ArrayType<T::ArrayType>>::Array<
+        Buffer,
+        OffsetItem,
+        UnionLayout,
+    >: From<Arc<dyn arrow_array::Array>>,
 {
     fn from(value: Arc<dyn arrow_array::Array>) -> Self {
         Self(value.into())
@@ -83,70 +67,114 @@ where
 
 impl<
         T: LogicalArrayType<T>,
-        const NULLABLE: bool,
+        Nullable: Nullability,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
         UnionLayout: UnionType,
-    > From<LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>>
+    > From<LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>>
     for Arc<dyn arrow_array::Array>
 where
     Option<T>: ArrayType<T>,
-    <T as LogicalArrayType<T>>::ArrayType: Nullability<NULLABLE>,
-    <<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item:
-        ArrayType<<T as LogicalArrayType<T>>::ArrayType>,
-    <<<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item as ArrayType<
-        <T as LogicalArrayType<T>>::ArrayType,
-    >>::Array<Buffer, OffsetItem, UnionLayout>: Into<Arc<dyn arrow_array::Array>>,
+    Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
+    <Nullable::Item<T::ArrayType> as ArrayType<T::ArrayType>>::Array<
+        Buffer,
+        OffsetItem,
+        UnionLayout,
+    >: Into<Arc<dyn arrow_array::Array>>,
 {
-    fn from(value: LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>) -> Self {
+    fn from(value: LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>) -> Self {
         Arc::new(value.0.into())
     }
 }
 
 impl<
         T: LogicalArrayType<T>,
-        const NULLABLE: bool,
+        Nullable: Nullability,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
         UnionLayout: UnionType,
-    > From<LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>>
+    > From<LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>>
     for arrow_array::FixedSizeListArray
 where
     Option<T>: ArrayType<T>,
-    <T as LogicalArrayType<T>>::ArrayType: Nullability<NULLABLE>,
-    <<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item:
-        ArrayType<<T as LogicalArrayType<T>>::ArrayType>,
+    Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
     arrow_array::FixedSizeListArray: From<
-        <<<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item as ArrayType<
-            <T as LogicalArrayType<T>>::ArrayType,
-        >>::Array<Buffer, OffsetItem, UnionLayout>,
+        <Nullable::Item<T::ArrayType> as ArrayType<T::ArrayType>>::Array<
+            Buffer,
+            OffsetItem,
+            UnionLayout,
+        >,
     >,
 {
-    fn from(value: LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>) -> Self {
+    fn from(value: LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>) -> Self {
         value.0.into()
     }
 }
 
 impl<
         T: LogicalArrayType<T>,
-        const NULLABLE: bool,
+        Nullable: Nullability,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
         UnionLayout: UnionType,
-    > From<LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>>
+    > From<LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>>
     for arrow_array::FixedSizeBinaryArray
 where
     Option<T>: ArrayType<T>,
-    <T as LogicalArrayType<T>>::ArrayType: Nullability<NULLABLE>,
-    <<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item:
-        ArrayType<<T as LogicalArrayType<T>>::ArrayType>,
+    Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
     arrow_array::FixedSizeBinaryArray: From<
-        <<<T as LogicalArrayType<T>>::ArrayType as Nullability<NULLABLE>>::Item as ArrayType<
-            <T as LogicalArrayType<T>>::ArrayType,
-        >>::Array<Buffer, OffsetItem, UnionLayout>,
+        <Nullable::Item<T::ArrayType> as ArrayType<T::ArrayType>>::Array<
+            Buffer,
+            OffsetItem,
+            UnionLayout,
+        >,
     >,
 {
-    fn from(value: LogicalArray<T, NULLABLE, Buffer, OffsetItem, UnionLayout>) -> Self {
+    fn from(value: LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>) -> Self {
         value.0.into()
+    }
+}
+
+impl<
+        T: LogicalArrayType<T>,
+        Nullable: Nullability,
+        Buffer: BufferType,
+        OffsetItem: Offset,
+        UnionLayout: UnionType,
+        O: OffsetSizeTrait,
+    > From<LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>>
+    for arrow_array::GenericListArray<O>
+where
+    Option<T>: ArrayType<T>,
+    Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
+    arrow_array::GenericListArray<O>: From<
+        <Nullable::Item<T::ArrayType> as ArrayType<T::ArrayType>>::Array<
+            Buffer,
+            OffsetItem,
+            UnionLayout,
+        >,
+    >,
+{
+    fn from(value: LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>) -> Self {
+        value.0.into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[cfg(feature = "derive")]
+    fn optional_variable_size_list_logical() {
+        use crate::array::{StructArray, VariableSizeBinary};
+
+        #[derive(crate::ArrayType)]
+        struct Foo {
+            items: Option<Vec<VariableSizeBinary>>,
+        }
+
+        let input = [Foo { items: None }];
+        let array = input.into_iter().collect::<StructArray<Foo>>();
+        let record_batch = arrow_array::RecordBatch::from(array);
+        assert_eq!(record_batch.num_rows(), 1);
     }
 }

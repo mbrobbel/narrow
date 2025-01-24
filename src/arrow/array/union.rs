@@ -10,7 +10,8 @@ use crate::{
         UnionArray, UnionArrayType, UnionType,
     },
     buffer::BufferType,
-    offset::OffsetElement,
+    offset::Offset,
+    NonNullable,
 };
 
 /// Mapping between [`UnionType`] and [`UnionMode`].
@@ -40,7 +41,7 @@ impl<
         const VARIANTS: usize,
         UnionLayout: UnionLayoutExt,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > crate::arrow::Array for UnionArray<T, VARIANTS, UnionLayout, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
@@ -50,21 +51,21 @@ where
     type Array = arrow_array::UnionArray;
 
     fn as_field(name: &str) -> arrow_schema::Field {
-        Field::new(
-            name,
-            DataType::Union(
-                <<T as UnionArrayType<VARIANTS>>::Array<
-                    Buffer,
-                    OffsetItem,
-                    UnionLayout,
-                > as UnionArrayTypeFields<VARIANTS>>::type_ids().iter().copied().zip(<<T as UnionArrayType<VARIANTS>>::Array<
-                    Buffer,
-                    OffsetItem,
-                    UnionLayout,
-                > as UnionArrayTypeFields<VARIANTS>>::fields().iter().map(Arc::clone)).collect(),
-                <UnionLayout as UnionLayoutExt>::MODE
-            ),
-            false
+        Field::new(name, Self::data_type(), false)
+    }
+
+    fn data_type() -> arrow_schema::DataType {
+        DataType::Union(
+            <<T as UnionArrayType<VARIANTS>>::Array<
+                Buffer,
+                OffsetItem,
+                UnionLayout,
+            > as UnionArrayTypeFields<VARIANTS>>::type_ids().iter().copied().zip(<<T as UnionArrayType<VARIANTS>>::Array<
+                Buffer,
+                OffsetItem,
+                UnionLayout,
+            > as UnionArrayTypeFields<VARIANTS>>::fields().iter().map(Arc::clone)).collect(),
+            <UnionLayout as UnionLayoutExt>::MODE
         )
     }
 }
@@ -73,13 +74,13 @@ impl<
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
     > From<UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>> for arrow_array::UnionArray
 where
     for<'a> i8: From<&'a T>,
     <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, SparseLayout>:
         UnionArrayTypeFields<VARIANTS> + Into<Vec<Arc<dyn arrow_array::Array>>>,
-    arrow_buffer::ScalarBuffer<i8>: From<FixedSizePrimitiveArray<i8, false, Buffer>>,
+    arrow_buffer::ScalarBuffer<i8>: From<FixedSizePrimitiveArray<i8, NonNullable, Buffer>>,
     UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>: crate::arrow::Array,
 {
     fn from(value: UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>) -> Self {
@@ -104,14 +105,33 @@ impl<
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
+    > From<UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>>
+    for Arc<dyn arrow_array::Array>
+where
+    for<'a> i8: From<&'a T>,
+    <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, SparseLayout>:
+        UnionArrayTypeFields<VARIANTS> + Into<Vec<Arc<dyn arrow_array::Array>>>,
+    arrow_buffer::ScalarBuffer<i8>: From<FixedSizePrimitiveArray<i8, NonNullable, Buffer>>,
+    UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>: crate::arrow::Array,
+{
+    fn from(value: UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>) -> Self {
+        Arc::new(arrow_array::UnionArray::from(value))
+    }
+}
+
+impl<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        Buffer: BufferType,
+        OffsetItem: Offset,
     > From<UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>> for arrow_array::UnionArray
 where
     for<'a> i8: From<&'a T>,
     <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, DenseLayout>:
         UnionArrayTypeFields<VARIANTS> + Into<Vec<Arc<dyn arrow_array::Array>>>,
-    arrow_buffer::ScalarBuffer<i8>: From<FixedSizePrimitiveArray<i8, false, Buffer>>,
-    arrow_buffer::ScalarBuffer<i32>: From<FixedSizePrimitiveArray<i32, false, Buffer>>,
+    arrow_buffer::ScalarBuffer<i8>: From<FixedSizePrimitiveArray<i8, NonNullable, Buffer>>,
+    arrow_buffer::ScalarBuffer<i32>: From<FixedSizePrimitiveArray<i32, NonNullable, Buffer>>,
     UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>: crate::arrow::Array,
 {
     fn from(value: UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>) -> Self {
@@ -136,11 +156,30 @@ impl<
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
+    > From<UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>> for Arc<dyn arrow_array::Array>
+where
+    for<'a> i8: From<&'a T>,
+    <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, DenseLayout>:
+        UnionArrayTypeFields<VARIANTS> + Into<Vec<Arc<dyn arrow_array::Array>>>,
+    arrow_buffer::ScalarBuffer<i8>: From<FixedSizePrimitiveArray<i8, NonNullable, Buffer>>,
+    arrow_buffer::ScalarBuffer<i32>: From<FixedSizePrimitiveArray<i32, NonNullable, Buffer>>,
+    UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>: crate::arrow::Array,
+{
+    fn from(value: UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>) -> Self {
+        Arc::new(arrow_array::UnionArray::from(value))
+    }
+}
+
+impl<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        Buffer: BufferType,
+        OffsetItem: Offset,
     > From<arrow_array::UnionArray> for UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
-    FixedSizePrimitiveArray<i8, false, Buffer>: From<arrow_buffer::ScalarBuffer<i8>>,
+    FixedSizePrimitiveArray<i8, NonNullable, Buffer>: From<arrow_buffer::ScalarBuffer<i8>>,
     <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, SparseLayout>:
         FromIterator<Arc<dyn arrow_array::Array>>,
 {
@@ -160,12 +199,31 @@ impl<
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
         Buffer: BufferType,
-        OffsetItem: OffsetElement,
+        OffsetItem: Offset,
+    > From<Arc<dyn arrow_array::Array>>
+    for UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>
+where
+    for<'a> i8: From<&'a T>,
+    FixedSizePrimitiveArray<i8, NonNullable, Buffer>: From<arrow_buffer::ScalarBuffer<i8>>,
+    <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, SparseLayout>:
+        FromIterator<Arc<dyn arrow_array::Array>>,
+{
+    fn from(value: Arc<dyn arrow_array::Array>) -> Self {
+        let array = arrow_array::UnionArray::from(value.to_data());
+        Self::from(array)
+    }
+}
+
+impl<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        Buffer: BufferType,
+        OffsetItem: Offset,
     > From<arrow_array::UnionArray> for UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
-    FixedSizePrimitiveArray<i8, false, Buffer>: From<arrow_buffer::ScalarBuffer<i8>>,
-    FixedSizePrimitiveArray<i32, false, Buffer>: From<arrow_buffer::ScalarBuffer<i32>>,
+    FixedSizePrimitiveArray<i8, NonNullable, Buffer>: From<arrow_buffer::ScalarBuffer<i8>>,
+    FixedSizePrimitiveArray<i32, NonNullable, Buffer>: From<arrow_buffer::ScalarBuffer<i32>>,
     <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, DenseLayout>:
         FromIterator<Arc<dyn arrow_array::Array>>,
 {
@@ -182,18 +240,51 @@ where
     }
 }
 
+impl<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        Buffer: BufferType,
+        OffsetItem: Offset,
+    > From<Arc<dyn arrow_array::Array>> for UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>
+where
+    for<'a> i8: From<&'a T>,
+    FixedSizePrimitiveArray<i8, NonNullable, Buffer>: From<arrow_buffer::ScalarBuffer<i8>>,
+    FixedSizePrimitiveArray<i32, NonNullable, Buffer>: From<arrow_buffer::ScalarBuffer<i32>>,
+    <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, DenseLayout>:
+        FromIterator<Arc<dyn arrow_array::Array>>,
+{
+    fn from(value: Arc<dyn arrow_array::Array>) -> Self {
+        let array = arrow_array::UnionArray::from(value.to_data());
+        Self::from(array)
+    }
+}
+
 #[cfg(test)]
 #[cfg(feature = "derive")]
 mod tests {
-    use crate::Length;
+    use arrow_array::RecordBatch;
+
+    use crate::{array::StructArray, Length};
 
     use super::*;
 
-    #[derive(crate::ArrayType, Clone)]
+    #[derive(crate::ArrayType, Clone, Debug, PartialEq)]
     enum FooBar {
         Foo,
         Bar(u8),
         Baz { a: bool },
+    }
+
+    #[derive(crate::ArrayType, Clone, Debug, PartialEq)]
+    struct Wrap(FooBar);
+
+    #[test]
+    fn via_dyn_array() {
+        let input = [Wrap(FooBar::Foo), Wrap(FooBar::Bar(123))];
+        let struct_array = input.clone().into_iter().collect::<StructArray<Wrap>>();
+        let record_batch = RecordBatch::from(struct_array);
+        let read = StructArray::<Wrap>::from(record_batch);
+        assert_eq!(read.into_iter().collect::<Vec<_>>(), input);
     }
 
     #[test]

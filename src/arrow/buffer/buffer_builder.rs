@@ -26,7 +26,8 @@ impl<T: FixedSize> BufferMut<T> for arrow_buffer::BufferBuilder<T> {
 }
 
 impl<T: FixedSize> Index for arrow_buffer::BufferBuilder<T> {
-    type Item<'a> = &'a T
+    type Item<'a>
+        = &'a T
     where
         Self: 'a;
 

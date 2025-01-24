@@ -85,7 +85,7 @@ mod tests {
                     array::{StructArray, VariableSizeListArray},
                     bitmap::ValidityBitmap,
                     buffer::BoxBuffer,
-                    ArrayType, Length,
+                    ArrayType, Length, NonNullable, Nullable,
                 };
 
                 #[derive(ArrayType, Copy, Clone, Default)]
@@ -106,7 +106,7 @@ mod tests {
                 #[test]
                 fn nullable() {
                     let input = [Some(Foo); 5];
-                    let array = input.into_iter().collect::<StructArray<Foo, true>>();
+                    let array = input.into_iter().collect::<StructArray<Foo, Nullable>>();
                     assert_eq!(array.len(), 5);
                     assert!(array.all_valid());
                 }
@@ -128,7 +128,7 @@ mod tests {
                     ];
                     let array = input
                         .into_iter()
-                        .collect::<VariableSizeListArray<StructArray<Foo>, true>>();
+                        .collect::<VariableSizeListArray<StructArray<Foo>, Nullable>>();
                     assert_eq!(array.len(), 4);
                 }
 
@@ -137,7 +137,7 @@ mod tests {
                     let input = [Foo; 5];
                     let array = input
                         .into_iter()
-                        .collect::<StructArray<Foo, false, BoxBuffer>>();
+                        .collect::<StructArray<Foo, NonNullable, BoxBuffer>>();
                     assert_eq!(array.len(), 5);
                 }
             }
@@ -146,7 +146,7 @@ mod tests {
                 use narrow::{
                     array::{StructArray, VariableSizeListArray},
                     bitmap::ValidityBitmap,
-                    ArrayType, Length,
+                    ArrayType, Length, Nullable,
                 };
 
                 #[derive(ArrayType, Default)]
@@ -165,10 +165,7 @@ mod tests {
                     assert_eq!(array.len(), 2);
                     assert_eq!(array.0 .0 .0, &[1, 3]);
                     assert_eq!(array.0 .1 .0, &[2, 4]);
-                    assert_eq!(
-                        array.0 .2 .0 .0.data.0.as_slice(),
-                        &[b'a', b's', b'd', b'f']
-                    );
+                    assert_eq!(array.0 .2 .0 .0.data.0.as_slice(), b"asdf");
                     assert_eq!(array.0 .2 .0 .0.offsets.as_slice(), &[0, 2, 4]);
 
                     let input = [
@@ -183,14 +180,14 @@ mod tests {
                 #[test]
                 fn nullable() {
                     let input = [Some(Foo(1, 2, "n")), None, Some(Foo(3, 4, "arrow"))];
-                    let array = input.into_iter().collect::<StructArray<Foo, true>>();
+                    let array = input.into_iter().collect::<StructArray<Foo, Nullable>>();
                     assert_eq!(array.len(), 3);
                     assert_eq!(array.is_valid(0), Some(true));
                     assert_eq!(array.is_null(1), Some(true));
                     assert_eq!(array.is_valid(2), Some(true));
 
                     let input = [Some(Bar(Foo(1, 2, "yes"))), None];
-                    let array = input.into_iter().collect::<StructArray<Bar, true>>();
+                    let array = input.into_iter().collect::<StructArray<Bar, Nullable>>();
                     assert_eq!(array.len(), 2);
                 }
 
@@ -214,7 +211,7 @@ mod tests {
                     ];
                     let array = input
                         .into_iter()
-                        .collect::<VariableSizeListArray<StructArray<FooBar<_>, true>, true>>();
+                        .collect::<VariableSizeListArray<StructArray<FooBar<_>, Nullable>, Nullable>>();
                     assert_eq!(array.len(), 4);
                 }
             }
@@ -223,7 +220,7 @@ mod tests {
                 use narrow::{
                     array::{StructArray, VariableSizeListArray},
                     bitmap::{BitmapRef, ValidityBitmap},
-                    ArrayType, Length,
+                    ArrayType, Length, Nullable,
                 };
 
                 #[derive(ArrayType)]
@@ -257,7 +254,7 @@ mod tests {
 
                 #[derive(ArrayType, Default)]
                 struct FooBar {
-                    foo: bool,
+                    fuu: bool,
                     bar: Bar,
                 }
 
@@ -307,7 +304,7 @@ mod tests {
                             c: Some(()),
                         }),
                     ];
-                    let array = input.into_iter().collect::<StructArray<Bar, true>>();
+                    let array = input.into_iter().collect::<StructArray<Bar, Nullable>>();
                     assert_eq!(array.len(), 3);
                     assert_eq!(array.is_valid(0), Some(true));
                     assert_eq!(array.is_null(1), Some(true));
@@ -335,7 +332,7 @@ mod tests {
                         }),
                         None,
                     ];
-                    let array = input.into_iter().collect::<StructArray<Bar, true>>();
+                    let array = input.into_iter().collect::<StructArray<Bar, Nullable>>();
                     assert_eq!(array.len(), 2);
                 }
 
@@ -349,7 +346,7 @@ mod tests {
                         }),
                         None,
                     ];
-                    let array = input.into_iter().collect::<StructArray<Bar, true>>();
+                    let array = input.into_iter().collect::<StructArray<Bar, Nullable>>();
                     assert_eq!(array.len(), 2);
                 }
 
@@ -367,7 +364,7 @@ mod tests {
                     ];
                     let array = input
                         .into_iter()
-                        .collect::<VariableSizeListArray<StructArray<Bar, true>, true>>();
+                        .collect::<VariableSizeListArray<StructArray<Bar, Nullable>, Nullable>>();
                     assert_eq!(array.len(), 4);
                 }
             }

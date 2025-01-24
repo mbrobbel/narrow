@@ -1,6 +1,6 @@
 //! Subtrait for fixed-size types.
 
-use crate::array::ArrayType;
+// use crate::array::ArrayType;
 use std::{fmt::Debug, mem};
 
 #[cfg(feature = "arrow-rs")]
@@ -17,6 +17,8 @@ mod arrow_rs {
     pub use Type as _arrow_rs_trait;
 }
 use arrow_rs::_arrow_rs_trait;
+
+use crate::array::ArrayType;
 
 /// Subtrait for fixed-size types.
 ///
@@ -37,7 +39,7 @@ mod sealed {
     /// Used to seal [`super::FixedSize`].
     pub trait Sealed {}
 
-    // Prevent downstream implementation of [super::FixedSize].
+    /// Prevent downstream implementation of [`super::FixedSize`].
     impl<T> Sealed for T where T: super::FixedSize {}
 }
 

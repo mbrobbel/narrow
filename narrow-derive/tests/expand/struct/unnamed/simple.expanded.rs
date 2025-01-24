@@ -3,17 +3,17 @@ impl<T: Sized + narrow::array::ArrayType<T>> narrow::array::ArrayType<Foo<T>>
 for Foo<T> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Foo<T>, false, Buffer>;
+    > = narrow::array::StructArray<Foo<T>, narrow::NonNullable, Buffer>;
 }
 impl<T: Sized + narrow::array::ArrayType<T>> narrow::array::ArrayType<Foo<T>>
 for ::std::option::Option<Foo<T>> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Foo<T>, true, Buffer>;
+    > = narrow::array::StructArray<Foo<T>, narrow::Nullable, Buffer>;
 }
 impl<T: Sized + narrow::array::ArrayType<T>> narrow::array::StructArrayType for Foo<T> {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<T, Buffer>;
@@ -29,6 +29,22 @@ struct FooArray<
         u32,
     >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>,
 );
+impl<
+    T: Sized + narrow::array::ArrayType<T>,
+    Buffer: narrow::buffer::BufferType,
+> ::std::clone::Clone for FooArray<T, Buffer>
+where
+    <T as narrow::array::ArrayType<
+        T,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: ::std::clone::Clone,
+    <u32 as narrow::array::ArrayType<
+        u32,
+    >>::Array<Buffer, narrow::offset::NA, narrow::array::union::NA>: ::std::clone::Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), self.1.clone())
+    }
+}
 impl<
     T: Sized + narrow::array::ArrayType<T>,
     Buffer: narrow::buffer::BufferType,

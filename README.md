@@ -9,7 +9,7 @@ This crate provides methods to automatically generate types to support reading a
 
 ## Why
 
-- The [`arrow`](https://docs.rs/arrow) crate provides APIs that make sense when the array types are only known at run-time. Many of its [APIs](https://docs.rs/arrow/latest/arrow/#type-erasure--trait-objects) require the use of [trait objects](https://doc.rust-lang.org/book/ch17-02-trait-objects.html) and [downcasting](https://docs.rs/arrow/latest/arrow/array/fn.downcast_array.html). However, for applications where types are known at compile-time, these APIs are not ergonomic.
+- The [arrow](https://docs.rs/arrow) crate provides APIs that make sense when the array types are only known at run-time. Many of its [APIs](https://docs.rs/arrow/latest/arrow/#type-erasure--trait-objects) require the use of [trait objects](https://doc.rust-lang.org/book/ch17-02-trait-objects.html) and [downcasting](https://docs.rs/arrow/latest/arrow/array/fn.downcast_array.html). However, for applications where types are known at compile-time, these APIs are not ergonomic.
 - Builders for [nested](https://docs.rs/arrow/latest/arrow/datatypes/enum.DataType.html#method.is_nested) array types are [complex](https://docs.rs/arrow/latest/arrow/array/struct.StructBuilder.html) and error-prone.
 
 There are [other crates](https://crates.io/search?q=arrow%20derive&sort=relevance) that aim to prevent users from having to maintain array builder code by providing derive macros. These builders typically produce type-erased arrays, whereas this crate only provides fully statically typed arrays.
@@ -38,24 +38,24 @@ use narrow::{
     ArrayType, Length,
 };
 
-#[derive(ArrayType, Default)]
+#[derive(ArrayType, Default, Clone, Debug, PartialEq, Eq)]
 struct Foo {
     a: bool,
     b: u32,
     c: Option<String>,
 }
 
-#[derive(ArrayType, Default)]
+#[derive(ArrayType, Default, Clone, Debug, PartialEq, Eq)]
 struct Bar(Vec<u8>);
 
-#[derive(ArrayType)]
+#[derive(ArrayType, Clone, Debug, PartialEq, Eq)]
 enum FooBar {
     Foo(Foo),
     Bar(Bar),
     None,
 }
 
-let struct_array = [
+let foos = vec![
     Foo {
         a: false,
         b: 0,
@@ -66,12 +66,15 @@ let struct_array = [
         b: 42,
         c: Some("hello world".to_owned()),
     },
-]
-.into_iter()
-.collect::<StructArray<Foo>>();
+];
+let struct_array = foos.clone().into_iter().collect::<StructArray<Foo>>();
 assert_eq!(struct_array.len(), 2);
+assert!(struct_array.0.a.iter().any(|x| x));
+assert_eq!(struct_array.0.b.iter().sum::<u32>(), 42);
+assert_eq!(struct_array.0.c.iter().filter_map(|x| x).collect::<String>(), "hello world");
+assert_eq!(struct_array.into_iter().collect::<Vec<_>>(), foos);
 
-let union_array = [
+let foo_bars = vec![
     FooBar::Foo(Foo {
         a: true,
         b: 42,
@@ -80,19 +83,32 @@ let union_array = [
     FooBar::Bar(Bar(vec![1, 2, 3, 4])),
     FooBar::None,
     FooBar::None,
-]
-.into_iter()
-.collect::<UnionArray<FooBar, 3>>();
+];
+let union_array = foo_bars
+    .clone()
+    .into_iter()
+    .collect::<UnionArray<FooBar, 3>>();
 assert_eq!(union_array.len(), 4);
+assert_eq!(union_array.into_iter().collect::<Vec<_>>(), foo_bars);
 ```
 
 # Features
 
 The crate supports the following optional features:
 
-- `derive`: adds [`ArrayType`] derive support.
-- `arrow-rs`: adds array conversion methods for [arrow](https://docs.rs/arrow).
-- `uuid`: adds `ArrayType` support for [uuid::Uuid](https://docs.rs/uuid/latest/uuid/struct.Uuid.html).
+## Derive support
+
+- `derive`: adds `ArrayType` derive support.
+
+## Interop
+
+- `arrow-rs`: array conversion methods for [arrow](https://docs.rs/arrow).
+
+## Additional `ArrayType` implementations
+
+- `chrono`: support for some [chrono](https://docs.rs/chrono) types.
+- `map`: support for [std::collections::HashMap](https://doc.rust-lang.org/stable/std/collections/struct.HashMap.html).
+- `uuid`: support for [uuid::Uuid](https://docs.rs/uuid/latest/uuid/struct.Uuid.html).
 
 # Docs
 
@@ -101,7 +117,7 @@ The crate supports the following optional features:
 
 # Minimum supported Rust version
 
-The minimum supported Rust version for this crate is Rust 1.70.0.
+The minimum supported Rust version for this crate is Rust 1.79.0.
 
 # License
 

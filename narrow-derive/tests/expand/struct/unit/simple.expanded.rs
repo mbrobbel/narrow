@@ -7,23 +7,28 @@ unsafe impl narrow::array::Unit for Foo {
 impl narrow::array::ArrayType<Foo> for Foo {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Foo, false, Buffer>;
+    > = narrow::array::StructArray<Foo, narrow::NonNullable, Buffer>;
 }
 impl narrow::array::ArrayType<Foo> for ::std::option::Option<Foo> {
     type Array<
         Buffer: narrow::buffer::BufferType,
-        OffsetItem: narrow::offset::OffsetElement,
+        OffsetItem: narrow::offset::Offset,
         UnionLayout: narrow::array::UnionType,
-    > = narrow::array::StructArray<Foo, true, Buffer>;
+    > = narrow::array::StructArray<Foo, narrow::Nullable, Buffer>;
 }
 impl narrow::array::StructArrayType for Foo {
     type Array<Buffer: narrow::buffer::BufferType> = FooArray<Buffer>;
 }
 struct FooArray<Buffer: narrow::buffer::BufferType>(
-    narrow::array::NullArray<Foo, false, Buffer>,
+    narrow::array::NullArray<Foo, narrow::NonNullable, Buffer>,
 );
+impl<Buffer: narrow::buffer::BufferType> ::std::clone::Clone for FooArray<Buffer> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl<Buffer: narrow::buffer::BufferType> ::std::default::Default for FooArray<Buffer> {
     fn default() -> Self {
         Self(::std::default::Default::default())
@@ -46,10 +51,18 @@ for FooArray<Buffer> {
     }
 }
 struct FooArrayIter<Buffer: narrow::buffer::BufferType>(
-    <narrow::array::NullArray<Foo, false, Buffer> as IntoIterator>::IntoIter,
+    <narrow::array::NullArray<
+        Foo,
+        narrow::NonNullable,
+        Buffer,
+    > as IntoIterator>::IntoIter,
 )
 where
-    narrow::array::NullArray<Foo, false, Buffer>: ::std::iter::IntoIterator<Item = Foo>;
+    narrow::array::NullArray<
+        Foo,
+        narrow::NonNullable,
+        Buffer,
+    >: ::std::iter::IntoIterator<Item = Foo>;
 impl<Buffer: narrow::buffer::BufferType> ::std::iter::Iterator for FooArrayIter<Buffer> {
     type Item = Foo;
     fn next(&mut self) -> Option<Self::Item> {
