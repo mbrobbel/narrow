@@ -14,7 +14,7 @@ pub(super) fn bench(c: &mut Criterion) {
         for size in [12345] {
             for null_fraction in [0., 0.5, 1.] {
                 let input = (0..size)
-                    .map(|_| rng.gen_bool(1. - null_fraction))
+                    .map(|_| rng.random_bool(1. - null_fraction))
                     .collect::<Vec<_>>();
                 group.throughput(Throughput::Elements(size as u64));
                 group.bench_with_input(
@@ -33,7 +33,7 @@ pub(super) fn bench(c: &mut Criterion) {
         for size in [12345] {
             for null_fraction in [0., 0.5, 1.] {
                 let input = (0..size)
-                    .map(|_| rng.gen_bool(1. - null_fraction))
+                    .map(|_| rng.random_bool(1. - null_fraction))
                     .collect::<Vec<_>>();
                 let narrow_bitmap = Bitmap::<BoxBuffer>::from_iter(&input);
                 group.throughput(Throughput::Elements(size as u64));

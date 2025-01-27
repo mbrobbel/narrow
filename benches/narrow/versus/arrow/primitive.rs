@@ -100,7 +100,7 @@ where
         for null_fraction in [0., 0.5, 1.] {
             let input = (0..size)
                 .map(|v| num_traits::cast(v % max).unwrap())
-                .map(|v| rng.gen_bool(1. - null_fraction).then_some(v))
+                .map(|v| rng.random_bool(1. - null_fraction).then_some(v))
                 .collect::<Vec<Option<T::Native>>>();
             group.throughput(criterion::Throughput::Elements(size as u64));
             group.bench_with_input(
