@@ -9,7 +9,7 @@ permissions:
 jobs:
   rustdoc:
     name: Rustdoc
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     env:
       RUSTDOCFLAGS: -Dwarnings
     steps:
@@ -31,7 +31,7 @@ jobs:
   deploy:
     name: Deploy
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     needs: rustdoc
     environment:
       name: github-pages
