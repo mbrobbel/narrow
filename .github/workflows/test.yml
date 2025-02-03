@@ -12,11 +12,10 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo install --locked cargo-expand
       - uses: dtolnay/rust-toolchain@1.79.0
         id: rust-toolchain
-      - uses: dtolnay/install@master
-        with:
-          crate: cargo-expand
       - uses: actions/cache@v4
         with:
           path: |
@@ -40,13 +39,12 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo install --locked cargo-expand
       - uses: dtolnay/rust-toolchain@stable
         id: rust-toolchain
         with:
           components: clippy, rustfmt
-      - uses: dtolnay/install@master
-        with:
-          crate: cargo-expand
       - uses: actions/cache@v4
         with:
           path: |
@@ -102,13 +100,12 @@ jobs:
       RUSTDOCFLAGS: "-C instrument-coverage"
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo install --locked cargo-expand
       - uses: dtolnay/rust-toolchain@stable
         id: rust-toolchain
         with:
           components: llvm-tools-preview
-      - uses: dtolnay/install@master
-        with:
-          crate: cargo-expand
       - uses: actions/cache@v4
         with:
           path: |
@@ -127,7 +124,7 @@ jobs:
         env:
           LLVM_PROFILE_FILE: "narrow-%p-%m.profraw"
       - name: Install grcov
-        run: curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-x86_64-unknown-linux-gnu.tar.bz2 | tar jxf -
+        run: curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-aarch64-unknown-linux-gnu.tar.bz2 | tar jxf -
       - name: grcov
         run: ./grcov --branch --binary-path ./target/debug/ --source-dir . --output-type lcov --output-path lcov.info .
       - uses: codecov/codecov-action@v5
