@@ -14,18 +14,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.79.0
         id: rust-toolchain
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
-            ${{ runner.os }}-cargo-
       - run: cargo check --workspace --all-targets --no-default-features
       - run: cargo check --workspace --all-targets --all-features
       - run: cargo test --workspace --all-features --lib --bins --examples --tests -- --skip expand
@@ -41,18 +29,6 @@ jobs:
         id: rust-toolchain
         with:
           components: clippy, rustfmt
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
-            ${{ runner.os }}-cargo-
       - name: Check
         run: cargo check --workspace --all-targets --all-features
       - name: Test
@@ -71,19 +47,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@miri
         id: rust-toolchain
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-miri-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-miri-
-            ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
-            ${{ runner.os }}-cargo-
       - run: cargo miri setup
       - run: cargo miri test --no-default-features
       - run: cargo miri test --all-features
@@ -100,19 +63,6 @@ jobs:
         id: rust-toolchain
         with:
           components: llvm-tools-preview
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-coverage-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-coverage-
-            ${{ runner.os }}-cargo-${{ steps.rust-toolchain.outputs.cachekey }}-
-            ${{ runner.os }}-cargo-
       - run: cargo build --workspace --all-targets --all-features
       - run: cargo test --workspace --all-targets --all-features
         env:
