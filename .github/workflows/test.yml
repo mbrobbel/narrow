@@ -12,8 +12,6 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo install --locked cargo-expand
       - uses: dtolnay/rust-toolchain@1.79.0
         id: rust-toolchain
       - uses: actions/cache@v4
@@ -39,8 +37,6 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo install --locked cargo-expand
       - uses: dtolnay/rust-toolchain@stable
         id: rust-toolchain
         with:
@@ -100,8 +96,6 @@ jobs:
       RUSTDOCFLAGS: "-C instrument-coverage"
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo install --locked cargo-expand
       - uses: dtolnay/rust-toolchain@stable
         id: rust-toolchain
         with:
