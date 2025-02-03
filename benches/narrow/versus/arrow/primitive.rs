@@ -1,4 +1,4 @@
-use arrow_array::types::{UInt16Type, UInt32Type, UInt64Type, UInt8Type};
+use arrow_array::types::{UInt64Type, UInt8Type};
 use arrow_array::{builder::PrimitiveBuilder, ArrowPrimitiveType, PrimitiveArray};
 use criterion::{BenchmarkId, Criterion};
 use narrow::{array::FixedSizePrimitiveArray, FixedSize};
@@ -29,6 +29,7 @@ where
         .unwrap()
         .saturating_add(1);
 
+    #[allow(clippy::single_element_loop)]
     for size in [8].map(|v| 1usize << v).into_iter() {
         let input = (0..size)
             .map(|v| num_traits::cast(v % max).unwrap())
@@ -92,7 +93,9 @@ where
         .saturating_add(1);
     let mut rng = SmallRng::seed_from_u64(1337);
 
+    #[allow(clippy::single_element_loop)]
     for size in [8].map(|v| 1usize << v).into_iter() {
+        #[allow(clippy::single_element_loop)]
         for null_fraction in [0.5] {
             let input = (0..size)
                 .map(|v| num_traits::cast(v % max).unwrap())
