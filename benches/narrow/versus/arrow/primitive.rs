@@ -9,12 +9,8 @@ use std::{ops::Rem, time::Duration};
 
 pub fn bench(c: &mut Criterion) {
     bench_primitive::<UInt8Type>(c);
-    bench_primitive::<UInt16Type>(c);
-    bench_primitive::<UInt32Type>(c);
     bench_primitive::<UInt64Type>(c);
     bench_nullable_primitive::<UInt8Type>(c);
-    bench_nullable_primitive::<UInt16Type>(c);
-    bench_nullable_primitive::<UInt32Type>(c);
     bench_nullable_primitive::<UInt64Type>(c);
 }
 
@@ -33,7 +29,7 @@ where
         .unwrap()
         .saturating_add(1);
 
-    for size in [0, 8, 16].map(|v| 1usize << v).into_iter() {
+    for size in [8].map(|v| 1usize << v).into_iter() {
         let input = (0..size)
             .map(|v| num_traits::cast(v % max).unwrap())
             .collect::<Vec<T::Native>>();
@@ -96,8 +92,8 @@ where
         .saturating_add(1);
     let mut rng = SmallRng::seed_from_u64(1337);
 
-    for size in [0, 4, 8, 16].map(|v| 1usize << v).into_iter() {
-        for null_fraction in [0., 0.5, 1.] {
+    for size in [8].map(|v| 1usize << v).into_iter() {
+        for null_fraction in [0.5] {
             let input = (0..size)
                 .map(|v| num_traits::cast(v % max).unwrap())
                 .map(|v| rng.random_bool(1. - null_fraction).then_some(v))
