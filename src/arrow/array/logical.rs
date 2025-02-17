@@ -6,13 +6,12 @@ use arrow_array::OffsetSizeTrait;
 
 use crate::{
     array::{ArrayType, NullableArrayTypeOf, UnionType},
+    arrow::LogicalArrayType,
     buffer::BufferType,
-    logical::{LogicalArray, LogicalArrayType},
+    logical::LogicalArray,
     nullability::Nullability,
     offset::Offset,
 };
-
-// TODO(mbrobbel): add field metadata trait
 
 impl<
         T: LogicalArrayType<T>,
@@ -29,7 +28,13 @@ where
     type Array = <NullableArrayTypeOf<Nullable, T::ArrayType, Buffer, OffsetItem, UnionLayout> as crate::arrow::Array>::Array;
 
     fn as_field(name: &str) -> arrow_schema::Field {
-        <NullableArrayTypeOf<Nullable, T::ArrayType, Buffer, OffsetItem, UnionLayout> as crate::arrow::Array>::as_field(name)
+        let field =
+        <NullableArrayTypeOf<Nullable, T::ArrayType, Buffer, OffsetItem, UnionLayout> as crate::arrow::Array>::as_field(name);
+        if let Some(extension_type) = <T as LogicalArrayType<T>>::extension_type() {
+            field.with_extension_type(extension_type)
+        } else {
+            field
+        }
     }
 
     fn data_type() -> arrow_schema::DataType {

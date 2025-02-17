@@ -42,7 +42,7 @@ arrow-rs = [
 chrono = ["dep:chrono"]
 derive = ["dep:narrow-derive"]
 map = ["derive"]
-uuid = ["dep:uuid"]
+uuid = ["dep:uuid", "arrow-schema?/canonical_extension_types"]
 
 [dependencies]
 arrow-array = { version = "54.2.0", default-features = false, optional = true }

@@ -216,6 +216,11 @@ impl ArrayType<VariableSizeBinary> for Option<VariableSizeBinary> {
         LogicalArray<VariableSizeBinary, Nullable, Buffer, OffsetItem, UnionLayout>;
 }
 
+#[cfg(feature = "arrow-rs")]
+impl crate::arrow::LogicalArrayType<VariableSizeBinary> for VariableSizeBinary {
+    type ExtensionType = crate::arrow::NoExtensionType;
+}
+
 impl LogicalArrayType<VariableSizeBinary> for VariableSizeBinary {
     type ArrayType = Vec<u8>;
 

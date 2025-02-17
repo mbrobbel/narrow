@@ -31,6 +31,14 @@ impl LogicalArrayType<uuid::Uuid> for uuid::Uuid {
     }
 }
 
+#[cfg(feature = "arrow-rs")]
+impl crate::arrow::LogicalArrayType<uuid::Uuid> for uuid::Uuid {
+    type ExtensionType = arrow_schema::extension::Uuid;
+    fn extension_type() -> Option<Self::ExtensionType> {
+        Some(arrow_schema::extension::Uuid)
+    }
+}
+
 /// An array for [`Uuid`] items.
 #[allow(unused)]
 pub type UuidArray<Nullable = NonNullable, Buffer = crate::buffer::VecBuffer> =
