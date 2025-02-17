@@ -9,14 +9,14 @@ permissions:
 jobs:
   rustdoc:
     name: Rustdoc
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     env:
       RUSTDOCFLAGS: -Dwarnings
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
         id: rust-toolchain
-      - uses: dtolnay/install@cargo-docs-rs
+      - run: cargo install --locked cargo-docs-rs
       - run: cargo docs-rs
       - run: mv "target/$(rustc -vV | awk '/^host/ { print $2 }')/doc" "target/doc"
       - run: chmod -c -R +rX "target/doc"
@@ -31,7 +31,7 @@ jobs:
   deploy:
     name: Deploy
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     needs: rustdoc
     environment:
       name: github-pages

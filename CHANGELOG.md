@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.0...narrow-v0.12.1) - 2025-02-06
+
+### Added
+
+- re-export arrow crates for `arrow-rs` feature (#309)
+
+### Other
+
+- *(deps)* bump uuid from 1.12.1 to 1.13.1 (#326)
+- *(deps)* bump syn from 2.0.96 to 2.0.98 (#322)
+- *(deps)* bump the arrow group with 5 updates (#321)
+- *(deps)* bump bytes from 1.9.0 to 1.10.0 (#325)
+- reduce the number of benchmarks (#324)
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.89 to 0.5.90 (#320)
+- add custom `cfg` for expand test (#323)
+- switch to `arm64` hosted runners (#319)
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.88 to 0.5.89 (#318)
+- *(deps)* bump rand from 0.8.5 to 0.9.0 (#317)
+- *(deps)* bump uuid from 1.12.0 to 1.12.1 (#316)
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.86 to 0.5.88 (#315)
+- *(deps)* bump uuid from 1.11.1 to 1.12.0 (#314)
+- *(deps)* bump proc-macro2 from 1.0.92 to 1.0.93 (#313)
+- *(deps)* bump uuid from 1.11.0 to 1.11.1 (#312)
+- *(deps)* bump syn from 2.0.95 to 2.0.96 (#311)
+
 ## [0.12.0](https://github.com/mbrobbel/narrow/compare/narrow-v0.11.5...narrow-v0.12.0) - 2025-01-08
 
 ### Added
