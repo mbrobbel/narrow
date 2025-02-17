@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.2](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.1...narrow-v0.12.2) - 2025-02-17
+
+### Other
+
+- *(deps)* bump the arrow group with 5 updates (#330)
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.90 to 0.5.94 (#329)
+- *(deps)* bump once_cell from 1.20.2 to 1.20.3 (#327)
+
 ## [0.12.1](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.0...narrow-v0.12.1) - 2025-02-06
 
 ### Added
