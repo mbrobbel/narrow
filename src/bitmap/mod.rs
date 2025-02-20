@@ -102,7 +102,7 @@ impl<Buffer: BufferType> Bitmap<Buffer> {
     /// Caller must ensure index is within bounds.
     #[inline]
     pub unsafe fn get_unchecked(&self, index: usize) -> bool {
-        self.buffer.as_slice().get_unchecked(self.byte_index(index)) & 1 << self.bit_index(index)
+        self.buffer.as_slice().get_unchecked(self.byte_index(index)) & (1 << self.bit_index(index))
             != 0
     }
 
