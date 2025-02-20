@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.3](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.2...narrow-v0.12.3) - 2025-02-20
+
+### Added
+
+- `ExtensionType` support for logical arrays, implement for `Uuid` (#183)
+
+### Fixed
+
+- clippy 1.85 warning (#334)
+
+### Other
+
+- *(deps)* bump uuid from 1.13.1 to 1.13.2 (#333)
+- remove `doc_cfg` feature (#332)
+
 ## [0.12.2](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.1...narrow-v0.12.2) - 2025-02-17
 
 ### Other
