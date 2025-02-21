@@ -1,4 +1,4 @@
-use crate::{array::ArrayType, NonNullable, Nullable};
+use crate::{NonNullable, Nullable, array::ArrayType};
 
 use super::{LogicalArray, LogicalArrayType};
 
