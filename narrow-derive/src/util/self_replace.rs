@@ -1,4 +1,4 @@
-use syn::{parse_quote, visit_mut::VisitMut, Generics, Ident, PathSegment};
+use syn::{Generics, Ident, PathSegment, parse_quote, visit_mut::VisitMut};
 
 /// Replace `Self` in generics with `ident`.
 ///

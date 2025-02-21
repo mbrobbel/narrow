@@ -1,4 +1,4 @@
-use syn::{visit_mut::VisitMut, GenericParam, Generics, TypeParam};
+use syn::{GenericParam, Generics, TypeParam, visit_mut::VisitMut};
 
 /// Adds the owned type param to all type parameters.
 pub struct AddTypeParam(pub TypeParam);

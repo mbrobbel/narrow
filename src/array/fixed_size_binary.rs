@@ -1,10 +1,10 @@
 //! Array with fixed-size binary values.
 
 use crate::{
+    Index, Length,
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{Buffer, BufferType, VecBuffer},
     nullability::{NonNullable, Nullability, Nullable},
-    Index, Length,
 };
 
 use super::{Array, FixedSizeListArray, FixedSizePrimitiveArray};
@@ -173,7 +173,7 @@ impl<const N: usize, Buffer: BufferType> Iterator
 
     fn next(&mut self) -> Option<Self::Item> {
         (self.index < self.array.len()).then(|| {
-            let item = self.array.0 .0 .0.as_slice()[self.index * N..self.index * N + N]
+            let item = self.array.0.0.0.as_slice()[self.index * N..self.index * N + N]
                 .try_into()
                 .expect("out of bounds");
             self.index += 1;
@@ -189,8 +189,8 @@ impl<const N: usize, Buffer: BufferType> Iterator for FixedSizeBinaryIntoIter<N,
         (self.index < self.array.len()).then(|| {
             // Safety:
             // - bound checked above
-            let item = unsafe { self.array.0 .0.is_valid_unchecked(self.index) }.then(|| {
-                self.array.0 .0.data.0.as_slice()[self.index * N..self.index * N + N]
+            let item = unsafe { self.array.0.0.is_valid_unchecked(self.index) }.then(|| {
+                self.array.0.0.data.0.as_slice()[self.index * N..self.index * N + N]
                     .try_into()
                     .expect("out of bounds")
             });
@@ -283,15 +283,15 @@ mod tests {
         let input = [[1_u8, 2], [3, 4]];
         let array = input.into_iter().collect::<FixedSizeBinaryArray<2>>();
         assert_eq!(array.len(), 2);
-        assert_eq!(array.0 .0.len(), 4);
+        assert_eq!(array.0.0.len(), 4);
 
         let input_nullable = [Some([1_u8, 2]), None];
         let array_nullable = input_nullable
             .into_iter()
             .collect::<FixedSizeBinaryArray<2, Nullable>>();
         assert_eq!(array_nullable.len(), 2);
-        assert_eq!(array_nullable.0 .0.data.len(), 4);
-        assert_eq!(array_nullable.0 .0.validity.len(), 2);
+        assert_eq!(array_nullable.0.0.data.len(), 4);
+        assert_eq!(array_nullable.0.0.validity.len(), 2);
     }
 
     #[test]
