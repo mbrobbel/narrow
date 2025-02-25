@@ -275,6 +275,36 @@ impl<
         const VARIANTS: usize,
         Buffer: BufferType,
         OffsetItem: Offset,
+    > Extend<T> for DenseUnionArray<T, VARIANTS, Buffer, OffsetItem>
+where
+    for<'a> i8: From<&'a T>,
+    <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, DenseLayout>:
+        Extend<T> + Default + Length,
+    Int8Array<NonNullable, Buffer>: Extend<i8> + Default,
+    Int32Array<NonNullable, Buffer>: Extend<i32> + Default,
+{
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        iter.into_iter().for_each(|item| {
+            let type_id = i8::from(&item);
+            let _idx = usize::try_from(type_id).expect("bad type id");
+            assert!(_idx < VARIANTS, "type id greater than number of variants");
+
+            // For dense unions, we need to track the current offset for each variant
+            // Count the current elements of this type
+            let offset = self.variants.len();
+
+            self.types.extend(iter::once(type_id));
+            self.offsets.extend(iter::once(offset as i32));
+            self.variants.extend(iter::once(item));
+        });
+    }
+}
+
+impl<
+        T: UnionArrayType<VARIANTS>,
+        const VARIANTS: usize,
+        Buffer: BufferType,
+        OffsetItem: Offset,
     > FromIterator<T> for DenseUnionArray<T, VARIANTS, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
