@@ -33,6 +33,9 @@ pub(super) fn derive(
     // Generate a default impl for the wrapper struct def.
     let array_struct_default_impl = input.array_struct_default_impl();
 
+    // Generate an denseoffset impl for the wrapper struct def.
+    let array_struct_dense_offset_impl = input.array_struct_dense_offset_impl();
+
     // Generate an extend impl for the wrapper struct def.
     let array_struct_extend_dense_impl = input.array_struct_extend_dense_impl();
 
@@ -69,6 +72,8 @@ pub(super) fn derive(
         #array_struct_clone_impl
 
         #array_struct_default_impl
+
+        #array_struct_dense_offset_impl
 
         #array_struct_extend_dense_impl
 
@@ -771,6 +776,54 @@ impl<'a> Enum<'a> {
             }
         };
         parse2(tokens).expect("array_struct_default_impl")
+    }
+
+    fn array_struct_dense_offset_impl(&self) -> ItemImpl {
+        let narrow = util::narrow();
+
+        // Generics
+        let mut generics = self.generics.clone();
+        SelfReplace::new(self.ident, &generics).visit_generics_mut(&mut generics);
+        AddTypeParamBound(Self::array_type_bound()).visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(Buffer: #narrow::buffer::BufferType))
+            .visit_generics_mut(&mut generics);
+        AddTypeParam(parse_quote!(OffsetItem: #narrow::offset::Offset))
+            .visit_generics_mut(&mut generics);
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+        let fields = self.variants.iter().enumerate().map(|(idx, _variant)| {
+            let idx = Literal::usize_unsuffixed(idx);
+            quote! {
+                #idx => { self.#idx.len() }
+            }
+        });
+
+        let ident = self.array_struct_ident();
+        let mut item_impl: ItemImpl = parse_quote! {
+            impl #impl_generics #narrow::array::union::DenseOffset for #ident #ty_generics #where_clause {
+                fn variant_len(&self, type_id: i8) -> usize {
+                    match type_id {
+                        #(
+                            #fields,
+                        )*
+                        _ => panic!("bad type id")
+                    }
+                }
+            }
+        };
+        match *item_impl.self_ty {
+            Type::Path(ref mut path) => {
+                let last_segment = path.path.segments.last_mut().unwrap();
+                match last_segment.arguments {
+                    syn::PathArguments::AngleBracketed(ref mut args) => {
+                        args.args.push(parse_quote!(#narrow::array::DenseLayout));
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            _ => unreachable!(),
+        }
+        let tokens = quote!(#item_impl);
+        parse2(tokens).expect("array_struct_dense_offset_impl")
     }
 
     // Adds an extend impl for the dense array wrapper struct.

@@ -99,6 +99,22 @@ impl<
     const X: bool,
     Buffer: narrow::buffer::BufferType,
     OffsetItem: narrow::offset::Offset,
+> narrow::array::union::DenseOffset
+for FooBarArray<X, Buffer, OffsetItem, narrow::array::DenseLayout> {
+    fn variant_len(&self, type_id: i8) -> usize {
+        match type_id {
+            0 => self.0.len(),
+            1 => self.1.len(),
+            _ => {
+                ::core::panicking::panic_fmt(format_args!("bad type id"));
+            }
+        }
+    }
+}
+impl<
+    const X: bool,
+    Buffer: narrow::buffer::BufferType,
+    OffsetItem: narrow::offset::Offset,
 > ::std::iter::Extend<FooBar<X>>
 for FooBarArray<X, Buffer, OffsetItem, narrow::array::DenseLayout>
 where
