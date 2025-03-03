@@ -2,11 +2,11 @@
 
 use super::Array;
 use crate::{
+    FixedSize, Index, Length,
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{Buffer, BufferType, VecBuffer},
     nullability::{NonNullable, Nullability, Nullable},
     validity::Validity,
-    FixedSize, Index, Length,
 };
 use std::{
     fmt::{Debug, Formatter, Result},

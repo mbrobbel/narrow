@@ -2,11 +2,11 @@
 
 use super::{Array, FixedSizePrimitiveArray, VariableSizeListArray};
 use crate::{
+    Index, Length,
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{Buffer, BufferType, VecBuffer},
     nullability::{NonNullable, Nullability, Nullable},
     offset::{Offset, Offsets},
-    Index, Length,
 };
 
 /// Variable-size binary elements.

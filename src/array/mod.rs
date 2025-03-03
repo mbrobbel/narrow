@@ -1,10 +1,10 @@
 //! Sequences of values with known length all having the same type.
 
 use crate::{
+    Length, NonNullable, Nullability, Nullable,
     buffer::{BufferType, VecBuffer},
     logical::{LogicalArray, LogicalArrayType},
     offset::{self, Offset},
-    Length, NonNullable, Nullability, Nullable,
 };
 use std::{collections::VecDeque, marker::PhantomData};
 

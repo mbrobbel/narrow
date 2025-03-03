@@ -1,10 +1,10 @@
-use arrow_array::types::{UInt64Type, UInt8Type};
-use arrow_array::{builder::PrimitiveBuilder, ArrowPrimitiveType, PrimitiveArray};
+use arrow_array::types::{UInt8Type, UInt64Type};
+use arrow_array::{ArrowPrimitiveType, PrimitiveArray, builder::PrimitiveBuilder};
 use criterion::{BenchmarkId, Criterion};
-use narrow::{array::FixedSizePrimitiveArray, FixedSize};
+use narrow::{FixedSize, array::FixedSizePrimitiveArray};
 use narrow::{NonNullable, Nullable};
 use num_traits::{Bounded, NumCast};
-use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, rngs::SmallRng};
 use std::{ops::Rem, time::Duration};
 
 pub fn bench(c: &mut Criterion) {

@@ -1,6 +1,6 @@
 //! Interop with [`arrow-rs`] null buffer for bitmaps.
 
-use crate::{bitmap::Bitmap, buffer::BufferType, Length};
+use crate::{Length, bitmap::Bitmap, buffer::BufferType};
 
 impl<Buffer: BufferType> From<Bitmap<Buffer>> for arrow_buffer::BooleanBuffer
 where
