@@ -214,6 +214,15 @@ pub struct DenseUnionArray<
     pub offsets: Int32Array<NonNullable, Buffer>,
 }
 
+/// A trait that should be implemented by the derive macro for dense layout
+/// union arrays.
+#[doc(hidden)]
+pub trait DenseOffset {
+    /// Returns the length (number of items) of the variant with the given type
+    /// id stored in this array.
+    fn variant_len(&self, type_id: i8) -> usize;
+}
+
 impl<
         T: UnionArrayType<VARIANTS>,
         const VARIANTS: usize,
@@ -279,22 +288,23 @@ impl<
 where
     for<'a> i8: From<&'a T>,
     <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, DenseLayout>:
-        Extend<T> + Default + Length,
-    Int8Array<NonNullable, Buffer>: Extend<i8> + Default,
-    Int32Array<NonNullable, Buffer>: Extend<i32> + Default,
+        Extend<T> + DenseOffset,
+    Int8Array<NonNullable, Buffer>: Extend<i8>,
+    Int32Array<NonNullable, Buffer>: Extend<i32>,
 {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         iter.into_iter().for_each(|item| {
             let type_id = i8::from(&item);
-            let _idx = usize::try_from(type_id).expect("bad type id");
-            assert!(_idx < VARIANTS, "type id greater than number of variants");
+            let idx = usize::try_from(type_id).expect("bad type id");
+            assert!(idx < VARIANTS, "type id greater than number of variants");
 
             // For dense unions, we need to track the current offset for each variant
             // Count the current elements of this type
-            let offset = self.variants.len();
+            let offset = self.variants.variant_len(type_id);
 
             self.types.extend(iter::once(type_id));
-            self.offsets.extend(iter::once(offset as i32));
+            self.offsets
+                .extend(iter::once(i32::try_from(offset).expect("overflow")));
             self.variants.extend(iter::once(item));
         });
     }
@@ -581,6 +591,30 @@ mod tests {
             _ty: PhantomData<UnionLayout>, // we can also use a const generic instead?
         }
 
+        impl<Buffer: BufferType> DenseOffset for FooArray<Buffer, DenseLayout> {
+            fn variant_len(&self, type_id: i8) -> usize {
+                match type_id {
+                    0 => self.bar.len(),
+                    1 => self.baz.len(),
+                    _ => panic!("bad type id"),
+                }
+            }
+        }
+
+        impl<Buffer: BufferType, UnionLayout: UnionType> Clone for FooArray<Buffer, UnionLayout>
+        where
+            Int32Array<NonNullable, Buffer>: Clone,
+            Uint32Array<NonNullable, Buffer>: Clone,
+        {
+            fn clone(&self) -> Self {
+                Self {
+                    bar: self.bar.clone(),
+                    baz: self.baz.clone(),
+                    _ty: self._ty,
+                }
+            }
+        }
+
         impl<Buffer: BufferType, UnionLayout: UnionType> Default for FooArray<Buffer, UnionLayout>
         where
             Int32Array<NonNullable, Buffer>: Default,
@@ -707,7 +741,7 @@ mod tests {
 
         {
             let input = vec![Foo::Bar(0), Foo::Baz(1), Foo::Baz(2), Foo::Bar(3)];
-            let dense_array = input
+            let mut dense_array = input
                 .clone()
                 .into_iter()
                 .collect::<UnionArray<Foo, { Foo::VARIANTS }>>();
@@ -717,12 +751,18 @@ mod tests {
             assert_eq!(dense_array.0.variants.bar.0, [0, 3]);
             assert_eq!(dense_array.0.variants.baz.0, [1, 2]);
 
-            assert_eq!(dense_array.into_iter().collect::<Vec<_>>(), input);
+            assert_eq!(dense_array.clone().into_iter().collect::<Vec<_>>(), input);
+
+            dense_array.extend(iter::once(Foo::Bar(42)));
+            assert_eq!(dense_array.0.types.0, [0, 1, 1, 0, 0]);
+            assert_eq!(dense_array.0.offsets.0, [0, 0, 1, 1, 2]);
+            assert_eq!(dense_array.0.variants.bar.0, [0, 3, 42]);
+            assert_eq!(dense_array.0.variants.baz.0, [1, 2]);
         };
 
         {
             let input = vec![Foo::Bar(-78), Foo::Baz(1), Foo::Baz(99)];
-            let sparse_array = input.clone().into_iter().collect::<UnionArray<
+            let mut sparse_array = input.clone().into_iter().collect::<UnionArray<
                 Foo,
                 { Foo::VARIANTS },
                 SparseLayout,
@@ -735,7 +775,18 @@ mod tests {
             );
             assert_eq!(sparse_array.0.variants.baz.0, [u32::default(), 1, 99]);
 
-            assert_eq!(sparse_array.into_iter().collect::<Vec<_>>(), input);
+            assert_eq!(sparse_array.clone().into_iter().collect::<Vec<_>>(), input);
+
+            sparse_array.extend(iter::once(Foo::Bar(42)));
+            assert_eq!(sparse_array.0.types.0, [0, 1, 1, 0]);
+            assert_eq!(
+                sparse_array.0.variants.bar.0,
+                [-78, i32::default(), i32::default(), 42]
+            );
+            assert_eq!(
+                sparse_array.0.variants.baz.0,
+                [u32::default(), 1, 99, u32::default()]
+            );
         };
     }
 
@@ -1074,7 +1125,7 @@ mod tests {
             Test::Foo { bar: 123 },
             Test::None,
         ];
-        let dense_array = input
+        let mut dense_array = input
             .clone()
             .into_iter()
             .collect::<UnionArray<Test, { <Test as UnionArrayType<3>>::VARIANTS }>>();
@@ -1083,7 +1134,17 @@ mod tests {
         assert_eq!(dense_array.0.offsets.0, &[0, 0, 0, 1]);
         assert_eq!(dense_array.0.variants.0 .0.bar.0, &[123]);
         assert_eq!(dense_array.0.variants.2 .0.len(), 2);
-        assert_eq!(dense_array.into_iter().collect::<Vec<_>>(), input.clone());
+        assert_eq!(
+            dense_array.clone().into_iter().collect::<Vec<_>>(),
+            input.clone()
+        );
+
+        dense_array.extend(iter::once(Test::Foo { bar: 42 }));
+        assert_eq!(dense_array.len(), 5);
+        assert_eq!(dense_array.0.types.0, &[2, 1, 0, 2, 0]);
+        assert_eq!(dense_array.0.offsets.0, &[0, 0, 0, 1, 1]);
+        assert_eq!(dense_array.0.variants.0 .0.bar.0, &[123, 42]);
+        assert_eq!(dense_array.0.variants.2 .0.len(), 2);
 
         let sparse_array = input.clone().into_iter().collect::<UnionArray<
             Test,
