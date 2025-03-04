@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.4](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.3...narrow-v0.12.4) - 2025-03-04
+
+### Added
+
+- impl `Extend<T>` for `DenseUnionArray<T, ...>` ([#347](https://github.com/mbrobbel/narrow/pull/347))
+
+### Other
+
+- *(deps)* bump syn from 2.0.98 to 2.0.99 ([#350](https://github.com/mbrobbel/narrow/pull/350))
+- *(deps)* bump proc-macro2 from 1.0.93 to 1.0.94 ([#349](https://github.com/mbrobbel/narrow/pull/349))
+- *(deps)* bump quote from 1.0.38 to 1.0.39 ([#348](https://github.com/mbrobbel/narrow/pull/348))
+- *(deps)* bump actions/download-artifact from 4.1.8 to 4.1.9 ([#342](https://github.com/mbrobbel/narrow/pull/342))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.94 to 0.5.98 ([#346](https://github.com/mbrobbel/narrow/pull/346))
+- *(deps)* bump macrotest from 1.0.13 to 1.1.0 ([#339](https://github.com/mbrobbel/narrow/pull/339))
+- *(deps)* bump the arrow group across 1 directory with 2 updates ([#345](https://github.com/mbrobbel/narrow/pull/345))
+- *(deps)* bump chrono from 0.4.39 to 0.4.40 ([#341](https://github.com/mbrobbel/narrow/pull/341))
+- *(deps)* bump uuid from 1.14.0 to 1.15.1 ([#344](https://github.com/mbrobbel/narrow/pull/344))
+- *(deps)* bump uuid from 1.13.2 to 1.14.0 ([#335](https://github.com/mbrobbel/narrow/pull/335))
+
 ## [0.12.3](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.2...narrow-v0.12.3) - 2025-02-20
 
 ### Added
