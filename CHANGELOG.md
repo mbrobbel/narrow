@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.5](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.4...narrow-v0.12.5) - 2025-03-10
+
+### Other
+
+- *(deps)* bump syn from 2.0.99 to 2.0.100 ([#356](https://github.com/mbrobbel/narrow/pull/356))
+- *(deps)* bump rustversion from 1.0.19 to 1.0.20 ([#355](https://github.com/mbrobbel/narrow/pull/355))
+- *(deps)* bump proc-macro-crate from 3.2.0 to 3.3.0 ([#354](https://github.com/mbrobbel/narrow/pull/354))
+- *(deps)* bump bytes from 1.10.0 to 1.10.1 ([#353](https://github.com/mbrobbel/narrow/pull/353))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.98 to 0.5.99 ([#351](https://github.com/mbrobbel/narrow/pull/351))
+
 ## [0.12.4](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.3...narrow-v0.12.4) - 2025-03-04
 
 ### Added
