@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.7](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.6...narrow-v0.12.7) - 2025-03-13
+
+### Other
+
+- *(deps)* bump quote from 1.0.39 to 1.0.40 ([#359](https://github.com/mbrobbel/narrow/pull/359))
+
 ## [0.12.6](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.5...narrow-v0.12.6) - 2025-03-11
 
 ### Other
