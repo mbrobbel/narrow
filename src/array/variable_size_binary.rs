@@ -129,7 +129,7 @@ where
     where
         Self: 'a;
 
-    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> { unsafe {
         let start: usize = self
             .0
             .offsets
@@ -147,7 +147,7 @@ where
             .try_into()
             .expect("convert fail");
         &self.0.data.0.as_slice()[start..end]
-    }
+    }}
 }
 
 impl<OffsetItem: Offset, Buffer: BufferType> Index
@@ -160,7 +160,7 @@ where
     where
         Self: 'a;
 
-    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> { unsafe {
         self.0.is_valid_unchecked(index).then(|| {
             let start: usize = self
                 .0
@@ -182,7 +182,7 @@ where
                 .expect("convert fail");
             &self.0.data.0.as_slice()[start..end]
         })
-    }
+    }}
 }
 
 impl<Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> IntoIterator

@@ -21,9 +21,9 @@ pub trait ValidityBitmap: BitmapRef {
     ///
     /// Calling this method with an out-of-bounds index is undefined behavior.
     #[inline]
-    unsafe fn is_null_unchecked(&self, index: usize) -> bool {
+    unsafe fn is_null_unchecked(&self, index: usize) -> bool { unsafe {
         !self.is_valid_unchecked(index)
-    }
+    }}
 
     /// Returns the number of null elements.
     #[inline]
@@ -51,9 +51,9 @@ pub trait ValidityBitmap: BitmapRef {
     ///
     /// Calling this method with an out-of-bounds index is undefined behavior.
     #[inline]
-    unsafe fn is_valid_unchecked(&self, index: usize) -> bool {
+    unsafe fn is_valid_unchecked(&self, index: usize) -> bool { unsafe {
         self.bitmap_ref().get_unchecked(index)
-    }
+    }}
 
     /// Returns the number of valid elements.
     #[inline]

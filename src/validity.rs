@@ -179,10 +179,10 @@ where
     where
         Self: 'a;
 
-    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> { unsafe {
         self.is_valid_unchecked(index)
             .then(|| self.data.index_unchecked(index))
-    }
+    }}
 }
 
 impl<'a, T, Buffer: BufferType> IntoIterator for &'a Validity<T, Buffer>

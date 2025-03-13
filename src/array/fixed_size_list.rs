@@ -158,7 +158,7 @@ where
     where
         Self: 'a;
 
-    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> { unsafe {
         // Following https://doc.rust-lang.org/std/mem/union.MaybeUninit.html#initializing-an-array-element-by-element
         let data = {
             let mut data: [MaybeUninit<_>; N] = MaybeUninit::uninit().assume_init();
@@ -173,7 +173,7 @@ where
             mem::transmute_copy(&ManuallyDrop::new(data))
         };
         data
-    }
+    }}
 }
 
 impl<const N: usize, T: Array, Buffer: BufferType> Index
@@ -186,7 +186,7 @@ where
     where
         Self: 'a;
 
-    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> { unsafe {
         self.is_valid_unchecked(index).then(|| {
             // Following https://doc.rust-lang.org/std/mem/union.MaybeUninit.html#initializing-an-array-element-by-element
             let data = {
@@ -204,7 +204,7 @@ where
             };
             data
         })
-    }
+    }}
 }
 
 /// An iterator over fixed-size lists in a [`FixedSizeListArray`].

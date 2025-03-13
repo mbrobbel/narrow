@@ -110,9 +110,9 @@ where
     where
         Self: 'a;
 
-    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> { unsafe {
         self.0.index_unchecked(index)
-    }
+    }}
 }
 
 impl<T: Array, Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> Length

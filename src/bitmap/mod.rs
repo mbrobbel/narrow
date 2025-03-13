@@ -101,10 +101,10 @@ impl<Buffer: BufferType> Bitmap<Buffer> {
     ///
     /// Caller must ensure index is within bounds.
     #[inline]
-    pub unsafe fn get_unchecked(&self, index: usize) -> bool {
+    pub unsafe fn get_unchecked(&self, index: usize) -> bool { unsafe {
         self.buffer.as_slice().get_unchecked(self.byte_index(index)) & (1 << self.bit_index(index))
             != 0
-    }
+    }}
 
     /// Returns the number of leading padding bits in the first byte(s) of the
     /// buffer that contain no meaningful bits. These bits should be ignored
@@ -270,9 +270,9 @@ impl<Buffer: BufferType> Index for Bitmap<Buffer> {
     where
         Self: 'a;
 
-    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> { unsafe {
         self.get_unchecked(index)
-    }
+    }}
 }
 
 impl<Buffer: BufferType> ops::Index<usize> for Bitmap<Buffer> {
