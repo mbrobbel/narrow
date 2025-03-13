@@ -2,11 +2,11 @@
 
 use super::{Array, ArrayType};
 use crate::{
+    Index, Length,
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
     nullability::{NonNullable, Nullability, Nullable},
     validity::Validity,
-    Index, Length,
 };
 use std::{
     iter::{self, Repeat, Take},
@@ -108,9 +108,9 @@ where
     where
         Self: 'a;
 
-    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> { unsafe {
         self.0.index_unchecked(index)
-    }
+    }}
 }
 
 impl<T: Unit, Nullable: Nullability, Buffer: BufferType> Length for NullArray<T, Nullable, Buffer>

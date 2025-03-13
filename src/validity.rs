@@ -1,9 +1,9 @@
 //! Nullable data.
 
 use crate::{
+    FixedSize, Index, Length,
     bitmap::{Bitmap, BitmapIntoIter, BitmapIter, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{self, BufferMut, BufferRef, BufferRefMut, BufferType, VecBuffer},
-    FixedSize, Index, Length,
 };
 use std::{
     borrow::Borrow,
@@ -179,10 +179,10 @@ where
     where
         Self: 'a;
 
-    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> { unsafe {
         self.is_valid_unchecked(index)
             .then(|| self.data.index_unchecked(index))
-    }
+    }}
 }
 
 impl<'a, T, Buffer: BufferType> IntoIterator for &'a Validity<T, Buffer>

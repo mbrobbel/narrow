@@ -2,11 +2,11 @@
 
 use super::Array;
 use crate::{
+    FixedSize, Index, Length,
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{Buffer, BufferType, VecBuffer},
     nullability::{NonNullable, Nullability, Nullable},
     validity::Validity,
-    FixedSize, Index, Length,
 };
 use std::{
     fmt::{Debug, Formatter, Result},
@@ -164,9 +164,9 @@ where
     where
         Self: 'a;
 
-    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> { unsafe {
         self.0.index_unchecked(index)
-    }
+    }}
 }
 
 impl<'a, T: FixedSize, Nullable: Nullability, Buffer: BufferType> IntoIterator

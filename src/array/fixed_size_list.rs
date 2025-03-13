@@ -6,11 +6,11 @@ use std::{
 };
 
 use crate::{
+    Index, Length,
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferMut, BufferType, VecBuffer},
     nullability::{NonNullable, Nullability, Nullable},
     validity::Validity,
-    Index, Length,
 };
 
 use super::Array;
@@ -158,7 +158,7 @@ where
     where
         Self: 'a;
 
-    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> { unsafe {
         // Following https://doc.rust-lang.org/std/mem/union.MaybeUninit.html#initializing-an-array-element-by-element
         let data = {
             let mut data: [MaybeUninit<_>; N] = MaybeUninit::uninit().assume_init();
@@ -173,7 +173,7 @@ where
             mem::transmute_copy(&ManuallyDrop::new(data))
         };
         data
-    }
+    }}
 }
 
 impl<const N: usize, T: Array, Buffer: BufferType> Index
@@ -186,7 +186,7 @@ where
     where
         Self: 'a;
 
-    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> { unsafe {
         self.is_valid_unchecked(index).then(|| {
             // Following https://doc.rust-lang.org/std/mem/union.MaybeUninit.html#initializing-an-array-element-by-element
             let data = {
@@ -204,7 +204,7 @@ where
             };
             data
         })
-    }
+    }}
 }
 
 /// An iterator over fixed-size lists in a [`FixedSizeListArray`].
@@ -693,7 +693,7 @@ mod tests {
             .into_iter()
             .collect::<FixedSizeListArray<3, FixedSizeListArray<2, FixedSizePrimitiveArray<u8>>>>();
 
-        assert_eq!(array_nested.0 .0 .0, [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0]);
+        assert_eq!(array_nested.0.0.0, [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0]);
         assert_eq!(
             array_nested.into_iter().collect::<Vec<_>>(),
             [[[1, 2], [3, 4], [5, 6]], [[7, 8], [9, 0], [0, 0]]]
