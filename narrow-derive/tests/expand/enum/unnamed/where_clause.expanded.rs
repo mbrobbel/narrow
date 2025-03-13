@@ -194,6 +194,27 @@ impl<
     T: narrow::array::ArrayType,
     Buffer: narrow::buffer::BufferType,
     OffsetItem: narrow::offset::Offset,
+> narrow::array::union::DenseOffset
+for FooBarArray<T, Buffer, OffsetItem, narrow::array::DenseLayout>
+where
+    T: Default,
+    FooBar<T>: Clone,
+{
+    fn variant_len(&self, type_id: i8) -> usize {
+        match type_id {
+            0 => self.0.len(),
+            1 => self.1.len(),
+            2 => self.2.len(),
+            _ => {
+                ::core::panicking::panic_fmt(format_args!("bad type id"));
+            }
+        }
+    }
+}
+impl<
+    T: narrow::array::ArrayType,
+    Buffer: narrow::buffer::BufferType,
+    OffsetItem: narrow::offset::Offset,
 > ::std::iter::Extend<FooBar<T>>
 for FooBarArray<T, Buffer, OffsetItem, narrow::array::DenseLayout>
 where
