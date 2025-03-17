@@ -793,7 +793,7 @@ impl<'a> Enum<'a> {
         let fields = self.variants.iter().enumerate().map(|(idx, _variant)| {
             let idx = Literal::usize_unsuffixed(idx);
             quote! {
-                #idx => { self.#idx.len() }
+                #idx => { #narrow::Length::len(&self.#idx) }
             }
         });
 
