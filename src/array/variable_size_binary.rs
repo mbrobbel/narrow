@@ -129,25 +129,21 @@ where
     where
         Self: 'a;
 
-    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> { unsafe {
-        let start: usize = self
-            .0
-            .offsets
-            .as_slice()
-            .index_unchecked(index)
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        // SAFETY:
+        // Forwarding unsafe call
+        let start: usize = unsafe { self.0.offsets.as_slice().index_unchecked(index) }
             .to_owned()
             .try_into()
             .expect("convert fail");
-        let end: usize = self
-            .0
-            .offsets
-            .as_slice()
-            .index_unchecked(index + 1)
+        // SAFETY:
+        // Forwarding unsafe call
+        let end: usize = unsafe { self.0.offsets.as_slice().index_unchecked(index + 1) }
             .to_owned()
             .try_into()
             .expect("convert fail");
         &self.0.data.0.as_slice()[start..end]
-    }}
+    }
 }
 
 impl<OffsetItem: Offset, Buffer: BufferType> Index
@@ -160,29 +156,25 @@ where
     where
         Self: 'a;
 
-    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> { unsafe {
-        self.0.is_valid_unchecked(index).then(|| {
-            let start: usize = self
-                .0
-                .offsets
-                .data
-                .as_slice()
-                .index_unchecked(index)
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        // SAFETY:
+        // Forwarding unsafe call
+        unsafe { self.0.is_valid_unchecked(index) }.then(|| {
+            // SAFETY:
+            // Forwarding unsafe call
+            let start: usize = unsafe { self.0.offsets.data.as_slice().index_unchecked(index) }
                 .to_owned()
                 .try_into()
                 .expect("convert fail");
-            let end: usize = self
-                .0
-                .offsets
-                .data
-                .as_slice()
-                .index_unchecked(index + 1)
+            // SAFETY:
+            // Forwarding unsafe call
+            let end: usize = unsafe { self.0.offsets.data.as_slice().index_unchecked(index + 1) }
                 .to_owned()
                 .try_into()
                 .expect("convert fail");
             &self.0.data.0.as_slice()[start..end]
         })
-    }}
+    }
 }
 
 impl<Nullable: Nullability, OffsetItem: Offset, Buffer: BufferType> IntoIterator

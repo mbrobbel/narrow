@@ -182,9 +182,14 @@ impl<OffsetItem: Offset, Buffer: BufferType> Index
     where
         Self: 'a;
 
-    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> { unsafe {
-        str::from_utf8_unchecked(self.0.index_unchecked(index))
-    }}
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        // SAFETY:
+        // Forwarding unsafe call
+        let bytes = unsafe { self.0.index_unchecked(index) };
+        // SAFETY:
+        // Forwarding unsafe call
+        unsafe { str::from_utf8_unchecked(bytes) }
+    }
 }
 
 impl<OffsetItem: Offset, Buffer: BufferType> Index for StringArray<Nullable, OffsetItem, Buffer> {
@@ -193,11 +198,15 @@ impl<OffsetItem: Offset, Buffer: BufferType> Index for StringArray<Nullable, Off
     where
         Self: 'a;
 
-    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> { unsafe {
-        self.0
-            .index_unchecked(index)
-            .map(|bytes| str::from_utf8_unchecked(bytes))
-    }}
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        // SAFETY:
+        // Forwarding unsafe call
+        let opt = unsafe { self.0.index_unchecked(index) };
+        opt.map(|bytes|
+            // SAFETY:
+            // Forwarding unsafe call
+            unsafe { str::from_utf8_unchecked(bytes)})
+    }
 }
 
 /// An iterator over strings in a [`StringArray`].

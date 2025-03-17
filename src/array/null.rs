@@ -108,9 +108,11 @@ where
     where
         Self: 'a;
 
-    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> { unsafe {
-        self.0.index_unchecked(index)
-    }}
+    unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
+        // SAFETY:
+        // Forwarding unsafe call
+        unsafe { self.0.index_unchecked(index) }
+    }
 }
 
 impl<T: Unit, Nullable: Nullability, Buffer: BufferType> Length for NullArray<T, Nullable, Buffer>
