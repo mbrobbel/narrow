@@ -36,7 +36,7 @@ jobs:
       deployments: write
       contents: write
     steps:
-      - uses: actions/download-artifact@v4.1.9
+      - uses: actions/download-artifact@v4.2.0
         with:
           name: benchmark-results
       - uses: benchmark-action/github-action-benchmark@v1
