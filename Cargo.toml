@@ -46,8 +46,8 @@ uuid = ["dep:uuid", "arrow-schema?/canonical_extension_types"]
 
 [dependencies]
 arrow-array = { version = "54.2.0", default-features = false, optional = true }
-arrow-buffer = { version = "54.2.1", default-features = false, optional = true }
-arrow-schema = { version = "54.2.1", default-features = false, optional = true }
+arrow-buffer = { version = "54.3.0", default-features = false, optional = true }
+arrow-schema = { version = "54.3.0", default-features = false, optional = true }
 chrono = { version = "0.4.40", default-features = false, optional = true }
 narrow-derive = { path = "narrow-derive", version = "0.12.9", optional = true }
 uuid = { version = "1.16.0", default-features = false, optional = true }
