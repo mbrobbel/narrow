@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.10](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.9...narrow-v0.12.10) - 2025-03-22
+
+### Other
+
+- *(deps)* bump the arrow group with 2 updates ([#370](https://github.com/mbrobbel/narrow/pull/370))
+- *(deps)* bump actions/download-artifact from 4.2.0 to 4.2.1 ([#369](https://github.com/mbrobbel/narrow/pull/369))
+- *(deps)* bump actions/download-artifact from 4.1.9 to 4.2.0 ([#368](https://github.com/mbrobbel/narrow/pull/368))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.99 to 0.5.100 ([#366](https://github.com/mbrobbel/narrow/pull/366))
+
 ## [0.12.9](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.8...narrow-v0.12.9) - 2025-03-17
 
 ### Fixed
