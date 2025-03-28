@@ -1,12 +1,12 @@
 //!Array with variable-size list elements.
 
 use crate::{
+    Index, Length,
     array::Array,
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
     nullability::{NonNullable, Nullability, Nullable},
     offset::{Offset, Offsets},
-    Index, Length,
 };
 use std::fmt::{Debug, Formatter, Result};
 
@@ -111,7 +111,9 @@ where
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.0.index_unchecked(index)
+        // SAFETY:
+        // Forwarding unsafe call
+        unsafe { self.0.index_unchecked(index) }
     }
 }
 

@@ -1,8 +1,8 @@
 //! A collection of bits.
 
 use crate::{
-    buffer::{Buffer, BufferMut, BufferRef, BufferRefMut, BufferType, VecBuffer},
     Index, Length,
+    buffer::{Buffer, BufferMut, BufferRef, BufferRefMut, BufferType, VecBuffer},
 };
 use std::{
     any,
@@ -102,8 +102,13 @@ impl<Buffer: BufferType> Bitmap<Buffer> {
     /// Caller must ensure index is within bounds.
     #[inline]
     pub unsafe fn get_unchecked(&self, index: usize) -> bool {
-        self.buffer.as_slice().get_unchecked(self.byte_index(index)) & (1 << self.bit_index(index))
-            != 0
+        // SAFETY:
+        // Forwarding unsafe call
+        unsafe {
+            self.buffer.as_slice().get_unchecked(self.byte_index(index))
+                & (1 << self.bit_index(index))
+                != 0
+        }
     }
 
     /// Returns the number of leading padding bits in the first byte(s) of the
@@ -271,7 +276,9 @@ impl<Buffer: BufferType> Index for Bitmap<Buffer> {
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.get_unchecked(index)
+        // SAFETY:
+        // Forwarding unsafe call
+        unsafe { self.get_unchecked(index) }
     }
 }
 

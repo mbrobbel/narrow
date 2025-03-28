@@ -1,9 +1,9 @@
 //! Nullable data.
 
 use crate::{
+    FixedSize, Index, Length,
     bitmap::{Bitmap, BitmapIntoIter, BitmapIter, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{self, BufferMut, BufferRef, BufferRefMut, BufferType, VecBuffer},
-    FixedSize, Index, Length,
 };
 use std::{
     borrow::Borrow,
@@ -180,8 +180,12 @@ where
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.is_valid_unchecked(index)
-            .then(|| self.data.index_unchecked(index))
+        // SAFETY:
+        // Forwarding unsafe call
+        unsafe { self.is_valid_unchecked(index) }.then(||
+            // SAFETY:
+            // Forwarding unsafe call
+            unsafe { self.data.index_unchecked(index) })
     }
 }
 
