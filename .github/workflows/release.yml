@@ -16,7 +16,7 @@ jobs:
     environment:
       name: crates-io
     steps:
-      - uses: actions/create-github-app-token@v1
+      - uses: actions/create-github-app-token@v2
         id: token
         with:
           app-id: ${{ secrets.APP_ID }}
@@ -40,7 +40,7 @@ jobs:
       group: release-${{ github.ref }}
       cancel-in-progress: false
     steps:
-      - uses: actions/create-github-app-token@v1
+      - uses: actions/create-github-app-token@v2
         id: token
         with:
           app-id: ${{ secrets.APP_ID }}
