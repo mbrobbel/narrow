@@ -3,7 +3,7 @@ mod tests {
     mod derive {
         mod r#enum {
             mod unit {
-                use narrow::{array::UnionArray, ArrayType, Length};
+                use narrow::{ArrayType, Length, array::UnionArray};
 
                 #[derive(ArrayType, Clone, Copy)]
                 enum FooBar {
@@ -28,8 +28,8 @@ mod tests {
             }
             mod unnamed {
                 use narrow::{
-                    array::{DenseLayout, SparseLayout, UnionArray},
                     ArrayType, Length,
+                    array::{DenseLayout, SparseLayout, UnionArray},
                 };
 
                 #[derive(ArrayType, Clone, Copy)]
@@ -54,8 +54,8 @@ mod tests {
             }
             mod named {
                 use narrow::{
-                    array::{DenseLayout, SparseLayout, UnionArray},
                     ArrayType, Length,
+                    array::{DenseLayout, SparseLayout, UnionArray},
                 };
 
                 #[derive(ArrayType, Clone, Copy)]
@@ -82,10 +82,10 @@ mod tests {
         mod r#struct {
             mod unit {
                 use narrow::{
+                    ArrayType, Length, NonNullable, Nullable,
                     array::{StructArray, VariableSizeListArray},
                     bitmap::ValidityBitmap,
                     buffer::BoxBuffer,
-                    ArrayType, Length, NonNullable, Nullable,
                 };
 
                 #[derive(ArrayType, Copy, Clone, Default)]
@@ -144,9 +144,9 @@ mod tests {
 
             mod unnamed {
                 use narrow::{
+                    ArrayType, Length, Nullable,
                     array::{StructArray, VariableSizeListArray},
                     bitmap::ValidityBitmap,
-                    ArrayType, Length, Nullable,
                 };
 
                 #[derive(ArrayType, Default)]
@@ -163,10 +163,10 @@ mod tests {
                     let input = [Foo(1, 2, "as"), Foo(3, 4, "df")];
                     let array = input.into_iter().collect::<StructArray<Foo>>();
                     assert_eq!(array.len(), 2);
-                    assert_eq!(array.0 .0 .0, &[1, 3]);
-                    assert_eq!(array.0 .1 .0, &[2, 4]);
-                    assert_eq!(array.0 .2 .0 .0.data.0.as_slice(), b"asdf");
-                    assert_eq!(array.0 .2 .0 .0.offsets.as_slice(), &[0, 2, 4]);
+                    assert_eq!(array.0.0.0, &[1, 3]);
+                    assert_eq!(array.0.1.0, &[2, 4]);
+                    assert_eq!(array.0.2.0.0.data.0.as_slice(), b"asdf");
+                    assert_eq!(array.0.2.0.0.offsets.as_slice(), &[0, 2, 4]);
 
                     let input = [
                         Bar(Foo(1, 2, "hello")),
@@ -218,9 +218,9 @@ mod tests {
 
             mod named {
                 use narrow::{
+                    ArrayType, Length, Nullable,
                     array::{StructArray, VariableSizeListArray},
                     bitmap::{BitmapRef, ValidityBitmap},
-                    ArrayType, Length, Nullable,
                 };
 
                 #[derive(ArrayType)]
@@ -278,10 +278,10 @@ mod tests {
                     assert_eq!(array.len(), 2);
                     assert_eq!(array.0.c.0, &[4, 2]);
                     assert_eq!(
-                        array.0.d.0.data.0 .0.data.0.as_slice(),
+                        array.0.d.0.data.0.0.data.0.as_slice(),
                         "helloworld".as_bytes()
                     );
-                    assert_eq!(array.0.d.0.data.0 .0.offsets, &[0, 5, 10]);
+                    assert_eq!(array.0.d.0.data.0.0.offsets, &[0, 5, 10]);
                     assert_eq!(
                         array.0.d.0.bitmap_ref().into_iter().collect::<Vec<_>>(),
                         [true, false]

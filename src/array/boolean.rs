@@ -2,11 +2,11 @@
 
 use super::Array;
 use crate::{
+    Index, Length,
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferRef, BufferRefMut, BufferType, VecBuffer},
     nullability::{NonNullable, Nullability, Nullable},
     validity::Validity,
-    Index, Length,
 };
 use std::fmt::{Debug, Formatter, Result};
 
@@ -120,7 +120,9 @@ where
         Self: 'a;
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
-        self.0.index_unchecked(index)
+        // SAFETY:
+        // Forwarding unsafe call
+        unsafe { self.0.index_unchecked(index) }
     }
 }
 

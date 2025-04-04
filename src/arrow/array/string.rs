@@ -82,8 +82,8 @@ where
         arrow_array::GenericStringArray::new(
             // Safety:
             // - The narrow offfset buffer contains valid offset data
-            unsafe { OffsetBuffer::new_unchecked(value.0 .0.offsets.into()) },
-            value.0 .0.data.into().into_inner(),
+            unsafe { OffsetBuffer::new_unchecked(value.0.0.offsets.into()) },
+            value.0.0.data.into().into_inner(),
             None,
         )
     }
@@ -100,9 +100,9 @@ where
         arrow_array::GenericStringArray::new(
             // Safety:
             // - The narrow offfset buffer contains valid offset data
-            unsafe { OffsetBuffer::new_unchecked(value.0 .0.offsets.data.into()) },
-            value.0 .0.data.into().into_inner(),
-            Some(value.0 .0.offsets.validity.into()),
+            unsafe { OffsetBuffer::new_unchecked(value.0.0.offsets.data.into()) },
+            value.0.0.data.into().into_inner(),
+            Some(value.0.0.offsets.validity.into()),
         )
     }
 }
@@ -159,7 +159,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{array::StringArray, bitmap::ValidityBitmap, NonNullable, Nullable};
+    use crate::{NonNullable, Nullable, array::StringArray, bitmap::ValidityBitmap};
 
     const INPUT: [&str; 3] = ["hello", "world", "!"];
     const INPUT_NULLABLE: [Option<&str>; 3] = [Some("hello"), None, Some("!")];

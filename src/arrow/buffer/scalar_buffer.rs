@@ -1,8 +1,8 @@
 //! Interop with [`arrow-rs`] scalar buffer.
 
 use crate::{
-    buffer::{Buffer, BufferType},
     FixedSize, Index, Length,
+    buffer::{Buffer, BufferType},
 };
 
 /// A [`BufferType`] implementation for [`ScalarBuffer`].

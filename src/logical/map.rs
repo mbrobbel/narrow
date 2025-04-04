@@ -6,10 +6,10 @@ use std::{
 };
 
 use crate::{
+    NonNullable, Nullable,
     array::{self, SparseLayout, UnionType},
     buffer::BufferType,
     offset::Offset,
-    NonNullable, Nullable,
 };
 
 use super::{LogicalArray, LogicalArrayType};
