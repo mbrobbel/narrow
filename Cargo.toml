@@ -45,15 +45,15 @@ map = ["derive"]
 uuid = ["dep:uuid", "arrow-schema?/canonical_extension_types"]
 
 [dependencies]
-arrow-array = { version = "54.3.1", default-features = false, optional = true }
-arrow-buffer = { version = "54.3.0", default-features = false, optional = true }
-arrow-schema = { version = "54.3.0", default-features = false, optional = true }
+arrow-array = { version = "55.0.0", default-features = false, optional = true }
+arrow-buffer = { version = "55.0.0", default-features = false, optional = true }
+arrow-schema = { version = "55.0.0", default-features = false, optional = true }
 chrono = { version = "0.4.40", default-features = false, optional = true }
 narrow-derive = { path = "narrow-derive", version = "0.12.12", optional = true }
 uuid = { version = "1.16.0", default-features = false, optional = true }
 
 [dev-dependencies]
-arrow-cast = { version = "54.3.1", default-features = false, features = [
+arrow-cast = { version = "55.0.0", default-features = false, features = [
     "prettyprint",
 ] }
 bytes = "1.10.1"
@@ -63,7 +63,7 @@ criterion = { version = "0.5.1", default-features = false, features = [
 ] }
 rand = { version = "0.9.0", default-features = false, features = ["small_rng"] }
 rustversion = { version = "1.0.20", default-features = false }
-parquet = { version = "54.3.1", default-features = false, features = ["arrow"] }
+parquet = { version = "55.0.0", default-features = false, features = ["arrow"] }
 uuid = { version = "1.16.0", default-features = false }
 num-traits = { version = "0.2.19" }
 
