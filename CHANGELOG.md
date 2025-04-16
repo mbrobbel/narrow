@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.12...narrow-v0.13.0) - 2025-04-16
+
+### Other
+
+- [**breaking**] rust edition 2024 and msrv 1.85.1 ([#337](https://github.com/mbrobbel/narrow/pull/337))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.103 to 0.5.104 ([#384](https://github.com/mbrobbel/narrow/pull/384))
+- *(deps)* [**breaking**] bump `arrow` and `parquet` to `55` ([#383](https://github.com/mbrobbel/narrow/pull/383))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.102 to 0.5.103 ([#381](https://github.com/mbrobbel/narrow/pull/381))
+- *(deps)* bump actions/create-github-app-token from 1 to 2 ([#380](https://github.com/mbrobbel/narrow/pull/380))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.101 to 0.5.102 ([#379](https://github.com/mbrobbel/narrow/pull/379))
+- *(deps)* bump the arrow group with 5 updates ([#377](https://github.com/mbrobbel/narrow/pull/377))
+- *(deps)* bump once_cell from 1.21.2 to 1.21.3 ([#376](https://github.com/mbrobbel/narrow/pull/376))
+
 ## [0.12.12](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.11...narrow-v0.12.12) - 2025-03-28
 
 ### Other
