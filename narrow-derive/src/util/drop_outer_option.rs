@@ -1,6 +1,6 @@
 use syn::{
-    visit_mut::VisitMut, AngleBracketedGenericArguments, GenericArgument, PathArguments, Type,
-    TypePath,
+    AngleBracketedGenericArguments, GenericArgument, PathArguments, Type, TypePath,
+    visit_mut::VisitMut,
 };
 
 /// Adds the owned type param to all type parameters.

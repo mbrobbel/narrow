@@ -3,10 +3,10 @@
 use std::sync::Arc;
 
 use crate::{
+    Length,
     array::{NullArray, Nulls, Unit},
     buffer::BufferType,
     nullability::{NonNullable, Nullability},
-    Length,
 };
 use arrow_array::Array;
 use arrow_schema::{DataType, Field};
@@ -73,7 +73,7 @@ mod tests {
     #[cfg(feature = "derive")]
     fn derive() {
         use crate::array::StructArray;
-        use arrow_array::{cast::AsArray, Array};
+        use arrow_array::{Array, cast::AsArray};
         use std::sync::Arc;
 
         #[derive(crate::ArrayType, Copy, Clone, Debug, Default)]
@@ -94,12 +94,14 @@ mod tests {
             .into_iter()
             .collect::<StructArray<NestedUnit>>();
         let arrow_array_nested = arrow_array::StructArray::from(array_nested);
-        assert!(arrow_array_nested
-            .column(0)
-            .as_struct()
-            .column(0)
-            .data_type()
-            .is_null());
+        assert!(
+            arrow_array_nested
+                .column(0)
+                .as_struct()
+                .column(0)
+                .data_type()
+                .is_null()
+        );
         assert_eq!(arrow_array_nested.len(), 4);
         let inner_unit = Arc::clone(arrow_array_nested.column(0).as_struct().column(0));
         let narrow_array_inner = NullArray::<Unit>::from(inner_unit);

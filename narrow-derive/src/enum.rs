@@ -2,9 +2,9 @@ use proc_macro2::{Literal, TokenStream};
 use quote::{format_ident, quote};
 use std::iter;
 use syn::{
-    parse2, parse_quote, punctuated::Punctuated, token, visit_mut::VisitMut, DeriveInput, Field,
-    Fields, Generics, Ident, Index, ItemImpl, ItemStruct, Token, Type, TypeParamBound, Variant,
-    Visibility, WhereClause, WherePredicate,
+    DeriveInput, Field, Fields, Generics, Ident, Index, ItemImpl, ItemStruct, Token, Type,
+    TypeParamBound, Variant, Visibility, WhereClause, WherePredicate, parse_quote, parse2,
+    punctuated::Punctuated, token, visit_mut::VisitMut,
 };
 
 use crate::util::{self, AddTypeParam, AddTypeParamBound, SelfReplace};
@@ -1194,12 +1194,13 @@ impl<'a> Enum<'a> {
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
         let len = Literal::usize_unsuffixed(self.variants.len());
         let pops = (0..self.variants.len()).map(|_| {
-            quote!(iter
-                .next()
-                .expect(&format!(
-                    "not enough variant data arrays, expected {VARIANTS}"
-                ))
-                .into())
+            quote!(
+                iter.next()
+                    .expect(&format!(
+                        "not enough variant data arrays, expected {VARIANTS}"
+                    ))
+                    .into()
+            )
         });
         let tokens = quote! {
             impl #impl_generics ::std::iter::FromIterator<::std::sync::Arc<dyn #narrow::arrow_array::Array>> for #ident #ty_generics #where_clause {

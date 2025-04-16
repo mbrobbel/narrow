@@ -6,12 +6,12 @@ use arrow_buffer::NullBuffer;
 use arrow_schema::{DataType, Field};
 
 use crate::{
+    Length,
     array::{Array, FixedSizeListArray},
     bitmap::Bitmap,
     buffer::BufferType,
     nullability::{NonNullable, Nullability, Nullable},
     validity::Validity,
-    Length,
 };
 
 impl<const N: usize, T: crate::arrow::Array, Nullable: Nullability, Buffer: BufferType>
@@ -229,13 +229,15 @@ mod tests {
                     .map(Option::Some),
                 2,
             );
-        assert!(!FixedSizeListArray::<
-            2,
-            Uint32Array<NonNullable, crate::arrow::buffer::ScalarBuffer>,
-            Nullable,
-            crate::arrow::buffer::ScalarBuffer,
-        >::from(fixed_size_list_array)
-        .any_null());
+        assert!(
+            !FixedSizeListArray::<
+                2,
+                Uint32Array<NonNullable, crate::arrow::buffer::ScalarBuffer>,
+                Nullable,
+                crate::arrow::buffer::ScalarBuffer,
+            >::from(fixed_size_list_array)
+            .any_null()
+        );
     }
 
     #[test]

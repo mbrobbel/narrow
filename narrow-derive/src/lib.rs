@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 use proc_macro::TokenStream;
 use proc_macro_crate::FoundCrate;
-use syn::{parse_macro_input, DataEnum, DataStruct, DataUnion, DeriveInput};
+use syn::{DataEnum, DataStruct, DataUnion, DeriveInput, parse_macro_input};
 
 mod r#enum;
 mod r#struct;

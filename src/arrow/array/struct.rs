@@ -6,12 +6,12 @@ use arrow_buffer::NullBuffer;
 use arrow_schema::{DataType, Field, Fields};
 
 use crate::{
+    Length,
     array::{StructArray, StructArrayType},
     bitmap::Bitmap,
     buffer::BufferType,
     nullability::{NonNullable, Nullability, Nullable},
     validity::Validity,
-    Length,
 };
 
 /// Arrow schema interop trait for the fields of a struct array type.
@@ -190,10 +190,10 @@ where
 #[cfg(test)]
 mod tests {
 
-    use arrow_array::{cast::AsArray as _, types::UInt32Type, Array as _};
+    use arrow_array::{Array as _, cast::AsArray as _, types::UInt32Type};
 
     use crate::{
-        array::{union::UnionType, ArrayType, ArrayTypeOf},
+        array::{ArrayType, ArrayTypeOf, union::UnionType},
         arrow::buffer::{BufferBuilder, ScalarBuffer},
         bitmap::ValidityBitmap,
         buffer::Buffer as _,

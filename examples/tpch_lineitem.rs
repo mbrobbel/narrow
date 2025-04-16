@@ -1,17 +1,17 @@
 use arrow_array::{
+    Array, RecordBatch,
     builder::{
         FixedSizeListBuilder, Float64Builder, Int64Builder, StringBuilder,
         TimestampNanosecondBuilder, UInt8Builder,
     },
-    Array, RecordBatch,
 };
 use chrono::{DateTime, Utc};
 use narrow::{
+    ArrayType,
     array::StructArray,
     arrow_schema::{DataType, Field, TimeUnit},
-    ArrayType,
 };
-use rand::{prelude::SmallRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, prelude::SmallRng};
 use std::sync::Arc;
 
 #[derive(ArrayType, Clone, Debug)]

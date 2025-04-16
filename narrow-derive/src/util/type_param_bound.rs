@@ -1,4 +1,4 @@
-use syn::{parse_quote, visit_mut::VisitMut, TypeParam, TypeParamBound};
+use syn::{TypeParam, TypeParamBound, parse_quote, visit_mut::VisitMut};
 
 /// Adds the owned type param bound to all type parameters.
 pub struct AddTypeParamBound(pub TypeParamBound);

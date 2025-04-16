@@ -1,8 +1,8 @@
 //! A collection of bits.
 
 use crate::{
-    buffer::{Buffer, BufferMut, BufferRef, BufferRefMut, BufferType, VecBuffer},
     Index, Length,
+    buffer::{Buffer, BufferMut, BufferRef, BufferRefMut, BufferType, VecBuffer},
 };
 use std::{
     any,

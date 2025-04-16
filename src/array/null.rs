@@ -2,11 +2,11 @@
 
 use super::{Array, ArrayType};
 use crate::{
+    Index, Length,
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
     nullability::{NonNullable, Nullability, Nullable},
     validity::Validity,
-    Index, Length,
 };
 use std::{
     iter::{self, Repeat, Take},

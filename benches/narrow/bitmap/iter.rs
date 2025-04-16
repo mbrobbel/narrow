@@ -1,6 +1,6 @@
 use criterion::{BenchmarkId, Criterion, Throughput};
 use narrow::{bitmap::Bitmap, buffer::BoxBuffer};
-use rand::{prelude::SmallRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, prelude::SmallRng};
 use std::time::Duration;
 
 pub(super) fn bench(c: &mut Criterion) {

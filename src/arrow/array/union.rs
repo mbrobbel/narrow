@@ -5,13 +5,13 @@ use std::sync::Arc;
 use arrow_schema::{DataType, Field, Fields, UnionMode};
 
 use crate::{
+    NonNullable,
     array::{
         DenseLayout, DenseUnionArray, FixedSizePrimitiveArray, SparseLayout, SparseUnionArray,
         UnionArray, UnionArrayType, UnionType,
     },
     buffer::BufferType,
     offset::Offset,
-    NonNullable,
 };
 
 /// Mapping between [`UnionType`] and [`UnionMode`].
@@ -37,12 +37,12 @@ pub trait UnionArrayTypeFields<const VARIANTS: usize> {
 }
 
 impl<
-        T: UnionArrayType<VARIANTS>,
-        const VARIANTS: usize,
-        UnionLayout: UnionLayoutExt,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-    > crate::arrow::Array for UnionArray<T, VARIANTS, UnionLayout, Buffer, OffsetItem>
+    T: UnionArrayType<VARIANTS>,
+    const VARIANTS: usize,
+    UnionLayout: UnionLayoutExt,
+    Buffer: BufferType,
+    OffsetItem: Offset,
+> crate::arrow::Array for UnionArray<T, VARIANTS, UnionLayout, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
     <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, UnionLayout>:
@@ -70,12 +70,8 @@ where
     }
 }
 
-impl<
-        T: UnionArrayType<VARIANTS>,
-        const VARIANTS: usize,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-    > From<UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>> for arrow_array::UnionArray
+impl<T: UnionArrayType<VARIANTS>, const VARIANTS: usize, Buffer: BufferType, OffsetItem: Offset>
+    From<UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>> for arrow_array::UnionArray
 where
     for<'a> i8: From<&'a T>,
     <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, SparseLayout>:
@@ -101,13 +97,8 @@ where
     }
 }
 
-impl<
-        T: UnionArrayType<VARIANTS>,
-        const VARIANTS: usize,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-    > From<UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>>
-    for Arc<dyn arrow_array::Array>
+impl<T: UnionArrayType<VARIANTS>, const VARIANTS: usize, Buffer: BufferType, OffsetItem: Offset>
+    From<UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>> for Arc<dyn arrow_array::Array>
 where
     for<'a> i8: From<&'a T>,
     <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, SparseLayout>:
@@ -120,12 +111,8 @@ where
     }
 }
 
-impl<
-        T: UnionArrayType<VARIANTS>,
-        const VARIANTS: usize,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-    > From<UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>> for arrow_array::UnionArray
+impl<T: UnionArrayType<VARIANTS>, const VARIANTS: usize, Buffer: BufferType, OffsetItem: Offset>
+    From<UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>> for arrow_array::UnionArray
 where
     for<'a> i8: From<&'a T>,
     <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, DenseLayout>:
@@ -152,12 +139,8 @@ where
     }
 }
 
-impl<
-        T: UnionArrayType<VARIANTS>,
-        const VARIANTS: usize,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-    > From<UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>> for Arc<dyn arrow_array::Array>
+impl<T: UnionArrayType<VARIANTS>, const VARIANTS: usize, Buffer: BufferType, OffsetItem: Offset>
+    From<UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>> for Arc<dyn arrow_array::Array>
 where
     for<'a> i8: From<&'a T>,
     <T as UnionArrayType<VARIANTS>>::Array<Buffer, OffsetItem, DenseLayout>:
@@ -171,12 +154,8 @@ where
     }
 }
 
-impl<
-        T: UnionArrayType<VARIANTS>,
-        const VARIANTS: usize,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-    > From<arrow_array::UnionArray> for UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>
+impl<T: UnionArrayType<VARIANTS>, const VARIANTS: usize, Buffer: BufferType, OffsetItem: Offset>
+    From<arrow_array::UnionArray> for UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
     FixedSizePrimitiveArray<i8, NonNullable, Buffer>: From<arrow_buffer::ScalarBuffer<i8>>,
@@ -195,13 +174,8 @@ where
     }
 }
 
-impl<
-        T: UnionArrayType<VARIANTS>,
-        const VARIANTS: usize,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-    > From<Arc<dyn arrow_array::Array>>
-    for UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>
+impl<T: UnionArrayType<VARIANTS>, const VARIANTS: usize, Buffer: BufferType, OffsetItem: Offset>
+    From<Arc<dyn arrow_array::Array>> for UnionArray<T, VARIANTS, SparseLayout, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
     FixedSizePrimitiveArray<i8, NonNullable, Buffer>: From<arrow_buffer::ScalarBuffer<i8>>,
@@ -214,12 +188,8 @@ where
     }
 }
 
-impl<
-        T: UnionArrayType<VARIANTS>,
-        const VARIANTS: usize,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-    > From<arrow_array::UnionArray> for UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>
+impl<T: UnionArrayType<VARIANTS>, const VARIANTS: usize, Buffer: BufferType, OffsetItem: Offset>
+    From<arrow_array::UnionArray> for UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
     FixedSizePrimitiveArray<i8, NonNullable, Buffer>: From<arrow_buffer::ScalarBuffer<i8>>,
@@ -240,12 +210,8 @@ where
     }
 }
 
-impl<
-        T: UnionArrayType<VARIANTS>,
-        const VARIANTS: usize,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-    > From<Arc<dyn arrow_array::Array>> for UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>
+impl<T: UnionArrayType<VARIANTS>, const VARIANTS: usize, Buffer: BufferType, OffsetItem: Offset>
+    From<Arc<dyn arrow_array::Array>> for UnionArray<T, VARIANTS, DenseLayout, Buffer, OffsetItem>
 where
     for<'a> i8: From<&'a T>,
     FixedSizePrimitiveArray<i8, NonNullable, Buffer>: From<arrow_buffer::ScalarBuffer<i8>>,
@@ -264,7 +230,7 @@ where
 mod tests {
     use arrow_array::RecordBatch;
 
-    use crate::{array::StructArray, Length};
+    use crate::{Length, array::StructArray};
 
     use super::*;
 

@@ -1,9 +1,9 @@
 //! Nullable data.
 
 use crate::{
+    FixedSize, Index, Length,
     bitmap::{Bitmap, BitmapIntoIter, BitmapIter, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{self, BufferMut, BufferRef, BufferRefMut, BufferType, VecBuffer},
-    FixedSize, Index, Length,
 };
 use std::{
     borrow::Borrow,

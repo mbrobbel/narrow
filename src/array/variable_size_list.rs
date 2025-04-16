@@ -1,12 +1,12 @@
 //!Array with variable-size list elements.
 
 use crate::{
+    Index, Length,
     array::Array,
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
     nullability::{NonNullable, Nullability, Nullable},
     offset::{Offset, Offsets},
-    Index, Length,
 };
 use std::fmt::{Debug, Formatter, Result};
 

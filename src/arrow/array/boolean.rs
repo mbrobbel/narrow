@@ -5,8 +5,8 @@ use std::sync::Arc;
 use arrow_array::Array as _;
 
 use crate::{
-    array::BooleanArray, bitmap::Bitmap, buffer::BufferType, nullability::Nullable,
-    validity::Validity, Length, NonNullable, Nullability,
+    Length, NonNullable, Nullability, array::BooleanArray, bitmap::Bitmap, buffer::BufferType,
+    nullability::Nullable, validity::Validity,
 };
 
 impl<Nullable: Nullability, Buffer: BufferType> crate::arrow::Array
@@ -113,10 +113,10 @@ impl<Buffer: BufferType> PartialEq<arrow_array::BooleanArray> for BooleanArray<N
 #[cfg(test)]
 mod tests {
     use crate::{
+        NonNullable, Nullable,
         array::BooleanArray,
         bitmap::ValidityBitmap,
         buffer::{BufferType, VecBuffer},
-        NonNullable, Nullable,
     };
 
     const INPUT: [bool; 4] = [true, true, false, true];

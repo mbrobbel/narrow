@@ -17,11 +17,11 @@ use crate::{
 };
 
 impl<
-        T: crate::arrow::Array,
-        Nullable: Nullability,
-        OffsetItem: Offset + OffsetSizeTrait,
-        Buffer: BufferType,
-    > crate::arrow::Array for VariableSizeListArray<T, Nullable, OffsetItem, Buffer>
+    T: crate::arrow::Array,
+    Nullable: Nullability,
+    OffsetItem: Offset + OffsetSizeTrait,
+    Buffer: BufferType,
+> crate::arrow::Array for VariableSizeListArray<T, Nullable, OffsetItem, Buffer>
 {
     type Array = arrow_array::GenericListArray<OffsetItem>;
 
@@ -166,16 +166,16 @@ where
 #[cfg(test)]
 mod tests {
     use arrow_array::{
+        Array as _,
         builder::{ListBuilder, StringBuilder},
         types::UInt16Type,
-        Array as _,
     };
 
     use crate::{
+        Length, NonNullable, Nullable,
         array::{StringArray, Uint16Array, VariableSizeListArray},
         arrow::buffer::ScalarBuffer,
         bitmap::ValidityBitmap,
-        Length, NonNullable, Nullable,
     };
 
     const INPUT: [&[u16]; 3] = [&[1, 2], &[3], &[4]];
@@ -205,13 +205,15 @@ mod tests {
                 .map(|opt| opt.iter().copied().map(Option::Some))
                 .map(Option::Some),
         );
-        assert!(!VariableSizeListArray::<
-            Uint16Array<NonNullable, ScalarBuffer>,
-            Nullable,
-            i32,
-            ScalarBuffer,
-        >::from(list_array)
-        .any_null());
+        assert!(
+            !VariableSizeListArray::<
+                Uint16Array<NonNullable, ScalarBuffer>,
+                Nullable,
+                i32,
+                ScalarBuffer,
+            >::from(list_array)
+            .any_null()
+        );
     }
 
     #[test]
