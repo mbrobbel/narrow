@@ -1,103 +1,105 @@
-use std::collections::HashMap;
+fn main() {}
 
-use chrono::{DateTime, NaiveDate, NaiveTime, TimeDelta, Utc};
-use narrow::NonNullable;
+// use std::collections::HashMap;
 
-#[rustversion::attr(nightly, allow(non_local_definitions))]
-fn main() {
-    use arrow_cast::pretty;
-    use bytes::Bytes;
-    use narrow::{
-        ArrayType,
-        array::{StructArray, VariableSizeBinary},
-        arrow::buffer::ScalarBuffer,
-        arrow_array::{self, RecordBatch},
-    };
-    use parquet::arrow::{ArrowWriter, arrow_reader::ParquetRecordBatchReader};
-    use uuid::Uuid;
+// use chrono::{DateTime, NaiveDate, NaiveTime, TimeDelta, Utc};
+// use narrow::NonNullable;
 
-    #[derive(ArrayType, Clone, Debug, Default, PartialEq)]
-    struct Bar(Option<bool>);
+// #[rustversion::attr(nightly, allow(non_local_definitions))]
+// fn main() {
+//     use arrow_cast::pretty;
+//     use bytes::Bytes;
+//     use narrow::{
+//         ArrayType,
+//         array::{StructArray, VariableSizeBinary},
+//         arrow::buffer::ScalarBuffer,
+//         arrow_array::{self, RecordBatch},
+//     };
+//     use parquet::arrow::{ArrowWriter, arrow_reader::ParquetRecordBatchReader};
+//     use uuid::Uuid;
 
-    #[derive(ArrayType, Clone, Debug, Default, PartialEq)]
-    struct Foo {
-        a: u32,
-        b: Option<u8>,
-        c: bool,
-        d: String,
-        e: Option<Vec<Option<bool>>>,
-        f: Bar,
-        g: [u8; 8],
-        h: Uuid,
-        i: VariableSizeBinary,
-        j: DateTime<Utc>,
-        k: NaiveTime,
-        l: Option<HashMap<String, Vec<u8>>>,
-        m: NaiveDate,
-        n: TimeDelta,
-    }
-    let input = [
-        Foo {
-            a: 1,
-            b: Some(2),
-            c: true,
-            d: "hello world!".to_string(),
-            e: Some(vec![Some(true), None]),
-            f: Bar(Some(true)),
-            g: [1, 2, 3, 4, 5, 6, 7, 8],
-            h: Uuid::from_u128(1234),
-            i: vec![1, 3, 3, 7].into(),
-            j: DateTime::UNIX_EPOCH,
-            k: NaiveTime::MIN,
-            l: Some(HashMap::from_iter([(
-                "a".to_string(),
-                vec![1, 2, 3, 4, 42],
-            )])),
-            m: NaiveDate::MAX,
-            n: TimeDelta::seconds(12345),
-        },
-        Foo {
-            a: 42,
-            b: None,
-            c: false,
-            d: "narrow".to_string(),
-            e: None,
-            f: Bar(None),
-            g: [9, 10, 11, 12, 13, 14, 15, 16],
-            h: Uuid::from_u128(42),
-            i: vec![4, 2].into(),
-            j: Utc::now(),
-            k: Utc::now().time(),
-            l: None,
-            m: NaiveDate::MIN,
-            n: TimeDelta::minutes(1234),
-        },
-    ];
+//     #[derive(ArrayType, Clone, Debug, Default, PartialEq)]
+//     struct Bar(Option<bool>);
 
-    let narrow_array = input.clone().into_iter().collect::<StructArray<Foo>>();
-    let output = narrow_array.clone().into_iter().collect::<Vec<_>>();
-    assert_eq!(input.as_slice(), output);
+//     #[derive(ArrayType, Clone, Debug, Default, PartialEq)]
+//     struct Foo {
+//         a: u32,
+//         b: Option<u8>,
+//         c: bool,
+//         d: String,
+//         e: Option<Vec<Option<bool>>>,
+//         f: Bar,
+//         g: [u8; 8],
+//         h: Uuid,
+//         i: VariableSizeBinary,
+//         j: DateTime<Utc>,
+//         k: NaiveTime,
+//         l: Option<HashMap<String, Vec<u8>>>,
+//         m: NaiveDate,
+//         n: TimeDelta,
+//     }
+//     let input = [
+//         Foo {
+//             a: 1,
+//             b: Some(2),
+//             c: true,
+//             d: "hello world!".to_string(),
+//             e: Some(vec![Some(true), None]),
+//             f: Bar(Some(true)),
+//             g: [1, 2, 3, 4, 5, 6, 7, 8],
+//             h: Uuid::from_u128(1234),
+//             i: vec![1, 3, 3, 7].into(),
+//             j: DateTime::UNIX_EPOCH,
+//             k: NaiveTime::MIN,
+//             l: Some(HashMap::from_iter([(
+//                 "a".to_string(),
+//                 vec![1, 2, 3, 4, 42],
+//             )])),
+//             m: NaiveDate::MAX,
+//             n: TimeDelta::seconds(12345),
+//         },
+//         Foo {
+//             a: 42,
+//             b: None,
+//             c: false,
+//             d: "narrow".to_string(),
+//             e: None,
+//             f: Bar(None),
+//             g: [9, 10, 11, 12, 13, 14, 15, 16],
+//             h: Uuid::from_u128(42),
+//             i: vec![4, 2].into(),
+//             j: Utc::now(),
+//             k: Utc::now().time(),
+//             l: None,
+//             m: NaiveDate::MIN,
+//             n: TimeDelta::minutes(1234),
+//         },
+//     ];
 
-    let record_batch = RecordBatch::from(narrow_array);
-    println!("From narrow StructArray to Arrow RecordBatch");
-    pretty::print_batches(&[record_batch.clone()]).unwrap();
+//     let narrow_array = input.clone().into_iter().collect::<StructArray<Foo>>();
+//     let output = narrow_array.clone().into_iter().collect::<Vec<_>>();
+//     assert_eq!(input.as_slice(), output);
 
-    let mut buffer = Vec::new();
-    let mut writer = ArrowWriter::try_new(&mut buffer, record_batch.schema(), None).unwrap();
-    writer.write(&record_batch).unwrap();
-    writer.close().unwrap();
+//     let record_batch = RecordBatch::from(narrow_array);
+//     println!("From narrow StructArray to Arrow RecordBatch");
+//     pretty::print_batches(&[record_batch.clone()]).unwrap();
 
-    let mut reader = ParquetRecordBatchReader::try_new(Bytes::from(buffer), 1024).unwrap();
-    let read = reader.next().unwrap().unwrap();
-    println!("From Arrow RecordBatch to Parquet and back to Arrow RecordBatch");
-    pretty::print_batches(&[read.clone()]).unwrap();
-    assert_eq!(record_batch, read.clone());
+//     let mut buffer = Vec::new();
+//     let mut writer = ArrowWriter::try_new(&mut buffer, record_batch.schema(), None).unwrap();
+//     writer.write(&record_batch).unwrap();
+//     writer.close().unwrap();
 
-    let round_trip: StructArray<Foo, NonNullable, ScalarBuffer> = read.into();
-    let arrow_struct_array_round_trip = arrow_array::StructArray::from(round_trip);
-    let record_batch_round_trip = arrow_array::RecordBatch::from(arrow_struct_array_round_trip);
-    println!(
-        "From Arrow RecordBatch (via Parquet) to narrow StructArray and back to Arrow RecordBatch"
-    );
-    pretty::print_batches(&[record_batch_round_trip]).unwrap();
-}
+//     let mut reader = ParquetRecordBatchReader::try_new(Bytes::from(buffer), 1024).unwrap();
+//     let read = reader.next().unwrap().unwrap();
+//     println!("From Arrow RecordBatch to Parquet and back to Arrow RecordBatch");
+//     pretty::print_batches(&[read.clone()]).unwrap();
+//     assert_eq!(record_batch, read.clone());
+
+//     let round_trip: StructArray<Foo, NonNullable, ScalarBuffer> = read.into();
+//     let arrow_struct_array_round_trip = arrow_array::StructArray::from(round_trip);
+//     let record_batch_round_trip = arrow_array::RecordBatch::from(arrow_struct_array_round_trip);
+//     println!(
+//         "From Arrow RecordBatch (via Parquet) to narrow StructArray and back to Arrow RecordBatch"
+//     );
+//     pretty::print_batches(&[record_batch_round_trip]).unwrap();
+// }

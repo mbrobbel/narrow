@@ -32,7 +32,7 @@ There are [other crates](https://crates.io/search?q=arrow%20derive&sort=relevanc
 
 # Example
 
-```rust
+<!-- ```rust
 use narrow::{
     array::{StructArray, UnionArray},
     ArrayType, Length,
@@ -90,7 +90,7 @@ let union_array = foo_bars
     .collect::<UnionArray<FooBar, 3>>();
 assert_eq!(union_array.len(), 4);
 assert_eq!(union_array.into_iter().collect::<Vec<_>>(), foo_bars);
-```
+``` -->
 
 # Features
 

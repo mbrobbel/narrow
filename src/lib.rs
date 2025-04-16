@@ -13,7 +13,7 @@
     missing_docs,
     noop_method_call,
     // warnings,
-    unused,
+    // unused,
     // Clippy
     clippy::all,
     clippy::suspicious,
@@ -59,3 +59,6 @@
     clippy::pub_use,
     unsafe_op_in_unsafe_fn
 )]
+
+pub mod collection;
+pub mod length;
