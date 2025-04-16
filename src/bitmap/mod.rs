@@ -147,8 +147,7 @@ impl<Buffer: BufferType> Bitmap<Buffer> {
     where
         Self: FromIterator<bool>,
     {
-        // TODO: optimize
-        std::iter::repeat(true).take(len).collect::<Self>()
+        std::iter::repeat_n(true, len).collect::<Self>()
     }
 }
 

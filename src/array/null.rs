@@ -9,7 +9,7 @@ use crate::{
     validity::Validity,
 };
 use std::{
-    iter::{self, Repeat, Take},
+    iter::{self, RepeatN},
     marker::PhantomData,
 };
 
@@ -203,11 +203,11 @@ impl<T: Unit> Index for Nulls<T> {
 }
 
 impl<T: Unit> IntoIterator for Nulls<T> {
-    type IntoIter = Take<Repeat<T::Item>>;
+    type IntoIter = RepeatN<T::Item>;
     type Item = T::Item;
 
     fn into_iter(self) -> Self::IntoIter {
-        iter::repeat(T::default().into()).take(self.len)
+        iter::repeat_n(T::default().into(), self.len)
     }
 }
 

@@ -396,8 +396,10 @@ impl Struct<'_> {
                 )
             }
             Fields::Unnamed(_) => {
-                let field = std::iter::repeat(quote!(arrays.next().expect("array").into()))
-                    .take(self.fields.len());
+                let field = std::iter::repeat_n(
+                    quote!(arrays.next().expect("array").into()),
+                    self.fields.len(),
+                );
                 quote!(
                     #(
                         #field,
@@ -558,8 +560,10 @@ impl Struct<'_> {
                 )
             }
             Fields::Unnamed(_) => {
-                let default_field = std::iter::repeat(quote!(::std::default::Default::default()))
-                    .take(self.fields.len());
+                let default_field = std::iter::repeat_n(
+                    quote!(::std::default::Default::default()),
+                    self.fields.len(),
+                );
                 quote!(
                     #(
                         #default_field,
