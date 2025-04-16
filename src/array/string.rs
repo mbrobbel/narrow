@@ -4,11 +4,11 @@ use std::{iter::Map, str};
 
 use super::{Array, VariableSizeBinaryArray};
 use crate::{
+    Index, Length,
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{BufferType, VecBuffer},
     nullability::{NonNullable, Nullability, Nullable},
     offset::Offset,
-    Index, Length,
 };
 
 /// Array with string values.
@@ -331,13 +331,13 @@ mod tests {
         let input = ["1", "23", "456", "7890"];
         let array = input.into_iter().collect::<ArrayTypeOf<String>>();
         assert_eq!(array.len(), 4);
-        assert_eq!(array.0 .0.data.0, b"1234567890");
+        assert_eq!(array.0.0.data.0, b"1234567890");
 
         let input_string = vec!["a".to_owned(), "sd".to_owned(), "f".to_owned()];
         let array_string = input_string.into_iter().collect::<StringArray>();
         assert_eq!(array_string.len(), 3);
-        assert_eq!(array_string.0 .0.data.0, &[97, 115, 100, 102]);
-        assert_eq!(array_string.0 .0.offsets, &[0, 1, 3, 4]);
+        assert_eq!(array_string.0.0.data.0, &[97, 115, 100, 102]);
+        assert_eq!(array_string.0.0.offsets, &[0, 1, 3, 4]);
     }
 
     #[test]
@@ -351,8 +351,8 @@ mod tests {
         assert_eq!(array.is_valid(3), Some(true));
         assert_eq!(array.is_valid(4), Some(false));
         assert_eq!(array.is_valid(5), None);
-        assert_eq!(array.0 .0.data.0, "asdf".as_bytes());
-        assert_eq!(array.0 .0.offsets.as_ref(), &[0, 1, 1, 3, 4, 4]);
+        assert_eq!(array.0.0.data.0, "asdf".as_bytes());
+        assert_eq!(array.0.0.offsets.as_ref(), &[0, 1, 1, 3, 4, 4]);
         assert_eq!(
             array.bitmap_ref().into_iter().collect::<Vec<_>>(),
             &[true, false, true, true, false]

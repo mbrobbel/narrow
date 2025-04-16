@@ -1,9 +1,9 @@
 //! Nullable data.
 
 use crate::{
+    FixedSize, Index, Length,
     bitmap::{Bitmap, BitmapIntoIter, BitmapIter, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{self, BufferMut, BufferRef, BufferRefMut, BufferType, VecBuffer},
-    FixedSize, Index, Length,
 };
 use std::{
     borrow::Borrow,
@@ -257,7 +257,7 @@ mod tests {
 
     use super::*;
     use std::{
-        iter::{self, Repeat, Take},
+        iter::{self, RepeatN},
         mem,
     };
 
@@ -357,11 +357,11 @@ mod tests {
         }
 
         impl IntoIterator for Count {
-            type IntoIter = Take<Repeat<()>>;
+            type IntoIter = RepeatN<()>;
             type Item = ();
 
             fn into_iter(self) -> Self::IntoIter {
-                iter::repeat(()).take(self.0)
+                iter::repeat_n((), self.0)
             }
         }
 

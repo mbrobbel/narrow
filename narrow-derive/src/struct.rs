@@ -1,10 +1,10 @@
 use crate::util::{self, AddTypeParam, AddTypeParamBoundWithSelf, DropOuterParam, SelfReplace};
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens, TokenStreamExt};
+use quote::{ToTokens, TokenStreamExt, format_ident, quote};
 use std::iter::{Enumerate, Map};
 use syn::{
-    parse2, parse_quote, punctuated, token::Paren, visit_mut::VisitMut, DeriveInput, Field, Fields,
-    Generics, Ident, Index, ItemImpl, ItemStruct, Type, TypeParamBound, Visibility, WherePredicate,
+    DeriveInput, Field, Fields, Generics, Ident, Index, ItemImpl, ItemStruct, Type, TypeParamBound,
+    Visibility, WherePredicate, parse_quote, parse2, punctuated, token::Paren, visit_mut::VisitMut,
 };
 
 pub(super) fn derive(input: &DeriveInput, fields: &Fields) -> TokenStream {
@@ -396,8 +396,10 @@ impl Struct<'_> {
                 )
             }
             Fields::Unnamed(_) => {
-                let field = std::iter::repeat(quote!(arrays.next().expect("array").into()))
-                    .take(self.fields.len());
+                let field = std::iter::repeat_n(
+                    quote!(arrays.next().expect("array").into()),
+                    self.fields.len(),
+                );
                 quote!(
                     #(
                         #field,
@@ -558,8 +560,10 @@ impl Struct<'_> {
                 )
             }
             Fields::Unnamed(_) => {
-                let default_field = std::iter::repeat(quote!(::std::default::Default::default()))
-                    .take(self.fields.len());
+                let default_field = std::iter::repeat_n(
+                    quote!(::std::default::Default::default()),
+                    self.fields.len(),
+                );
                 quote!(
                     #(
                         #default_field,

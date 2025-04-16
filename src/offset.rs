@@ -1,11 +1,11 @@
 //! Offsets for variable-sized arrays.
 
 use crate::{
+    FixedSize, Index, Length,
     bitmap::{Bitmap, BitmapRef, BitmapRefMut, ValidityBitmap},
     buffer::{Buffer, BufferType, VecBuffer},
     nullability::{NonNullable, Nullability, Nullable},
     validity::Validity,
-    FixedSize, Index, Length,
 };
 use std::{
     iter::{self, Map, Peekable, Zip},

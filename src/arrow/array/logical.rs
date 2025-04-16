@@ -14,12 +14,12 @@ use crate::{
 };
 
 impl<
-        T: LogicalArrayType<T>,
-        Nullable: Nullability,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-        UnionLayout: UnionType,
-    > crate::arrow::Array for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
+    T: LogicalArrayType<T>,
+    Nullable: Nullability,
+    Buffer: BufferType,
+    OffsetItem: Offset,
+    UnionLayout: UnionType,
+> crate::arrow::Array for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
     Nullable::Item<T::ArrayType>:
@@ -43,13 +43,12 @@ where
 }
 
 impl<
-        T: LogicalArrayType<T>,
-        Nullable: Nullability,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-        UnionLayout: UnionType,
-    > From<Arc<dyn arrow_array::Array>>
-    for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
+    T: LogicalArrayType<T>,
+    Nullable: Nullability,
+    Buffer: BufferType,
+    OffsetItem: Offset,
+    UnionLayout: UnionType,
+> From<Arc<dyn arrow_array::Array>> for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
     Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
@@ -66,13 +65,12 @@ where
 }
 
 impl<
-        T: LogicalArrayType<T>,
-        Nullable: Nullability,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-        UnionLayout: UnionType,
-    > From<LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>>
-    for Arc<dyn arrow_array::Array>
+    T: LogicalArrayType<T>,
+    Nullable: Nullability,
+    Buffer: BufferType,
+    OffsetItem: Offset,
+    UnionLayout: UnionType,
+> From<LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>> for Arc<dyn arrow_array::Array>
 where
     Option<T>: ArrayType<T>,
     Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
@@ -88,12 +86,12 @@ where
 }
 
 impl<
-        T: LogicalArrayType<T>,
-        Nullable: Nullability,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-        UnionLayout: UnionType,
-    > From<LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>>
+    T: LogicalArrayType<T>,
+    Nullable: Nullability,
+    Buffer: BufferType,
+    OffsetItem: Offset,
+    UnionLayout: UnionType,
+> From<LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>>
     for arrow_array::FixedSizeListArray
 where
     Option<T>: ArrayType<T>,
@@ -112,12 +110,12 @@ where
 }
 
 impl<
-        T: LogicalArrayType<T>,
-        Nullable: Nullability,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-        UnionLayout: UnionType,
-    > From<LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>>
+    T: LogicalArrayType<T>,
+    Nullable: Nullability,
+    Buffer: BufferType,
+    OffsetItem: Offset,
+    UnionLayout: UnionType,
+> From<LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>>
     for arrow_array::FixedSizeBinaryArray
 where
     Option<T>: ArrayType<T>,
@@ -136,13 +134,13 @@ where
 }
 
 impl<
-        T: LogicalArrayType<T>,
-        Nullable: Nullability,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-        UnionLayout: UnionType,
-        O: OffsetSizeTrait,
-    > From<LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>>
+    T: LogicalArrayType<T>,
+    Nullable: Nullability,
+    Buffer: BufferType,
+    OffsetItem: Offset,
+    UnionLayout: UnionType,
+    O: OffsetSizeTrait,
+> From<LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>>
     for arrow_array::GenericListArray<O>
 where
     Option<T>: ArrayType<T>,

@@ -3,11 +3,11 @@
 use std::iter::Map;
 
 use crate::{
+    Length, Nullability, Nullable,
     array::{Array, ArrayType, ArrayTypeOf, SparseLayout, UnionType},
     buffer::{BufferType, VecBuffer},
     nullability::NonNullable,
     offset::Offset,
-    Length, Nullability, Nullable,
 };
 
 /// Box support via logical arrays.
@@ -68,12 +68,12 @@ where
     Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>;
 
 impl<
-        T: LogicalArrayType<T>,
-        Nullable: Nullability,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-        UnionLayout: UnionType,
-    > Array for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
+    T: LogicalArrayType<T>,
+    Nullable: Nullability,
+    Buffer: BufferType,
+    OffsetItem: Offset,
+    UnionLayout: UnionType,
+> Array for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
     Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
@@ -82,12 +82,12 @@ where
 }
 
 impl<
-        T: LogicalArrayType<T>,
-        Nullable: Nullability,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-        UnionLayout: UnionType,
-    > Clone for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
+    T: LogicalArrayType<T>,
+    Nullable: Nullability,
+    Buffer: BufferType,
+    OffsetItem: Offset,
+    UnionLayout: UnionType,
+> Clone for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
     Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
@@ -103,12 +103,12 @@ where
 }
 
 impl<
-        T: LogicalArrayType<T>,
-        Nullable: Nullability,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-        UnionLayout: UnionType,
-    > Default for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
+    T: LogicalArrayType<T>,
+    Nullable: Nullability,
+    Buffer: BufferType,
+    OffsetItem: Offset,
+    UnionLayout: UnionType,
+> Default for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
     Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
@@ -239,12 +239,12 @@ where
 }
 
 impl<
-        T: LogicalArrayType<T>,
-        Nullable: Nullability,
-        Buffer: BufferType,
-        OffsetItem: Offset,
-        UnionLayout: UnionType,
-    > Length for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
+    T: LogicalArrayType<T>,
+    Nullable: Nullability,
+    Buffer: BufferType,
+    OffsetItem: Offset,
+    UnionLayout: UnionType,
+> Length for LogicalArray<T, Nullable, Buffer, OffsetItem, UnionLayout>
 where
     Option<T>: ArrayType<T>,
     Nullable::Item<T::ArrayType>: ArrayType<T::ArrayType>,
@@ -293,13 +293,13 @@ mod tests {
         let input = [Foo(1), Foo(2), Foo(3), Foo(4)];
         let array = input.into_iter().collect::<FooArray>();
         assert_eq!(array.len(), 4);
-        assert_eq!(array.0 .0, [1, 2, 3, 4]);
+        assert_eq!(array.0.0, [1, 2, 3, 4]);
 
         let input_nullable = [Some(Foo(1)), None, Some(Foo(3)), Some(Foo(4))];
         let array_nullable = input_nullable.into_iter().collect::<FooArray<Nullable>>();
         assert_eq!(array_nullable.len(), 4);
-        assert_eq!(array_nullable.0 .0.data, [1, u8::default(), 3, 4]);
-        assert_eq!(array_nullable.0 .0.validity, [true, false, true, true]);
+        assert_eq!(array_nullable.0.0.data, [1, u8::default(), 3, 4]);
+        assert_eq!(array_nullable.0.0.validity, [true, false, true, true]);
     }
 
     #[test]

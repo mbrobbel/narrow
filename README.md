@@ -117,7 +117,7 @@ The crate supports the following optional features:
 
 # Minimum supported Rust version
 
-The minimum supported Rust version for this crate is Rust 1.81.0.
+The minimum supported Rust version for this crate is Rust 1.85.1.
 
 # License
 

@@ -59,7 +59,7 @@ where
         )]
         arrow_array::FixedSizeBinaryArray::new(
             i32::try_from(N).expect("overflow"),
-            value.0 .0.into(),
+            value.0.0.into(),
             None,
         )
     }
@@ -91,8 +91,8 @@ where
         )]
         arrow_array::FixedSizeBinaryArray::new(
             i32::try_from(N).expect("overflow"),
-            value.0 .0.data.into(),
-            Some(value.0 .0.validity.into()),
+            value.0.0.data.into(),
+            Some(value.0.0.validity.into()),
         )
     }
 }

@@ -1,10 +1,10 @@
 use uuid::Uuid;
 
 use crate::{
+    NonNullable, Nullable,
     array::{ArrayType, FixedSizeBinary, UnionType},
     buffer::BufferType,
     offset::Offset,
-    NonNullable, Nullable,
 };
 
 use super::{LogicalArray, LogicalArrayType};

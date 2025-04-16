@@ -1,10 +1,10 @@
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, Timelike, Utc};
 
 use crate::{
+    NonNullable, Nullable,
     array::{ArrayType, UnionType},
     buffer::BufferType,
     offset::Offset,
-    NonNullable, Nullable,
 };
 
 use super::{LogicalArray, LogicalArrayType};

@@ -1,8 +1,8 @@
 //! A collection of bits.
 
 use crate::{
-    buffer::{Buffer, BufferMut, BufferRef, BufferRefMut, BufferType, VecBuffer},
     Index, Length,
+    buffer::{Buffer, BufferMut, BufferRef, BufferRefMut, BufferType, VecBuffer},
 };
 use std::{
     any,
@@ -147,8 +147,7 @@ impl<Buffer: BufferType> Bitmap<Buffer> {
     where
         Self: FromIterator<bool>,
     {
-        // TODO: optimize
-        std::iter::repeat(true).take(len).collect::<Self>()
+        std::iter::repeat_n(true, len).collect::<Self>()
     }
 }
 

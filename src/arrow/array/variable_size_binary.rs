@@ -159,7 +159,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{array::VariableSizeBinaryArray, bitmap::ValidityBitmap, NonNullable, Nullable};
+    use crate::{NonNullable, Nullable, array::VariableSizeBinaryArray, bitmap::ValidityBitmap};
 
     fn input() -> [Vec<u8>; 3] {
         [vec![0, 1, 2], vec![3], vec![]]

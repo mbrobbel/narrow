@@ -1,8 +1,8 @@
 #[rustversion::attr(nightly, allow(non_local_definitions))]
 fn main() {
     use narrow::{
-        array::{StructArray, UnionArray},
         ArrayType, Length,
+        array::{StructArray, UnionArray},
     };
 
     #[derive(ArrayType, Default, Clone, Debug, PartialEq, Eq)]

@@ -1,8 +1,8 @@
 //! Interop with [`arrow-rs`] buffer builder.
 
 use crate::{
-    buffer::{Buffer, BufferMut, BufferType},
     FixedSize, Index, Length,
+    buffer::{Buffer, BufferMut, BufferType},
 };
 
 /// A [`BufferType`] implementation for [`BufferBuilder`].

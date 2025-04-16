@@ -8,12 +8,12 @@ fn main() {
     use arrow_cast::pretty;
     use bytes::Bytes;
     use narrow::{
+        ArrayType,
         array::{StructArray, VariableSizeBinary},
         arrow::buffer::ScalarBuffer,
         arrow_array::{self, RecordBatch},
-        ArrayType,
     };
-    use parquet::arrow::{arrow_reader::ParquetRecordBatchReader, ArrowWriter};
+    use parquet::arrow::{ArrowWriter, arrow_reader::ParquetRecordBatchReader};
     use uuid::Uuid;
 
     #[derive(ArrayType, Clone, Debug, Default, PartialEq)]
