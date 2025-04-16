@@ -12,7 +12,7 @@ keywords = ["Arrow"]
 categories = ["data-structures"]
 
 [workspace]
-members = ["narrow-derive"]
+# members = ["narrow-derive"]
 
 [package]
 name = "narrow"
