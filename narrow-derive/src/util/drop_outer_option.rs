@@ -8,7 +8,7 @@ pub struct DropOuterParam;
 
 impl VisitMut for DropOuterParam {
     fn visit_type_mut(&mut self, i: &mut syn::Type) {
-        if let Type::Path(TypePath { ref mut path, .. }) = i {
+        if let Type::Path(TypePath { path, .. }) = i {
             if let Some(path_segment) = path
                 .segments
                 .iter()
