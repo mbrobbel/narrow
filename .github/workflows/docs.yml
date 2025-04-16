@@ -14,7 +14,9 @@ jobs:
       RUSTDOCFLAGS: -Dwarnings
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2025-04-14
         id: rust-toolchain
       - run: cargo install --locked cargo-docs-rs
       - run: cargo docs-rs
