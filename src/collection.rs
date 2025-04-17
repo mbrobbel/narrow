@@ -1,15 +1,7 @@
 //! Collections of items.
 
 use std::{
-    array,
-    borrow::Borrow,
-    collections::{VecDeque, vec_deque},
-    iter::Copied,
-    marker::PhantomData,
-    rc::Rc,
-    slice,
-    sync::Arc,
-    vec,
+    array, borrow::Borrow, iter::Copied, marker::PhantomData, rc::Rc, slice, sync::Arc, vec,
 };
 
 use crate::length::Length;
@@ -62,7 +54,9 @@ pub trait CollectionMut: Collection {
 }
 
 /// An allocatable collection of items.
-pub trait CollectionAlloc: Collection + Default + Extend<Self::Item> {
+pub trait CollectionAlloc:
+    Collection + Default + Extend<Self::Item> + FromIterator<Self::Item>
+{
     /// Constructs a new, empty collection with at least the specified capacity.
     fn with_capacity(capacity: usize) -> Self;
 
@@ -374,64 +368,6 @@ impl<T: Copy> Collection for Arc<[T]> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.into()
-    }
-}
-
-impl<T: Copy> Collection for VecDeque<T> {
-    type Item = T;
-
-    type RefItem<'collection>
-        = &'collection T
-    where
-        Self: 'collection;
-
-    fn index(&self, index: usize) -> Option<Self::RefItem<'_>> {
-        self.get(index)
-    }
-
-    type Iter<'collection>
-        = vec_deque::Iter<'collection, T>
-    where
-        Self: 'collection;
-
-    fn iter(&self) -> Self::Iter<'_> {
-        <&Self as IntoIterator>::into_iter(self)
-    }
-
-    type IntoIter = vec_deque::IntoIter<T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        <Self as IntoIterator>::into_iter(self)
-    }
-}
-
-impl<T: Copy> CollectionMut for VecDeque<T> {
-    type RefItemMut<'collection>
-        = &'collection mut T
-    where
-        Self: 'collection;
-
-    fn index_mut(&mut self, index: usize) -> Option<Self::RefItemMut<'_>> {
-        self.get_mut(index)
-    }
-
-    type IterMut<'collection>
-        = vec_deque::IterMut<'collection, T>
-    where
-        Self: 'collection;
-
-    fn iter_mut(&mut self) -> Self::IterMut<'_> {
-        <&mut Self as IntoIterator>::into_iter(self)
-    }
-}
-
-impl<T: Copy> CollectionAlloc for VecDeque<T> {
-    fn with_capacity(capacity: usize) -> Self {
-        Self::with_capacity(capacity)
-    }
-
-    fn reserve(&mut self, additional: usize) {
-        Self::reserve(self, additional);
     }
 }
 
