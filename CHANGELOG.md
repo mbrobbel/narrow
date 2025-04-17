@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1](https://github.com/mbrobbel/narrow/compare/narrow-v0.13.0...narrow-v0.13.1) - 2025-04-17
+
+### Other
+
+- *(deps)* bump rand from 0.9.0 to 0.9.1 ([#390](https://github.com/mbrobbel/narrow/pull/390))
+- *(deps)* bump proc-macro2 from 1.0.94 to 1.0.95 ([#387](https://github.com/mbrobbel/narrow/pull/387))
+
 ## [0.13.0](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.12...narrow-v0.13.0) - 2025-04-16
 
 ### Other
