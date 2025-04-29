@@ -48,7 +48,7 @@ uuid = ["dep:uuid", "arrow-schema?/canonical_extension_types"]
 arrow-array = { version = "55.0.0", default-features = false, optional = true }
 arrow-buffer = { version = "55.0.0", default-features = false, optional = true }
 arrow-schema = { version = "55.0.0", default-features = false, optional = true }
-chrono = { version = "0.4.40", default-features = false, optional = true }
+chrono = { version = "0.4.41", default-features = false, optional = true }
 narrow-derive = { path = "narrow-derive", version = "0.13.0", optional = true }
 uuid = { version = "1.16.0", default-features = false, optional = true }
 
@@ -57,7 +57,7 @@ arrow-cast = { version = "55.0.0", default-features = false, features = [
     "prettyprint",
 ] }
 bytes = "1.10.1"
-chrono = { version = "0.4.40", default-features = false, features = ["now"] }
+chrono = { version = "0.4.41", default-features = false, features = ["now"] }
 criterion = { version = "0.5.1", default-features = false, features = [
     "html_reports",
 ] }
