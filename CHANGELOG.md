@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1](https://github.com/mbrobbel/narrow/compare/narrow-v0.13.0...narrow-v0.13.1) - 2025-05-08
+
+### Other
+
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.105 to 0.5.106 ([#395](https://github.com/mbrobbel/narrow/pull/395))
+- *(deps)* bump chrono from 0.4.40 to 0.4.41 ([#394](https://github.com/mbrobbel/narrow/pull/394))
+- *(deps)* bump syn from 2.0.100 to 2.0.101 ([#393](https://github.com/mbrobbel/narrow/pull/393))
+- *(deps)* bump actions/download-artifact from 4.2.1 to 4.3.0 ([#392](https://github.com/mbrobbel/narrow/pull/392))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.104 to 0.5.105 ([#391](https://github.com/mbrobbel/narrow/pull/391))
+- *(deps)* bump rand from 0.9.0 to 0.9.1 ([#390](https://github.com/mbrobbel/narrow/pull/390))
+- *(deps)* bump proc-macro2 from 1.0.94 to 1.0.95 ([#387](https://github.com/mbrobbel/narrow/pull/387))
+
 ## [0.13.0](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.12...narrow-v0.13.0) - 2025-04-16
 
 ### Other
