@@ -160,19 +160,16 @@ where
 
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
         // Following https://doc.rust-lang.org/std/mem/union.MaybeUninit.html#initializing-an-array-element-by-element
-        let data = {
-            let mut data: [MaybeUninit<_>; N] = MaybeUninit::uninit().assume_init();
-            let start_index = index * N;
-            let end_index = start_index + N;
-            (start_index..end_index)
-                .enumerate()
-                .for_each(|(array_index, child_index)| {
-                    data[array_index].write(self.0.index_unchecked(child_index));
-                });
-            // https://github.com/rust-lang/rust/issues/61956
-            mem::transmute_copy(&ManuallyDrop::new(data))
-        };
-        data
+        let mut data: [MaybeUninit<_>; N] = MaybeUninit::uninit().assume_init();
+        let start_index = index * N;
+        let end_index = start_index + N;
+        (start_index..end_index)
+            .enumerate()
+            .for_each(|(array_index, child_index)| {
+                data[array_index].write(self.0.index_unchecked(child_index));
+            });
+        // https://github.com/rust-lang/rust/issues/61956
+        mem::transmute_copy(&ManuallyDrop::new(data))
     }
 }
 
@@ -189,20 +186,17 @@ where
     unsafe fn index_unchecked(&self, index: usize) -> Self::Item<'_> {
         self.is_valid_unchecked(index).then(|| {
             // Following https://doc.rust-lang.org/std/mem/union.MaybeUninit.html#initializing-an-array-element-by-element
-            let data = {
-                let mut data: [MaybeUninit<_>; N] = MaybeUninit::uninit().assume_init();
-                let start_index = index * N;
-                let end_index = start_index + N;
-                (start_index..end_index)
-                    .enumerate()
-                    .for_each(|(array_index, child_index)| {
-                        // Here we need to index in the data
-                        data[array_index].write(self.0.data.index_unchecked(child_index));
-                    });
-                // https://github.com/rust-lang/rust/issues/61956
-                mem::transmute_copy(&ManuallyDrop::new(data))
-            };
-            data
+            let mut data: [MaybeUninit<_>; N] = MaybeUninit::uninit().assume_init();
+            let start_index = index * N;
+            let end_index = start_index + N;
+            (start_index..end_index)
+                .enumerate()
+                .for_each(|(array_index, child_index)| {
+                    // Here we need to index in the data
+                    data[array_index].write(self.0.data.index_unchecked(child_index));
+                });
+            // https://github.com/rust-lang/rust/issues/61956
+            mem::transmute_copy(&ManuallyDrop::new(data))
         })
     }
 }
