@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, Throughput};
-use narrow::{bitmap::Bitmap, buffer::BoxBuffer};
+use narrow::{bitmap::Bitmap, buffer::BoxBuffer, collection::Collection};
 use rand::{Rng, SeedableRng, prelude::SmallRng};
 use std::time::Duration;
 
@@ -40,7 +40,7 @@ pub(super) fn bench(c: &mut Criterion) {
                 group.bench_with_input(
                     BenchmarkId::new("narrow", format!("{size}/{null_fraction}")),
                     &(),
-                    |b, _| b.iter(|| Vec::<bool>::from_iter(&narrow_bitmap)),
+                    |b, _| b.iter(|| Vec::<bool>::from_iter(narrow_bitmap.iter())),
                 );
             }
         }
