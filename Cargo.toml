@@ -71,9 +71,9 @@ num-traits = { version = "0.2.19" }
 lto = true
 codegen-units = 1
 
-# [[bench]]
-# name = "narrow"
-# harness = false
+[[bench]]
+name = "narrow"
+harness = false
 # required-features = ["arrow-rs"]
 
 # [[example]]
