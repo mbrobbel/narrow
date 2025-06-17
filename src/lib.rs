@@ -54,6 +54,7 @@
     // Rustdoc
     // rustdoc::all
 )]
+#![forbid(unsafe_code)]
 #![allow(
     clippy::into_iter_without_iter,
     clippy::iter_not_returning_iterator,

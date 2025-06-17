@@ -12,7 +12,7 @@ use packed::BitPackedExt;
 use unpacked::{BitUnpacked, BitUnpackedExt};
 
 use crate::{
-    buffer::{BufferType, VecBuffer},
+    buffer::{BufferMut, BufferType, VecBuffer},
     collection::{self, Collection, CollectionAlloc, CollectionRealloc, Item},
     length::Length,
 };
@@ -41,18 +41,24 @@ pub struct Bitmap<Buffer: BufferType = VecBuffer> {
 impl<Buffer: BufferType> Bitmap<Buffer> {
     /// Returns the bit index for the element at the provided index.
     /// See [`Bitmap::byte_index`].
-    // TODO: clippy cast
     #[inline]
-    #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
     pub fn bit_index(&self, index: usize) -> u8 {
-        ((self.offset + index) % 8) as u8
+        // As conversion because 0 <= remainder < 8 < u8::MAX
+        #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
+        {
+            (self.offset.rem_euclid(8) + index.rem_euclid(8)) as u8
+        }
     }
 
     /// Returns the byte index for the element at the provided index.
     /// See [`Bitmap::bit_index`].
+    ///
+    /// # Panics
+    ///
+    /// This function panics on overflow of the index and offset addition.
     #[inline]
     pub fn byte_index(&self, index: usize) -> usize {
-        (self.offset + index) / 8
+        self.offset.checked_add(index).expect("overflow") / 8
     }
 
     /// Returns the number of leading padding bits in the first byte(s) of the
@@ -66,11 +72,9 @@ impl<Buffer: BufferType> Bitmap<Buffer> {
     /// Returns the number of trailing padding bits in the last byte of the
     /// buffer that contain no meaningful bits. These bits should be ignored when
     /// inspecting the raw byte buffer.
-    // TODO: clippy cast
     #[inline]
-    #[allow(clippy::as_conversions)]
-    pub fn trailing_bits(&self) -> usize {
-        let trailing_bits = self.bit_index(self.bits) as usize;
+    pub fn trailing_bits(&self) -> u8 {
+        let trailing_bits = self.bit_index(self.bits);
         if trailing_bits == 0 {
             0
         } else {
@@ -137,18 +141,32 @@ impl<'bitmap, Buffer: BufferType> IntoIterator for &'bitmap Bitmap<Buffer> {
     }
 }
 
-impl<T: Borrow<bool>, Buffer: BufferType<Buffer<u8>: CollectionRealloc<u8>>> Extend<T>
-    for Bitmap<Buffer>
+impl<T: Borrow<bool>, Buffer: BufferType<Buffer<u8>: BufferMut<u8> + CollectionRealloc<u8>>>
+    Extend<T> for Bitmap<Buffer>
 {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        // Track the number of added bits.
         let mut additional = 0;
-        self.buffer.extend(
-            iter.into_iter()
-                .inspect(|_| {
-                    additional += 1;
-                })
-                .bit_packed(),
-        );
+        let mut items = iter.into_iter().inspect(|_| {
+            additional += 1;
+        });
+
+        // Fill the trailing bits in the buffer.
+        let trailing_bits = self.trailing_bits();
+        if trailing_bits != 0 {
+            // If there are trailing bits, there must at least be one byte in
+            // the buffer.
+            if let Some(last_byte) = self.buffer.as_mut_slice().last_mut() {
+                for index in trailing_bits..8 {
+                    if let Some(next) = items.next() {
+                        *last_byte |= u8::from(*next.borrow()) << index;
+                    }
+                }
+            }
+        }
+
+        // Use bit packed iterator for the remainder
+        self.buffer.extend(items.bit_packed());
         self.bits += additional;
     }
 }
@@ -208,11 +226,13 @@ impl<Buffer: BufferType<Buffer<u8>: CollectionAlloc<u8>>> CollectionAlloc<bool> 
     }
 }
 
-impl<Buffer: BufferType<Buffer<u8>: CollectionRealloc<u8>>> CollectionRealloc<bool>
+impl<Buffer: BufferType<Buffer<u8>: BufferMut<u8> + CollectionRealloc<u8>>> CollectionRealloc<bool>
     for Bitmap<Buffer>
 {
     fn reserve(&mut self, additional: usize) {
-        self.buffer.reserve(bytes_for_bits(additional));
+        if let Some(bits) = additional.checked_sub(usize::from(self.trailing_bits())) {
+            self.buffer.reserve(bytes_for_bits(bits));
+        }
     }
 }
 
@@ -235,11 +255,47 @@ mod tests {
     }
 
     #[test]
-    fn extend() {
+    fn extend_within_byte() {
         let input = [true, false, true, true];
         let mut bitmap = Bitmap::<VecBuffer>::from_iter(input);
-        bitmap.extend([false, false, false]);
-        assert_eq!(bitmap.len(), 7);
+        assert_eq!(bitmap.len(), 4);
+        assert_eq!(bitmap.buffer.len(), 1);
+        assert_eq!(bitmap.buffer.as_slice(), &[0b0000_1101]);
+
+        bitmap.extend([true, false, false, true]);
+        assert_eq!(bitmap.len(), 8);
+        assert_eq!(bitmap.buffer.len(), 1);
+        assert_eq!(bitmap.buffer.as_slice(), &[0b1001_1101]);
+    }
+
+    #[test]
+    fn extend_within_byte_with_offset() {
+        let input = [true, false, true, true];
+        let mut bitmap = Bitmap::<VecBuffer>::from_iter(input);
+        bitmap.offset = 2;
+        bitmap.bits = 2;
+        assert_eq!(bitmap.len(), 2);
+        assert_eq!(bitmap.buffer.len(), 1);
+        assert_eq!(bitmap.buffer.as_slice(), &[0b0000_1101]);
+
+        bitmap.extend([true, false, false, true, true, true]);
+        assert_eq!(bitmap.len(), 8);
+        assert_eq!(bitmap.buffer.len(), 2);
+        assert_eq!(bitmap.buffer.as_slice(), &[0b1001_1101, 0b0000_0011]);
+    }
+
+    #[test]
+    fn extend_across_next_byte() {
+        let input = [true; 8];
+        let mut bitmap = Bitmap::<VecBuffer>::from_iter(input);
+        assert_eq!(bitmap.len(), 8);
+        assert_eq!(bitmap.buffer.len(), 1);
+        assert_eq!(bitmap.buffer.as_slice(), &[0b1111_1111]);
+
+        bitmap.extend([true]);
+        assert_eq!(bitmap.len(), 9);
+        assert_eq!(bitmap.buffer.len(), 2);
+        assert_eq!(bitmap.buffer.as_slice(), &[0b1111_1111, 0b0000_0001]);
     }
 
     #[test]
