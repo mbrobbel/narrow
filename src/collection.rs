@@ -14,6 +14,8 @@ use std::{
 use crate::length::Length;
 
 /// An item that can be stored in a [`Collection`].
+// can't add Default as super trait because generic arrays don't implement
+// default
 pub trait Item: Sized + 'static {
     /// A reference type for this item when stored in a collection.
     type Ref<'collection>;
@@ -179,6 +181,7 @@ impl<T: Item> CollectionAlloc for Box<[T]> {
 }
 
 /// An iterator over copied items `T` in a slice borrowed from `U`.
+#[derive(Debug)]
 pub struct CopySliceIter<T: Copy, U: Borrow<[T]>> {
     /// The slice is borrowed from this field.
     data: U,

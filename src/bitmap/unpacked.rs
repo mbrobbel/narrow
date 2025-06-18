@@ -9,6 +9,7 @@ use std::borrow::Borrow;
 ///
 // note: add to docs that users should combine this with std::iter::skip and
 // std::iter::take if needed for padding
+#[derive(Debug)]
 pub struct BitUnpacked<I, T>
 where
     I: Iterator<Item = T>,

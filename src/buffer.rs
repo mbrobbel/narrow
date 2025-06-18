@@ -2,6 +2,7 @@
 
 use std::{
     borrow::{Borrow, BorrowMut},
+    fmt::Debug,
     marker::PhantomData,
     rc::Rc,
     sync::Arc,
@@ -10,7 +11,7 @@ use std::{
 use crate::{collection::Collection, fixed_size::FixedSize};
 
 /// A [`Buffer`] constructor for [`FixedSize`] types.
-pub trait BufferType: Default {
+pub trait BufferType: Default + Debug {
     /// A [`Buffer`] for [`FixedSize`] items of type `T`.
     type Buffer<T: FixedSize>: Buffer<T>;
 }
@@ -18,7 +19,7 @@ pub trait BufferType: Default {
 /// A [`BufferType`] for an array with `N` elements.
 ///
 /// Implements [`Buffer`] and [`BufferMut`].
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug)]
 pub struct ArrayBuffer<const N: usize>;
 
 impl<const N: usize> BufferType for ArrayBuffer<N> {
@@ -28,7 +29,7 @@ impl<const N: usize> BufferType for ArrayBuffer<N> {
 /// A [`BufferType`] for a [`Vec`].
 ///
 /// Implements [`Buffer`], [`BufferMut`] and [`BufferAlloc`].
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug)]
 pub struct VecBuffer;
 
 impl BufferType for VecBuffer {
@@ -38,7 +39,7 @@ impl BufferType for VecBuffer {
 /// A [`BufferType`] for a [`Box`]-ed slice.
 ///
 /// Implements [`Buffer`].
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug)]
 pub struct BoxBuffer;
 
 impl BufferType for BoxBuffer {
@@ -48,7 +49,7 @@ impl BufferType for BoxBuffer {
 /// A [`BufferType`] for an [`Rc`]-ed slice.
 ///
 /// Implements [`Buffer`].
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug)]
 pub struct RcBuffer;
 
 impl BufferType for RcBuffer {
@@ -58,7 +59,7 @@ impl BufferType for RcBuffer {
 /// A [`BufferType`] for an [`Arc`]-ed slice.
 ///
 /// Implements [`Buffer`].
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug)]
 pub struct ArcBuffer;
 
 impl BufferType for ArcBuffer {
@@ -68,7 +69,7 @@ impl BufferType for ArcBuffer {
 /// A [`BufferType`] for a slice.
 ///
 /// Implements [`Buffer`].
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug)]
 pub struct SliceBuffer<'slice>(PhantomData<&'slice ()>);
 
 impl<'slice> BufferType for SliceBuffer<'slice> {
@@ -76,7 +77,7 @@ impl<'slice> BufferType for SliceBuffer<'slice> {
 }
 
 /// A contiguous immutable buffer.
-pub trait Buffer<T: FixedSize>: Borrow<[T]> + Collection<Item = T> {
+pub trait Buffer<T: FixedSize>: Borrow<[T]> + Collection<Item = T> + Debug {
     /// Returns a slice containing all the items in this buffer.
     fn as_slice(&self) -> &[T] {
         self.borrow()
@@ -86,7 +87,7 @@ pub trait Buffer<T: FixedSize>: Borrow<[T]> + Collection<Item = T> {
 impl<T, U> Buffer<T> for U
 where
     T: FixedSize,
-    U: Borrow<[T]> + Collection<Item = T>,
+    U: Borrow<[T]> + Collection<Item = T> + Debug,
 {
 }
 
@@ -101,7 +102,7 @@ pub trait BufferMut<T: FixedSize>: Buffer<T> + BorrowMut<[T]> {
 impl<T, U> BufferMut<T> for U
 where
     T: FixedSize,
-    U: BorrowMut<[T]> + Collection<Item = T>,
+    U: BorrowMut<[T]> + Collection<Item = T> + Debug,
 {
 }
 

@@ -1,11 +1,11 @@
 //! Fixed-size types.
 
-use std::mem;
+use std::{fmt::Debug, mem};
 
 use crate::collection::Item;
 
 /// Fixed-size types.
-pub trait FixedSize: Item + Copy {
+pub trait FixedSize: Item + Copy + Debug {
     /// The size of this type in bytes.
     const SIZE: usize = mem::size_of::<Self>();
 }
