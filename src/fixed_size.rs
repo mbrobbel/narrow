@@ -33,14 +33,14 @@ impl<T: FixedSize, const N: usize> FixedSize for [T; N] {}
 macro_rules! item_primitive {
     ($ty:ty) => {
         impl Item for $ty {
-            type RefItem<'collection> = Self;
-            fn as_ref_item(&self) -> Self::RefItem<'_> {
+            type Ref<'collection> = Self;
+            fn as_ref(&self) -> Self::Ref<'_> {
                 *self
             }
-            fn to_owned(ref_item: &Self::RefItem<'_>) -> Self {
+            fn to_owned(ref_item: &Self::Ref<'_>) -> Self {
                 *ref_item
             }
-            fn into_owned(ref_item: Self::RefItem<'_>) -> Self {
+            fn into_owned(ref_item: Self::Ref<'_>) -> Self {
                 ref_item
             }
         }
@@ -67,27 +67,27 @@ item_primitive!(f64);
 // bools are stored as bits in collections, so we can't borrow it directly
 // instead we return a copy
 impl Item for bool {
-    type RefItem<'collection> = Self;
-    fn as_ref_item(&self) -> Self::RefItem<'_> {
+    type Ref<'collection> = Self;
+    fn as_ref(&self) -> Self::Ref<'_> {
         *self
     }
-    fn to_owned(ref_item: &Self::RefItem<'_>) -> Self {
+    fn to_owned(ref_item: &Self::Ref<'_>) -> Self {
         *ref_item
     }
-    fn into_owned(ref_item: Self::RefItem<'_>) -> Self {
+    fn into_owned(ref_item: Self::Ref<'_>) -> Self {
         ref_item
     }
 }
 
 impl<const N: usize, T: Item + Clone> Item for [T; N] {
-    type RefItem<'collection> = &'collection [T; N];
-    fn as_ref_item(&self) -> Self::RefItem<'_> {
+    type Ref<'collection> = &'collection [T; N];
+    fn as_ref(&self) -> Self::Ref<'_> {
         self
     }
-    fn to_owned(ref_item: &Self::RefItem<'_>) -> Self {
+    fn to_owned(ref_item: &Self::Ref<'_>) -> Self {
         (*ref_item).clone()
     }
-    fn into_owned(ref_item: Self::RefItem<'_>) -> Self {
+    fn into_owned(ref_item: Self::Ref<'_>) -> Self {
         ref_item.clone()
     }
 }

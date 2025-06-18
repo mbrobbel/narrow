@@ -111,9 +111,9 @@ impl<Buffer: BufferType> Length for Bitmap<Buffer> {
 
 impl<Buffer: BufferType> IntoIterator for Bitmap<Buffer> {
     type Item = bool;
-    type IntoIter = Take<
-        Skip<BitUnpacked<<<Buffer as BufferType>::Buffer<u8> as Collection<u8>>::IntoIter, u8>>,
-    >;
+
+    type IntoIter =
+        Take<Skip<BitUnpacked<<<Buffer as BufferType>::Buffer<u8> as Collection>::IntoIter, u8>>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.buffer
@@ -127,9 +127,7 @@ impl<Buffer: BufferType> IntoIterator for Bitmap<Buffer> {
 impl<'bitmap, Buffer: BufferType> IntoIterator for &'bitmap Bitmap<Buffer> {
     type Item = bool;
     type IntoIter = Take<
-        Skip<
-            BitUnpacked<<<Buffer as BufferType>::Buffer<u8> as Collection<u8>>::Iter<'bitmap>, u8>,
-        >,
+        Skip<BitUnpacked<<<Buffer as BufferType>::Buffer<u8> as Collection>::Iter<'bitmap>, u8>>,
     >;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -141,8 +139,8 @@ impl<'bitmap, Buffer: BufferType> IntoIterator for &'bitmap Bitmap<Buffer> {
     }
 }
 
-impl<T: Borrow<bool>, Buffer: BufferType<Buffer<u8>: BufferMut<u8> + CollectionRealloc<u8>>>
-    Extend<T> for Bitmap<Buffer>
+impl<T: Borrow<bool>, Buffer: BufferType<Buffer<u8>: BufferMut<u8> + CollectionRealloc>> Extend<T>
+    for Bitmap<Buffer>
 {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         // Track the number of added bits.
@@ -171,7 +169,7 @@ impl<T: Borrow<bool>, Buffer: BufferType<Buffer<u8>: BufferMut<u8> + CollectionR
     }
 }
 
-impl<T: Borrow<bool>, Buffer: BufferType<Buffer<u8>: CollectionAlloc<u8>>> FromIterator<T>
+impl<T: Borrow<bool>, Buffer: BufferType<Buffer<u8>: CollectionAlloc>> FromIterator<T>
     for Bitmap<Buffer>
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
@@ -191,13 +189,15 @@ impl<T: Borrow<bool>, Buffer: BufferType<Buffer<u8>: CollectionAlloc<u8>>> FromI
     }
 }
 
-impl<Buffer: BufferType> Collection<bool> for Bitmap<Buffer> {
-    fn index(&self, index: usize) -> Option<<bool as collection::Item>::RefItem<'_>> {
+impl<Buffer: BufferType> Collection for Bitmap<Buffer> {
+    type Item = bool;
+
+    fn index(&self, index: usize) -> Option<<bool as collection::Item>::Ref<'_>> {
         (index < self.len())
             .then(|| self.buffer.index(self.byte_index(index)))
             .flatten()
             .map(|byte| byte & (1 << self.bit_index(index)) != 0)
-            .map(|bool| bool.as_ref_item())
+            .map(|bool| bool.as_ref())
     }
 
     type Iter<'collection>
@@ -216,7 +216,7 @@ impl<Buffer: BufferType> Collection<bool> for Bitmap<Buffer> {
     }
 }
 
-impl<Buffer: BufferType<Buffer<u8>: CollectionAlloc<u8>>> CollectionAlloc<bool> for Bitmap<Buffer> {
+impl<Buffer: BufferType<Buffer<u8>: CollectionAlloc>> CollectionAlloc for Bitmap<Buffer> {
     fn with_capacity(capacity: usize) -> Self {
         Self {
             buffer: Buffer::Buffer::<u8>::with_capacity(bytes_for_bits(capacity)),
@@ -226,7 +226,7 @@ impl<Buffer: BufferType<Buffer<u8>: CollectionAlloc<u8>>> CollectionAlloc<bool> 
     }
 }
 
-impl<Buffer: BufferType<Buffer<u8>: BufferMut<u8> + CollectionRealloc<u8>>> CollectionRealloc<bool>
+impl<Buffer: BufferType<Buffer<u8>: BufferMut<u8> + CollectionRealloc>> CollectionRealloc
     for Bitmap<Buffer>
 {
     fn reserve(&mut self, additional: usize) {
