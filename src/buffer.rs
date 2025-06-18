@@ -76,7 +76,7 @@ impl<'slice> BufferType for SliceBuffer<'slice> {
 }
 
 /// A contiguous immutable buffer.
-pub trait Buffer<T: FixedSize>: Borrow<[T]> + Collection<T> {
+pub trait Buffer<T: FixedSize>: Borrow<[T]> + Collection<Item = T> {
     /// Returns a slice containing all the items in this buffer.
     fn as_slice(&self) -> &[T] {
         self.borrow()
@@ -86,7 +86,7 @@ pub trait Buffer<T: FixedSize>: Borrow<[T]> + Collection<T> {
 impl<T, U> Buffer<T> for U
 where
     T: FixedSize,
-    U: Borrow<[T]> + Collection<T>,
+    U: Borrow<[T]> + Collection<Item = T>,
 {
 }
 
@@ -101,17 +101,17 @@ pub trait BufferMut<T: FixedSize>: Buffer<T> + BorrowMut<[T]> {
 impl<T, U> BufferMut<T> for U
 where
     T: FixedSize,
-    U: BorrowMut<[T]> + Collection<T>,
+    U: BorrowMut<[T]> + Collection<Item = T>,
 {
 }
 
 /// An allocatable contiguous buffer.
-pub trait BufferAlloc<T: FixedSize>: Buffer<T> + Collection<T> {}
+pub trait BufferAlloc<T: FixedSize>: Buffer<T> + Collection<Item = T> {}
 
 impl<T, U> BufferAlloc<T> for U
 where
     T: FixedSize,
-    U: Buffer<T> + Collection<T>,
+    U: Buffer<T> + Collection<Item = T>,
 {
 }
 
