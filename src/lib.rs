@@ -54,12 +54,16 @@
     // Rustdoc
     // rustdoc::all
 )]
+#![forbid(unsafe_code)]
 #![allow(
+    clippy::into_iter_without_iter,
+    clippy::iter_not_returning_iterator,
     clippy::module_name_repetitions,
     clippy::pub_use,
     unsafe_op_in_unsafe_fn
 )]
 
+pub mod bitmap;
 pub mod buffer;
 pub mod collection;
 pub mod fixed_size;
