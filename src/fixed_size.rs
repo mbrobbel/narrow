@@ -1,81 +1,93 @@
-//! Subtrait for fixed-size types.
+//! Fixed-size types.
 
-// use crate::array::ArrayType;
-use std::{fmt::Debug, mem};
+use std::mem;
 
-#[cfg(feature = "arrow-rs")]
-/// Module that re-exports the [`arrow_buffer::ArrowNativeType`] trait.
-mod arrow_rs {
-    pub use arrow_buffer::ArrowNativeType as _arrow_rs_trait;
-}
-#[cfg(not(feature = "arrow-rs"))]
-/// Module with empty trait to work around [RFC-3399](https://rust-lang.github.io/rfcs/3399-cfg-attribute-in-where.html).
-mod arrow_rs {
-    /// Empty trait.
-    pub trait Type {}
-    impl<T> Type for T {}
-    pub use Type as _arrow_rs_trait;
-}
-use arrow_rs::_arrow_rs_trait;
+use crate::collection::Item;
 
-use crate::array::ArrayType;
-
-/// Subtrait for fixed-size types.
-///
-/// This exists to be used as trait bound where one or more of the supertraits
-/// of this trait are required, and to restrict certain implementations to
-/// fixed-size types.
-///
-/// This trait is sealed to prevent downstream implementations.
-pub trait FixedSize:
-    ArrayType<Self> + Copy + Debug + PartialEq + Sized + sealed::Sealed + 'static + _arrow_rs_trait
-{
-    /// The fixed-size of this type in bytes.
+/// Fixed-size types.
+pub trait FixedSize: Item + Copy {
+    /// The size of this type in bytes.
     const SIZE: usize = mem::size_of::<Self>();
 }
 
-/// Private module for [`sealed::Sealed`] trait.
-mod sealed {
-    /// Used to seal [`super::FixedSize`].
-    pub trait Sealed {}
-
-    /// Prevent downstream implementation of [`super::FixedSize`].
-    impl<T> Sealed for T where T: super::FixedSize {}
-}
+impl FixedSize for u8 {}
+impl FixedSize for u16 {}
+impl FixedSize for u32 {}
+impl FixedSize for u64 {}
+impl FixedSize for u128 {}
+impl FixedSize for usize {}
 
 impl FixedSize for i8 {}
 impl FixedSize for i16 {}
 impl FixedSize for i32 {}
 impl FixedSize for i64 {}
 impl FixedSize for i128 {}
-impl FixedSize for u8 {}
-impl FixedSize for u16 {}
-impl FixedSize for u32 {}
-impl FixedSize for u64 {}
-#[cfg(not(feature = "arrow-rs"))]
-impl FixedSize for u128 {}
-
-#[cfg(not(feature = "arrow-rs"))]
 impl FixedSize for isize {}
-#[cfg(not(feature = "arrow-rs"))]
-impl FixedSize for usize {}
 
 impl FixedSize for f32 {}
 impl FixedSize for f64 {}
 
-#[cfg(not(feature = "arrow-rs"))]
-impl<const N: usize, T: super::FixedSize> FixedSize for [T; N] {}
+impl<T: FixedSize, const N: usize> FixedSize for [T; N] {}
 
-#[cfg(test)]
-mod tests {
-    use super::FixedSize;
+/// Implements `Item` and `ItemMut` for primitive types.
+macro_rules! item_primitive {
+    ($ty:ty) => {
+        impl Item for $ty {
+            type Ref<'collection> = Self;
+            fn as_ref(&self) -> Self::Ref<'_> {
+                *self
+            }
+            fn to_owned(ref_item: &Self::Ref<'_>) -> Self {
+                *ref_item
+            }
+            fn into_owned(ref_item: Self::Ref<'_>) -> Self {
+                ref_item
+            }
+        }
+    };
+}
 
-    #[test]
-    fn size() {
-        assert_eq!(u8::SIZE, 1);
-        #[cfg(not(feature = "arrow-rs"))]
-        assert_eq!(<[u16; 21]>::SIZE, 42);
-        #[cfg(not(feature = "arrow-rs"))]
-        assert_eq!(<[u8; 1234]>::SIZE, 1234);
+item_primitive!(u8);
+item_primitive!(u16);
+item_primitive!(u32);
+item_primitive!(u64);
+item_primitive!(u128);
+item_primitive!(usize);
+
+item_primitive!(i8);
+item_primitive!(i16);
+item_primitive!(i32);
+item_primitive!(i64);
+item_primitive!(i128);
+item_primitive!(isize);
+
+item_primitive!(f32);
+item_primitive!(f64);
+
+// bools are stored as bits in collections, so we can't borrow it directly
+// instead we return a copy
+impl Item for bool {
+    type Ref<'collection> = Self;
+    fn as_ref(&self) -> Self::Ref<'_> {
+        *self
+    }
+    fn to_owned(ref_item: &Self::Ref<'_>) -> Self {
+        *ref_item
+    }
+    fn into_owned(ref_item: Self::Ref<'_>) -> Self {
+        ref_item
+    }
+}
+
+impl<const N: usize, T: Item + Clone> Item for [T; N] {
+    type Ref<'collection> = &'collection [T; N];
+    fn as_ref(&self) -> Self::Ref<'_> {
+        self
+    }
+    fn to_owned(ref_item: &Self::Ref<'_>) -> Self {
+        (*ref_item).clone()
+    }
+    fn into_owned(ref_item: Self::Ref<'_>) -> Self {
+        ref_item.clone()
     }
 }
