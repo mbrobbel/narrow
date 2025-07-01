@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1](https://github.com/mbrobbel/narrow/compare/narrow-v0.13.0...narrow-v0.13.1) - 2025-06-30
+
+### Other
+
+- *(deps)* bump the arrow group with 5 updates ([#409](https://github.com/mbrobbel/narrow/pull/409))
+- *(deps)* bump syn from 2.0.103 to 2.0.104 ([#408](https://github.com/mbrobbel/narrow/pull/408))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.107 to 0.5.108 ([#407](https://github.com/mbrobbel/narrow/pull/407))
+- *(deps)* bump syn from 2.0.102 to 2.0.103 ([#404](https://github.com/mbrobbel/narrow/pull/404))
+- *(deps)* bump syn from 2.0.101 to 2.0.102 ([#402](https://github.com/mbrobbel/narrow/pull/402))
+- *(deps)* bump uuid from 1.16.0 to 1.17.0 ([#401](https://github.com/mbrobbel/narrow/pull/401))
+- *(deps)* bump rustversion from 1.0.20 to 1.0.21 ([#400](https://github.com/mbrobbel/narrow/pull/400))
+- *(deps)* bump criterion from 0.5.1 to 0.6.0 ([#398](https://github.com/mbrobbel/narrow/pull/398))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.106 to 0.5.107 ([#397](https://github.com/mbrobbel/narrow/pull/397))
+- fix clippy 1.87 warnings ([#399](https://github.com/mbrobbel/narrow/pull/399))
+- *(deps)* bump the arrow group with 5 updates ([#396](https://github.com/mbrobbel/narrow/pull/396))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.105 to 0.5.106 ([#395](https://github.com/mbrobbel/narrow/pull/395))
+- *(deps)* bump chrono from 0.4.40 to 0.4.41 ([#394](https://github.com/mbrobbel/narrow/pull/394))
+- *(deps)* bump syn from 2.0.100 to 2.0.101 ([#393](https://github.com/mbrobbel/narrow/pull/393))
+- *(deps)* bump actions/download-artifact from 4.2.1 to 4.3.0 ([#392](https://github.com/mbrobbel/narrow/pull/392))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.104 to 0.5.105 ([#391](https://github.com/mbrobbel/narrow/pull/391))
+- *(deps)* bump rand from 0.9.0 to 0.9.1 ([#390](https://github.com/mbrobbel/narrow/pull/390))
+- *(deps)* bump proc-macro2 from 1.0.94 to 1.0.95 ([#387](https://github.com/mbrobbel/narrow/pull/387))
+
 ## [0.13.0](https://github.com/mbrobbel/narrow/compare/narrow-v0.12.12...narrow-v0.13.0) - 2025-04-16
 
 ### Other
