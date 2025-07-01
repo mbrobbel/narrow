@@ -9,7 +9,7 @@
 #![deny(
     // Rustc
     missing_copy_implementations,
-    // missing_debug_implementations,
+    missing_debug_implementations,
     missing_docs,
     noop_method_call,
     // warnings,
@@ -63,8 +63,12 @@
     unsafe_op_in_unsafe_fn
 )]
 
-pub mod bitmap;
 pub mod buffer;
 pub mod collection;
 pub mod fixed_size;
 pub mod length;
+
+pub mod bitmap;
+
+pub mod nullability;
+pub mod validity;

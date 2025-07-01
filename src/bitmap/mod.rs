@@ -26,6 +26,7 @@ pub(crate) const fn bytes_for_bits(bits: usize) -> usize {
 /// A collection of bits.
 ///
 /// The validity bits are stored LSB-first in the bytes of a buffer.
+#[derive(Debug)]
 pub struct Bitmap<Buffer: BufferType = VecBuffer> {
     /// The bits of the bitmap are stored in this buffer of bytes.
     buffer: Buffer::Buffer<u8>,
@@ -149,13 +150,14 @@ impl<T: Borrow<bool>, Buffer: BufferType<Buffer<u8>: BufferMut<u8> + CollectionR
             additional += 1;
         });
 
-        // Fill the trailing bits in the buffer.
-        let trailing_bits = self.trailing_bits();
-        if trailing_bits != 0 {
+        // Fill remaining bits in the last byte of the buffer.
+        let bit_index = self.bit_index(self.bits);
+        if bit_index != 0 {
             // If there are trailing bits, there must at least be one byte in
             // the buffer.
             if let Some(last_byte) = self.buffer.as_mut_slice().last_mut() {
-                for index in trailing_bits..8 {
+                // Use the remaining bits in this last byte
+                for index in bit_index..8 {
                     if let Some(next) = items.next() {
                         *last_byte |= u8::from(*next.borrow()) << index;
                     }
@@ -255,6 +257,14 @@ mod tests {
     }
 
     #[test]
+    fn extend() {
+        let mut bitmap = Bitmap::<VecBuffer>::from_iter([true]);
+        assert_eq!(bitmap.buffer, &[0b0000_0001]);
+        bitmap.extend([true]);
+        assert_eq!(bitmap.buffer, &[0b0000_0011]);
+    }
+
+    #[test]
     fn extend_within_byte() {
         let input = [true, false, true, true];
         let mut bitmap = Bitmap::<VecBuffer>::from_iter(input);
@@ -262,7 +272,12 @@ mod tests {
         assert_eq!(bitmap.buffer.len(), 1);
         assert_eq!(bitmap.buffer.as_slice(), &[0b0000_1101]);
 
-        bitmap.extend([true, false, false, true]);
+        bitmap.extend([true, false, false]);
+        assert_eq!(bitmap.len(), 7);
+        assert_eq!(bitmap.buffer.len(), 1);
+        assert_eq!(bitmap.buffer.as_slice(), &[0b0001_1101]);
+
+        bitmap.extend([true]);
         assert_eq!(bitmap.len(), 8);
         assert_eq!(bitmap.buffer.len(), 1);
         assert_eq!(bitmap.buffer.as_slice(), &[0b1001_1101]);
@@ -312,8 +327,9 @@ mod tests {
         assert_eq!(bitmap.index(0), Some(false));
         assert_eq!(bitmap.index(1), Some(true));
         assert_eq!(bitmap.index(2), Some(false));
-        assert_eq!((&bitmap).into_iter().filter(|x| !*x).count(), 2);
-        assert_eq!((&bitmap).into_iter().filter(|x| *x).count(), 1);
+        assert_eq!(bitmap.index(3), None);
+        assert_eq!(bitmap.iter().filter(|x| !*x).count(), 2);
+        assert_eq!(bitmap.iter().filter(|x| *x).count(), 1);
         assert_eq!(
             IntoIterator::into_iter(bitmap).collect::<Vec<_>>(),
             [false, true, false]
