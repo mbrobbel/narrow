@@ -58,15 +58,15 @@ impl<T: Collection, Buffer: BufferType> Length for Validity<T, Buffer> {
 impl<'collection, T: Collection, Buffer: BufferType> IntoIterator
     for &'collection Validity<T, Buffer>
 {
-    type Item = Option<<<T as Collection>::Item as Item>::Ref<'collection>>;
+    type Item = Option<<T as Collection>::Ref<'collection>>;
     type IntoIter = Map<
         Zip<
             <Bitmap<Buffer> as Collection>::Iter<'collection>,
             <T as Collection>::Iter<'collection>,
         >,
         fn(
-            (bool, <<T as Collection>::Item as Item>::Ref<'collection>),
-        ) -> Option<<<T as Collection>::Item as Item>::Ref<'collection>>,
+            (bool, <T as Collection>::Ref<'collection>),
+        ) -> Option<<T as Collection>::Ref<'collection>>,
     >;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -93,8 +93,12 @@ impl<T: Collection, Buffer: BufferType> IntoIterator for Validity<T, Buffer> {
 
 impl<T: Collection, Buffer: BufferType> Collection for Validity<T, Buffer> {
     type Item = Option<<T as Collection>::Item>;
+    type Ref<'collection>
+        = Option<<T as Collection>::Ref<'collection>>
+    where
+        Self: 'collection;
 
-    fn index(&self, index: usize) -> Option<<Self::Item as Item>::Ref<'_>> {
+    fn index(&self, index: usize) -> Option<Self::Ref<'_>> {
         self.bitmap.index(index).map(|validity| {
             if validity {
                 self.collection.index(index)

@@ -37,11 +37,17 @@ pub trait Collection: Length {
     /// The item stored in this collection.
     type Item: Item;
 
+    /// A reference type for items in this collection.
+    /// This typically defaults to <Self::Item as Item>::Ref<'collection>.
+    type Ref<'collection>
+    where
+        Self: 'collection;
+
     /// Returns a reference to an item in this collection or `None` if out of bounds.
-    fn index(&self, index: usize) -> Option<<Self::Item as Item>::Ref<'_>>;
+    fn index(&self, index: usize) -> Option<Self::Ref<'_>>;
 
     /// Iterator over referenced items in this collection.
-    type Iter<'collection>: Iterator<Item = <Self::Item as Item>::Ref<'collection>>
+    type Iter<'collection>: Iterator<Item = Self::Ref<'collection>>
     where
         Self: 'collection;
 
@@ -69,13 +75,14 @@ pub trait CollectionRealloc: CollectionAlloc + Extend<Self::Item> {
 
 impl<T: Item> Collection for Vec<T> {
     type Item = T;
+    type Ref<'collection> = T::Ref<'collection>;
 
-    fn index(&self, index: usize) -> Option<T::Ref<'_>> {
+    fn index(&self, index: usize) -> Option<Self::Ref<'_>> {
         self.get(index).map(T::as_ref)
     }
 
     type Iter<'collection>
-        = Map<slice::Iter<'collection, T>, fn(&'collection T) -> T::Ref<'collection>>
+        = Map<slice::Iter<'collection, T>, fn(&'collection T) -> Self::Ref<'collection>>
     where
         Self: 'collection;
 
@@ -104,16 +111,14 @@ impl<T: Item> CollectionRealloc for Vec<T> {
 
 impl<T: Item, const N: usize> Collection for [T; N] {
     type Item = T;
+    type Ref<'collection> = T::Ref<'collection>;
 
-    fn index(&self, index: usize) -> Option<<Self::Item as Item>::Ref<'_>> {
+    fn index(&self, index: usize) -> Option<Self::Ref<'_>> {
         self.get(index).map(T::as_ref)
     }
 
     type Iter<'collection>
-        = Map<
-        slice::Iter<'collection, T>,
-        fn(&'collection T) -> <Self::Item as Item>::Ref<'collection>,
-    >
+        = Map<slice::Iter<'collection, T>, fn(&'collection T) -> Self::Ref<'collection>>
     where
         Self: 'collection;
 
@@ -130,13 +135,17 @@ impl<T: Item, const N: usize> Collection for [T; N] {
 
 impl<'a, T: Copy + Item> Collection for &'a [T] {
     type Item = T;
+    type Ref<'collection>
+        = T::Ref<'collection>
+    where
+        Self: 'collection;
 
-    fn index(&self, index: usize) -> Option<T::Ref<'_>> {
+    fn index(&self, index: usize) -> Option<Self::Ref<'_>> {
         self.get(index).map(T::as_ref)
     }
 
     type Iter<'collection>
-        = Map<slice::Iter<'collection, T>, fn(&'collection T) -> T::Ref<'collection>>
+        = Map<slice::Iter<'collection, T>, fn(&'collection T) -> Self::Ref<'collection>>
     where
         Self: 'collection;
 
@@ -153,13 +162,14 @@ impl<'a, T: Copy + Item> Collection for &'a [T] {
 
 impl<T: Item> Collection for Box<[T]> {
     type Item = T;
+    type Ref<'collection> = T::Ref<'collection>;
 
-    fn index(&self, index: usize) -> Option<T::Ref<'_>> {
+    fn index(&self, index: usize) -> Option<Self::Ref<'_>> {
         self.get(index).map(T::as_ref)
     }
 
     type Iter<'collection>
-        = Map<slice::Iter<'collection, T>, fn(&'collection T) -> T::Ref<'collection>>
+        = Map<slice::Iter<'collection, T>, fn(&'collection T) -> Self::Ref<'collection>>
     where
         Self: 'collection;
 
@@ -224,13 +234,14 @@ impl<T: Copy, U: Borrow<[T]>> ExactSizeIterator for CopySliceIter<T, U> {}
 
 impl<T: Copy + Item> Collection for Rc<[T]> {
     type Item = T;
+    type Ref<'collection> = T::Ref<'collection>;
 
-    fn index(&self, index: usize) -> Option<T::Ref<'_>> {
+    fn index(&self, index: usize) -> Option<Self::Ref<'_>> {
         self.get(index).map(T::as_ref)
     }
 
     type Iter<'collection>
-        = Map<slice::Iter<'collection, T>, fn(&'collection T) -> T::Ref<'collection>>
+        = Map<slice::Iter<'collection, T>, fn(&'collection T) -> Self::Ref<'collection>>
     where
         Self: 'collection;
 
@@ -247,13 +258,14 @@ impl<T: Copy + Item> Collection for Rc<[T]> {
 
 impl<T: Copy + Item> Collection for Arc<[T]> {
     type Item = T;
+    type Ref<'collection> = T::Ref<'collection>;
 
-    fn index(&self, index: usize) -> Option<T::Ref<'_>> {
+    fn index(&self, index: usize) -> Option<Self::Ref<'_>> {
         self.get(index).map(T::as_ref)
     }
 
     type Iter<'collection>
-        = Map<slice::Iter<'collection, T>, fn(&'collection T) -> T::Ref<'collection>>
+        = Map<slice::Iter<'collection, T>, fn(&'collection T) -> Self::Ref<'collection>>
     where
         Self: 'collection;
 

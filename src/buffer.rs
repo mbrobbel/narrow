@@ -77,7 +77,9 @@ impl<'slice> BufferType for SliceBuffer<'slice> {
 }
 
 /// A contiguous immutable buffer.
-pub trait Buffer<T: FixedSize>: Borrow<[T]> + Collection<Item = T> + Debug {
+pub trait Buffer<T: FixedSize>:
+    Borrow<[T]> + for<'any> Collection<Item = T, Ref<'any> = T::Ref<'any>> + Debug
+{
     /// Returns a slice containing all the items in this buffer.
     fn as_slice(&self) -> &[T] {
         self.borrow()
@@ -87,7 +89,7 @@ pub trait Buffer<T: FixedSize>: Borrow<[T]> + Collection<Item = T> + Debug {
 impl<T, U> Buffer<T> for U
 where
     T: FixedSize,
-    U: Borrow<[T]> + Collection<Item = T> + Debug,
+    for<'any> U: Borrow<[T]> + Collection<Item = T, Ref<'any> = T::Ref<'any>> + Debug + 'any,
 {
 }
 
@@ -102,17 +104,17 @@ pub trait BufferMut<T: FixedSize>: Buffer<T> + BorrowMut<[T]> {
 impl<T, U> BufferMut<T> for U
 where
     T: FixedSize,
-    U: BorrowMut<[T]> + Collection<Item = T> + Debug,
+    for<'any> U: BorrowMut<[T]> + Collection<Item = T, Ref<'any> = T::Ref<'any>> + Debug + 'any,
 {
 }
 
 /// An allocatable contiguous buffer.
-pub trait BufferAlloc<T: FixedSize>: Buffer<T> + Collection<Item = T> {}
+pub trait BufferAlloc<T: FixedSize>: Buffer<T> {}
 
 impl<T, U> BufferAlloc<T> for U
 where
     T: FixedSize,
-    U: Buffer<T> + Collection<Item = T>,
+    for<'any> U: Buffer<T> + 'any,
 {
 }
 

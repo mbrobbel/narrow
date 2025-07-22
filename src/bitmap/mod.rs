@@ -13,7 +13,7 @@ use unpacked::{BitUnpacked, BitUnpackedExt};
 
 use crate::{
     buffer::{BufferMut, BufferType, VecBuffer},
-    collection::{self, Collection, CollectionAlloc, CollectionRealloc, Item},
+    collection::{Collection, CollectionAlloc, CollectionRealloc, Item},
     length::Length,
 };
 
@@ -193,8 +193,12 @@ impl<T: Borrow<bool>, Buffer: BufferType<Buffer<u8>: CollectionAlloc>> FromItera
 
 impl<Buffer: BufferType> Collection for Bitmap<Buffer> {
     type Item = bool;
+    type Ref<'collection>
+        = bool
+    where
+        Self: 'collection;
 
-    fn index(&self, index: usize) -> Option<<bool as collection::Item>::Ref<'_>> {
+    fn index(&self, index: usize) -> Option<Self::Ref<'_>> {
         (index < self.len())
             .then(|| self.buffer.index(self.byte_index(index)))
             .flatten()

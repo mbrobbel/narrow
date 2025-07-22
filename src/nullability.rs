@@ -15,7 +15,9 @@ pub trait Nullability: sealed::Sealed {
     /// Constructor for nullable and non-nullable collections.
     ///
     /// Generic over a collection `T` and a [`BufferType`].
-    type Collection<T: Collection, Buffer: BufferType>: Collection;
+    type Collection<T: Collection, Buffer: BufferType>: Collection<
+        Item = Self::Item<<T as Collection>::Item>,
+    >;
 }
 
 /// Private module for [`sealed::Sealed`] trait.
