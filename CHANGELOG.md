@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.2](https://github.com/mbrobbel/narrow/compare/narrow-v0.13.1...narrow-v0.13.2) - 2025-07-22
+
+### Fixed
+
+- add crates-io environment to pr job ([#415](https://github.com/mbrobbel/narrow/pull/415))
+
+### Other
+
+- add id-token permisison to release jobs ([#414](https://github.com/mbrobbel/narrow/pull/414))
+- use trusted publishing for crates.io ([#413](https://github.com/mbrobbel/narrow/pull/413))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.108 to 0.5.109 ([#411](https://github.com/mbrobbel/narrow/pull/411))
+- *(deps)* bump rand from 0.9.1 to 0.9.2 ([#410](https://github.com/mbrobbel/narrow/pull/410))
+
 ## [0.13.1](https://github.com/mbrobbel/narrow/compare/narrow-v0.13.0...narrow-v0.13.1) - 2025-06-30
 
 ### Other
