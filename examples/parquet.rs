@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, slice};
 
 use chrono::{DateTime, NaiveDate, NaiveTime, TimeDelta, Utc};
 use narrow::NonNullable;
@@ -80,7 +80,7 @@ fn main() {
 
     let record_batch = RecordBatch::from(narrow_array);
     println!("From narrow StructArray to Arrow RecordBatch");
-    pretty::print_batches(&[record_batch.clone()]).unwrap();
+    pretty::print_batches(slice::from_ref(&record_batch)).unwrap();
 
     let mut buffer = Vec::new();
     let mut writer = ArrowWriter::try_new(&mut buffer, record_batch.schema(), None).unwrap();
@@ -90,7 +90,7 @@ fn main() {
     let mut reader = ParquetRecordBatchReader::try_new(Bytes::from(buffer), 1024).unwrap();
     let read = reader.next().unwrap().unwrap();
     println!("From Arrow RecordBatch to Parquet and back to Arrow RecordBatch");
-    pretty::print_batches(&[read.clone()]).unwrap();
+    pretty::print_batches(slice::from_ref(&read)).unwrap();
     assert_eq!(record_batch, read.clone());
 
     let round_trip: StructArray<Foo, NonNullable, ScalarBuffer> = read.into();

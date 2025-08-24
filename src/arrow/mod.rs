@@ -10,6 +10,8 @@ mod bitmap;
 pub mod buffer;
 
 /// Extension trait of [`Array`] for [`arrow-rs`] interop.
+///
+/// [`arrow-rs`]: https://crates.io/crates/arrow
 pub trait Array: crate::array::Array + Sized {
     /// The corresponding arrow array
     type Array: arrow_array::Array;
@@ -22,6 +24,8 @@ pub trait Array: crate::array::Array + Sized {
 }
 
 /// Extension trait of [`LogicalArrayType`] for [`arrow-rs`] interop.
+///
+/// [`arrow-rs`]: https://crates.io/crates/arrow
 pub trait LogicalArrayType<T>: crate::logical::LogicalArrayType<T>
 where
     Self: crate::array::ArrayType<Self>,
@@ -77,6 +81,8 @@ impl arrow_schema::extension::ExtensionType for NoExtensionType {
 }
 
 /// Extension trait for [`Offset`] for [`arrow-rs`] interop.
+///
+/// [`arrow-rs`]: https://crates.io/crates/arrow
 pub trait Offset: crate::offset::Offset {
     /// This constant is true when this offset maps to the large variant of a
     /// datatype.

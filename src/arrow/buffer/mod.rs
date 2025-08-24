@@ -1,4 +1,6 @@
 //! Interop with [`arrow-rs`] buffer types.
+//!
+//! [`arrow-rs`]: https://crates.io/crates/arrow
 
 mod boolean_buffer;
 mod null_buffer;
