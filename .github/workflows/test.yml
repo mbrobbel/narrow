@@ -11,7 +11,7 @@ jobs:
     name: Minimum supported Rust version
     runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@1.85.1
         id: rust-toolchain
       - run: cargo check --workspace --all-targets --no-default-features
@@ -24,7 +24,7 @@ jobs:
     name: Check
     runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         id: rust-toolchain
         with:
@@ -44,7 +44,7 @@ jobs:
     name: Miri
     runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@miri
         id: rust-toolchain
       - run: cargo miri setup
@@ -58,7 +58,7 @@ jobs:
       RUSTFLAGS: "-C instrument-coverage"
       RUSTDOCFLAGS: "-C instrument-coverage"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         id: rust-toolchain
         with:
