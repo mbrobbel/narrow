@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.3](https://github.com/mbrobbel/narrow/compare/narrow-v0.13.2...narrow-v0.13.3) - 2025-08-24
+
+### Other
+
+- *(deps)* bump syn from 2.0.104 to 2.0.106 ([#431](https://github.com/mbrobbel/narrow/pull/431))
+- *(deps)* bump proc-macro2 from 1.0.95 to 1.0.101 ([#429](https://github.com/mbrobbel/narrow/pull/429))
+- fix clippy 1.89 warnings ([#433](https://github.com/mbrobbel/narrow/pull/433))
+- *(deps)* bump macrotest from 1.1.0 to 1.2.0 ([#419](https://github.com/mbrobbel/narrow/pull/419))
+
 ## [0.13.2](https://github.com/mbrobbel/narrow/compare/narrow-v0.13.1...narrow-v0.13.2) - 2025-07-22
 
 ### Fixed
