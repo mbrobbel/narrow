@@ -2,7 +2,6 @@
 
 use std::{
     borrow::{Borrow, BorrowMut},
-    fmt::Debug,
     marker::PhantomData,
     rc::Rc,
     sync::Arc,
@@ -11,14 +10,14 @@ use std::{
 use crate::{collection::Collection, fixed_size::FixedSize};
 
 /// A contiguous immutable buffer.
-pub trait Buffer<T: FixedSize>: Borrow<[T]> + Debug {
+pub trait Buffer<T: FixedSize>: Borrow<[T]> {
     /// Returns a slice containing all the items in this buffer.
     fn as_slice(&self) -> &[T] {
         self.borrow()
     }
 }
 
-impl<T: FixedSize, U: Borrow<[T]> + Debug> Buffer<T> for U {}
+impl<T: FixedSize, U: Borrow<[T]>> Buffer<T> for U {}
 
 /// A contiguous mutable buffer.
 pub trait BufferMut<T: FixedSize>: Buffer<T> + BorrowMut<[T]> {
@@ -28,10 +27,10 @@ pub trait BufferMut<T: FixedSize>: Buffer<T> + BorrowMut<[T]> {
     }
 }
 
-impl<T: FixedSize, U: BorrowMut<[T]> + Debug> BufferMut<T> for U {}
+impl<T: FixedSize, U: BorrowMut<[T]>> BufferMut<T> for U {}
 
 /// A [`Buffer`] constructor for [`FixedSize`] types.
-pub trait BufferType: Default + Debug {
+pub trait BufferType: Default {
     /// A [`Buffer`] for [`FixedSize`] items of type `T`.
     type Buffer<T: FixedSize>: Buffer<T> + Collection<Owned = T>;
 }

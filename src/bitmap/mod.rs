@@ -5,6 +5,7 @@ mod unpacked;
 
 use std::{
     borrow::Borrow,
+    fmt::{self, Debug},
     iter::{Skip, Take},
     slice,
 };
@@ -27,7 +28,6 @@ pub(crate) const fn bytes_for_bits(bits: usize) -> usize {
 /// A collection of bits.
 ///
 /// The validity bits are stored LSB-first in the bytes of a buffer.
-#[derive(Debug)]
 pub struct Bitmap<Buffer: BufferType = VecBuffer> {
     /// The bits of the bitmap are stored in this buffer of bytes.
     buffer: Buffer::Buffer<u8>,
@@ -38,6 +38,16 @@ pub struct Bitmap<Buffer: BufferType = VecBuffer> {
     /// An offset (in number of bits) in the buffer. This enables zero-copy
     /// slicing of the bitmap on non-byte boundaries.
     offset: usize,
+}
+
+impl<Buffer: BufferType<Buffer<u8>: Debug>> Debug for Bitmap<Buffer> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Bitmap")
+            .field("buffer", &self.buffer)
+            .field("bits", &self.bits)
+            .field("offset", &self.offset)
+            .finish()
+    }
 }
 
 impl<Buffer: BufferType> Bitmap<Buffer> {

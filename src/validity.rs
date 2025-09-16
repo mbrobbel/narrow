@@ -1,6 +1,9 @@
 //! Nullable data with a validity bitmap.
 
-use std::iter::{self, Map, Zip};
+use std::{
+    fmt::{self, Debug},
+    iter::{self, Map, Zip},
+};
 
 use crate::{
     bitmap::Bitmap,
@@ -16,7 +19,6 @@ use crate::{
 /// collection.
 ///
 /// `Buffer` is the [`BufferType`] of the [`Bitmap`].
-#[derive(Debug)]
 pub struct Validity<T: Collection, Buffer: BufferType = VecBuffer> {
     /// Collection that may contain null elements.
     collection: T,
@@ -24,6 +26,18 @@ pub struct Validity<T: Collection, Buffer: BufferType = VecBuffer> {
     /// The validity bitmap with validity information for the items in the
     /// data.
     bitmap: Bitmap<Buffer>,
+}
+
+impl<T: Collection + Debug, Buffer: BufferType> Debug for Validity<T, Buffer>
+where
+    Bitmap<Buffer>: Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Validity")
+            .field("collection", &self.collection)
+            .field("bitmap", &self.bitmap)
+            .finish()
+    }
 }
 
 impl<T: Default + Collection, Buffer: BufferType<Buffer<u8>: Default>> Default
