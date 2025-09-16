@@ -173,7 +173,7 @@ impl Struct<'_> {
             })
     }
 
-    fn field_idents(&self) -> FieldIdents {
+    fn field_idents(&self) -> FieldIdents<'_> {
         self.fields
             .iter()
             .enumerate()

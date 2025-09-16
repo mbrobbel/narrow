@@ -221,17 +221,19 @@ mod tests {
     fn into_non_nullable() {
         let mut list_builder =
             ListBuilder::with_capacity(StringBuilder::new(), INPUT_NULLABLE.len());
-        INPUT_NULLABLE.into_iter().for_each(|opt| match opt {
-            Some(items) => {
-                for item in items {
-                    list_builder.values().append_value(item);
+        for opt in INPUT_NULLABLE {
+            match opt {
+                Some(items) => {
+                    for item in items {
+                        list_builder.values().append_value(item);
+                    }
+                    list_builder.append(true);
                 }
-                list_builder.append(true);
+                None => {
+                    list_builder.append(false);
+                }
             }
-            None => {
-                list_builder.append(false);
-            }
-        });
+        }
         let list_array_nullable = list_builder.finish();
         let _: VariableSizeListArray<
             StringArray<NonNullable, i32, ScalarBuffer>,
@@ -258,17 +260,19 @@ mod tests {
 
         let mut list_builder =
             ListBuilder::with_capacity(StringBuilder::new(), INPUT_NULLABLE.len());
-        INPUT_NULLABLE.into_iter().for_each(|opt| match opt {
-            Some(items) => {
-                for item in items {
-                    list_builder.values().append_value(item);
+        for opt in INPUT_NULLABLE {
+            match opt {
+                Some(items) => {
+                    for item in items {
+                        list_builder.values().append_value(item);
+                    }
+                    list_builder.append(true);
                 }
-                list_builder.append(true);
+                None => {
+                    list_builder.append(false);
+                }
             }
-            None => {
-                list_builder.append(false);
-            }
-        });
+        }
         let list_array_nullable = list_builder.finish();
         let _: VariableSizeListArray<
             StringArray<NonNullable, i32, ScalarBuffer>,

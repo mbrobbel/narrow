@@ -13,7 +13,7 @@ jobs:
     env:
       RUSTDOCFLAGS: -Dwarnings
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@nightly
         id: rust-toolchain
       - run: cargo install --locked cargo-docs-rs
@@ -44,11 +44,11 @@ jobs:
       pages: write
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4.3.0
+      - uses: actions/download-artifact@v5.0.0
         with:
           name: rustdoc
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: .
       - uses: actions/deploy-pages@v4
