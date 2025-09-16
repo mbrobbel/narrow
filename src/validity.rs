@@ -40,7 +40,7 @@ impl<T: Default + Collection, Buffer: BufferType<Buffer<u8>: Default>> Default
 impl<'collection, T: AsView<'collection>> AsView<'collection> for Option<T> {
     type View = Option<ViewOf<'collection, T>>;
     fn as_view(&'collection self) -> Option<ViewOf<'collection, T>> {
-        self.as_ref().map(|inner| inner.as_view())
+        self.as_ref().map(AsView::as_view)
     }
 }
 

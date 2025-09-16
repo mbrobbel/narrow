@@ -48,7 +48,7 @@ impl<const N: usize> BufferType for ArrayBuffer<N> {
 
 /// A [`BufferType`] for a [`Vec`].
 ///
-/// Implements [`Buffer`], [`BufferMut`] and [`BufferAlloc`].
+/// Implements [`Buffer`], [`BufferMut`].
 #[derive(Clone, Copy, Default, Debug)]
 pub struct VecBuffer;
 

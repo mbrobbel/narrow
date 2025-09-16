@@ -389,6 +389,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[expect(clippy::perf, clippy::unwrap_used)]
     fn collection() {
         let a = vec![1, 2, 3, 4];
         assert_eq!(a[0].as_view(), 1);
