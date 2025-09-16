@@ -63,7 +63,7 @@ impl<'collection, T: 'collection> AsView<'collection> for Vec<T> {
     }
 }
 
-impl<'collection, T: 'collection> AsView<'collection> for &[T] {
+impl<'collection, T> AsView<'collection> for &'collection [T] {
     type View = &'collection [T];
 
     fn as_view(&'collection self) -> Self::View {
