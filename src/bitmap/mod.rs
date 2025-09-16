@@ -5,15 +5,17 @@ mod unpacked;
 
 use std::{
     borrow::Borrow,
+    fmt::{self, Debug},
     iter::{Skip, Take},
+    slice,
 };
 
 use packed::BitPackedExt;
 use unpacked::{BitUnpacked, BitUnpackedExt};
 
 use crate::{
-    buffer::{BufferMut, BufferType, VecBuffer},
-    collection::{self, Collection, CollectionAlloc, CollectionRealloc, Item},
+    buffer::{Buffer, BufferMut, BufferType, VecBuffer},
+    collection::{Collection, CollectionAlloc, CollectionRealloc},
     length::Length,
 };
 
@@ -26,7 +28,6 @@ pub(crate) const fn bytes_for_bits(bits: usize) -> usize {
 /// A collection of bits.
 ///
 /// The validity bits are stored LSB-first in the bytes of a buffer.
-#[derive(Debug)]
 pub struct Bitmap<Buffer: BufferType = VecBuffer> {
     /// The bits of the bitmap are stored in this buffer of bytes.
     buffer: Buffer::Buffer<u8>,
@@ -39,11 +40,21 @@ pub struct Bitmap<Buffer: BufferType = VecBuffer> {
     offset: usize,
 }
 
+impl<Buffer: BufferType<Buffer<u8>: Debug>> Debug for Bitmap<Buffer> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Bitmap")
+            .field("buffer", &self.buffer)
+            .field("bits", &self.bits)
+            .field("offset", &self.offset)
+            .finish()
+    }
+}
+
 impl<Buffer: BufferType> Bitmap<Buffer> {
     /// Returns the bit index for the element at the provided index.
     /// See [`Bitmap::byte_index`].
     #[inline]
-    pub fn bit_index(&self, index: usize) -> u8 {
+    fn bit_index(&self, index: usize) -> u8 {
         // As conversion because 0 <= remainder < 8 < u8::MAX
         #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
         {
@@ -58,15 +69,15 @@ impl<Buffer: BufferType> Bitmap<Buffer> {
     ///
     /// This function panics on overflow of the index and offset addition.
     #[inline]
-    pub fn byte_index(&self, index: usize) -> usize {
-        self.offset.checked_add(index).expect("overflow") / 8
+    fn byte_index(&self, index: usize) -> usize {
+        self.leading_bits().checked_add(index).expect("overflow") / 8
     }
 
     /// Returns the number of leading padding bits in the first byte(s) of the
     /// buffer that contain no meaningful bits. These bits should be ignored
     /// when inspecting the raw byte buffer.
     #[inline]
-    pub fn leading_bits(&self) -> usize {
+    fn leading_bits(&self) -> usize {
         self.offset
     }
 
@@ -74,7 +85,7 @@ impl<Buffer: BufferType> Bitmap<Buffer> {
     /// buffer that contain no meaningful bits. These bits should be ignored when
     /// inspecting the raw byte buffer.
     #[inline]
-    pub fn trailing_bits(&self) -> u8 {
+    fn trailing_bits(&self) -> u8 {
         let trailing_bits = self.bit_index(self.bits);
         if trailing_bits == 0 {
             0
@@ -113,12 +124,10 @@ impl<Buffer: BufferType> Length for Bitmap<Buffer> {
 impl<Buffer: BufferType> IntoIterator for Bitmap<Buffer> {
     type Item = bool;
 
-    type IntoIter =
-        Take<Skip<BitUnpacked<<<Buffer as BufferType>::Buffer<u8> as Collection>::IntoIter, u8>>>;
+    type IntoIter = Take<Skip<BitUnpacked<<Buffer::Buffer<u8> as Collection>::IntoIter, u8>>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.buffer
-            .into_iter()
+        Collection::into_iter(self.buffer)
             .bit_unpacked()
             .skip(self.offset)
             .take(self.bits)
@@ -127,12 +136,11 @@ impl<Buffer: BufferType> IntoIterator for Bitmap<Buffer> {
 
 impl<'bitmap, Buffer: BufferType> IntoIterator for &'bitmap Bitmap<Buffer> {
     type Item = bool;
-    type IntoIter = Take<
-        Skip<BitUnpacked<<<Buffer as BufferType>::Buffer<u8> as Collection>::Iter<'bitmap>, u8>>,
-    >;
+    type IntoIter = Take<Skip<BitUnpacked<slice::Iter<'bitmap, u8>, &'bitmap u8>>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.buffer
+            .as_slice()
             .iter()
             .bit_unpacked()
             .skip(self.offset)
@@ -192,14 +200,18 @@ impl<T: Borrow<bool>, Buffer: BufferType<Buffer<u8>: CollectionAlloc>> FromItera
 }
 
 impl<Buffer: BufferType> Collection for Bitmap<Buffer> {
-    type Item = bool;
+    type View<'collection>
+        = bool
+    where
+        Self: 'collection;
 
-    fn index(&self, index: usize) -> Option<<bool as collection::Item>::Ref<'_>> {
+    type Owned = bool;
+
+    fn view(&self, index: usize) -> Option<Self::View<'_>> {
         (index < self.len())
-            .then(|| self.buffer.index(self.byte_index(index)))
+            .then(|| self.buffer.as_slice().view(self.byte_index(index)))
             .flatten()
             .map(|byte| byte & (1 << self.bit_index(index)) != 0)
-            .map(|bool| bool.as_ref())
     }
 
     type Iter<'collection>
@@ -324,10 +336,10 @@ mod tests {
         assert_eq!(bitmap.len(), 3);
         assert_eq!(bitmap.leading_bits(), 4);
         assert_eq!(bitmap.trailing_bits(), 1);
-        assert_eq!(bitmap.index(0), Some(false));
-        assert_eq!(bitmap.index(1), Some(true));
-        assert_eq!(bitmap.index(2), Some(false));
-        assert_eq!(bitmap.index(3), None);
+        assert_eq!(bitmap.view(0), Some(false));
+        assert_eq!(bitmap.view(1), Some(true));
+        assert_eq!(bitmap.view(2), Some(false));
+        assert_eq!(bitmap.view(3), None);
         assert_eq!(bitmap.iter().filter(|x| !*x).count(), 2);
         assert_eq!(bitmap.iter().filter(|x| *x).count(), 1);
         assert_eq!(

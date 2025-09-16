@@ -10,7 +10,7 @@
     // Rustc
     missing_copy_implementations,
     missing_debug_implementations,
-    missing_docs,
+    // missing_docs,
     noop_method_call,
     // warnings,
     // unused,
@@ -30,7 +30,7 @@
     clippy::empty_structs_with_brackets,
     clippy::get_unwrap,
     clippy::if_then_some_else_none,
-    clippy::missing_docs_in_private_items,
+    // clippy::missing_docs_in_private_items,
     clippy::multiple_unsafe_ops_per_block,
     clippy::pattern_type_mismatch,
     clippy::rest_pat_in_fully_bound_structs,

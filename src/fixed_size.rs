@@ -1,11 +1,11 @@
 //! Fixed-size types.
 
-use std::{fmt::Debug, mem};
+use std::mem;
 
-use crate::collection::Item;
+use crate::collection::AsView;
 
 /// Fixed-size types.
-pub trait FixedSize: Item + Copy + Debug {
+pub trait FixedSize: Copy + sealed::Sealed + 'static {
     /// The size of this type in bytes.
     const SIZE: usize = mem::size_of::<Self>();
 }
@@ -29,65 +29,15 @@ impl FixedSize for f64 {}
 
 impl<T: FixedSize, const N: usize> FixedSize for [T; N] {}
 
-/// Implements `Item` and `ItemMut` for primitive types.
-macro_rules! item_primitive {
-    ($ty:ty) => {
-        impl Item for $ty {
-            type Ref<'collection> = Self;
-            fn as_ref(&self) -> Self::Ref<'_> {
-                *self
-            }
-            fn to_owned(ref_item: &Self::Ref<'_>) -> Self {
-                *ref_item
-            }
-            fn into_owned(ref_item: Self::Ref<'_>) -> Self {
-                ref_item
-            }
-        }
-    };
+mod sealed {
+    pub trait Sealed {}
+    impl<T: super::FixedSize> Sealed for T {}
 }
 
-item_primitive!(u8);
-item_primitive!(u16);
-item_primitive!(u32);
-item_primitive!(u64);
-item_primitive!(u128);
-item_primitive!(usize);
+impl<'a, T: FixedSize> AsView<'a> for T {
+    type View = T;
 
-item_primitive!(i8);
-item_primitive!(i16);
-item_primitive!(i32);
-item_primitive!(i64);
-item_primitive!(i128);
-item_primitive!(isize);
-
-item_primitive!(f32);
-item_primitive!(f64);
-
-// bools are stored as bits in collections, so we can't borrow it directly
-// instead we return a copy
-impl Item for bool {
-    type Ref<'collection> = Self;
-    fn as_ref(&self) -> Self::Ref<'_> {
+    fn as_view(&'a self) -> T {
         *self
-    }
-    fn to_owned(ref_item: &Self::Ref<'_>) -> Self {
-        *ref_item
-    }
-    fn into_owned(ref_item: Self::Ref<'_>) -> Self {
-        ref_item
-    }
-}
-
-impl<const N: usize, T: Item + Clone> Item for [T; N] {
-    type Ref<'collection> = &'collection [T; N];
-    fn as_ref(&self) -> Self::Ref<'_> {
-        self
-    }
-    fn to_owned(ref_item: &Self::Ref<'_>) -> Self {
-        (*ref_item).clone()
-    }
-    fn into_owned(ref_item: Self::Ref<'_>) -> Self {
-        ref_item.clone()
     }
 }
