@@ -153,13 +153,13 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         let Self { data, offsets } = self;
-        let mut offsets = offsets.into_iter();
-        let position = offsets
+        let mut iter = offsets.into_iter();
+        let position = iter
             .next()
             .expect("offset buffer must have at least one value");
         OffsetIntoIter {
             data,
-            offsets,
+            offsets: iter,
             position,
         }
     }
@@ -178,41 +178,36 @@ pub struct OffsetView<
     end: usize,
 }
 
-impl<'collection, T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Clone
-    for OffsetView<'collection, T, Nulls, OffsetItem, Buffer>
+impl<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Clone
+    for OffsetView<'_, T, Nulls, OffsetItem, Buffer>
 {
     fn clone(&self) -> Self {
-        Self {
-            collection: &self.collection,
-            start: self.start,
-            end: self.end,
-        }
+        *self
     }
 }
-impl<'collection, T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Copy
-    for OffsetView<'collection, T, Nulls, OffsetItem, Buffer>
+impl<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Copy
+    for OffsetView<'_, T, Nulls, OffsetItem, Buffer>
 {
 }
 
-impl<'collection, T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType>
-    IntoOwned<Vec<<T as Collection>::Owned>>
-    for OffsetView<'collection, T, Nulls, OffsetItem, Buffer>
+impl<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType>
+    IntoOwned<Vec<<T as Collection>::Owned>> for OffsetView<'_, T, Nulls, OffsetItem, Buffer>
 {
     fn into_owned(self) -> Vec<<T as Collection>::Owned> {
         Collection::iter(&self).map(IntoOwned::into_owned).collect()
     }
 }
 
-impl<'collection, T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Length
-    for OffsetView<'collection, T, Nulls, OffsetItem, Buffer>
+impl<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Length
+    for OffsetView<'_, T, Nulls, OffsetItem, Buffer>
 {
     fn len(&self) -> usize {
         self.end - self.start
     }
 }
 
-impl<'offsets, T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Collection
-    for OffsetView<'offsets, T, Nulls, OffsetItem, Buffer>
+impl<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Collection
+    for OffsetView<'_, T, Nulls, OffsetItem, Buffer>
 {
     type View<'collection>
         = <T as Collection>::View<'collection>
