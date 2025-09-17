@@ -37,7 +37,7 @@
     clippy::same_name_method,
     clippy::self_named_module_files,
     clippy::semicolon_outside_block,
-    clippy::shadow_reuse,
+    // clippy::shadow_reuse,
     clippy::shadow_same,
     clippy::shadow_unrelated,
     clippy::str_to_string,
@@ -72,3 +72,5 @@ pub mod bitmap;
 
 pub mod nullability;
 pub mod validity;
+
+pub mod offset;
