@@ -72,3 +72,5 @@ pub mod bitmap;
 
 pub mod nullability;
 pub mod validity;
+
+pub mod offset;
