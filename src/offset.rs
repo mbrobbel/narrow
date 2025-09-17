@@ -261,10 +261,10 @@ mod tests {
         assert_eq!(non_nullable.data.len(), 0);
         assert_eq!(non_nullable.offsets.len(), 1);
 
-        let non_nullable: Offsets<Vec<u8>, Nullable> = Offsets::default();
-        assert_eq!(non_nullable.len(), 0);
-        assert_eq!(non_nullable.data.len(), 0);
-        assert_eq!(non_nullable.offsets.len(), 1);
+        let nullable: Offsets<Vec<u8>, Nullable> = Offsets::default();
+        assert_eq!(nullable.len(), 0);
+        assert_eq!(nullable.data.len(), 0);
+        assert_eq!(nullable.offsets.len(), 1);
     }
 
     #[test]
@@ -276,7 +276,7 @@ mod tests {
 
         assert_eq!(non_nullable.len(), 4);
 
-        let slice = non_nullable.view(0).unwrap();
+        let slice = non_nullable.view(0).expect("a value");
         assert_eq!(slice.start, 0);
         assert_eq!(slice.end, 2);
         assert_eq!(slice.view(0), Some(1));
