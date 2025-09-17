@@ -2,7 +2,7 @@
 
 use std::{array, borrow::Borrow, iter::Map, marker::PhantomData, rc::Rc, slice, sync::Arc, vec};
 
-use crate::length::Length;
+use crate::{fixed_size::FixedSize, length::Length};
 
 /// Convert into owned items.
 pub trait IntoOwned<Owned> {
@@ -10,9 +10,21 @@ pub trait IntoOwned<Owned> {
     fn into_owned(self) -> Owned;
 }
 
-impl<T> IntoOwned<T> for T {
+impl IntoOwned<bool> for bool {
+    fn into_owned(self) -> bool {
+        self
+    }
+}
+
+impl<T: FixedSize> IntoOwned<T> for T {
     fn into_owned(self) -> T {
         self
+    }
+}
+
+impl<T: IntoOwned<U>, U> IntoOwned<Option<U>> for Option<T> {
+    fn into_owned(self) -> Option<U> {
+        self.map(IntoOwned::into_owned)
     }
 }
 
@@ -77,7 +89,7 @@ pub type ViewOf<'collection, T> = <T as AsView<'collection>>::View;
 /// A collection of items.
 pub trait Collection: Length {
     /// Borrowed view of an item in this collection
-    type View<'collection>
+    type View<'collection>: IntoOwned<Self::Owned> + 'collection
     where
         Self: 'collection;
 
@@ -90,10 +102,7 @@ pub trait Collection: Length {
 
     /// Returns an owned item at the given index in this collection or `None`
     /// if out of bounds.
-    fn owned(&self, index: usize) -> Option<Self::Owned>
-    where
-        for<'collection> Self::View<'collection>: IntoOwned<Self::Owned>,
-    {
+    fn owned(&self, index: usize) -> Option<Self::Owned> {
         self.view(index).map(IntoOwned::into_owned)
     }
 
@@ -126,7 +135,7 @@ pub trait CollectionRealloc: CollectionAlloc + Extend<Self::Owned> {
 
 impl<T> Collection for Vec<T>
 where
-    for<'collection> T: AsView<'collection>,
+    for<'collection> T: AsView<'collection, View: IntoOwned<T>>,
 {
     type View<'collection>
         = ViewOf<'collection, T>
@@ -157,7 +166,7 @@ where
 
 impl<T> CollectionAlloc for Vec<T>
 where
-    for<'collection> T: AsView<'collection>,
+    for<'collection> T: AsView<'collection, View: IntoOwned<T>>,
 {
     fn with_capacity(capacity: usize) -> Self {
         Vec::with_capacity(capacity)
@@ -166,7 +175,7 @@ where
 
 impl<T> CollectionRealloc for Vec<T>
 where
-    for<'collection> T: AsView<'collection>,
+    for<'collection> T: AsView<'collection, View: IntoOwned<T>>,
 {
     fn reserve(&mut self, additional: usize) {
         Vec::reserve(self, additional);
@@ -175,7 +184,7 @@ where
 
 impl<T, const N: usize> Collection for [T; N]
 where
-    for<'collection> T: AsView<'collection>,
+    for<'collection> T: AsView<'collection, View: IntoOwned<T>>,
 {
     type View<'collection>
         = ViewOf<'collection, T>
@@ -284,7 +293,7 @@ where
 
 impl<T> Collection for Box<[T]>
 where
-    for<'collection> T: AsView<'collection>,
+    for<'collection> T: AsView<'collection, View: IntoOwned<T>>,
 {
     type View<'collection>
         = ViewOf<'collection, T>
@@ -315,7 +324,7 @@ where
 
 impl<T> CollectionAlloc for Box<[T]>
 where
-    for<'collection> T: AsView<'collection>,
+    for<'collection> T: AsView<'collection, View: IntoOwned<T>>,
 {
     fn with_capacity(capacity: usize) -> Self {
         Vec::with_capacity(capacity).into_boxed_slice()
