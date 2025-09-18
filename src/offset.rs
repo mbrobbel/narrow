@@ -1,6 +1,7 @@
 use std::{
     fmt::{self, Debug},
     iter::{self, Map, Repeat, Zip},
+    mem,
     num::TryFromIntError,
     ops::Range,
 };
@@ -10,7 +11,6 @@ use crate::{
     collection::{Collection, IntoOwned},
     fixed_size::FixedSize,
     length::Length,
-    nullability::{NonNullable, Nullability},
 };
 
 pub trait Offset:
@@ -29,21 +29,15 @@ mod sealed {
 impl Offset for i32 {}
 impl Offset for i64 {}
 
-pub struct Offsets<
-    T: Collection,
-    Nulls: Nullability = NonNullable,
-    OffsetItem: Offset = i32,
-    Buffer: BufferType = VecBuffer,
-> {
+pub struct Offsets<T: Collection, OffsetItem: Offset = i32, Buffer: BufferType = VecBuffer> {
     data: T,
-    offsets: Nulls::Collection<Buffer::Buffer<OffsetItem>, Buffer>,
+    offsets: Buffer::Buffer<OffsetItem>,
 }
 
-impl<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Debug
-    for Offsets<T, Nulls, OffsetItem, Buffer>
+impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Debug for Offsets<T, OffsetItem, Buffer>
 where
     T: Debug,
-    Nulls::Collection<Buffer::Buffer<OffsetItem>, Buffer>: Debug,
+    Buffer::Buffer<OffsetItem>: Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Offset")
@@ -53,17 +47,15 @@ where
     }
 }
 
-impl<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Default
-    for Offsets<T, Nulls, OffsetItem, Buffer>
+impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Default
+    for Offsets<T, OffsetItem, Buffer>
 where
     T: Default,
-    Nulls::Item<OffsetItem>: Default,
-    Nulls::Collection<Buffer::Buffer<OffsetItem>, Buffer>:
-        Default + Extend<Nulls::Item<OffsetItem>>,
+    Buffer::Buffer<OffsetItem>: Default + Extend<OffsetItem>,
 {
     fn default() -> Self {
-        let mut offsets: Nulls::Collection<Buffer::Buffer<OffsetItem>, Buffer> = Default::default();
-        offsets.extend(iter::once(Nulls::Item::default()));
+        let mut offsets = Buffer::Buffer::<OffsetItem>::default();
+        offsets.extend(iter::once(OffsetItem::default()));
         Self {
             data: T::default(),
             offsets,
@@ -71,8 +63,8 @@ where
     }
 }
 
-impl<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Length
-    for Offsets<T, Nulls, OffsetItem, Buffer>
+impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Length
+    for Offsets<T, OffsetItem, Buffer>
 {
     fn len(&self) -> usize {
         self.offsets
@@ -81,57 +73,48 @@ impl<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> 
             .expect("offset len underflow")
     }
 }
+
 #[expect(missing_debug_implementations)]
-pub struct OffsetIntoIter<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType>
-{
+pub struct OffsetIntoIter<T: Collection, OffsetItem: Offset, Buffer: BufferType> {
     data: T,
-    offsets: <Nulls::Collection<Buffer::Buffer<OffsetItem>, Buffer> as Collection>::IntoIter,
-    position: Nulls::Item<OffsetItem>,
+    offsets: <Buffer::Buffer<OffsetItem> as Collection>::IntoIter,
+    position: OffsetItem,
 }
 
-impl<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Iterator
-    for OffsetIntoIter<T, Nulls, OffsetItem, Buffer>
-where
-    Nulls::Item<OffsetItem>: Copy,
+impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Iterator
+    for OffsetIntoIter<T, OffsetItem, Buffer>
 {
-    type Item = Nulls::Item<Vec<T::Owned>>;
+    type Item = Vec<T::Owned>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let end = self.offsets.next()?;
-        let item = Nulls::zip_with(self.position, end, |(start, end)| {
-            let (start, end) = (start.as_usize(), end.as_usize());
-            (start..end)
-                .map(|index| self.data.view(index).expect("out of bounds").into_owned())
-                .collect::<Vec<T::Owned>>()
-        });
-        self.position = end;
-        Some(item)
+        let start = mem::replace(&mut self.position, end);
+        Some(
+            (start.as_usize()..end.as_usize())
+                .map(|index| self.data.view(index).expect("out of bounds"))
+                .map(IntoOwned::into_owned)
+                .collect::<Vec<T::Owned>>(),
+        )
     }
 }
 
-impl<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Collection
-    for Offsets<T, Nulls, OffsetItem, Buffer>
-where
-    Nulls::Item<OffsetItem>: Copy,
-    for<'collection> Nulls::Item<OffsetView<'collection, T, Nulls, OffsetItem, Buffer>>:
-        IntoOwned<Nulls::Item<Vec<<T as Collection>::Owned>>>,
+impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Collection
+    for Offsets<T, OffsetItem, Buffer>
 {
     type View<'collection>
-        = Nulls::Item<OffsetView<'collection, T, Nulls, OffsetItem, Buffer>>
+        = OffsetView<'collection, T, OffsetItem, Buffer>
     where
         Self: 'collection;
 
-    type Owned = Nulls::Item<Vec<T::Owned>>;
+    type Owned = Vec<T::Owned>;
 
     fn view(&self, index: usize) -> Option<Self::View<'_>> {
         let start = self.offsets.owned(index);
         let end = self.offsets.owned(index + 1);
-        start.zip(end).map(|(start, end)| {
-            Nulls::zip_with(start, end, |(start, end)| OffsetView {
-                collection: self,
-                start: start.as_usize(),
-                end: end.as_usize(),
-            })
+        start.zip(end).map(|(start, end)| OffsetView {
+            collection: self,
+            start: start.as_usize(),
+            end: end.as_usize(),
         })
     }
 
@@ -144,12 +127,13 @@ where
         Self: 'collection;
 
     fn iter(&self) -> Self::Iter<'_> {
-        (0..self.len())
+        let len = self.len();
+        (0..len)
             .zip(iter::repeat(self))
             .map(|(index, offsets)| offsets.view(index).expect("index in range"))
     }
 
-    type IntoIter = OffsetIntoIter<T, Nulls, OffsetItem, Buffer>;
+    type IntoIter = OffsetIntoIter<T, OffsetItem, Buffer>;
 
     fn into_iter(self) -> Self::IntoIter {
         let Self { data, offsets } = self;
@@ -166,48 +150,42 @@ where
 }
 
 #[expect(missing_debug_implementations)]
-pub struct OffsetView<
-    'collection,
-    T: Collection,
-    Nulls: Nullability,
-    OffsetItem: Offset,
-    Buffer: BufferType,
-> {
-    collection: &'collection Offsets<T, Nulls, OffsetItem, Buffer>,
+pub struct OffsetView<'collection, T: Collection, OffsetItem: Offset, Buffer: BufferType> {
+    collection: &'collection Offsets<T, OffsetItem, Buffer>,
     start: usize,
     end: usize,
 }
 
-impl<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Clone
-    for OffsetView<'_, T, Nulls, OffsetItem, Buffer>
+impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Clone
+    for OffsetView<'_, T, OffsetItem, Buffer>
 {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Copy
-    for OffsetView<'_, T, Nulls, OffsetItem, Buffer>
+impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Copy
+    for OffsetView<'_, T, OffsetItem, Buffer>
 {
 }
 
-impl<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType>
-    IntoOwned<Vec<<T as Collection>::Owned>> for OffsetView<'_, T, Nulls, OffsetItem, Buffer>
+impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> IntoOwned<Vec<<T as Collection>::Owned>>
+    for OffsetView<'_, T, OffsetItem, Buffer>
 {
     fn into_owned(self) -> Vec<<T as Collection>::Owned> {
-        Collection::iter(&self).map(IntoOwned::into_owned).collect()
+        Collection::into_iter(self).collect()
     }
 }
 
-impl<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Length
-    for OffsetView<'_, T, Nulls, OffsetItem, Buffer>
+impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Length
+    for OffsetView<'_, T, OffsetItem, Buffer>
 {
     fn len(&self) -> usize {
         self.end - self.start
     }
 }
 
-impl<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> Collection
-    for OffsetView<'_, T, Nulls, OffsetItem, Buffer>
+impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Collection
+    for OffsetView<'_, T, OffsetItem, Buffer>
 {
     type View<'collection>
         = <T as Collection>::View<'collection>
@@ -250,40 +228,33 @@ impl<T: Collection, Nulls: Nullability, OffsetItem: Offset, Buffer: BufferType> 
 
 #[cfg(test)]
 mod tests {
-    use crate::nullability::Nullable;
-
     use super::*;
 
     #[test]
     fn default_len() {
-        let non_nullable: Offsets<Vec<u8>, NonNullable> = Offsets::default();
-        assert_eq!(non_nullable.len(), 0);
-        assert_eq!(non_nullable.data.len(), 0);
-        assert_eq!(non_nullable.offsets.len(), 1);
-
-        let nullable: Offsets<Vec<u8>, Nullable> = Offsets::default();
-        assert_eq!(nullable.len(), 0);
-        assert_eq!(nullable.data.len(), 0);
-        assert_eq!(nullable.offsets.len(), 1);
+        let offsets: Offsets<Vec<u8>> = Offsets::default();
+        assert_eq!(offsets.len(), 0);
+        assert_eq!(offsets.data.len(), 0);
+        assert_eq!(offsets.offsets.len(), 1);
     }
 
     #[test]
     fn view() {
-        let non_nullable: Offsets<Vec<i32>, NonNullable> = Offsets {
+        let offsets: Offsets<Vec<i32>> = Offsets {
             data: vec![1, 2, 3, 4, 5],
             offsets: vec![0, 2, 3, 4, 5],
         };
 
-        assert_eq!(non_nullable.len(), 4);
+        assert_eq!(offsets.len(), 4);
 
-        let slice = non_nullable.view(0).expect("a value");
+        let slice = offsets.view(0).expect("a value");
         assert_eq!(slice.start, 0);
         assert_eq!(slice.end, 2);
         assert_eq!(slice.view(0), Some(1));
         assert_eq!(slice.view(1), Some(2));
         assert_eq!(slice.view(2), None);
 
-        let views = non_nullable.iter().collect::<Vec<_>>();
+        let views = offsets.iter().collect::<Vec<_>>();
         assert_eq!(views[0].into_owned(), vec![1, 2]);
         assert_eq!(views[1].into_iter().collect::<Vec<_>>(), vec![3]);
         assert_eq!(views[2].iter().collect::<Vec<_>>(), vec![4]);
