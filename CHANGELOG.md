@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1](https://github.com/mbrobbel/narrow/compare/narrow-v0.14.0...narrow-v0.14.1) - 2025-09-29
+
+### Other
+
+- *(deps)* bump quote from 1.0.40 to 1.0.41 ([#450](https://github.com/mbrobbel/narrow/pull/450))
+- `doc_auto_cfg` is now `doc_cfg` ([#451](https://github.com/mbrobbel/narrow/pull/451))
+- *(deps)* bump the arrow group with 5 updates ([#449](https://github.com/mbrobbel/narrow/pull/449))
+- *(deps)* bump proc-macro-crate from 3.3.0 to 3.4.0 ([#444](https://github.com/mbrobbel/narrow/pull/444))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.116 to 0.5.117 ([#443](https://github.com/mbrobbel/narrow/pull/443))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.115 to 0.5.116 ([#442](https://github.com/mbrobbel/narrow/pull/442))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.113 to 0.5.115 ([#441](https://github.com/mbrobbel/narrow/pull/441))
+- *(deps)* bump chrono from 0.4.41 to 0.4.42 ([#439](https://github.com/mbrobbel/narrow/pull/439))
+- *(deps)* bump uuid from 1.18.0 to 1.18.1 ([#438](https://github.com/mbrobbel/narrow/pull/438))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.112 to 0.5.113 ([#437](https://github.com/mbrobbel/narrow/pull/437))
+- *(deps)* bump the arrow group with 5 updates ([#435](https://github.com/mbrobbel/narrow/pull/435))
+
 ## [0.14.0](https://github.com/mbrobbel/narrow/compare/narrow-v0.13.3...narrow-v0.14.0) - 2025-08-24
 
 ### Other
