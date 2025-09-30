@@ -9,6 +9,10 @@ on:
     branches:
       - main
 
+env:
+  SCCACHE_GHA_ENABLED: true
+  RUSTC_WRAPPER: sccache
+
 jobs:
   release:
     name: Release
@@ -26,6 +30,15 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.token.outputs.token }}
       - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - uses: MarcoIeni/release-plz-action@v0.5.117
         with:
           command: release
@@ -50,6 +63,15 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.token.outputs.token }}
       - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - uses: MarcoIeni/release-plz-action@v0.5.117
         with:
           command: release-pr
