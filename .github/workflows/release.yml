@@ -26,6 +26,15 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.token.outputs.token }}
       - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-
       - uses: MarcoIeni/release-plz-action@v0.5.117
         with:
           command: release
@@ -50,6 +59,15 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.token.outputs.token }}
       - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-
       - uses: MarcoIeni/release-plz-action@v0.5.117
         with:
           command: release-pr
