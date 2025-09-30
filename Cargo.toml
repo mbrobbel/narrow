@@ -12,7 +12,7 @@ keywords = ["Arrow"]
 categories = ["data-structures"]
 
 [workspace]
-members = ["narrow-derive"]
+# members = ["narrow-derive"]
 
 [package]
 name = "narrow"
@@ -74,16 +74,16 @@ codegen-units = 1
 [[bench]]
 name = "narrow"
 harness = false
-required-features = ["arrow-rs"]
+# required-features = ["arrow-rs"]
 
-[[example]]
-name = "basic"
-required-features = ["derive"]
+# [[example]]
+# name = "basic"
+# required-features = ["derive"]
 
-[[example]]
-name = "parquet"
-required-features = ["arrow-rs", "chrono", "derive", "map", "uuid"]
+# [[example]]
+# name = "parquet"
+# required-features = ["arrow-rs", "chrono", "derive", "map", "uuid"]
 
-[[example]]
-name = "tpch_lineitem"
-required-features = ["arrow-rs", "chrono", "derive"]
+# [[example]]
+# name = "tpch_lineitem"
+# required-features = ["arrow-rs", "chrono", "derive"]
