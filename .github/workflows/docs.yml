@@ -6,6 +6,10 @@ permissions:
   actions: write
   contents: read
 
+env:
+  SCCACHE_GHA_ENABLED: true
+  RUSTC_WRAPPER: sccache
+
 jobs:
   rustdoc:
     name: Rustdoc
@@ -25,6 +29,7 @@ jobs:
             ~/.cargo/git/db/
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - run: cargo install --locked cargo-docs-rs
       - run: cargo docs-rs
       - run: mv "target/$(rustc -vV | awk '/^host/ { print $2 }')/doc" "target/doc"

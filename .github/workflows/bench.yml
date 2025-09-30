@@ -10,6 +10,10 @@ permissions:
   actions: write
   contents: read
 
+env:
+  SCCACHE_GHA_ENABLED: true
+  RUSTC_WRAPPER: sccache
+
 jobs:
   run:
     name: Bench
@@ -27,6 +31,7 @@ jobs:
             ~/.cargo/git/db/
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - run: cargo bench --bench narrow --all-features -- --output-format=bencher | tee output.txt
       - uses: actions/upload-artifact@v4
         with:
