@@ -80,7 +80,6 @@ jobs:
             ~/.cargo/git/db/
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-
-      - uses: mozilla-actions/sccache-action@v0.0.9
       - run: cargo miri setup
       - run: cargo miri test --no-default-features
       - run: cargo miri test --all-features
