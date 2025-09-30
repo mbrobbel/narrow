@@ -1,6 +1,6 @@
 //! Nullable and non-nullable data.
 
-use crate::{buffer::BufferType, collection::Collection, validity::Validity};
+use crate::{buffer::Buffer, collection::Collection, validity::Validity};
 
 /// Nullability trait for nullable and non-nullable type constructors.
 ///
@@ -14,8 +14,8 @@ pub trait Nullability: sealed::Sealed {
 
     /// Constructor for nullable and non-nullable collections.
     ///
-    /// Generic over a collection `T` and a [`BufferType`].
-    type Collection<T: Collection, Buffer: BufferType>: Collection<
+    /// Generic over a collection `T` and a [`Buffer`].
+    type Collection<T: Collection, Storage: Buffer>: Collection<
         Owned = Self::Item<<T as Collection>::Owned>,
     >;
 
@@ -59,7 +59,7 @@ impl Nullability for NonNullable {
     type Item<T> = T;
 
     /// Non-nullable collections are just `T`.
-    type Collection<T: Collection, Buffer: BufferType> = T;
+    type Collection<T: Collection, Storage: Buffer> = T;
 
     fn map<T, U, F: FnOnce(T) -> U>(item: Self::Item<T>, f: F) -> Self::Item<U> {
         f(item)
@@ -85,7 +85,7 @@ impl Nullability for Nullable {
 
     /// Nullable collections are wrapped together with a
     /// [`crate::bitmap::Bitmap`].
-    type Collection<T: Collection, Buffer: BufferType> = Validity<T, Buffer>;
+    type Collection<T: Collection, Storage: Buffer> = Validity<T, Storage>;
 
     fn map<T, U, F: FnOnce(T) -> U>(item: Self::Item<T>, f: F) -> Self::Item<U> {
         item.map(f)

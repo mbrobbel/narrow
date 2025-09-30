@@ -1,130 +1,48 @@
-//! Buffers for data.
+//! Contiguous collections for fixed size items.
 
-use std::{
-    borrow::{Borrow, BorrowMut},
-    marker::PhantomData,
-    rc::Rc,
-    sync::Arc,
-};
+use std::{borrow::Borrow, marker::PhantomData, rc::Rc, sync::Arc};
 
 use crate::{collection::Collection, fixed_size::FixedSize};
 
-/// A contiguous immutable buffer.
-pub trait Buffer<T: FixedSize>: Borrow<[T]> + Collection<Owned = T> {
-    /// Returns a slice containing all the items in this buffer.
-    fn as_slice(&self) -> &[T] {
-        self.borrow()
-    }
+/// Constructor for contiguous [`Collection`]s of [`FixedSize`] items.
+pub trait Buffer: Default {
+    /// The [`Collection`] with [`FixedSize`] items.
+    /// Can be borrowed as a contiguous slice of `T`.
+    type For<T: FixedSize>: Borrow<[T]> + Collection<Owned = T>;
 }
 
-impl<T: FixedSize, U: Borrow<[T]> + Collection<Owned = T>> Buffer<T> for U {}
-
-/// A contiguous mutable buffer.
-pub trait BufferMut<T: FixedSize>: Buffer<T> + BorrowMut<[T]> {
-    /// Returns a mutable slice containing all the items in this buffer.
-    fn as_mut_slice(&mut self) -> &mut [T] {
-        self.borrow_mut()
-    }
-}
-
-impl<T: FixedSize, U: Buffer<T> + BorrowMut<[T]>> BufferMut<T> for U {}
-
-/// A [`Buffer`] constructor for [`FixedSize`] types.
-pub trait BufferType: Default {
-    /// A [`Buffer`] for [`FixedSize`] items of type `T`.
-    type Buffer<T: FixedSize>: Buffer<T> + Collection<Owned = T>;
-}
-
-/// A [`BufferType`] for an array with `N` elements.
-///
-/// Implements [`Buffer`] and [`BufferMut`].
 #[derive(Clone, Copy, Default, Debug)]
 pub struct ArrayBuffer<const N: usize>;
-
-impl<const N: usize> BufferType for ArrayBuffer<N> {
-    type Buffer<T: FixedSize> = [T; N];
+impl<const N: usize> Buffer for ArrayBuffer<N> {
+    type For<T: FixedSize> = [T; N];
 }
 
-/// A [`BufferType`] for a [`Vec`].
-///
-/// Implements [`Buffer`], [`BufferMut`].
-#[derive(Clone, Copy, Default, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct VecBuffer;
-
-impl BufferType for VecBuffer {
-    type Buffer<T: FixedSize> = Vec<T>;
+impl Buffer for VecBuffer {
+    type For<T: FixedSize> = Vec<T>;
 }
 
-/// A [`BufferType`] for a [`Box`]-ed slice.
-///
-/// Implements [`Buffer`].
-#[derive(Clone, Copy, Default, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct BoxBuffer;
-
-impl BufferType for BoxBuffer {
-    type Buffer<T: FixedSize> = Box<[T]>;
+impl Buffer for BoxBuffer {
+    type For<T: FixedSize> = Box<[T]>;
 }
 
-/// A [`BufferType`] for an [`Rc`]-ed slice.
-///
-/// Implements [`Buffer`].
 #[derive(Clone, Copy, Default, Debug)]
 pub struct RcBuffer;
-
-impl BufferType for RcBuffer {
-    type Buffer<T: FixedSize> = Rc<[T]>;
+impl Buffer for RcBuffer {
+    type For<T: FixedSize> = Rc<[T]>;
 }
 
-/// A [`BufferType`] for an [`Arc`]-ed slice.
-///
-/// Implements [`Buffer`].
 #[derive(Clone, Copy, Default, Debug)]
 pub struct ArcBuffer;
-
-impl BufferType for ArcBuffer {
-    type Buffer<T: FixedSize> = Arc<[T]>;
+impl Buffer for ArcBuffer {
+    type For<T: FixedSize> = Arc<[T]>;
 }
 
-/// A [`BufferType`] for a slice.
-///
-/// Implements [`Buffer`].
-#[derive(Clone, Copy, Default, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct SliceBuffer<'slice>(PhantomData<&'slice ()>);
-
-impl<'slice> BufferType for SliceBuffer<'slice> {
-    type Buffer<T: FixedSize> = &'slice [T];
-}
-
-#[cfg(test)]
-mod tests {
-    use std::marker::PhantomData;
-
-    use super::*;
-
-    #[test]
-    #[allow(clippy::assertions_on_constants)]
-    fn buffer_types() {
-        struct HasBuffer<U, T>(PhantomData<(T, U)>);
-        impl<T: FixedSize, U: Buffer<T>> HasBuffer<U, T> {
-            const IMPL: bool = true;
-        }
-        struct HasBufferMut<U, T>(PhantomData<(T, U)>);
-        impl<T: FixedSize, U: BufferMut<T>> HasBufferMut<U, T> {
-            const IMPL: bool = true;
-        }
-
-        assert!(HasBuffer::<<VecBuffer as BufferType>::Buffer<u16>, _>::IMPL);
-        assert!(HasBufferMut::<<VecBuffer as BufferType>::Buffer<u16>, _>::IMPL);
-
-        assert!(HasBuffer::<<ArrayBuffer<1> as BufferType>::Buffer<u16>, _>::IMPL);
-        assert!(HasBufferMut::<<ArrayBuffer<1> as BufferType>::Buffer<u16>, _>::IMPL);
-
-        assert!(HasBuffer::<<SliceBuffer<'_> as BufferType>::Buffer<u16>, _>::IMPL);
-
-        assert!(HasBuffer::<<BoxBuffer as BufferType>::Buffer<u16>, _>::IMPL);
-
-        assert!(HasBuffer::<<RcBuffer as BufferType>::Buffer<u16>, _>::IMPL);
-
-        assert!(HasBuffer::<<ArcBuffer as BufferType>::Buffer<u16>, _>::IMPL);
-    }
+impl<'slice> Buffer for SliceBuffer<'slice> {
+    type For<T: FixedSize> = &'slice [T];
 }

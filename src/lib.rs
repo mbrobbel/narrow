@@ -4,7 +4,7 @@
     html_logo_url = "https://raw.githubusercontent.com/mbrobbel/narrow/main/narrow.svg",
     html_favicon_url = "https://raw.githubusercontent.com/mbrobbel/narrow/main/narrow.svg"
 )]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 // The goal of the list of lints here is to help reduce complexity and improve consistency
 #![deny(
     // Rustc
@@ -63,10 +63,11 @@
     unsafe_op_in_unsafe_fn
 )]
 
-pub mod buffer;
 pub mod collection;
 pub mod fixed_size;
 pub mod length;
+
+pub mod buffer;
 
 pub mod bitmap;
 

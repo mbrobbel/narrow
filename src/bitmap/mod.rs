@@ -4,7 +4,7 @@ mod packed;
 mod unpacked;
 
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, BorrowMut},
     fmt::{self, Debug},
     iter::{Skip, Take},
     slice,
@@ -14,7 +14,7 @@ use packed::BitPackedExt;
 use unpacked::{BitUnpacked, BitUnpackedExt};
 
 use crate::{
-    buffer::{Buffer, BufferMut, BufferType, VecBuffer},
+    buffer::{Buffer, VecBuffer},
     collection::{Collection, CollectionAlloc, CollectionRealloc},
     length::Length,
 };
@@ -28,9 +28,9 @@ pub(crate) const fn bytes_for_bits(bits: usize) -> usize {
 /// A collection of bits.
 ///
 /// The validity bits are stored LSB-first in the bytes of a buffer.
-pub struct Bitmap<Buffer: BufferType = VecBuffer> {
+pub struct Bitmap<Storage: Buffer = VecBuffer> {
     /// The bits of the bitmap are stored in this buffer of bytes.
-    buffer: Buffer::Buffer<u8>,
+    buffer: Storage::For<u8>,
 
     /// The number of bits stored in the bitmap.
     bits: usize,
@@ -40,7 +40,7 @@ pub struct Bitmap<Buffer: BufferType = VecBuffer> {
     offset: usize,
 }
 
-impl<Buffer: BufferType<Buffer<u8>: Debug>> Debug for Bitmap<Buffer> {
+impl<Storage: Buffer<For<u8>: Debug>> Debug for Bitmap<Storage> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Bitmap")
             .field("buffer", &self.buffer)
@@ -50,7 +50,7 @@ impl<Buffer: BufferType<Buffer<u8>: Debug>> Debug for Bitmap<Buffer> {
     }
 }
 
-impl<Buffer: BufferType> Bitmap<Buffer> {
+impl<Storage: Buffer> Bitmap<Storage> {
     /// Returns the bit index for the element at the provided index.
     /// See [`Bitmap::byte_index`].
     #[inline]
@@ -95,7 +95,7 @@ impl<Buffer: BufferType> Bitmap<Buffer> {
     }
 }
 
-impl<Buffer: BufferType<Buffer<u8>: Clone>> Clone for Bitmap<Buffer> {
+impl<Storage: Buffer<For<u8>: Clone>> Clone for Bitmap<Storage> {
     fn clone(&self) -> Self {
         Self {
             buffer: self.buffer.clone(),
@@ -105,7 +105,7 @@ impl<Buffer: BufferType<Buffer<u8>: Clone>> Clone for Bitmap<Buffer> {
     }
 }
 
-impl<Buffer: BufferType<Buffer<u8>: Default>> Default for Bitmap<Buffer> {
+impl<Storage: Buffer<For<u8>: Default>> Default for Bitmap<Storage> {
     fn default() -> Self {
         Self {
             buffer: Default::default(),
@@ -115,32 +115,33 @@ impl<Buffer: BufferType<Buffer<u8>: Default>> Default for Bitmap<Buffer> {
     }
 }
 
-impl<Buffer: BufferType> Length for Bitmap<Buffer> {
+impl<Storage: Buffer> Length for Bitmap<Storage> {
     fn len(&self) -> usize {
         self.bits
     }
 }
 
-impl<Buffer: BufferType> IntoIterator for Bitmap<Buffer> {
+impl<Storage: Buffer> IntoIterator for Bitmap<Storage> {
     type Item = bool;
 
-    type IntoIter = Take<Skip<BitUnpacked<<Buffer::Buffer<u8> as Collection>::IntoIter, u8>>>;
+    type IntoIter = Take<Skip<BitUnpacked<<Storage::For<u8> as Collection>::IntoIter, u8>>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Collection::into_iter(self.buffer)
+        self.buffer
+            .into_iter_owned()
             .bit_unpacked()
             .skip(self.offset)
             .take(self.bits)
     }
 }
 
-impl<'bitmap, Buffer: BufferType> IntoIterator for &'bitmap Bitmap<Buffer> {
+impl<'bitmap, Storage: Buffer> IntoIterator for &'bitmap Bitmap<Storage> {
     type Item = bool;
     type IntoIter = Take<Skip<BitUnpacked<slice::Iter<'bitmap, u8>, &'bitmap u8>>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.buffer
-            .as_slice()
+            .borrow()
             .iter()
             .bit_unpacked()
             .skip(self.offset)
@@ -148,8 +149,8 @@ impl<'bitmap, Buffer: BufferType> IntoIterator for &'bitmap Bitmap<Buffer> {
     }
 }
 
-impl<T: Borrow<bool>, Buffer: BufferType<Buffer<u8>: BufferMut<u8> + CollectionRealloc>> Extend<T>
-    for Bitmap<Buffer>
+impl<T: Borrow<bool>, Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> Extend<T>
+    for Bitmap<Storage>
 {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         // Track the number of added bits.
@@ -163,7 +164,7 @@ impl<T: Borrow<bool>, Buffer: BufferType<Buffer<u8>: BufferMut<u8> + CollectionR
         if bit_index != 0 {
             // If there are trailing bits, there must at least be one byte in
             // the buffer.
-            if let Some(last_byte) = self.buffer.as_mut_slice().last_mut() {
+            if let Some(last_byte) = self.buffer.borrow_mut().last_mut() {
                 // Use the remaining bits in this last byte
                 for index in bit_index..8 {
                     if let Some(next) = items.next() {
@@ -179,8 +180,8 @@ impl<T: Borrow<bool>, Buffer: BufferType<Buffer<u8>: BufferMut<u8> + CollectionR
     }
 }
 
-impl<T: Borrow<bool>, Buffer: BufferType<Buffer<u8>: CollectionAlloc>> FromIterator<T>
-    for Bitmap<Buffer>
+impl<T: Borrow<bool>, Storage: Buffer<For<u8>: CollectionAlloc>> FromIterator<T>
+    for Bitmap<Storage>
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut bits = 0;
@@ -199,7 +200,7 @@ impl<T: Borrow<bool>, Buffer: BufferType<Buffer<u8>: CollectionAlloc>> FromItera
     }
 }
 
-impl<Buffer: BufferType> Collection for Bitmap<Buffer> {
+impl<Storage: Buffer> Collection for Bitmap<Storage> {
     type View<'collection>
         = bool
     where
@@ -209,7 +210,7 @@ impl<Buffer: BufferType> Collection for Bitmap<Buffer> {
 
     fn view(&self, index: usize) -> Option<Self::View<'_>> {
         (index < self.len())
-            .then(|| self.buffer.as_slice().view(self.byte_index(index)))
+            .then(|| self.buffer.borrow().view(self.byte_index(index)))
             .flatten()
             .map(|byte| byte & (1 << self.bit_index(index)) != 0)
     }
@@ -219,29 +220,29 @@ impl<Buffer: BufferType> Collection for Bitmap<Buffer> {
     where
         Self: 'collection;
 
-    fn iter(&self) -> Self::Iter<'_> {
+    fn iter_views(&self) -> Self::Iter<'_> {
         <&Self as IntoIterator>::into_iter(self)
     }
 
     type IntoIter = <Self as IntoIterator>::IntoIter;
 
-    fn into_iter(self) -> Self::IntoIter {
+    fn into_iter_owned(self) -> Self::IntoIter {
         <Self as IntoIterator>::into_iter(self)
     }
 }
 
-impl<Buffer: BufferType<Buffer<u8>: CollectionAlloc>> CollectionAlloc for Bitmap<Buffer> {
+impl<Storage: Buffer<For<u8>: CollectionAlloc>> CollectionAlloc for Bitmap<Storage> {
     fn with_capacity(capacity: usize) -> Self {
         Self {
-            buffer: Buffer::Buffer::<u8>::with_capacity(bytes_for_bits(capacity)),
+            buffer: Storage::For::<u8>::with_capacity(bytes_for_bits(capacity)),
             bits: 0,
             offset: 0,
         }
     }
 }
 
-impl<Buffer: BufferType<Buffer<u8>: BufferMut<u8> + CollectionRealloc>> CollectionRealloc
-    for Bitmap<Buffer>
+impl<Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> CollectionRealloc
+    for Bitmap<Storage>
 {
     fn reserve(&mut self, additional: usize) {
         if let Some(bits) = additional.checked_sub(usize::from(self.trailing_bits())) {
@@ -252,7 +253,7 @@ impl<Buffer: BufferType<Buffer<u8>: BufferMut<u8> + CollectionRealloc>> Collecti
 
 #[cfg(test)]
 mod tests {
-    use crate::{buffer::SliceBuffer, collection::Collection};
+    use crate::buffer::SliceBuffer;
 
     use super::*;
 
@@ -340,8 +341,8 @@ mod tests {
         assert_eq!(bitmap.view(1), Some(true));
         assert_eq!(bitmap.view(2), Some(false));
         assert_eq!(bitmap.view(3), None);
-        assert_eq!(bitmap.iter().filter(|x| !*x).count(), 2);
-        assert_eq!(bitmap.iter().filter(|x| *x).count(), 1);
+        assert_eq!(bitmap.iter_views().filter(|x| !*x).count(), 2);
+        assert_eq!(bitmap.iter_views().filter(|x| *x).count(), 1);
         assert_eq!(
             IntoIterator::into_iter(bitmap).collect::<Vec<_>>(),
             [false, true, false]
