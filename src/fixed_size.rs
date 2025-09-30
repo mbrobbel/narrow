@@ -2,8 +2,6 @@
 
 use std::mem;
 
-use crate::collection::AsView;
-
 /// Fixed-size types.
 pub trait FixedSize: Copy + sealed::Sealed + 'static {
     /// The size of this type in bytes.
@@ -32,12 +30,4 @@ impl<T: FixedSize, const N: usize> FixedSize for [T; N] {}
 mod sealed {
     pub trait Sealed {}
     impl<T: super::FixedSize> Sealed for T {}
-}
-
-impl<'a, T: FixedSize> AsView<'a> for T {
-    type View = T;
-
-    fn as_view(&'a self) -> T {
-        *self
-    }
 }

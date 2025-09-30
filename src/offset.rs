@@ -7,8 +7,8 @@ use std::{
 };
 
 use crate::{
-    buffer::{BufferType, VecBuffer},
-    collection::{Collection, IntoOwned},
+    buffer::{Buffer, VecBuffer},
+    collection::{Collection, owned::IntoOwned},
     fixed_size::FixedSize,
     length::Length,
 };
@@ -29,15 +29,13 @@ mod sealed {
 impl Offset for i32 {}
 impl Offset for i64 {}
 
-pub struct Offsets<T: Collection, OffsetItem: Offset = i32, Buffer: BufferType = VecBuffer> {
+pub struct Offsets<T: Collection, OffsetItem: Offset = i32, Storage: Buffer = VecBuffer> {
     data: T,
-    offsets: Buffer::Buffer<OffsetItem>,
+    offsets: Storage::For<OffsetItem>,
 }
 
-impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Debug for Offsets<T, OffsetItem, Buffer>
-where
-    T: Debug,
-    Buffer::Buffer<OffsetItem>: Debug,
+impl<T: Collection + Debug, OffsetItem: Offset, Storage: Buffer<For<OffsetItem>: Debug>> Debug
+    for Offsets<T, OffsetItem, Storage>
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Offset")
@@ -47,14 +45,13 @@ where
     }
 }
 
-impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Default
-    for Offsets<T, OffsetItem, Buffer>
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer> Default for Offsets<T, OffsetItem, Storage>
 where
     T: Default,
-    Buffer::Buffer<OffsetItem>: Default + Extend<OffsetItem>,
+    Storage::For<OffsetItem>: Default + Extend<OffsetItem>,
 {
     fn default() -> Self {
-        let mut offsets = Buffer::Buffer::<OffsetItem>::default();
+        let mut offsets = Storage::For::<OffsetItem>::default();
         offsets.extend(iter::once(OffsetItem::default()));
         Self {
             data: T::default(),
@@ -63,8 +60,8 @@ where
     }
 }
 
-impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Length
-    for Offsets<T, OffsetItem, Buffer>
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer> Length
+    for Offsets<T, OffsetItem, Storage>
 {
     fn len(&self) -> usize {
         self.offsets
@@ -75,14 +72,14 @@ impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Length
 }
 
 #[expect(missing_debug_implementations)]
-pub struct OffsetIntoIter<T: Collection, OffsetItem: Offset, Buffer: BufferType> {
+pub struct OffsetIntoIter<T: Collection, OffsetItem: Offset, Storage: Buffer> {
     data: T,
-    offsets: <Buffer::Buffer<OffsetItem> as Collection>::IntoIter,
+    offsets: <Storage::For<OffsetItem> as Collection>::IntoIter,
     position: OffsetItem,
 }
 
-impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Iterator
-    for OffsetIntoIter<T, OffsetItem, Buffer>
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer> Iterator
+    for OffsetIntoIter<T, OffsetItem, Storage>
 {
     type Item = Vec<T::Owned>;
 
@@ -98,11 +95,11 @@ impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Iterator
     }
 }
 
-impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Collection
-    for Offsets<T, OffsetItem, Buffer>
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer> Collection
+    for Offsets<T, OffsetItem, Storage>
 {
     type View<'collection>
-        = OffsetView<'collection, T, OffsetItem, Buffer>
+        = OffsetView<'collection, T, OffsetItem, Storage>
     where
         Self: 'collection;
 
@@ -126,18 +123,18 @@ impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Collection
     where
         Self: 'collection;
 
-    fn iter(&self) -> Self::Iter<'_> {
+    fn iter_views(&self) -> Self::Iter<'_> {
         let len = self.len();
         (0..len)
             .zip(iter::repeat(self))
             .map(|(index, offsets)| offsets.view(index).expect("index in range"))
     }
 
-    type IntoIter = OffsetIntoIter<T, OffsetItem, Buffer>;
+    type IntoIter = OffsetIntoIter<T, OffsetItem, Storage>;
 
-    fn into_iter(self) -> Self::IntoIter {
+    fn into_iter_owned(self) -> Self::IntoIter {
         let Self { data, offsets } = self;
-        let mut iter = offsets.into_iter();
+        let mut iter = offsets.into_iter_owned();
         let position = iter
             .next()
             .expect("offset buffer must have at least one value");
@@ -150,42 +147,42 @@ impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Collection
 }
 
 #[expect(missing_debug_implementations)]
-pub struct OffsetView<'collection, T: Collection, OffsetItem: Offset, Buffer: BufferType> {
-    collection: &'collection Offsets<T, OffsetItem, Buffer>,
+pub struct OffsetView<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer> {
+    collection: &'collection Offsets<T, OffsetItem, Storage>,
     start: usize,
     end: usize,
 }
 
-impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Clone
-    for OffsetView<'_, T, OffsetItem, Buffer>
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer> Clone
+    for OffsetView<'_, T, OffsetItem, Storage>
 {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Copy
-    for OffsetView<'_, T, OffsetItem, Buffer>
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer> Copy
+    for OffsetView<'_, T, OffsetItem, Storage>
 {
 }
 
-impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> IntoOwned<Vec<<T as Collection>::Owned>>
-    for OffsetView<'_, T, OffsetItem, Buffer>
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer> IntoOwned<Vec<<T as Collection>::Owned>>
+    for OffsetView<'_, T, OffsetItem, Storage>
 {
     fn into_owned(self) -> Vec<<T as Collection>::Owned> {
-        Collection::into_iter(self).collect()
+        self.into_iter_owned().collect()
     }
 }
 
-impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Length
-    for OffsetView<'_, T, OffsetItem, Buffer>
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer> Length
+    for OffsetView<'_, T, OffsetItem, Storage>
 {
     fn len(&self) -> usize {
         self.end - self.start
     }
 }
 
-impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Collection
-    for OffsetView<'_, T, OffsetItem, Buffer>
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer> Collection
+    for OffsetView<'_, T, OffsetItem, Storage>
 {
     type View<'collection>
         = <T as Collection>::View<'collection>
@@ -211,7 +208,7 @@ impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Collection
     where
         Self: 'collection;
 
-    fn iter(&self) -> Self::Iter<'_> {
+    fn iter_views(&self) -> Self::Iter<'_> {
         (0..self.len())
             .zip(iter::repeat(self))
             .map(|(index, collection)| collection.view(index).expect("index in range"))
@@ -219,7 +216,7 @@ impl<T: Collection, OffsetItem: Offset, Buffer: BufferType> Collection
 
     type IntoIter = Map<Zip<Range<usize>, Repeat<Self>>, fn((usize, Self)) -> Self::Owned>;
 
-    fn into_iter(self) -> Self::IntoIter {
+    fn into_iter_owned(self) -> Self::IntoIter {
         (0..self.len())
             .zip(iter::repeat(self))
             .map(|(index, collection)| collection.view(index).expect("index in range").into_owned())
@@ -254,9 +251,9 @@ mod tests {
         assert_eq!(slice.view(1), Some(2));
         assert_eq!(slice.view(2), None);
 
-        let views = offsets.iter().collect::<Vec<_>>();
+        let views = offsets.iter_views().collect::<Vec<_>>();
         assert_eq!(views[0].into_owned(), vec![1, 2]);
-        assert_eq!(views[1].into_iter().collect::<Vec<_>>(), vec![3]);
-        assert_eq!(views[2].iter().collect::<Vec<_>>(), vec![4]);
+        assert_eq!(views[1].into_iter_owned().collect::<Vec<_>>(), vec![3]);
+        assert_eq!(views[2].iter_views().collect::<Vec<_>>(), vec![4]);
     }
 }

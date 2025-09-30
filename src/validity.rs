@@ -1,14 +1,15 @@
 //! Nullable data with a validity bitmap.
 
 use std::{
+    borrow::BorrowMut,
     fmt::{self, Debug},
     iter::{self, Map, Zip},
 };
 
 use crate::{
     bitmap::Bitmap,
-    buffer::{BufferMut, BufferType, VecBuffer},
-    collection::{AsView, Collection, CollectionAlloc, CollectionRealloc, ViewOf},
+    buffer::{Buffer, VecBuffer},
+    collection::{Collection, CollectionAlloc, CollectionRealloc, view::AsView},
     length::Length,
 };
 
@@ -18,19 +19,19 @@ use crate::{
 /// validity (non-nullness) or invalidity (nullness) of items in the
 /// collection.
 ///
-/// `Buffer` is the [`BufferType`] of the [`Bitmap`].
-pub struct Validity<T: Collection, Buffer: BufferType = VecBuffer> {
+/// `Storage` is the [`Buffer`] of the [`Bitmap`].
+pub struct Validity<T: Collection, Storage: Buffer = VecBuffer> {
     /// Collection that may contain null elements.
     collection: T,
 
     /// The validity bitmap with validity information for the items in the
     /// data.
-    bitmap: Bitmap<Buffer>,
+    bitmap: Bitmap<Storage>,
 }
 
-impl<T: Collection + Debug, Buffer: BufferType> Debug for Validity<T, Buffer>
+impl<T: Collection + Debug, Storage: Buffer> Debug for Validity<T, Storage>
 where
-    Bitmap<Buffer>: Debug,
+    Bitmap<Storage>: Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Validity")
@@ -40,9 +41,7 @@ where
     }
 }
 
-impl<T: Default + Collection, Buffer: BufferType<Buffer<u8>: Default>> Default
-    for Validity<T, Buffer>
-{
+impl<T: Default + Collection, Storage: Buffer<For<u8>: Default>> Default for Validity<T, Storage> {
     fn default() -> Self {
         Self {
             collection: Default::default(),
@@ -52,25 +51,25 @@ impl<T: Default + Collection, Buffer: BufferType<Buffer<u8>: Default>> Default
 }
 
 impl<'collection, T: AsView<'collection>> AsView<'collection> for Option<T> {
-    type View = Option<ViewOf<'collection, T>>;
-    fn as_view(&'collection self) -> Option<ViewOf<'collection, T>> {
+    type View = Option<<T as AsView<'collection>>::View>;
+    fn as_view(&'collection self) -> Option<<T as AsView<'collection>>::View> {
         self.as_ref().map(AsView::as_view)
     }
 }
 
-impl<T: Collection, Buffer: BufferType> Length for Validity<T, Buffer> {
+impl<T: Collection, Storage: Buffer> Length for Validity<T, Storage> {
     fn len(&self) -> usize {
         self.bitmap.len()
     }
 }
 
-impl<'collection, T: Collection, Buffer: BufferType> IntoIterator
-    for &'collection Validity<T, Buffer>
+impl<'collection, T: Collection, Storage: Buffer> IntoIterator
+    for &'collection Validity<T, Storage>
 {
     type Item = Option<<T as Collection>::View<'collection>>;
     type IntoIter = Map<
         Zip<
-            <Bitmap<Buffer> as Collection>::Iter<'collection>,
+            <Bitmap<Storage> as Collection>::Iter<'collection>,
             <T as Collection>::Iter<'collection>,
         >,
         fn(
@@ -80,28 +79,29 @@ impl<'collection, T: Collection, Buffer: BufferType> IntoIterator
 
     fn into_iter(self) -> Self::IntoIter {
         self.bitmap
-            .iter()
-            .zip(self.collection.iter())
+            .iter_views()
+            .zip(self.collection.iter_views())
             .map(|(validity, value)| validity.then_some(value))
     }
 }
 
-impl<T: Collection, Buffer: BufferType> IntoIterator for Validity<T, Buffer> {
+impl<T: Collection, Storage: Buffer> IntoIterator for Validity<T, Storage> {
     type Item = Option<<T as Collection>::Owned>;
 
     type IntoIter = Map<
-        Zip<<Bitmap<Buffer> as Collection>::IntoIter, <T as Collection>::IntoIter>,
+        Zip<<Bitmap<Storage> as Collection>::IntoIter, <T as Collection>::IntoIter>,
         fn((bool, <T as Collection>::Owned)) -> Option<<T as Collection>::Owned>,
     >;
 
     fn into_iter(self) -> Self::IntoIter {
-        Collection::into_iter(self.bitmap)
-            .zip(self.collection.into_iter())
+        self.bitmap
+            .into_iter_owned()
+            .zip(self.collection.into_iter_owned())
             .map(|(validity, value)| validity.then_some(value))
     }
 }
 
-impl<T: Collection, Buffer: BufferType> Collection for Validity<T, Buffer> {
+impl<T: Collection, Storage: Buffer> Collection for Validity<T, Storage> {
     type View<'collection>
         = Option<<T as Collection>::View<'collection>>
     where
@@ -124,13 +124,13 @@ impl<T: Collection, Buffer: BufferType> Collection for Validity<T, Buffer> {
     where
         Self: 'collection;
 
-    fn iter(&self) -> Self::Iter<'_> {
+    fn iter_views(&self) -> Self::Iter<'_> {
         <&Self as IntoIterator>::into_iter(self)
     }
 
     type IntoIter = <Self as IntoIterator>::IntoIter;
 
-    fn into_iter(self) -> Self::IntoIter {
+    fn into_iter_owned(self) -> Self::IntoIter {
         <Self as IntoIterator>::into_iter(self)
     }
 }
@@ -138,8 +138,8 @@ impl<T: Collection, Buffer: BufferType> Collection for Validity<T, Buffer> {
 impl<
     U: Default,
     T: CollectionAlloc<Owned = U>,
-    Buffer: BufferType<Buffer<u8>: BufferMut<u8> + CollectionRealloc>,
-> FromIterator<Option<U>> for Validity<T, Buffer>
+    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>,
+> FromIterator<Option<U>> for Validity<T, Storage>
 {
     fn from_iter<I: IntoIterator<Item = Option<U>>>(iter: I) -> Self {
         let items = iter.into_iter();
@@ -156,8 +156,8 @@ impl<
 impl<
     U: Default,
     T: CollectionRealloc<Owned = U>,
-    Buffer: BufferType<Buffer<u8>: BufferMut<u8> + CollectionRealloc>,
-> Extend<Option<U>> for Validity<T, Buffer>
+    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>,
+> Extend<Option<U>> for Validity<T, Storage>
 {
     fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
         self.collection.extend(
@@ -170,8 +170,8 @@ impl<
 
 impl<
     T: CollectionRealloc<Owned: Default>,
-    Buffer: BufferType<Buffer<u8>: BufferMut<u8> + CollectionRealloc>,
-> CollectionAlloc for Validity<T, Buffer>
+    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>,
+> CollectionAlloc for Validity<T, Storage>
 {
     fn with_capacity(capacity: usize) -> Self {
         Self {
@@ -183,8 +183,8 @@ impl<
 
 impl<
     T: CollectionRealloc<Owned: Default>,
-    Buffer: BufferType<Buffer<u8>: BufferMut<u8> + CollectionRealloc>,
-> CollectionRealloc for Validity<T, Buffer>
+    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>,
+> CollectionRealloc for Validity<T, Storage>
 {
     fn reserve(&mut self, additional: usize) {
         self.bitmap.reserve(additional);
@@ -206,8 +206,8 @@ mod tests {
         assert_eq!(validity.view(2), Some(Some(3)));
         assert_eq!(validity.view(3), Some(Some(4)));
         assert_eq!(validity.view(4), None);
-        assert_eq!(validity.iter().collect::<Vec<_>>(), input);
-        assert_eq!(Collection::into_iter(validity).collect::<Vec<_>>(), input);
+        assert_eq!(validity.iter_views().collect::<Vec<_>>(), input);
+        assert_eq!(validity.into_iter_owned().collect::<Vec<_>>(), input);
     }
 
     #[test]
@@ -215,8 +215,8 @@ mod tests {
         let input = [Some(Some(1)), None, Some(None), Some(Some(4))];
         let validity = IntoIterator::into_iter(input).collect::<Validity<Vec<_>>>();
         assert_eq!(validity.len(), 4);
-        assert_eq!(validity.iter().collect::<Vec<_>>(), input);
-        assert_eq!(Collection::into_iter(validity).collect::<Vec<_>>(), input);
+        assert_eq!(validity.iter_views().collect::<Vec<_>>(), input);
+        assert_eq!(validity.into_iter_owned().collect::<Vec<_>>(), input);
     }
 
     #[test]
@@ -224,7 +224,7 @@ mod tests {
         let input = [Some(1), None, Some(3), Some(4)];
         let validity = IntoIterator::into_iter(input).collect::<Validity<Vec<_>>>();
         assert_eq!(validity.len(), 4);
-        assert_eq!(Collection::iter(&validity).collect::<Vec<_>>(), input);
+        assert_eq!(Collection::iter_views(&validity).collect::<Vec<_>>(), input);
     }
 
     #[test]
@@ -235,7 +235,7 @@ mod tests {
         validity.extend([Some(5)]);
         assert_eq!(validity.len(), 5);
         assert_eq!(
-            validity.iter().collect::<Vec<_>>(),
+            validity.iter_views().collect::<Vec<_>>(),
             [Some(1), None, Some(3), Some(4), Some(5)]
         );
     }

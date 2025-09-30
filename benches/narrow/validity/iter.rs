@@ -46,7 +46,7 @@ pub(super) fn bench(c: &mut Criterion) {
                 group.bench_with_input(
                     BenchmarkId::new("narrow", format!("{size}/{null_fraction}")),
                     &(),
-                    |b, _| b.iter(|| Vec::<Option<_>>::from_iter(narrow_validity.iter())),
+                    |b, _| b.iter(|| Vec::<Option<_>>::from_iter(narrow_validity.iter_views())),
                 );
             }
         }

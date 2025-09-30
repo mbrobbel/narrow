@@ -63,10 +63,11 @@
     unsafe_op_in_unsafe_fn
 )]
 
-pub mod buffer;
 pub mod collection;
 pub mod fixed_size;
 pub mod length;
+
+pub mod buffer;
 
 pub mod bitmap;
 
