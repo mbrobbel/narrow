@@ -75,3 +75,7 @@ pub mod nullability;
 pub mod validity;
 
 pub mod offset;
+
+pub mod layout;
+
+pub mod array;
