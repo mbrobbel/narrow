@@ -359,7 +359,7 @@ mod tests {
 
     #[test]
     fn compare_offset_view() {
-        let collection = [vec![42u8], vec![0]].into_iter().collect();
+        let collection = [vec![42], vec![0]].into_iter().collect();
         let view: OffsetView<Vec<u8>, i32, VecBuffer, Vec<u8>> = OffsetView {
             collection: &collection,
             start: 0,

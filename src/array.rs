@@ -9,7 +9,7 @@ use crate::{
     length::Length,
 };
 
-/// An array of items, stored using their [`T::Memory`].
+/// An array of items `T`, stored using their [`Layout`] memory.
 pub struct Array<T: Layout, Storage: Buffer = VecBuffer>(T::Memory<Storage>);
 
 impl<T: Layout, Storage: Buffer> Clone for Array<T, Storage>
