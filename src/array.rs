@@ -124,8 +124,8 @@ mod tests {
         round_trip::<Array<_>, _>([Some([1, 2, 3, 4]), None]);
 
         // Variable size binary
-        round_trip::<Array<_>, _>([vec![1u8, 2, 3, 4], vec![5, 6, 7, 8]]);
-        round_trip::<Array<_>, _>([Some(vec![1u8, 2, 3, 4]), None]);
+        round_trip::<Array<_>, _>([vec![1_u8, 2, 3, 4], vec![5, 6, 7, 8]]);
+        round_trip::<Array<_>, _>([Some(vec![1_u8, 2, 3, 4]), None]);
 
         // Variable size list
         round_trip::<Array<_>, _>([vec![1, 2, 3, 4], vec![5, 6, 7, 8]]);
