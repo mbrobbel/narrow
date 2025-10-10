@@ -21,9 +21,12 @@ where
     }
 }
 
-impl<T: Layout, Storage: Buffer> Debug for Array<T, Storage> {
+impl<T: Layout, Storage: Buffer> Debug for Array<T, Storage>
+where
+    T::Memory<Storage>: Debug,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Array").finish_non_exhaustive()
+        f.debug_tuple("Array").field(&self.0).finish()
     }
 }
 
@@ -36,11 +39,11 @@ where
     }
 }
 
-impl<T: Layout, Storage: Buffer> Extend<T> for Array<T, Storage>
+impl<T: Layout, U, Storage: Buffer> Extend<U> for Array<T, Storage>
 where
-    T::Memory<Storage>: Extend<T>,
+    T::Memory<Storage>: Extend<U>,
 {
-    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+    fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
         self.0.extend(iter);
     }
 }
@@ -51,11 +54,11 @@ impl<T: Layout, Storage: Buffer> Length for Array<T, Storage> {
     }
 }
 
-impl<T: Layout, Storage: Buffer> FromIterator<T> for Array<T, Storage>
+impl<T: Layout, U, Storage: Buffer> FromIterator<U> for Array<T, Storage>
 where
-    T::Memory<Storage>: FromIterator<T>,
+    T::Memory<Storage>: FromIterator<U>,
 {
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = U>>(iter: I) -> Self {
         Self(iter.into_iter().collect())
     }
 }
@@ -115,13 +118,31 @@ mod tests {
     #[test]
     fn collection() {
         // Fixed size primitive
-        round_trip::<Array<i32>, _>([1, 2, 3, 4]);
-        round_trip::<Array<Option<i32>>, _>([Some(1), None, Some(3), Some(4)]);
-        round_trip::<Array<[i32; 4]>, _>([[1, 2, 3, 4], [5, 6, 7, 8]]);
-        round_trip::<Array<Option<[i32; 4]>>, _>([Some([1, 2, 3, 4]), None]);
+        round_trip::<Array<_>, _>([1, 2, 3, 4]);
+        round_trip::<Array<_>, _>([Some(1), None, Some(3), Some(4)]);
+        round_trip::<Array<_>, _>([[1, 2, 3, 4], [5, 6, 7, 8]]);
+        round_trip::<Array<_>, _>([Some([1, 2, 3, 4]), None]);
 
         // Variable size binary
-        round_trip::<Array<Vec<u8>>, _>([vec![1, 2, 3, 4], vec![5, 6, 7, 8]]);
-        round_trip::<Array<Option<Vec<u8>>>, _>([Some(vec![1, 2, 3, 4]), None]);
+        round_trip::<Array<_>, _>([vec![1_u8, 2, 3, 4], vec![5, 6, 7, 8]]);
+        round_trip::<Array<_>, _>([Some(vec![1_u8, 2, 3, 4]), None]);
+
+        // Variable size list
+        round_trip::<Array<_>, _>([vec![1, 2, 3, 4], vec![5, 6, 7, 8]]);
+        round_trip::<Array<_>, _>([Some(vec![1, 2, 3, 4]), None]);
+        round_trip::<Array<_>, _>([vec![vec![1, 2], vec![3, 4]], vec![vec![5, 6, 7], vec![8]]]);
+        round_trip::<Array<_>, _>([Some(vec![Some(1), None, Some(3), Some(4)]), None]);
+        round_trip::<Array<_>, _>([
+            Some(vec![
+                Some(vec![1, 2]),
+                None,
+                Some(vec![3, 4, 5, 6]),
+                Some(vec![7, 8]),
+            ]),
+            None,
+            Some(vec![None]),
+            Some(vec![Some(vec![])]),
+            None,
+        ]);
     }
 }
