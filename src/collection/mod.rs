@@ -60,25 +60,28 @@ pub trait CollectionRealloc: CollectionAlloc + Extend<Self::Owned> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
+    use std::fmt::Debug;
+
     use crate::collection::view::AsView;
 
     use super::*;
 
-    #[test]
-    #[expect(clippy::perf, clippy::unwrap_used)]
-    fn collection() {
-        let a = vec![1, 2, 3, 4];
-        assert_eq!(a[0].as_view(), 1);
-
-        let b = [1, 2, 3, 4];
-        assert_eq!(b.as_view(), [1, 2, 3, 4]);
-
-        let c = [1, 2, 3, 4].as_slice();
-        assert_eq!(c.view(2), Some(3));
-
-        let d = vec![vec![1, 2], vec![3, 4]];
-        assert_eq!(d.view(0), Some([1, 2].as_slice()));
-        assert_eq!(d.view(1).unwrap().view(1), Some(4));
+    pub(crate) fn round_trip<
+        C: for<'any> CollectionAlloc<Owned = T, View<'any>: Debug>,
+        T: for<'this, 'other> AsView<'this, View: Debug> + Clone + Default + Debug + PartialEq,
+    >(
+        items: impl IntoIterator<Item = T>,
+    ) {
+        let input = items.into_iter().collect::<Vec<_>>();
+        let collection = input.clone().into_iter().collect::<C>();
+        assert_eq!(input.len(), collection.len());
+        collection
+            .iter_views()
+            .enumerate()
+            .for_each(|(index, item)| {
+                assert_eq!(input[index], item.into_owned());
+            });
+        assert_eq!(input, collection.into_iter_owned().collect::<Vec<_>>());
     }
 }
