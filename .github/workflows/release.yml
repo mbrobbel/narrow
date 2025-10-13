@@ -39,7 +39,7 @@ jobs:
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-
       - uses: mozilla-actions/sccache-action@v0.0.9
-      - uses: MarcoIeni/release-plz-action@v0.5.117
+      - uses: MarcoIeni/release-plz-action@v0.5.118
         with:
           command: release
         env:
@@ -72,7 +72,7 @@ jobs:
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-
       - uses: mozilla-actions/sccache-action@v0.0.9
-      - uses: MarcoIeni/release-plz-action@v0.5.117
+      - uses: MarcoIeni/release-plz-action@v0.5.118
         with:
           command: release-pr
         env:
