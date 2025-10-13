@@ -10,6 +10,8 @@ pub mod rc;
 pub mod slice;
 pub mod vec;
 
+pub mod flatten;
+
 use crate::{collection::owned::IntoOwned, length::Length};
 
 /// A collection of items.
@@ -80,6 +82,7 @@ pub(crate) mod tests {
             .iter_views()
             .enumerate()
             .for_each(|(index, item)| {
+                // TODO: compare views
                 assert_eq!(input[index], item.into_owned());
             });
         assert_eq!(input, collection.into_iter_owned().collect::<Vec<_>>());
