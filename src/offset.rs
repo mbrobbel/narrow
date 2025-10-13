@@ -1,7 +1,7 @@
 use std::{
     borrow::Borrow,
     fmt::{self, Debug},
-    iter::{self, Map, Repeat, Zip},
+    iter::{self, Map, Repeat, RepeatN, Zip},
     marker::PhantomData,
     mem,
     num::TryFromIntError,
@@ -244,6 +244,14 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
     }
 }
 
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owned>>
+    ExactSizeIterator for OffsetIntoIter<T, OffsetItem, Storage, U>
+{
+    fn len(&self) -> usize {
+        self.offsets.len()
+    }
+}
+
 pub struct OffsetView<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U> {
     collection: &'collection Offsets<T, OffsetItem, Storage, U>,
     start: usize,
@@ -336,11 +344,11 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Collection
             .map(|(index, collection)| collection.view(index).expect("index in range"))
     }
 
-    type IntoIter = Map<Zip<Range<usize>, Repeat<Self>>, fn((usize, Self)) -> Self::Owned>;
+    type IntoIter = Map<Zip<Range<usize>, RepeatN<Self>>, fn((usize, Self)) -> Self::Owned>;
 
     fn into_iter_owned(self) -> Self::IntoIter {
         (0..self.len())
-            .zip(iter::repeat(self))
+            .zip(iter::repeat_n(self, self.len()))
             .map(|(index, collection)| collection.view(index).expect("index in range").into_owned())
     }
 }

@@ -15,7 +15,7 @@ use crate::{collection::owned::IntoOwned, length::Length};
 /// A collection of items.
 pub trait Collection: Length {
     /// Borrowed view of an item in this collection
-    type View<'collection>: IntoOwned<Self::Owned> + 'collection
+    type View<'collection>: Copy + IntoOwned<Self::Owned> + 'collection
     where
         Self: 'collection;
 
@@ -41,7 +41,7 @@ pub trait Collection: Length {
     fn iter_views(&self) -> Self::Iter<'_>;
 
     /// Iterator over owned items in this collection.
-    type IntoIter: Iterator<Item = Self::Owned>;
+    type IntoIter: ExactSizeIterator<Item = Self::Owned>;
 
     /// Returns an interator over items in this collection.
     fn into_iter_owned(self) -> Self::IntoIter;

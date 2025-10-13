@@ -3,7 +3,7 @@ use crate::{collection::owned::IntoOwned, fixed_size::FixedSize};
 /// Convert items into views.
 pub trait AsView<'collection>: Sized {
     /// The view type.
-    type View: IntoOwned<Self> + 'collection;
+    type View: Copy + IntoOwned<Self> + 'collection;
 
     /// Returns a view of self.
     fn as_view(&'collection self) -> Self::View;
