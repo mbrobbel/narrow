@@ -1,7 +1,7 @@
 use std::{
     borrow::Borrow,
     fmt::{self, Debug},
-    iter::{self, Map, Repeat, Zip},
+    iter::{self, Map, RepeatN, Zip},
     marker::PhantomData,
     mem,
     num::TryFromIntError,
@@ -155,7 +155,7 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
 
     type Iter<'collection>
         = Map<
-        Zip<Range<usize>, Repeat<&'collection Self>>,
+        Zip<Range<usize>, RepeatN<&'collection Self>>,
         fn((usize, &'collection Self)) -> Self::View<'collection>,
     >
     where
@@ -164,7 +164,7 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
     fn iter_views(&self) -> Self::Iter<'_> {
         let len = self.len();
         (0..len)
-            .zip(iter::repeat(self))
+            .zip(iter::repeat_n(self, len))
             .map(|(index, offsets)| offsets.view(index).expect("index in range"))
     }
 
@@ -241,6 +241,14 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
                 .map(IntoOwned::into_owned)
                 .collect::<U>(),
         )
+    }
+}
+
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owned>>
+    ExactSizeIterator for OffsetIntoIter<T, OffsetItem, Storage, U>
+{
+    fn len(&self) -> usize {
+        self.offsets.len()
     }
 }
 
@@ -324,7 +332,7 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Collection
 
     type Iter<'collection>
         = Map<
-        Zip<Range<usize>, Repeat<&'collection Self>>,
+        Zip<Range<usize>, RepeatN<&'collection Self>>,
         fn((usize, &'collection Self)) -> Self::View<'collection>,
     >
     where
@@ -332,15 +340,15 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Collection
 
     fn iter_views(&self) -> Self::Iter<'_> {
         (0..self.len())
-            .zip(iter::repeat(self))
+            .zip(iter::repeat_n(self, self.len()))
             .map(|(index, collection)| collection.view(index).expect("index in range"))
     }
 
-    type IntoIter = Map<Zip<Range<usize>, Repeat<Self>>, fn((usize, Self)) -> Self::Owned>;
+    type IntoIter = Map<Zip<Range<usize>, RepeatN<Self>>, fn((usize, Self)) -> Self::Owned>;
 
     fn into_iter_owned(self) -> Self::IntoIter {
         (0..self.len())
-            .zip(iter::repeat(self))
+            .zip(iter::repeat_n(self, self.len()))
             .map(|(index, collection)| collection.view(index).expect("index in range").into_owned())
     }
 }
