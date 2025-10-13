@@ -35,10 +35,10 @@ where
             for bit_position in 1..8 {
                 // If the inner iterator has more boolean values and they are set
                 // (`true`), set the corresponding bit in the output byte.
-                if let Some(x) = self.iter.next() {
-                    if *x.borrow() {
-                        byte |= 1 << bit_position;
-                    }
+                if let Some(x) = self.iter.next()
+                    && *x.borrow()
+                {
+                    byte |= 1 << bit_position;
                 }
             }
             byte
