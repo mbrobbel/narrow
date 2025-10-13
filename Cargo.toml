@@ -12,7 +12,7 @@ keywords = ["Arrow"]
 categories = ["data-structures"]
 
 [workspace]
-# members = ["narrow-derive"]
+members = ["narrow-derive"]
 
 [package]
 name = "narrow"
@@ -33,57 +33,13 @@ all-features = true
 
 [features]
 default = []
-arrow-rs = [
-    "dep:arrow-array",
-    "dep:arrow-buffer",
-    "dep:arrow-schema",
-    "narrow-derive?/arrow-rs",
-]
-chrono = ["dep:chrono"]
 derive = ["dep:narrow-derive"]
-map = ["derive"]
-uuid = ["dep:uuid", "arrow-schema?/canonical_extension_types"]
 
 [dependencies]
-arrow-array = { version = "56.2.0", default-features = false, optional = true }
-arrow-buffer = { version = "56.0.0", default-features = false, optional = true }
-arrow-schema = { version = "56.0.0", default-features = false, optional = true }
-chrono = { version = "0.4.42", default-features = false, optional = true }
 narrow-derive = { path = "narrow-derive", version = "0.14.1", optional = true }
-uuid = { version = "1.18.1", default-features = false, optional = true }
 
 [dev-dependencies]
-arrow-cast = { version = "56.2.0", default-features = false, features = [
-    "prettyprint",
-] }
-bytes = "1.10.1"
-chrono = { version = "0.4.42", default-features = false, features = ["now"] }
-criterion = { version = "0.7.0", default-features = false, features = [
-    "html_reports",
-] }
-rand = { version = "0.9.2", default-features = false, features = ["small_rng"] }
-rustversion = { version = "1.0.22", default-features = false }
-parquet = { version = "56.2.0", default-features = false, features = ["arrow"] }
-uuid = { version = "1.18.1", default-features = false }
-num-traits = { version = "0.2.19" }
 
 [profile.bench]
 lto = true
 codegen-units = 1
-
-[[bench]]
-name = "narrow"
-harness = false
-# required-features = ["arrow-rs"]
-
-# [[example]]
-# name = "basic"
-# required-features = ["derive"]
-
-# [[example]]
-# name = "parquet"
-# required-features = ["arrow-rs", "chrono", "derive", "map", "uuid"]
-
-# [[example]]
-# name = "tpch_lineitem"
-# required-features = ["arrow-rs", "chrono", "derive"]
