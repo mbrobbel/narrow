@@ -372,20 +372,26 @@ mod tests {
 
     #[test]
     fn iterator_size() {
-        let collection: Offsets<Vec<_>> = [vec![42]].into_iter().collect();
-        let iter = collection.into_iter_owned();
-        assert_eq!(iter.size_hint(), (1, Some(1)));
-        assert_eq!(iter.len(), 1);
+        let a = [vec![42]]
+            .into_iter()
+            .collect::<Offsets<Vec<_>>>()
+            .into_iter_owned();
+        assert_eq!(a.size_hint(), (1, Some(1)));
+        assert_eq!(a.len(), 1);
 
-        let collection: Offsets<Vec<_>> = [vec![42, 1]].into_iter().collect();
-        let iter = collection.into_iter_owned();
-        assert_eq!(iter.size_hint(), (1, Some(1)));
-        assert_eq!(iter.len(), 1);
+        let b = [vec![42, 1]]
+            .into_iter()
+            .collect::<Offsets<Vec<_>>>()
+            .into_iter_owned();
+        assert_eq!(b.size_hint(), (1, Some(1)));
+        assert_eq!(b.len(), 1);
 
-        let collection: Offsets<Vec<_>> = [vec![42, 1], vec![2]].into_iter().collect();
-        let iter = collection.into_iter_owned();
-        assert_eq!(iter.size_hint(), (2, Some(2)));
-        assert_eq!(iter.len(), 2);
+        let c = [vec![42, 1], vec![2]]
+            .into_iter()
+            .collect::<Offsets<Vec<_>>>()
+            .into_iter_owned();
+        assert_eq!(c.size_hint(), (2, Some(2)));
+        assert_eq!(c.len(), 2);
     }
 
     #[test]
