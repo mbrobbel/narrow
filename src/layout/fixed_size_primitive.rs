@@ -123,7 +123,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{collection::tests::round_trip, nullability::Nullable};
+    use crate::{collection::tests::round_trip, fixed_size::FixedSizeArray, nullability::Nullable};
 
     use super::*;
 
@@ -131,7 +131,13 @@ mod tests {
     fn collection() {
         round_trip::<FixedSizePrimitive<u8>, _>([1, 2, 3, 4]);
         round_trip::<FixedSizePrimitive<u8, Nullable>, _>([Some(1), None, Some(3), Some(4)]);
-        round_trip::<FixedSizePrimitive<[u8; 4]>, _>([[1, 2, 3, 4], [5, 6, 7, 8]]);
-        round_trip::<FixedSizePrimitive<[u8; 4], Nullable>, _>([Some([1, 2, 3, 4]), None]);
+        round_trip::<FixedSizePrimitive<FixedSizeArray<u8, 4>>, _>([
+            [1, 2, 3, 4].into(),
+            [5, 6, 7, 8].into(),
+        ]);
+        round_trip::<FixedSizePrimitive<FixedSizeArray<u8, 4>, Nullable>, _>([
+            Some([1, 2, 3, 4].into()),
+            None,
+        ]);
     }
 }

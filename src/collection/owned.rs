@@ -12,9 +12,16 @@ impl IntoOwned<bool> for bool {
     }
 }
 
+#[diagnostic::do_not_recommend]
 impl<T: FixedSize> IntoOwned<T> for T {
     fn into_owned(self) -> T {
         self
+    }
+}
+
+impl<T: Clone, const N: usize> IntoOwned<[T; N]> for &[T; N] {
+    fn into_owned(self) -> [T; N] {
+        self.clone()
     }
 }
 
@@ -29,27 +36,3 @@ impl<T: IntoOwned<U>, U> IntoOwned<Option<U>> for Option<T> {
         self.map(IntoOwned::into_owned)
     }
 }
-
-// impl<T: Clone> IntoOwned<T> for &T {
-//     fn into_owned(self) -> T {
-//         self.clone()
-//     }
-// }
-
-// impl<T: Clone> IntoOwned<Box<[T]>> for &[T] {
-//     fn into_owned(self) -> Box<[T]> {
-//         self.to_vec().into_boxed_slice()
-//     }
-// }
-
-// impl<T: Clone> IntoOwned<Rc<[T]>> for &[T] {
-//     fn into_owned(self) -> Rc<[T]> {
-//         Rc::<[T]>::from(self.to_vec().into_boxed_slice())
-//     }
-// }
-
-// impl<T: Clone> IntoOwned<Arc<[T]>> for &[T] {
-//     fn into_owned(self) -> Arc<[T]> {
-//         Arc::<[T]>::from(self.to_vec().into_boxed_slice())
-//     }
-// }

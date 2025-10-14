@@ -121,22 +121,25 @@ impl<C: Collection, const N: usize> IntoOwned<[C::Owned; N]> for FlattenView<'_,
 
 /// An iterator over N elements of the inner iterator at a time.
 #[derive(Debug, Clone, Copy)]
-pub struct ArrayChunks<const N: usize, I: ExactSizeIterator>(I);
+pub struct ArrayChunks<const N: usize, I: Iterator>(I);
 
-impl<const N: usize, I: ExactSizeIterator> Iterator for ArrayChunks<N, I> {
+impl<const N: usize, I: Iterator> Iterator for ArrayChunks<N, I> {
     type Item = [I::Item; N];
 
     fn next(&mut self) -> Option<Self::Item> {
-        (self.0.len() != 0).then(|| {
-            let mut items = self.0.by_ref().take(N);
-            array::from_fn(|_| items.next().expect("out of bounds"))
-        })
+        let first = self.0.next()?;
+        let mut items = array::from_fn(|_| None);
+        items[0] = Some(first);
+        items.iter_mut().take(N).skip(1).for_each(|item| {
+            *item = self.0.next();
+        });
+        Some(items.map(|item| item.expect("out of bounds")))
     }
 }
 
 impl<const N: usize, I: ExactSizeIterator> ExactSizeIterator for ArrayChunks<N, I> {
     fn len(&self) -> usize {
-        self.0.len()
+        self.0.len() / N
     }
 }
 

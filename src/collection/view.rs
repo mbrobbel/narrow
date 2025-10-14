@@ -9,11 +9,21 @@ pub trait AsView<'collection>: Sized {
     fn as_view(&'collection self) -> Self::View;
 }
 
+#[diagnostic::do_not_recommend]
 impl<'a, T: FixedSize> AsView<'a> for T {
     type View = T;
 
     fn as_view(&'a self) -> T {
         *self
+    }
+}
+
+#[diagnostic::do_not_recommend]
+impl<'a, T: 'a + Clone, const N: usize> AsView<'a> for [T; N] {
+    type View = &'a [T; N];
+
+    fn as_view(&'a self) -> &'a [T; N] {
+        self
     }
 }
 
@@ -38,7 +48,7 @@ mod tests {
         assert_eq!(a[0].as_view(), 1);
 
         let b = [1, 2, 3, 4];
-        assert_eq!(b.as_view(), [1, 2, 3, 4]);
+        assert_eq!(b.as_view(), &[1, 2, 3, 4]);
 
         let c = [1, 2, 3, 4].as_slice();
         assert_eq!(c.view(2), Some(3));

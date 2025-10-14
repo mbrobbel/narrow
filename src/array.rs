@@ -111,7 +111,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::collection::tests::round_trip;
+    use crate::{collection::tests::round_trip, fixed_size::FixedSizeArray};
 
     use super::*;
 
@@ -120,8 +120,18 @@ mod tests {
         // Fixed size primitive
         round_trip::<Array<_>, _>([1, 2, 3, 4]);
         round_trip::<Array<_>, _>([Some(1), None, Some(3), Some(4)]);
+        round_trip::<Array<FixedSizeArray<u8, 4>>, _>([[1, 2, 3, 4].into(), [5, 6, 7, 8].into()]);
+        round_trip::<Array<Option<FixedSizeArray<u8, 4>>>, _>([Some([1, 2, 3, 4].into()), None]);
+
+        // Fixed size list
         round_trip::<Array<_>, _>([[1, 2, 3, 4], [5, 6, 7, 8]]);
         round_trip::<Array<_>, _>([Some([1, 2, 3, 4]), None]);
+        round_trip::<Array<_>, _>([Some([Some(1), None, Some(3), Some(4)]), None]);
+        round_trip::<Array<_>, _>([
+            Some([Some(vec![1, 2]), None, Some(vec![3]), Some(vec![4])]),
+            None,
+            Some([None, Some(vec![5, 6, 7, 8]), None, None]),
+        ]);
 
         // Variable size binary
         round_trip::<Array<_>, _>([vec![1_u8, 2, 3, 4], vec![5, 6, 7, 8]]);
@@ -144,5 +154,8 @@ mod tests {
             Some(vec![Some(vec![])]),
             None,
         ]);
+        round_trip::<Array<_>, _>([vec![[1, 2], [3, 4]], vec![[5, 6], [7, 8]]]);
+        round_trip::<Array<_>, _>([vec![Some([1, 2]), None], vec![None, Some([7, 8])]]);
+        round_trip::<Array<_>, _>([Some(vec![Some([1, 2]), None]), None]);
     }
 }
