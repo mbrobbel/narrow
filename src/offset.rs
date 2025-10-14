@@ -242,6 +242,10 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
                 .collect::<U>(),
         )
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.len(), Some(self.len()))
+    }
 }
 
 impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owned>>
@@ -363,6 +367,25 @@ mod tests {
         assert_eq!(offsets.len(), 0);
         assert_eq!(offsets.data.len(), 0);
         assert_eq!(offsets.offsets.len(), 1);
+        assert_eq!(offsets.into_iter_owned().len(), 0);
+    }
+
+    #[test]
+    fn iterator_size() {
+        let collection: Offsets<Vec<_>> = [vec![42]].into_iter().collect();
+        let iter = collection.into_iter_owned();
+        assert_eq!(iter.size_hint(), (1, Some(1)));
+        assert_eq!(iter.len(), 1);
+
+        let collection: Offsets<Vec<_>> = [vec![42, 1]].into_iter().collect();
+        let iter = collection.into_iter_owned();
+        assert_eq!(iter.size_hint(), (1, Some(1)));
+        assert_eq!(iter.len(), 1);
+
+        let collection: Offsets<Vec<_>> = [vec![42, 1], vec![2]].into_iter().collect();
+        let iter = collection.into_iter_owned();
+        assert_eq!(iter.size_hint(), (2, Some(2)));
+        assert_eq!(iter.len(), 2);
     }
 
     #[test]

@@ -129,13 +129,13 @@ mod tests {
 
     #[test]
     fn collection() {
-        round_trip::<FixedSizePrimitive<u8>, _>([1, 2, 3, 4]);
-        round_trip::<FixedSizePrimitive<u8, Nullable>, _>([Some(1), None, Some(3), Some(4)]);
-        round_trip::<FixedSizePrimitive<FixedSizeArray<u8, 4>>, _>([
+        round_trip::<FixedSizePrimitive<_>, _>([1, 2, 3, 4]);
+        round_trip::<FixedSizePrimitive<_, Nullable>, _>([Some(1), None, Some(3), Some(4)]);
+        round_trip::<FixedSizePrimitive<FixedSizeArray<_, _>>, _>([
             [1, 2, 3, 4].into(),
             [5, 6, 7, 8].into(),
         ]);
-        round_trip::<FixedSizePrimitive<FixedSizeArray<u8, 4>, Nullable>, _>([
+        round_trip::<FixedSizePrimitive<FixedSizeArray<_, _>, Nullable>, _>([
             Some([1, 2, 3, 4].into()),
             None,
         ]);

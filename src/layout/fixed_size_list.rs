@@ -130,21 +130,16 @@ mod tests {
 
     #[test]
     fn collection() {
-        round_trip::<FixedSizeList<u16, 1>, _>([[1u16], [2], [3], [4]]);
-        round_trip::<FixedSizeList<u16, 4, Nullable>, _>([Some([1, 2, 3, 4]), None]);
-        round_trip::<FixedSizeList<Option<u16>, 1>, _>([
-            [Some(1u16)],
-            [None],
-            [Some(3)],
-            [Some(4)],
-        ]);
-        round_trip::<FixedSizeList<Option<u16>, 1, Nullable>, _>([
-            Some([Some(1u16)]),
+        round_trip::<FixedSizeList<_, _>, _>([[1], [2], [3], [4]]);
+        round_trip::<FixedSizeList<_, _, Nullable>, _>([Some([1, 2, 3, 4]), None]);
+        round_trip::<FixedSizeList<_, _>, _>([[Some(1)], [None], [Some(3)], [Some(4)]]);
+        round_trip::<FixedSizeList<_, _, Nullable>, _>([
+            Some([Some(1)]),
             None,
             Some([None]),
             Some([Some(4)]),
         ]);
-        round_trip::<FixedSizeList<Vec<u8>, 2, Nullable>, _>([
+        round_trip::<FixedSizeList<_, _, Nullable>, _>([
             Some([vec![1, 2], vec![3, 4]]),
             None,
             Some([vec![5, 6, 7], vec![8]]),

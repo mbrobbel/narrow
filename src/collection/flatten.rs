@@ -121,9 +121,9 @@ impl<C: Collection, const N: usize> IntoOwned<[C::Owned; N]> for FlattenView<'_,
 
 /// An iterator over N elements of the inner iterator at a time.
 #[derive(Debug, Clone, Copy)]
-pub struct ArrayChunks<const N: usize, I: Iterator>(I);
+pub struct ArrayChunks<const N: usize, I: ExactSizeIterator>(I);
 
-impl<const N: usize, I: Iterator> Iterator for ArrayChunks<N, I> {
+impl<const N: usize, I: ExactSizeIterator> Iterator for ArrayChunks<N, I> {
     type Item = [I::Item; N];
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -134,6 +134,10 @@ impl<const N: usize, I: Iterator> Iterator for ArrayChunks<N, I> {
             *item = self.0.next();
         });
         Some(items.map(|item| item.expect("out of bounds")))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.len(), Some(self.len()))
     }
 }
 
@@ -173,8 +177,8 @@ mod tests {
 
     #[test]
     fn collection() {
-        round_trip::<Flatten<Vec<u8>, _>, _>([[1, 2], [3, 4]]);
-        round_trip::<Flatten<Vec<u8>, _>, _>([[1, 2, 3, 4], [5, 6, 7, 8]]);
-        round_trip::<Flatten<Flatten<Vec<u8>, _>, _>, _>([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]);
+        round_trip::<Flatten<Vec<_>, _>, _>([[1, 2], [3, 4]]);
+        round_trip::<Flatten<Vec<_>, _>, _>([[1, 2, 3, 4], [5, 6, 7, 8]]);
+        round_trip::<Flatten<Flatten<Vec<_>, _>, _>, _>([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]);
     }
 }

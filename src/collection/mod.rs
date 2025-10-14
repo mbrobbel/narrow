@@ -77,7 +77,8 @@ pub(crate) mod tests {
     ) {
         let input = items.into_iter().collect::<Vec<_>>();
         let collection = input.clone().into_iter().collect::<C>();
-        assert_eq!(input.len(), collection.len());
+        let len = collection.len();
+        assert_eq!(input.len(), len);
         collection
             .iter_views()
             .enumerate()
@@ -85,6 +86,9 @@ pub(crate) mod tests {
                 // TODO: compare views
                 assert_eq!(input[index], item.into_owned());
             });
-        assert_eq!(input, collection.into_iter_owned().collect::<Vec<_>>());
+        let collection_into_iter = collection.into_iter_owned();
+        assert_eq!(collection_into_iter.size_hint(), (len, Some(len)));
+        assert_eq!(collection_into_iter.len(), len);
+        assert_eq!(input, collection_into_iter.collect::<Vec<_>>());
     }
 }
