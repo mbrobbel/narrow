@@ -1,6 +1,6 @@
 //! Fixed-size types.
 
-use std::mem;
+use std::{mem, ops::Deref};
 
 /// Fixed-size types.
 pub trait FixedSize: Copy + sealed::Sealed + 'static {
@@ -25,7 +25,36 @@ impl FixedSize for isize {}
 impl FixedSize for f32 {}
 impl FixedSize for f64 {}
 
-impl<T: FixedSize, const N: usize> FixedSize for [T; N] {}
+/// An array with `N` `FixedSize` items per item.
+///
+/// Just using [T; N] causes overlapping impls.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FixedSizeArray<T: FixedSize, const N: usize>([T; N]);
+
+impl<T: FixedSize, const N: usize> Default for FixedSizeArray<T, N>
+where
+    [T; N]: Default,
+{
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
+impl<T: FixedSize, const N: usize> From<[T; N]> for FixedSizeArray<T, N> {
+    fn from(value: [T; N]) -> Self {
+        Self(value)
+    }
+}
+
+impl<T: FixedSize, const N: usize> Deref for FixedSizeArray<T, N> {
+    type Target = [T; N];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T: FixedSize, const N: usize> FixedSize for FixedSizeArray<T, N> {}
 
 mod sealed {
     pub trait Sealed {}

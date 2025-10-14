@@ -4,10 +4,14 @@ use crate::{
     buffer::Buffer,
     collection::Collection,
     fixed_size::FixedSize,
-    layout::{fixed_size_primitive::FixedSizePrimitive, variable_size_list::VariableSizeList},
+    layout::{
+        fixed_size_list::FixedSizeList, fixed_size_primitive::FixedSizePrimitive,
+        variable_size_list::VariableSizeList,
+    },
     nullability::{NonNullable, Nullable},
 };
 
+pub mod fixed_size_list;
 pub mod fixed_size_primitive;
 pub mod variable_size_binary;
 pub mod variable_size_list;
@@ -27,6 +31,14 @@ impl<T: FixedSize> Layout for T {
 
 impl<T: FixedSize> Layout for Option<T> {
     type Memory<Storage: Buffer> = FixedSizePrimitive<T, Nullable, Storage>;
+}
+
+impl<T: Layout, const N: usize> Layout for [T; N] {
+    type Memory<Storage: Buffer> = FixedSizeList<T, N, NonNullable, Storage>;
+}
+
+impl<T: Layout, const N: usize> Layout for Option<[T; N]> {
+    type Memory<Storage: Buffer> = FixedSizeList<T, N, Nullable, Storage>;
 }
 
 impl<T: Layout> Layout for Vec<T> {

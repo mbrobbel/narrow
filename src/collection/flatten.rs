@@ -127,16 +127,23 @@ impl<const N: usize, I: ExactSizeIterator> Iterator for ArrayChunks<N, I> {
     type Item = [I::Item; N];
 
     fn next(&mut self) -> Option<Self::Item> {
-        (self.0.len() != 0).then(|| {
-            let mut items = self.0.by_ref().take(N);
-            array::from_fn(|_| items.next().expect("out of bounds"))
-        })
+        let first = self.0.next()?;
+        let mut items = array::from_fn(|_| None);
+        items[0] = Some(first);
+        items.iter_mut().take(N).skip(1).for_each(|item| {
+            *item = self.0.next();
+        });
+        Some(items.map(|item| item.expect("out of bounds")))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.len(), Some(self.len()))
     }
 }
 
 impl<const N: usize, I: ExactSizeIterator> ExactSizeIterator for ArrayChunks<N, I> {
     fn len(&self) -> usize {
-        self.0.len()
+        self.0.len() / N
     }
 }
 
@@ -170,8 +177,8 @@ mod tests {
 
     #[test]
     fn collection() {
-        round_trip::<Flatten<Vec<u8>, _>, _>([[1, 2], [3, 4]]);
-        round_trip::<Flatten<Vec<u8>, _>, _>([[1, 2, 3, 4], [5, 6, 7, 8]]);
-        round_trip::<Flatten<Flatten<Vec<u8>, _>, _>, _>([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]);
+        round_trip::<Flatten<Vec<_>, _>, _>([[1, 2], [3, 4]]);
+        round_trip::<Flatten<Vec<_>, _>, _>([[1, 2, 3, 4], [5, 6, 7, 8]]);
+        round_trip::<Flatten<Flatten<Vec<_>, _>, _>, _>([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]);
     }
 }
