@@ -8,9 +8,20 @@ pub type VariableSizeBinary<Nulls = NonNullable, OffsetItem = i32, Storage = Vec
 
 #[cfg(test)]
 mod tests {
-    use crate::{collection::tests::round_trip, nullability::Nullable};
+    use crate::{
+        collection::{Collection, tests::round_trip},
+        nullability::Nullable,
+    };
 
     use super::*;
+
+    #[test]
+    fn borrow() {
+        let collection = [vec![1, 2, 3, 4], vec![5, 6, 7, 8]]
+            .into_iter()
+            .collect::<VariableSizeBinary>();
+        assert_eq!(collection.view(0).unwrap().as_slice(), &[1, 2, 3, 4]);
+    }
 
     #[test]
     fn collection() {

@@ -11,6 +11,7 @@ pub mod slice;
 pub mod vec;
 
 pub mod flatten;
+pub mod map;
 
 use crate::{collection::owned::IntoOwned, length::Length};
 
