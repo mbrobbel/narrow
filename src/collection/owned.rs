@@ -15,6 +15,12 @@ impl IntoOwned<bool> for bool {
     }
 }
 
+impl IntoOwned<String> for &str {
+    fn into_owned(self) -> String {
+        self.to_string()
+    }
+}
+
 #[diagnostic::do_not_recommend]
 impl<T: FixedSize> IntoOwned<T> for T {
     fn into_owned(self) -> T {

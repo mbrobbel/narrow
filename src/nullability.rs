@@ -1,5 +1,7 @@
 //! Nullable and non-nullable data.
 
+use std::borrow::Borrow;
+
 use crate::{buffer::Buffer, collection::Collection, validity::Validity};
 
 /// Nullability trait for nullable and non-nullable type constructors.
@@ -19,8 +21,17 @@ pub trait Nullability: sealed::Sealed {
         Owned = Self::Item<<T as Collection>::Owned>,
     >;
 
+    /// Convert to a reference.
+    fn as_ref<T>(item: &Self::Item<T>) -> Self::Item<&T>;
+
+    /// Borrow
+    fn borrow<T: Borrow<U>, U: ?Sized>(item: &Self::Item<T>) -> Self::Item<&U>;
+
     /// Maps an item using the provided function.
     fn map<T, U, F: FnOnce(T) -> U>(item: Self::Item<T>, f: F) -> Self::Item<U>;
+
+    /// Maps a reference item using the provided function.
+    fn map_ref<T, U, F: FnOnce(&T) -> U>(item: Self::Item<T>, f: F) -> Self::Item<U>;
 
     /// Zip an item with another item.
     fn zip<T, U>(item: Self::Item<T>, other: Self::Item<U>) -> Self::Item<(T, U)>;
@@ -61,9 +72,22 @@ impl Nullability for NonNullable {
     /// Non-nullable collections are just `T`.
     type Collection<T: Collection, Storage: Buffer> = T;
 
+    fn as_ref<T>(item: &Self::Item<T>) -> Self::Item<&T> {
+        item
+    }
+
+    fn borrow<T: Borrow<U>, U: ?Sized>(item: &Self::Item<T>) -> Self::Item<&U> {
+        item.borrow()
+    }
+
     fn map<T, U, F: FnOnce(T) -> U>(item: Self::Item<T>, f: F) -> Self::Item<U> {
         f(item)
     }
+
+    fn map_ref<T, U, F: FnOnce(&T) -> U>(item: Self::Item<T>, f: F) -> Self::Item<U> {
+        f(&item)
+    }
+
     fn zip<T, U>(item: Self::Item<T>, other: Self::Item<U>) -> Self::Item<(T, U)> {
         (item, other)
     }
@@ -87,9 +111,22 @@ impl Nullability for Nullable {
     /// [`crate::bitmap::Bitmap`].
     type Collection<T: Collection, Storage: Buffer> = Validity<T, Storage>;
 
+    fn as_ref<T>(item: &Self::Item<T>) -> Self::Item<&T> {
+        item.as_ref()
+    }
+
+    fn borrow<T: Borrow<U>, U: ?Sized>(item: &Self::Item<T>) -> Self::Item<&U> {
+        item.as_ref().map(|item| item.borrow())
+    }
+
     fn map<T, U, F: FnOnce(T) -> U>(item: Self::Item<T>, f: F) -> Self::Item<U> {
         item.map(f)
     }
+
+    fn map_ref<T, U, F: FnOnce(&T) -> U>(item: Self::Item<T>, f: F) -> Self::Item<U> {
+        item.as_ref().map(f)
+    }
+
     fn zip<T, U>(item: Self::Item<T>, other: Self::Item<U>) -> Self::Item<(T, U)> {
         item.zip(other)
     }

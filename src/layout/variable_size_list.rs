@@ -17,7 +17,7 @@ pub struct VariableSizeList<
     Nulls: Nullability = NonNullable,
     OffsetItem: Offset = i32,
     Storage: Buffer = VecBuffer,
->(Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>);
+>(Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage, Vec<T>>, Storage>);
 
 impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> MemoryLayout
     for VariableSizeList<T, Nulls, OffsetItem, Storage>

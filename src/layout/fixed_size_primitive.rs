@@ -1,4 +1,4 @@
-use core::fmt::Debug;
+use core::{borrow::Borrow, fmt::Debug};
 
 use crate::{
     buffer::{Buffer, VecBuffer},
@@ -21,6 +21,12 @@ pub struct FixedSizePrimitive<
 impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> MemoryLayout
     for FixedSizePrimitive<T, Nulls, Storage>
 {
+}
+
+impl<T: FixedSize, Storage: Buffer> Borrow<[T]> for FixedSizePrimitive<T, NonNullable, Storage> {
+    fn borrow(&self) -> &[T] {
+        self.0.borrow()
+    }
 }
 
 impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> Debug

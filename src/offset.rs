@@ -16,7 +16,9 @@ use crate::{
     buffer::{Buffer, VecBuffer},
     collection::{Collection, CollectionAlloc, CollectionRealloc, owned::IntoOwned},
     fixed_size::FixedSize,
+    layout::fixed_size_primitive::FixedSizePrimitive,
     length::Length,
+    nullability::NonNullable,
 };
 
 pub trait Offset:
@@ -270,6 +272,14 @@ pub struct OffsetView<'collection, T: Collection, OffsetItem: Offset, Storage: B
     collection: &'collection Offsets<T, OffsetItem, Storage, U>,
     start: usize,
     end: usize,
+}
+
+impl<'collection, T: FixedSize, OffsetItem: Offset, Storage: Buffer, U>
+    OffsetView<'collection, FixedSizePrimitive<T, NonNullable, Storage>, OffsetItem, Storage, U>
+{
+    pub fn as_slice(&self) -> &[T] {
+        self.collection.data.borrow()
+    }
 }
 
 impl<T: for<'any> Collection<View<'any>: Debug>, OffsetItem: Offset, Storage: Buffer, U> Debug
