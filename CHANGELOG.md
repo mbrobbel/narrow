@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.1](https://github.com/mbrobbel/narrow/compare/narrow-v0.15.0...narrow-v0.15.1) - 2025-10-27
+
+### Other
+
+- *(deps)* bump actions/upload-artifact from 4 to 5 ([#468](https://github.com/mbrobbel/narrow/pull/468))
+- *(deps)* bump actions/download-artifact from 5.0.0 to 6.0.0 ([#467](https://github.com/mbrobbel/narrow/pull/467))
+
 ## [0.15.0](https://github.com/mbrobbel/narrow/compare/narrow-v0.14.2...narrow-v0.15.0) - 2025-10-27
 
 ### Other
