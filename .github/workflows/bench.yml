@@ -32,7 +32,7 @@ jobs:
           restore-keys: cargo-
       - uses: mozilla-actions/sccache-action@v0.0.9
       - run: cargo bench --bench narrow --all-features -- --output-format=bencher | tee output.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: benchmark-results
           path: output.txt
