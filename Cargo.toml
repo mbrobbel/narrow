@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.14.1"
+version = "0.14.2"
 authors = ["Matthijs Brobbel <m1brobbel@gmail.com>"]
 edition = "2024"
 rust-version = "1.85.1"
@@ -49,7 +49,7 @@ arrow-array = { version = "56.2.0", default-features = false, optional = true }
 arrow-buffer = { version = "56.0.0", default-features = false, optional = true }
 arrow-schema = { version = "56.0.0", default-features = false, optional = true }
 chrono = { version = "0.4.42", default-features = false, optional = true }
-narrow-derive = { path = "narrow-derive", version = "0.14.1", optional = true }
+narrow-derive = { path = "narrow-derive", version = "0.14.2", optional = true }
 uuid = { version = "1.18.1", default-features = false, optional = true }
 
 [dev-dependencies]
