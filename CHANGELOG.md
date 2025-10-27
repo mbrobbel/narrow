@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0](https://github.com/mbrobbel/narrow/compare/narrow-v0.14.2...narrow-v0.15.0) - 2025-10-27
+
+### Other
+
+- *(deps)* [**breaking**] bump the arrow group with 5 updates ([#462](https://github.com/mbrobbel/narrow/pull/462))
+
 ## [0.14.2](https://github.com/mbrobbel/narrow/compare/narrow-v0.14.1...narrow-v0.14.2) - 2025-10-27
 
 ### Other
