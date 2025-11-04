@@ -1,4 +1,4 @@
-use std::{array, iter::Map, slice};
+use core::{array, iter::Map, slice};
 
 use crate::collection::{Collection, view::AsView};
 

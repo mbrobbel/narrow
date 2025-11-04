@@ -1,6 +1,6 @@
 //! Fixed-size types.
 
-use std::{mem, ops::Deref};
+use core::{mem, ops::Deref};
 
 /// Fixed-size types.
 pub trait FixedSize: Copy + sealed::Sealed + 'static {

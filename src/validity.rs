@@ -1,6 +1,6 @@
 //! Nullable data with a validity bitmap.
 
-use std::{
+use core::{
     borrow::BorrowMut,
     fmt::{self, Debug},
     iter::{self, Map, Zip},
@@ -194,6 +194,10 @@ impl<
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
+    use alloc::vec::Vec;
+
     use super::*;
 
     #[test]

@@ -1,3 +1,7 @@
+extern crate alloc;
+
+use alloc::vec::Vec;
+
 use crate::{
     buffer::{Buffer, VecBuffer},
     collection::{Collection, CollectionAlloc, CollectionRealloc},
@@ -113,6 +117,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
+    use alloc::vec;
+
     use crate::{collection::tests::round_trip, nullability::Nullable};
 
     use super::*;

@@ -1,3 +1,4 @@
+#![no_std]
 #![cfg_attr(not(feature = "derive"), doc = "# Narrow")]
 #![cfg_attr(feature = "derive", doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/README.md")))]
 #![doc(
@@ -12,8 +13,8 @@
     missing_debug_implementations,
     // missing_docs,
     noop_method_call,
-    // warnings,
-    // unused,
+    warnings,
+    unused,
     // Clippy
     clippy::all,
     clippy::suspicious,
@@ -21,8 +22,8 @@
     clippy::complexity,
     clippy::perf,
     clippy::pedantic,
-    // clippy::restrictions
-    // clippy::arithmetic_side_effects, TODO(mbrobbel): check all
+    // clippy::restriction,
+    clippy::arithmetic_side_effects,
     clippy::as_conversions,
     clippy::as_underscore,
     clippy::clone_on_ref_ptr,
@@ -37,12 +38,11 @@
     clippy::same_name_method,
     clippy::self_named_module_files,
     clippy::semicolon_outside_block,
-    // clippy::shadow_reuse,
+    clippy::shadow_reuse,
     clippy::shadow_same,
     clippy::shadow_unrelated,
     clippy::str_to_string,
     clippy::string_add,
-    clippy::string_to_string,
     clippy::tests_outside_test_module,
     clippy::undocumented_unsafe_blocks,
     clippy::unnecessary_safety_comment,
@@ -52,7 +52,7 @@
     clippy::unseparated_literal_suffix,
     clippy::unwrap_used,
     // Rustdoc
-    // rustdoc::all
+    rustdoc::all
 )]
 #![forbid(unsafe_code)]
 #![allow(

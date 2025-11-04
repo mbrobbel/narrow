@@ -1,5 +1,9 @@
 //! Physical memory layouts.
 
+extern crate alloc;
+
+use alloc::vec::Vec;
+
 use crate::{
     buffer::Buffer,
     collection::Collection,

@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, iter::Map, marker::PhantomData, slice};
+use core::{borrow::Borrow, iter::Map, marker::PhantomData, slice};
 
 use crate::collection::{Collection, owned::IntoOwned, view::AsView};
 
@@ -51,13 +51,13 @@ impl<T: Borrow<[U]>, U: for<'slice> AsView<'slice, View: IntoOwned<U>>> Iterator
             .borrow()
             .get(self.index)
             .inspect(|_| {
-                self.index += 1;
+                self.index = self.index.strict_add(1);
             })
             .map(|item| item.as_view().into_owned())
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining = self.slice.borrow().len() - self.index;
+        let remaining = self.slice.borrow().len().strict_sub(self.index);
         (remaining, Some(remaining))
     }
 }

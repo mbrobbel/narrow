@@ -1,4 +1,7 @@
+extern crate alloc;
+
 use crate::fixed_size::FixedSize;
+use alloc::vec::Vec;
 
 /// Convert into owned items.
 pub trait IntoOwned<Owned> {

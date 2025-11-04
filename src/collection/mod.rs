@@ -63,7 +63,10 @@ pub trait CollectionRealloc: CollectionAlloc + Extend<Self::Owned> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use std::fmt::Debug;
+    extern crate alloc;
+
+    use alloc::vec::Vec;
+    use core::fmt::Debug;
 
     use crate::collection::view::AsView;
 

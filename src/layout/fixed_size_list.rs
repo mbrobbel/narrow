@@ -124,6 +124,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
+    use alloc::vec;
+
     use crate::{collection::tests::round_trip, nullability::Nullable};
 
     use super::*;

@@ -1,6 +1,6 @@
 //! An iterator that packs boolean values.
 
-use std::borrow::Borrow;
+use core::borrow::Borrow;
 
 use super::bytes_for_bits;
 
@@ -89,6 +89,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
+    use alloc::vec::Vec;
+
     use super::*;
 
     #[test]

@@ -1,6 +1,6 @@
 //! Sequences of values with known length all having the same type.
 
-use std::fmt::Debug;
+use core::fmt::Debug;
 
 use crate::{
     buffer::{Buffer, VecBuffer},
@@ -25,7 +25,7 @@ impl<T: Layout, Storage: Buffer> Debug for Array<T, Storage>
 where
     T::Memory<Storage>: Debug,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_tuple("Array").field(&self.0).finish()
     }
 }
@@ -111,6 +111,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
+    use alloc::vec;
+
     use crate::{collection::tests::round_trip, fixed_size::FixedSizeArray};
 
     use super::*;
