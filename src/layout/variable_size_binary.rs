@@ -8,6 +8,10 @@ pub type VariableSizeBinary<Nulls = NonNullable, OffsetItem = i32, Storage = Vec
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
+    use alloc::vec;
+
     use crate::{collection::tests::round_trip, nullability::Nullable};
 
     use super::*;

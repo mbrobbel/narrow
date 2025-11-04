@@ -1,6 +1,6 @@
 //! An iterator that unpacks boolean values.
 
-use std::borrow::Borrow;
+use core::borrow::Borrow;
 
 /// An iterator that unpacks boolean values from an iterator (`I`) over items
 /// (`T`) that can be borrowed as bytes, by interpreting the bits of these bytes
@@ -95,6 +95,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
+    use alloc::{vec, vec::Vec};
+
     use super::*;
 
     #[test]

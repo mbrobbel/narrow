@@ -1,6 +1,9 @@
 //! Contiguous collections for fixed size items.
 
-use std::{borrow::Borrow, marker::PhantomData, rc::Rc, sync::Arc};
+extern crate alloc;
+
+use alloc::{boxed::Box, rc::Rc, sync::Arc, vec::Vec};
+use core::{borrow::Borrow, marker::PhantomData};
 
 use crate::{collection::Collection, fixed_size::FixedSize};
 

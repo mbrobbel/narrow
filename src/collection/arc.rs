@@ -1,4 +1,7 @@
-use std::{iter::Map, slice, sync::Arc};
+extern crate alloc;
+
+use alloc::sync::Arc;
+use core::{iter::Map, slice};
 
 use crate::collection::{Collection, slice::SliceIntoIter, view::AsView};
 

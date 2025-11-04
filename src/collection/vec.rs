@@ -1,4 +1,7 @@
-use std::{iter::Map, slice, vec};
+extern crate alloc;
+
+use alloc::vec::{self, Vec};
+use core::{iter::Map, slice};
 
 use crate::collection::{Collection, CollectionAlloc, CollectionRealloc, view::AsView};
 

@@ -1,6 +1,6 @@
 //! A collection that flattens an inner collection.
 
-use std::{
+use core::{
     array,
     iter::{self, Map, RepeatN, Zip},
     ops::{Deref, Range},
@@ -18,16 +18,16 @@ pub struct Flatten<C: Collection, const N: usize>(C);
 
 impl<C: Collection, const N: usize> Length for Flatten<C, N> {
     fn len(&self) -> usize {
-        self.0.len() / N
+        self.0.len().strict_div(N)
     }
 }
 
 impl<C: CollectionRealloc, const N: usize> Extend<[C::Owned; N]> for Flatten<C, N> {
     fn extend<I: IntoIterator<Item = [C::Owned; N]>>(&mut self, iter: I) {
-        let iter = iter.into_iter();
-        let (lower_bound, upper_bound) = iter.size_hint();
+        let into_iter = iter.into_iter();
+        let (lower_bound, upper_bound) = into_iter.size_hint();
         self.reserve(upper_bound.unwrap_or(lower_bound));
-        self.0.extend(iter.flatten());
+        self.0.extend(into_iter.flatten());
     }
 }
 
@@ -47,7 +47,9 @@ impl<C: Collection, const N: usize> Collection for Flatten<C, N> {
 
     fn view(&self, index: usize) -> Option<Self::View<'_>> {
         Some(FlattenView(array::from_fn(|idx| {
-            self.0.view(index * N + idx).expect("out of bounds")
+            self.0
+                .view(index.strict_mul(N).strict_add(idx))
+                .expect("out of bounds")
         })))
     }
 
@@ -74,13 +76,13 @@ impl<C: Collection, const N: usize> Collection for Flatten<C, N> {
 
 impl<C: CollectionAlloc, const N: usize> CollectionAlloc for Flatten<C, N> {
     fn with_capacity(capacity: usize) -> Self {
-        Self(C::with_capacity(capacity * N))
+        Self(C::with_capacity(capacity.strict_mul(N)))
     }
 }
 
 impl<C: CollectionRealloc, const N: usize> CollectionRealloc for Flatten<C, N> {
     fn reserve(&mut self, additional: usize) {
-        self.0.reserve(additional.checked_mul(N).expect("overflow"));
+        self.0.reserve(additional.strict_mul(N));
     }
 }
 
@@ -143,13 +145,16 @@ impl<const N: usize, I: ExactSizeIterator> Iterator for ArrayChunks<N, I> {
 
 impl<const N: usize, I: ExactSizeIterator> ExactSizeIterator for ArrayChunks<N, I> {
     fn len(&self) -> usize {
-        self.0.len() / N
+        self.0.len().strict_div(N)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
     use crate::collection::tests::round_trip;
+    use alloc::vec::Vec;
 
     use super::*;
 

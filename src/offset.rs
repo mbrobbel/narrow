@@ -1,11 +1,15 @@
-use std::{
+extern crate alloc;
+
+use alloc::vec::Vec;
+
+use core::{
     borrow::Borrow,
     fmt::{self, Debug},
     iter::{self, Map, RepeatN, Zip},
     marker::PhantomData,
     mem,
     num::TryFromIntError,
-    ops::{AddAssign, Range},
+    ops::Range,
 };
 
 use crate::{
@@ -15,15 +19,16 @@ use crate::{
     length::Length,
 };
 
-// todo: checked add
 pub trait Offset:
-    AddAssign<Self>
-    + Default
+    Default
     + FixedSize
     + TryFrom<usize, Error = TryFromIntError>
     + TryInto<usize, Error = TryFromIntError>
     + sealed::Sealed
 {
+    #[must_use]
+    fn strict_add(self, other: Self) -> Self;
+
     fn as_usize(self) -> usize {
         self.try_into().unwrap_or_else(|e| panic!("{e}"))
     }
@@ -34,8 +39,16 @@ mod sealed {
     impl<T: super::Offset> Sealed for T {}
 }
 
-impl Offset for i32 {}
-impl Offset for i64 {}
+impl Offset for i32 {
+    fn strict_add(self, other: Self) -> Self {
+        self.strict_add(other)
+    }
+}
+impl Offset for i64 {
+    fn strict_add(self, other: Self) -> Self {
+        self.strict_add(other)
+    }
+}
 
 pub struct Offsets<
     T: Collection,
@@ -95,11 +108,11 @@ where
             .expect("at least one value in the offsets buffer");
 
         iter.into_iter().for_each(|collection| {
-            position += collection.len().try_into().expect("overflow");
+            position = position.strict_add(collection.len().try_into().expect("overflow"));
             self.offsets.extend(iter::once(position));
             self.data.reserve(collection.len());
             for item in collection.into_iter_owned() {
-                self.data.extend(std::iter::once(item));
+                self.data.extend(core::iter::once(item));
             }
         });
     }
@@ -126,10 +139,7 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Length
     for Offsets<T, OffsetItem, Storage, U>
 {
     fn len(&self) -> usize {
-        self.offsets
-            .len()
-            .checked_sub(1)
-            .expect("offset len underflow")
+        self.offsets.len().strict_sub(1)
     }
 }
 
@@ -145,11 +155,11 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
 
     fn view(&self, index: usize) -> Option<Self::View<'_>> {
         let start = self.offsets.owned(index);
-        let end = self.offsets.owned(index + 1);
-        start.zip(end).map(|(start, end)| OffsetView {
+        let end = self.offsets.owned(index.strict_add(1));
+        start.zip(end).map(|(s, e)| OffsetView {
             collection: self,
-            start: start.as_usize(),
-            end: end.as_usize(),
+            start: s.as_usize(),
+            end: e.as_usize(),
         })
     }
 
@@ -311,7 +321,7 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Length
     for OffsetView<'_, T, OffsetItem, Storage, U>
 {
     fn len(&self) -> usize {
-        self.end - self.start
+        self.end.strict_sub(self.start)
     }
 }
 
@@ -326,7 +336,7 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Collection
     type Owned = T::Owned;
 
     fn view(&self, index: usize) -> Option<Self::View<'_>> {
-        let idx = self.start.checked_add(index).expect("overflow");
+        let idx = self.start.strict_add(index);
         if idx < self.end {
             self.collection.data.view(idx)
         } else {
@@ -359,6 +369,10 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Collection
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
+    use alloc::vec;
+
     use super::*;
 
     #[test]

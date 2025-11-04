@@ -1,6 +1,8 @@
 //! Length of items.
 
-use std::{collections::VecDeque, rc::Rc, sync::Arc};
+extern crate alloc;
+
+use alloc::{boxed::Box, collections::VecDeque, rc::Rc, sync::Arc, vec::Vec};
 
 /// The length (or number of units) of an item.
 pub trait Length {

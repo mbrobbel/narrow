@@ -3,7 +3,7 @@
 mod packed;
 mod unpacked;
 
-use std::{
+use core::{
     borrow::{Borrow, BorrowMut},
     fmt::{self, Debug},
     iter::{Skip, Take},
@@ -58,7 +58,7 @@ impl<Storage: Buffer> Bitmap<Storage> {
         // As conversion because 0 <= remainder < 8 < u8::MAX
         #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
         {
-            (self.offset.rem_euclid(8) + index.rem_euclid(8)) as u8
+            self.offset.rem_euclid(8).strict_add(index.rem_euclid(8)) as u8
         }
     }
 
@@ -70,7 +70,7 @@ impl<Storage: Buffer> Bitmap<Storage> {
     /// This function panics on overflow of the index and offset addition.
     #[inline]
     fn byte_index(&self, index: usize) -> usize {
-        self.leading_bits().checked_add(index).expect("overflow") / 8
+        self.leading_bits().strict_add(index).strict_div(8)
     }
 
     /// Returns the number of leading padding bits in the first byte(s) of the
@@ -90,7 +90,7 @@ impl<Storage: Buffer> Bitmap<Storage> {
         if trailing_bits == 0 {
             0
         } else {
-            8 - trailing_bits
+            8_u8.strict_sub(trailing_bits)
         }
     }
 }
@@ -154,9 +154,9 @@ impl<T: Borrow<bool>, Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionReall
 {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         // Track the number of added bits.
-        let mut additional = 0;
+        let mut additional: usize = 0;
         let mut items = iter.into_iter().inspect(|_| {
-            additional += 1;
+            additional = additional.strict_add(1);
         });
 
         // Fill remaining bits in the last byte of the buffer.
@@ -176,7 +176,7 @@ impl<T: Borrow<bool>, Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionReall
 
         // Use bit packed iterator for the remainder
         self.buffer.extend(items.bit_packed());
-        self.bits += additional;
+        self.bits = self.bits.strict_add(additional);
     }
 }
 
@@ -184,11 +184,11 @@ impl<T: Borrow<bool>, Storage: Buffer<For<u8>: CollectionAlloc>> FromIterator<T>
     for Bitmap<Storage>
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut bits = 0;
+        let mut bits: usize = 0;
         let buffer = iter
             .into_iter()
             .inspect(|_| {
-                bits += 1;
+                bits = bits.strict_add(1);
             })
             .bit_packed()
             .collect();
@@ -253,7 +253,10 @@ impl<Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> CollectionRe
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
     use crate::buffer::SliceBuffer;
+    use alloc::vec::Vec;
 
     use super::*;
 

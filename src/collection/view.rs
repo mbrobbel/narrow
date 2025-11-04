@@ -1,4 +1,7 @@
+extern crate alloc;
+
 use crate::{collection::owned::IntoOwned, fixed_size::FixedSize};
+use alloc::vec::Vec;
 
 /// Convert items into views.
 pub trait AsView<'collection>: Sized {
@@ -37,7 +40,10 @@ impl<'collection, T: Clone + 'collection> AsView<'collection> for Vec<T> {
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
     use crate::collection::Collection;
+    use alloc::vec;
 
     use super::*;
 
