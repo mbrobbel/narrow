@@ -42,7 +42,6 @@
     clippy::shadow_unrelated,
     clippy::str_to_string,
     clippy::string_add,
-    clippy::string_to_string,
     clippy::tests_outside_test_module,
     clippy::undocumented_unsafe_blocks,
     clippy::unnecessary_safety_comment,
