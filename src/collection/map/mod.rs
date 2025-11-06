@@ -1,7 +1,7 @@
 //! A collection with mapped items.
 //!
 
-use std::{iter, marker::PhantomData};
+use core::{iter, marker::PhantomData};
 
 use crate::{
     buffer::Buffer,

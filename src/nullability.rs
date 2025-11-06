@@ -1,6 +1,6 @@
 //! Nullable and non-nullable data.
 
-use std::borrow::Borrow;
+use core::borrow::Borrow;
 
 use crate::{buffer::Buffer, collection::Collection, validity::Validity};
 
