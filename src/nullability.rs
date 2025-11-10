@@ -1,21 +1,38 @@
-//! Nullable and non-nullable types.
+//! Nullable and non-nullable data.
 
-use crate::{buffer::BufferType, validity::Validity};
+use crate::{buffer::Buffer, collection::Collection, validity::Validity};
 
-/// Nullability trait for nullable and non-nullable type constructors
+/// Nullability trait for nullable and non-nullable type constructors.
+///
+/// See [`NonNullable`] and [`Nullable`].
 pub trait Nullability: sealed::Sealed {
     /// `true` iff this is [`Nullable`].
     const NULLABLE: bool;
 
-    /// Constructor for nullable and non-nullable items.
-    ///
-    /// Generic over an item `T`.
+    /// Type constructor for nullable and non-nullable items.
     type Item<T>;
 
     /// Constructor for nullable and non-nullable collections.
     ///
-    /// Generic over a collection `T` and a [`BufferType`].
-    type Collection<T, Buffer: BufferType>;
+    /// Generic over a collection `T` and a [`Buffer`].
+    type Collection<T: Collection, Storage: Buffer>: Collection<
+        Owned = Self::Item<<T as Collection>::Owned>,
+    >;
+
+    /// Maps an item using the provided function.
+    fn map<T, U, F: FnOnce(T) -> U>(item: Self::Item<T>, f: F) -> Self::Item<U>;
+
+    /// Zip an item with another item.
+    fn zip<T, U>(item: Self::Item<T>, other: Self::Item<U>) -> Self::Item<(T, U)>;
+
+    /// Zip item with other and apply f.
+    fn zip_with<T, U, R, F: FnOnce((T, U)) -> R>(
+        item: Self::Item<T>,
+        other: Self::Item<U>,
+        f: F,
+    ) -> Self::Item<R> {
+        Self::map(Self::zip::<T, U>(item, other), f)
+    }
 }
 
 /// Private module for [`sealed::Sealed`] trait.
@@ -23,8 +40,33 @@ mod sealed {
     /// Used to seal [`super::Nullability`].
     pub trait Sealed {}
 
-    /// Prevent downstream implementation of [`super::Nullability`].
+    /// Prevent downstream implementations of [`super::Nullability`].
     impl<T> Sealed for T where T: super::Nullability {}
+}
+
+/// Non-nullable types.
+///
+/// Implements [`Nullability`] to provide:
+/// - `NonNullable::Item<T> = T`
+/// - `NonNullable::Collection<T, Buffer> = T`
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct NonNullable;
+
+impl Nullability for NonNullable {
+    const NULLABLE: bool = false;
+
+    /// Non-nullable items are just `T`.
+    type Item<T> = T;
+
+    /// Non-nullable collections are just `T`.
+    type Collection<T: Collection, Storage: Buffer> = T;
+
+    fn map<T, U, F: FnOnce(T) -> U>(item: Self::Item<T>, f: F) -> Self::Item<U> {
+        f(item)
+    }
+    fn zip<T, U>(item: Self::Item<T>, other: Self::Item<U>) -> Self::Item<(T, U)> {
+        (item, other)
+    }
 }
 
 /// Nullable types.
@@ -32,7 +74,7 @@ mod sealed {
 /// Implements [`Nullability`] to provide:
 /// - `Nullable::Item<T> = Option<T>`
 /// - `Nullable::Collection<T, Buffer> = Validity<T, Buffer>`
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Nullable;
 
 impl Nullability for Nullable {
@@ -43,23 +85,42 @@ impl Nullability for Nullable {
 
     /// Nullable collections are wrapped together with a
     /// [`crate::bitmap::Bitmap`].
-    type Collection<T, Buffer: BufferType> = Validity<T, Buffer>;
+    type Collection<T: Collection, Storage: Buffer> = Validity<T, Storage>;
+
+    fn map<T, U, F: FnOnce(T) -> U>(item: Self::Item<T>, f: F) -> Self::Item<U> {
+        item.map(f)
+    }
+    fn zip<T, U>(item: Self::Item<T>, other: Self::Item<U>) -> Self::Item<(T, U)> {
+        item.zip(other)
+    }
 }
 
-/// Non-nullable types.
-///
-/// Implements [`Nullability`] to provide:
-/// - `NonNullable::Item<T> = T`
-/// - `NonNullable::Collection<T, Buffer> = T`
-#[derive(Clone, Copy, Debug)]
-pub struct NonNullable;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-impl Nullability for NonNullable {
-    const NULLABLE: bool = false;
+    #[test]
+    fn zip() {
+        assert_eq!(NonNullable::zip(1, 2), (1, 2));
+        assert_eq!(Nullable::zip::<i32, i32>(None, None), None);
+        assert_eq!(Nullable::zip::<_, i32>(Some(1), None), None);
+        assert_eq!(Nullable::zip::<i32, _>(None, Some(2)), None);
+        assert_eq!(Nullable::zip(Some(1), Some(2)), Some((1, 2)));
+    }
 
-    /// Non-nullable items are just `T`.
-    type Item<T> = T;
+    #[test]
+    fn generic() {
+        #[derive(Debug, PartialEq)]
+        struct Add<Nulls: Nullability>(Nulls::Item<u8>);
 
-    /// Non-nullable collections are just `T`.
-    type Collection<T, Buffer: BufferType> = T;
+        impl<Nulls: Nullability> Add<Nulls> {
+            fn add(self, other: Self) -> Nulls::Item<u8> {
+                Nulls::zip_with(self.0, other.0, |(a, b)| a + b)
+            }
+        }
+
+        assert_eq!(Add::<NonNullable>(1).add(Add(2)), 3);
+        assert_eq!(Add::<Nullable>(Some(1)).add(Add(Some(2))), Some(3));
+        assert_eq!(Add::<Nullable>(Some(1)).add(Add(None)), None);
+    }
 }
