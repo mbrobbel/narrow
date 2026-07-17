@@ -19,10 +19,10 @@ jobs:
     name: Minimum supported Rust version
     runs-on: ubuntu-26.04-arm
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@1.91
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: dtolnay/rust-toolchain@ab40b01f54fe82bdf65693ea090a1e4942c136e7 # 1.91
         id: rust-toolchain
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/index/
@@ -30,7 +30,7 @@ jobs:
             ~/.cargo/git/db/
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@d651010b8da762cde178750d8eda7b5febfe147a # v0.0.9
       - run: cargo check --workspace --all-targets --no-default-features
       - run: cargo check --workspace --all-targets --all-features
       - run: cargo test --workspace --all-features --lib --bins --examples --tests -- --skip expand
@@ -41,12 +41,12 @@ jobs:
     name: Check
     runs-on: ubuntu-26.04-arm
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
         id: rust-toolchain
         with:
           components: clippy, rustfmt
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/index/
@@ -54,7 +54,7 @@ jobs:
             ~/.cargo/git/db/
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@d651010b8da762cde178750d8eda7b5febfe147a # v0.0.9
       - name: Check
         run: cargo check --workspace --all-targets --all-features
       - name: Test
@@ -70,10 +70,10 @@ jobs:
     name: Miri
     runs-on: ubuntu-26.04-arm
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@miri
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: dtolnay/rust-toolchain@49a8ff4eadd9ad85042f0e2f761eaab3888d767a # miri
         id: rust-toolchain
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/index/
@@ -92,12 +92,12 @@ jobs:
       RUSTFLAGS: "-C instrument-coverage"
       RUSTDOCFLAGS: "-C instrument-coverage"
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
         id: rust-toolchain
         with:
           components: llvm-tools-preview
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/index/
@@ -105,7 +105,7 @@ jobs:
             ~/.cargo/git/db/
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@d651010b8da762cde178750d8eda7b5febfe147a # v0.0.9
       - run: cargo build --workspace --all-targets --all-features
       - run: cargo test --workspace --all-targets --all-features
         env:
@@ -114,6 +114,6 @@ jobs:
         run: curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-aarch64-unknown-linux-gnu.tar.bz2 | tar jxf -
       - name: grcov
         run: ./grcov --branch --binary-path ./target/debug/ --source-dir . --output-type lcov --output-path lcov.info .
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@04b047e8bb82a0c002c8312c1c880fbc6a999d45 # v5.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
