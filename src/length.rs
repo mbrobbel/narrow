@@ -1,108 +1,70 @@
-//! The length (number of elements) of a collection.
+//! Length of items.
 
-use std::{collections::VecDeque, rc::Rc, sync::Arc};
+extern crate alloc;
 
-/// The length (or number of elements) of a collection.
+use alloc::{boxed::Box, collections::VecDeque, rc::Rc, sync::Arc, vec::Vec};
+
+/// The length (or number of units) of an item.
 pub trait Length {
-    /// Returns the number of elements in the collection, also referred to as
-    /// its length.
+    /// Returns the number of units in this item, also referred to as its length.
     fn len(&self) -> usize;
 
-    /// Returns `true` if there are no elements in the collection.
-    #[inline]
+    /// Returns `true` if there are no unit in this item.
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
 }
 
-impl<const N: usize, T> Length for [T; N] {
+impl<T> Length for Vec<T> {
+    fn len(&self) -> usize {
+        Self::len(self)
+    }
+}
+
+impl<T, const N: usize> Length for [T; N] {
     fn len(&self) -> usize {
         N
     }
 }
 
 impl<T> Length for [T] {
-    #[inline]
     fn len(&self) -> usize {
         <[T]>::len(self)
     }
 }
 
 impl<T> Length for &[T] {
-    #[inline]
     fn len(&self) -> usize {
         <[T]>::len(self)
     }
 }
 
 impl<T> Length for &mut [T] {
-    #[inline]
     fn len(&self) -> usize {
         <[T]>::len(self)
-    }
-}
-
-impl<T> Length for Vec<T> {
-    #[inline]
-    fn len(&self) -> usize {
-        Vec::len(self)
     }
 }
 
 impl<T> Length for Box<[T]> {
-    #[inline]
     fn len(&self) -> usize {
-        <[T]>::len(self)
+        self.as_ref().len()
     }
 }
 
 impl<T> Length for Rc<[T]> {
-    #[inline]
     fn len(&self) -> usize {
-        <[T]>::len(self)
+        self.as_ref().len()
     }
 }
 
 impl<T> Length for Arc<[T]> {
-    #[inline]
     fn len(&self) -> usize {
-        <[T]>::len(self)
+        self.as_ref().len()
     }
 }
 
 impl<T> Length for VecDeque<T> {
-    #[inline]
     fn len(&self) -> usize {
-        VecDeque::len(self)
-    }
-}
-
-impl Length for &str {
-    fn len(&self) -> usize {
-        str::len(self)
-    }
-}
-
-impl Length for String {
-    fn len(&self) -> usize {
-        String::len(self)
-    }
-}
-
-impl<T: Length> Length for Option<T> {
-    fn len(&self) -> usize {
-        self.as_ref().map_or(0, Length::len)
-    }
-}
-
-impl<T> Length for std::vec::IntoIter<T> {
-    fn len(&self) -> usize {
-        ExactSizeIterator::len(self)
-    }
-}
-
-impl<T> Length for std::slice::Iter<'_, T> {
-    fn len(&self) -> usize {
-        ExactSizeIterator::len(self)
+        Self::len(self)
     }
 }
