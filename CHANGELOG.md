@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.2](https://github.com/mbrobbel/narrow/compare/narrow-v0.15.1...narrow-v0.15.2) - 2026-07-17
+
+### Other
+
+- *(deps)* bump quote from 1.0.42 to 1.0.43 ([#490](https://github.com/mbrobbel/narrow/pull/490))
+- *(deps)* bump proc-macro2 from 1.0.103 to 1.0.105 ([#489](https://github.com/mbrobbel/narrow/pull/489))
+- *(deps)* bump syn from 2.0.110 to 2.0.113 ([#488](https://github.com/mbrobbel/narrow/pull/488))
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.118 to 0.5.127 ([#496](https://github.com/mbrobbel/narrow/pull/496))
+- *(deps)* bump actions/download-artifact from 6.0.0 to 7.0.0 ([#485](https://github.com/mbrobbel/narrow/pull/485))
+- *(deps)* bump actions/upload-artifact from 5 to 6 ([#484](https://github.com/mbrobbel/narrow/pull/484))
+- *(deps)* bump actions/cache from 4 to 5 ([#483](https://github.com/mbrobbel/narrow/pull/483))
+- *(deps)* bump uuid from 1.18.1 to 1.19.0 ([#481](https://github.com/mbrobbel/narrow/pull/481))
+- *(deps)* bump rand from 0.9.2 to 0.9.3 ([#497](https://github.com/mbrobbel/narrow/pull/497))
+- fix clippy warnings ([#498](https://github.com/mbrobbel/narrow/pull/498))
+- *(deps)* bump bytes from 1.11.0 to 1.11.1 ([#493](https://github.com/mbrobbel/narrow/pull/493))
+- *(deps)* bump actions/checkout from 5 to 6 ([#477](https://github.com/mbrobbel/narrow/pull/477))
+- *(deps)* bump bytes from 1.10.1 to 1.11.0 ([#476](https://github.com/mbrobbel/narrow/pull/476))
+- *(deps)* bump syn from 2.0.109 to 2.0.110 ([#475](https://github.com/mbrobbel/narrow/pull/475))
+- *(deps)* bump quote from 1.0.41 to 1.0.42 ([#473](https://github.com/mbrobbel/narrow/pull/473))
+
 ## [0.15.1](https://github.com/mbrobbel/narrow/compare/narrow-v0.15.0...narrow-v0.15.1) - 2025-11-06
 
 ### Other
