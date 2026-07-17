@@ -186,7 +186,8 @@ mod tests {
     #[should_panic(expected = "expected array without a null buffer")]
     fn into_non_nullable() {
         let fixed_size_binary_array_nullable =
-            arrow_array::FixedSizeBinaryArray::from(vec![None, Some([1_u8, 2, 3].as_slice())]);
+            arrow_array::FixedSizeBinaryArray::try_from(vec![None, Some([1_u8, 2, 3].as_slice())])
+                .expect("");
         let _ = FixedSizeBinaryArray::<3, NonNullable>::from(fixed_size_binary_array_nullable);
     }
 
