@@ -54,8 +54,8 @@ impl<Storage: Buffer> Bitmap<Storage> {
     /// Returns the bit index for the element at the provided index.
     /// See [`Bitmap::byte_index`].
     #[inline]
-    fn bit_index(&self, index: usize) -> u8 {
-        (self.offset.strict_add(index)).rem_euclid(8) as u8
+    fn bit_index(&self, index: usize) -> usize {
+        (self.offset.strict_add(index)).rem_euclid(8)
     }
 
     /// Returns the byte index for the element at the provided index.
@@ -81,12 +81,12 @@ impl<Storage: Buffer> Bitmap<Storage> {
     /// buffer that contain no meaningful bits. These bits should be ignored when
     /// inspecting the raw byte buffer.
     #[inline]
-    fn trailing_bits(&self) -> u8 {
+    fn trailing_bits(&self) -> usize {
         let trailing_bits = self.bit_index(self.bits);
         if trailing_bits == 0 {
             0
         } else {
-            8_u8.strict_sub(trailing_bits)
+            8_usize.strict_sub(trailing_bits)
         }
     }
 }
@@ -241,7 +241,7 @@ impl<Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> CollectionRe
     for Bitmap<Storage>
 {
     fn reserve(&mut self, additional: usize) {
-        if let Some(bits) = additional.checked_sub(usize::from(self.trailing_bits())) {
+        if let Some(bits) = additional.checked_sub(self.trailing_bits()) {
             self.buffer.reserve(bytes_for_bits(bits));
         }
     }
