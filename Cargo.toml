@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.15.1"
+version = "0.15.2"
 authors = ["Matthijs Brobbel <m1brobbel@gmail.com>"]
 edition = "2024"
 rust-version = "1.91"
@@ -36,7 +36,7 @@ default = []
 derive = ["dep:narrow-derive"]
 
 [dependencies]
-narrow-derive = { path = "narrow-derive", version = "0.15.0", optional = true }
+narrow-derive = { path = "narrow-derive", version = "0.15.2", optional = true }
 
 [dev-dependencies]
 
