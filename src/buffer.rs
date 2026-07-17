@@ -389,8 +389,8 @@ mod tests {
         let slice: <SliceBuffer as BufferType>::Buffer<u16> = &[1234, 4321];
         assert_eq!(slice.as_bytes(), &[210, 4, 225, 16]);
         let mut slice_mut: <SliceMutBuffer as BufferType>::Buffer<u16> = &mut [4321, 1234];
-        slice_mut.as_mut_slice()[0] = 1234;
-        slice_mut.as_mut_slice()[1] = 4321;
+        BufferMut::as_mut_slice(&mut slice_mut)[0] = 1234;
+        BufferMut::as_mut_slice(&mut slice_mut)[1] = 4321;
         assert_eq!(slice, slice_mut);
     }
 
@@ -400,7 +400,7 @@ mod tests {
         assert_eq!(<_ as Buffer<u32>>::as_slice(&slice_array), [1, 2, 3, 4]);
         let mut slice_array_mut: <SliceArrayMutBuffer<3> as BufferType>::Buffer<u8> =
             &mut [[1, 2, 3], [4, 5, 6]];
-        slice_array_mut.as_mut_slice()[0] = 0;
+        BufferMut::as_mut_slice(&mut slice_array_mut)[0] = 0;
         assert_eq!(
             <_ as Buffer<u8>>::as_bytes(&slice_array_mut),
             &[0, 2, 3, 4, 5, 6]
