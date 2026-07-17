@@ -17,7 +17,7 @@ env:
 jobs:
   msrv:
     name: Minimum supported Rust version
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.91
@@ -39,7 +39,7 @@ jobs:
 
   check:
     name: Check
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
@@ -68,7 +68,7 @@ jobs:
 
   miri:
     name: Miri
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@miri
@@ -87,7 +87,7 @@ jobs:
 
   coverage:
     name: Coverage
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     env:
       RUSTFLAGS: "-C instrument-coverage"
       RUSTDOCFLAGS: "-C instrument-coverage"
