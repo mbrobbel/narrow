@@ -55,11 +55,7 @@ impl<Storage: Buffer> Bitmap<Storage> {
     /// See [`Bitmap::byte_index`].
     #[inline]
     fn bit_index(&self, index: usize) -> u8 {
-        // As conversion because 0 <= remainder < 8 < u8::MAX
-        #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
-        {
-            self.offset.rem_euclid(8).strict_add(index.rem_euclid(8)) as u8
-        }
+        (self.offset.strict_add(index)).rem_euclid(8) as u8
     }
 
     /// Returns the byte index for the element at the provided index.
