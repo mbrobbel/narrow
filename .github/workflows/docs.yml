@@ -57,7 +57,7 @@ jobs:
   deploy:
     name: Deploy
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-slim
     needs: rustdoc
     environment:
       name: github-pages
