@@ -35,7 +35,14 @@ jobs:
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-
       - uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
-      - run: cargo install --locked cargo-docs-rs
+      - name: Cache cargo-docs-rs
+        id: cargo_docs_rs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo/bin/cargo-docs-rs
+          key: cargo-docs-rs-v1.0.4-${{ runner.os }}-${{ runner.arch }}
+      - if: steps.cargo_docs_rs.outputs.cache-hit != 'true'
+        run: cargo install --locked cargo-docs-rs --version 1.0.4
       - run: cargo docs-rs
       - run: mv "target/$(rustc -vV | awk '/^host/ { print $2 }')/doc" "target/doc"
       - run: chmod -c -R +rX "target/doc"
@@ -50,7 +57,7 @@ jobs:
   deploy:
     name: Deploy
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-slim
     needs: rustdoc
     environment:
       name: github-pages
