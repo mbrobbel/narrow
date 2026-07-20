@@ -153,6 +153,10 @@ impl<
     }
 }
 
+/// Number of items buffered before flushing their validity to the bitmap in
+/// [`Extend::extend`] for [`Validity`].
+const VALIDITY_CHUNK: usize = 1024;
+
 impl<
     U: Default,
     T: CollectionRealloc<Owned = U>,
@@ -160,11 +164,40 @@ impl<
 > Extend<Option<U>> for Validity<T, Storage>
 {
     fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
-        self.collection.extend(
-            iter.into_iter()
-                .inspect(|opt| self.bitmap.extend(iter::once(opt.is_some())))
-                .map(Option::unwrap_or_default),
-        );
+        // The bitmap length is the length of this collection, so items added
+        // to the collection by an extension that panicked before their
+        // validity was flushed to the bitmap are not exposed. Surface such
+        // items as null to realign the bitmap with the collection before
+        // extending.
+        let stray = self.collection.len().strict_sub(self.bitmap.len());
+        if stray != 0 {
+            self.bitmap.extend(iter::repeat_n(false, stray));
+        }
+
+        // Buffer validity and flush it to the bitmap per chunk, instead of
+        // extending the bitmap bit by bit: bulk bitmap extension uses the bit
+        // packing fast path. The bitmap is extended after the items of a
+        // chunk are committed to the collection, so a panicking iterator can
+        // not add validity for items that never arrive.
+        let mut items = iter.into_iter();
+        loop {
+            let mut validity = [false; VALIDITY_CHUNK];
+            let mut count: usize = 0;
+            self.collection.extend(
+                items
+                    .by_ref()
+                    .take(VALIDITY_CHUNK)
+                    .inspect(|opt| {
+                        validity[count] = opt.is_some();
+                        count = count.strict_add(1);
+                    })
+                    .map(Option::unwrap_or_default),
+            );
+            self.bitmap.extend(validity.iter().take(count));
+            if count < VALIDITY_CHUNK {
+                break;
+            }
+        }
     }
 }
 
@@ -241,6 +274,57 @@ mod tests {
         assert_eq!(
             validity.iter_views().collect::<Vec<_>>(),
             [Some(1), None, Some(3), Some(4), Some(5)]
+        );
+    }
+
+    #[test]
+    fn from_iter_across_chunks() {
+        let input = (0..2500_u32)
+            .map(|index| (index % 3 != 0).then_some(index))
+            .collect::<Vec<_>>();
+        let validity = input.clone().into_iter().collect::<Validity<Vec<_>>>();
+        assert_eq!(validity.len(), input.len());
+        assert_eq!(validity.iter_views().collect::<Vec<_>>(), input);
+    }
+
+    #[test]
+    fn extend_across_chunks() {
+        let input = (0..2500_u32)
+            .map(|index| (index % 3 != 0).then_some(index))
+            .collect::<Vec<_>>();
+        let mut validity = Validity::<Vec<u32>>::default();
+        validity.extend(input.clone());
+        assert_eq!(validity.len(), input.len());
+        assert_eq!(validity.iter_views().collect::<Vec<_>>(), input);
+    }
+
+    #[test]
+    fn extend_panic_realigns() {
+        extern crate std;
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        let mut validity = IntoIterator::into_iter([Some(1), None]).collect::<Validity<Vec<_>>>();
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| {
+                validity.extend(
+                    [Some(3), Some(4)]
+                        .into_iter()
+                        .chain(iter::once_with(|| panic!("boom"))),
+                );
+            }))
+            .is_err()
+        );
+
+        // The items of the interrupted extension are not exposed.
+        assert_eq!(validity.len(), 2);
+        assert_eq!(validity.view(2), None);
+
+        // A subsequent extension surfaces them as null.
+        validity.extend([Some(5)]);
+        assert_eq!(validity.len(), 5);
+        assert_eq!(
+            validity.iter_views().collect::<Vec<_>>(),
+            [Some(1), None, None, None, Some(5)]
         );
     }
 }
