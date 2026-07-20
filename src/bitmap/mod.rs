@@ -6,7 +6,7 @@ mod unpacked;
 use core::{
     borrow::{Borrow, BorrowMut},
     fmt::{self, Debug},
-    iter::{Skip, Take},
+    iter::{self, Skip, Take},
     slice,
 };
 
@@ -149,30 +149,23 @@ impl<T: Borrow<bool>, Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionReall
     for Bitmap<Storage>
 {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        // Track the number of added bits.
-        let mut additional: usize = 0;
-        let mut items = iter.into_iter().inspect(|_| {
-            additional = additional.strict_add(1);
-        });
-
-        // Fill remaining bits in the last byte of the buffer.
-        let bit_index = self.bit_index(self.bits);
-        if bit_index != 0 {
-            // If there are trailing bits, there must at least be one byte in
-            // the buffer.
-            if let Some(last_byte) = self.buffer.borrow_mut().last_mut() {
-                // Use the remaining bits in this last byte
-                for index in bit_index..8 {
-                    if let Some(next) = items.next() {
-                        *last_byte |= u8::from(*next.borrow()) << index;
-                    }
-                }
+        // Commit every item together with the bit count before pulling the
+        // next item from the iterator: a panicking iterator must not leave
+        // bits in the buffer that are not accounted for by the bit count,
+        // because a subsequent extension could otherwise expose them.
+        for item in iter {
+            let value = u8::from(*item.borrow());
+            let byte_index = self.byte_index(self.bits);
+            let bit_index = self.bit_index(self.bits);
+            if let Some(byte) = self.buffer.borrow_mut().get_mut(byte_index) {
+                // Clear the bit before setting it: it may hold stale data
+                // e.g. when a previous extension panicked.
+                *byte = (*byte & !(1 << bit_index)) | (value << bit_index);
+            } else {
+                self.buffer.extend(iter::once(value << bit_index));
             }
+            self.bits = self.bits.strict_add(1);
         }
-
-        // Use bit packed iterator for the remainder
-        self.buffer.extend(items.bit_packed());
-        self.bits = self.bits.strict_add(additional);
     }
 }
 
@@ -352,5 +345,47 @@ mod tests {
     fn alloc() {
         let bitmap = Bitmap::<VecBuffer>::with_capacity(15);
         assert_eq!(bitmap.buffer.capacity(), 2);
+    }
+
+    #[test]
+    fn extend_panic_safety() {
+        extern crate std;
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        let mut bitmap = Bitmap::<VecBuffer>::from_iter([true]);
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| {
+                bitmap.extend(iter::once(true).chain(iter::once_with(|| panic!("boom"))));
+            }))
+            .is_err()
+        );
+
+        // The item yielded before the panic is committed.
+        assert_eq!(bitmap.len(), 2);
+        assert_eq!(bitmap.view(1), Some(true));
+
+        // A subsequent extension observes a consistent state.
+        bitmap.extend([false, true]);
+        assert_eq!(bitmap.len(), 4);
+        assert_eq!(
+            bitmap.iter_views().collect::<Vec<_>>(),
+            [true, true, false, true]
+        );
+    }
+
+    #[test]
+    fn extend_clears_stale_bits() {
+        // Stale bits beyond the bit count, as left behind by an interrupted
+        // extension.
+        let mut bitmap: Bitmap<VecBuffer> = Bitmap {
+            buffer: alloc::vec![0b1111_1111],
+            bits: 4,
+            offset: 0,
+        };
+        bitmap.extend([false, true]);
+        assert_eq!(bitmap.len(), 6);
+        assert_eq!(bitmap.view(4), Some(false));
+        assert_eq!(bitmap.view(5), Some(true));
+        assert_eq!(bitmap.buffer.as_slice(), &[0b1110_1111]);
     }
 }
