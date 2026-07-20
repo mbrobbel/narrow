@@ -12,6 +12,14 @@ pub trait AsView<'collection>: Sized {
     fn as_view(&'collection self) -> Self::View;
 }
 
+impl<'a> AsView<'a> for bool {
+    type View = bool;
+
+    fn as_view(&'a self) -> bool {
+        *self
+    }
+}
+
 #[diagnostic::do_not_recommend]
 impl<'a, T: FixedSize> AsView<'a> for T {
     type View = T;

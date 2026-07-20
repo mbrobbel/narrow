@@ -121,6 +121,10 @@ mod tests {
 
     #[test]
     fn collection() {
+        // Boolean
+        round_trip::<Array<_>, _>([true, false, true, true]);
+        round_trip::<Array<_>, _>([Some(true), None, Some(false), Some(true)]);
+
         // Fixed size primitive
         round_trip::<Array<_>, _>([1, 2, 3, 4]);
         round_trip::<Array<_>, _>([Some(1), None, Some(3), Some(4)]);
