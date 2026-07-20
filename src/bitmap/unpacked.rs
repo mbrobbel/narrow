@@ -49,10 +49,27 @@ where
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (lower, upper) = self.iter.size_hint();
 
-        // 8 items are returned per one item in the inner iterator.
+        // Bits not yet yielded from the currently buffered byte. The mask
+        // rotates back to the least-significant bit when a byte is exhausted,
+        // so a rotated mask indicates bits remaining in the buffered byte.
+        let buffered = if self.mask == 0x01 {
+            0
+        } else {
+            8_usize.strict_sub(
+                self.mask
+                    .trailing_zeros()
+                    .try_into()
+                    .expect("bit count fits in usize"),
+            )
+        };
+
+        // 8 items are returned per one item in the inner iterator, plus the
+        // bits buffered from a partially yielded byte.
         (
-            lower.saturating_mul(8),
-            upper.and_then(|bound| bound.checked_mul(8)),
+            lower.saturating_mul(8).saturating_add(buffered),
+            upper
+                .and_then(|bound| bound.checked_mul(8))
+                .and_then(|bound| bound.checked_add(buffered)),
         )
     }
 
@@ -120,5 +137,17 @@ mod tests {
             input.iter().bit_unpacked().size_hint(),
             (input.len() * 8, Some(input.len() * 8))
         );
+    }
+
+    #[test]
+    fn size_hint_partially_yielded_byte() {
+        let mut iter = [u8::MAX, 1].iter().bit_unpacked();
+        let mut remaining = 16;
+        assert_eq!(iter.size_hint(), (remaining, Some(remaining)));
+        while iter.next().is_some() {
+            remaining -= 1;
+            assert_eq!(iter.size_hint(), (remaining, Some(remaining)));
+        }
+        assert_eq!(iter.size_hint(), (0, Some(0)));
     }
 }
