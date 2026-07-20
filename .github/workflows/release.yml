@@ -38,7 +38,7 @@ jobs:
             ~/.cargo/git/db/
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-
-      - uses: mozilla-actions/sccache-action@d651010b8da762cde178750d8eda7b5febfe147a # v0.0.9
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
       - uses: release-plz/action@2eb1d8bcb770b4c48ccfaad919734b38b51958c9 # v0.5.131
         with:
           command: release
@@ -71,7 +71,7 @@ jobs:
             ~/.cargo/git/db/
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-
-      - uses: mozilla-actions/sccache-action@d651010b8da762cde178750d8eda7b5febfe147a # v0.0.9
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
       - uses: release-plz/action@2eb1d8bcb770b4c48ccfaad919734b38b51958c9 # v0.5.131
         with:
           command: release-pr
