@@ -353,4 +353,34 @@ mod tests {
         let bitmap = Bitmap::<VecBuffer>::with_capacity(15);
         assert_eq!(bitmap.buffer.capacity(), 2);
     }
+
+    #[test]
+    fn into_iter_len() {
+        let bitmap = Bitmap::<VecBuffer>::from_iter([true, false, true, true]);
+        let mut iter = bitmap.into_iter_owned();
+        let mut remaining = 4;
+        assert_eq!(iter.len(), remaining);
+        while iter.next().is_some() {
+            remaining -= 1;
+            assert_eq!(iter.len(), remaining);
+        }
+        assert_eq!(remaining, 0);
+    }
+
+    #[test]
+    fn into_iter_len_offset() {
+        let bitmap: Bitmap<SliceBuffer> = Bitmap {
+            buffer: &[0b1010_0000, 0b0000_0101],
+            bits: 7,
+            offset: 4,
+        };
+        let mut iter = bitmap.into_iter_owned();
+        let mut remaining = 7;
+        assert_eq!(iter.len(), remaining);
+        while iter.next().is_some() {
+            remaining -= 1;
+            assert_eq!(iter.len(), remaining);
+        }
+        assert_eq!(remaining, 0);
+    }
 }
