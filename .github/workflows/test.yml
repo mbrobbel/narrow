@@ -85,6 +85,10 @@ jobs:
             ~/.cargo/git/db/
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/miri
+          key: miri-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.cachekey }}
       - run: cargo miri setup
       - run: cargo miri test --no-default-features
       - run: cargo miri test --all-features

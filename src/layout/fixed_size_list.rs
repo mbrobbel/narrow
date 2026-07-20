@@ -1,3 +1,5 @@
+use core::fmt::Debug;
+
 use crate::{
     buffer::{Buffer, VecBuffer},
     collection::{Collection, CollectionAlloc, CollectionRealloc, flatten::Flatten},
@@ -6,7 +8,6 @@ use crate::{
     nullability::{NonNullable, Nullability},
 };
 
-#[derive(Debug)]
 pub struct FixedSizeList<
     T: Layout,
     const N: usize,
@@ -17,6 +18,16 @@ pub struct FixedSizeList<
 impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> MemoryLayout
     for FixedSizeList<T, N, Nulls, Storage>
 {
+}
+
+impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> Debug
+    for FixedSizeList<T, N, Nulls, Storage>
+where
+    Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>: Debug,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("FixedSizeList").field(&self.0).finish()
+    }
 }
 
 impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> Clone
