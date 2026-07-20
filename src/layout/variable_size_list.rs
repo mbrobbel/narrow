@@ -1,6 +1,7 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
+use core::fmt::Debug;
 
 use crate::{
     buffer::{Buffer, VecBuffer},
@@ -11,7 +12,6 @@ use crate::{
     offset::{Offset, Offsets},
 };
 
-#[derive(Debug)]
 pub struct VariableSizeList<
     T: Layout,
     Nulls: Nullability = NonNullable,
@@ -22,6 +22,16 @@ pub struct VariableSizeList<
 impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> MemoryLayout
     for VariableSizeList<T, Nulls, OffsetItem, Storage>
 {
+}
+
+impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Debug
+    for VariableSizeList<T, Nulls, OffsetItem, Storage>
+where
+    Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>: Debug,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("VariableSizeList").field(&self.0).finish()
+    }
 }
 
 impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Default

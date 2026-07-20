@@ -16,7 +16,7 @@ env:
 jobs:
   release:
     name: Release
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-slim
     environment:
       name: crates-io
     steps:
@@ -48,7 +48,7 @@ jobs:
 
   pr:
     name: PR
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-slim
     concurrency:
       group: release-${{ github.ref }}
       cancel-in-progress: false
