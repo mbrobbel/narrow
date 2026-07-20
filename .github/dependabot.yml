@@ -17,3 +17,8 @@ updates:
       interval: "daily"
     ignore:
       - dependency-name: "dtolnay/rust-toolchain"
+
+  - package-ecosystem: "nix"
+    directory: "/"
+    schedule:
+      interval: "daily"
