@@ -5,7 +5,6 @@ mod unpacked;
 
 use core::{
     borrow::{Borrow, BorrowMut},
-    cell::Cell,
     fmt::{self, Debug},
     iter::{self, Skip, Take},
     slice,
@@ -183,10 +182,10 @@ impl<T: Borrow<bool>, Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionReall
         // leaves the bytes already written as unspecified data beyond the
         // logical end, overwritten by subsequent extensions.
         if let Some(first) = items.next() {
-            let consumed = Cell::new(0_usize);
+            let mut consumed: usize = 0;
             let mut packed = iter::once(first)
                 .chain(items)
-                .inspect(|_| consumed.set(consumed.get().strict_add(1)))
+                .inspect(|_| consumed = consumed.strict_add(1))
                 .bit_packed();
 
             // Overwrite bytes beyond the logical end before appending.
@@ -202,7 +201,7 @@ impl<T: Borrow<bool>, Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionReall
             }
 
             self.buffer.extend(packed);
-            self.bits = self.bits.strict_add(consumed.get());
+            self.bits = self.bits.strict_add(consumed);
         }
     }
 }
