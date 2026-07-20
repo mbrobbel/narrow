@@ -9,12 +9,13 @@ use crate::{
     collection::Collection,
     fixed_size::FixedSize,
     layout::{
-        fixed_size_list::FixedSizeList, fixed_size_primitive::FixedSizePrimitive,
+        boolean::Boolean, fixed_size_list::FixedSizeList, fixed_size_primitive::FixedSizePrimitive,
         variable_size_list::VariableSizeList,
     },
     nullability::{NonNullable, Nullable},
 };
 
+pub mod boolean;
 pub mod fixed_size_list;
 pub mod fixed_size_primitive;
 pub mod variable_size_binary;
@@ -27,6 +28,14 @@ pub trait MemoryLayout: Collection {}
 pub trait Layout {
     /// The Arrow physical memory layout of this type.
     type Memory<Storage: Buffer>: MemoryLayout<Owned = Self>;
+}
+
+impl Layout for bool {
+    type Memory<Storage: Buffer> = Boolean<NonNullable, Storage>;
+}
+
+impl Layout for Option<bool> {
+    type Memory<Storage: Buffer> = Boolean<Nullable, Storage>;
 }
 
 impl<T: FixedSize> Layout for T {
