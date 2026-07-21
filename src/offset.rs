@@ -227,6 +227,15 @@ where
         self.data.reserve(additional);
         self.offsets.reserve(additional);
     }
+
+    fn truncate(&mut self, len: usize) {
+        if len < self.len() {
+            // Keep `len` lists: `len + 1` offsets and the data they reference.
+            let data_len = self.offsets.owned(len).expect("offset in range").as_usize();
+            self.offsets.truncate(len.strict_add(1));
+            self.data.truncate(data_len);
+        }
+    }
 }
 
 #[expect(missing_debug_implementations)]
@@ -417,6 +426,18 @@ mod tests {
             end: 1,
         };
         assert!(<_ as PartialEq<Vec<_>>>::eq(&view, &vec![42]));
+    }
+
+    #[test]
+    fn truncate() {
+        let mut offsets = [vec![1, 2], vec![3], vec![4, 5, 6]]
+            .into_iter()
+            .collect::<Offsets<Vec<i32>>>();
+        assert_eq!(offsets.len(), 3);
+        offsets.truncate(1);
+        assert_eq!(offsets.len(), 1);
+        assert_eq!(offsets.owned(0), Some(vec![1, 2]));
+        assert_eq!(offsets.owned(1), None);
     }
 
     #[test]
