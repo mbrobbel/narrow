@@ -327,4 +327,36 @@ mod tests {
             [Some(1), None, None, None, Some(5)]
         );
     }
+
+    #[test]
+    fn extend_panic_realigns_nested() {
+        extern crate std;
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        let mut validity = Validity::<Validity<Vec<u32>>>::default();
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| {
+                validity.extend(
+                    [Some(Some(1)), Some(Some(2))]
+                        .into_iter()
+                        .chain(iter::once_with(|| panic!("boom"))),
+                );
+            }))
+            .is_err()
+        );
+
+        assert_eq!(validity.len(), 0);
+        validity.extend([Some(Some(3))]);
+        assert_eq!(validity.len(), 3);
+        assert_eq!(
+            validity.iter_views().collect::<Vec<_>>(),
+            [None, None, Some(Some(3))]
+        );
+
+        validity.extend([Some(Some(4))]);
+        assert_eq!(
+            validity.iter_views().collect::<Vec<_>>(),
+            [None, None, Some(Some(3)), Some(Some(4))]
+        );
+    }
 }
