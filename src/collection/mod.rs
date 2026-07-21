@@ -61,7 +61,8 @@ pub trait CollectionAlloc: Collection + Default + FromIterator<Self::Owned> {
 /// implementations must leave the collection in a state where
 /// [`Length::len`] counts only fully committed items. Consumers (e.g.
 /// [`crate::validity::Validity`]) rely on this to recover from interrupted
-/// extensions.
+/// extensions. If a later extension surfaces recovered items, they must
+/// precede the items supplied by the new iterator.
 pub trait CollectionRealloc: CollectionAlloc + Extend<Self::Owned> {
     /// Reserves capacity for at least `additional` more items to be inserted in this collection.
     fn reserve(&mut self, additional: usize);

@@ -183,6 +183,7 @@ impl<
         loop {
             let mut validity = [false; VALIDITY_CHUNK];
             let mut count: usize = 0;
+            let collection_len = self.collection.len();
             self.collection.extend(
                 items
                     .by_ref()
@@ -193,7 +194,18 @@ impl<
                     })
                     .map(Option::unwrap_or_default),
             );
-            self.bitmap.extend(validity.iter().take(count));
+
+            // A nested collection can surface items left by its own
+            // interrupted extension before committing this chunk. Mark those
+            // recovered items as null before appending this chunk's validity.
+            let recovered = self
+                .collection
+                .len()
+                .strict_sub(collection_len)
+                .strict_sub(count);
+            self.bitmap.extend(
+                iter::repeat_n(false, recovered).chain(validity.iter().copied().take(count)),
+            );
             if count < VALIDITY_CHUNK {
                 break;
             }
