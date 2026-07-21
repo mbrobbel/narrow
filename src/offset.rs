@@ -288,12 +288,11 @@ where
         self.data.truncate(position.as_usize());
 
         iter.into_iter().for_each(|collection| {
-            position = position.strict_add(collection.len().try_into().expect("overflow"));
-            self.offsets.extend(iter::once(position));
+            let next_position = position.strict_add(collection.len().try_into().expect("overflow"));
             self.data.reserve(collection.len());
-            for item in collection.into_iter_owned() {
-                self.data.extend(core::iter::once(item));
-            }
+            self.data.extend(collection.into_iter_owned());
+            self.offsets.extend(iter::once(next_position));
+            position = next_position;
         });
     }
 }

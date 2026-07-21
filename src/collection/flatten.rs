@@ -81,10 +81,7 @@ impl<C: Collection, const N: usize> Length for Flatten<C, N> {
 
 impl<C: CollectionRealloc, const N: usize> Extend<[C::Owned; N]> for Flatten<C, N> {
     fn extend<I: IntoIterator<Item = [C::Owned; N]>>(&mut self, iter: I) {
-        let into_iter = iter.into_iter();
-        let (lower_bound, upper_bound) = into_iter.size_hint();
-        self.reserve(upper_bound.unwrap_or(lower_bound));
-        self.0.extend(into_iter.flatten());
+        self.0.extend(iter.into_iter().flatten());
     }
 }
 
