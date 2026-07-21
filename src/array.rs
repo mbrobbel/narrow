@@ -188,10 +188,31 @@ mod tests {
         let mut array =
             <Nested as CollectionAllocIn>::try_from_iter_in([Some(alloc::vec![1, 2]), None], ())
                 .expect("allocation succeeds");
+        assert_eq!(array.owned(0), Some(Some(alloc::vec![1, 2])));
+        assert_eq!(array.owned(1), Some(None));
         array
             .try_extend([Some(alloc::vec![3, 4, 5])])
             .expect("allocation succeeds");
         assert_eq!(array.owned(2), Some(Some(alloc::vec![3, 4, 5])));
+    }
+
+    #[test]
+    fn extend_forwards_backing_input_type() {
+        fn extend<T: Layout, U, Storage: Buffer, I: IntoIterator<Item = U>>(
+            array: &mut Array<T, Storage>,
+            iter: I,
+        ) where
+            T::Memory<Storage>: Extend<U>,
+        {
+            array.extend(iter);
+        }
+
+        let mut array = Array::<i32>::default();
+        extend(&mut array, [1, 2, 3, 4]);
+        assert_eq!(
+            array.into_iter_owned().collect::<alloc::vec::Vec<_>>(),
+            [1, 2, 3, 4]
+        );
     }
 
     #[test]
