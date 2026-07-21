@@ -196,7 +196,7 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Default
     for Offsets<T, OffsetItem, Storage, U>
 where
     T: Default,
-    Storage::For<OffsetItem>: Default + Extend<OffsetItem> + CollectionRealloc<Owned = OffsetItem>,
+    Storage::For<OffsetItem>: Default + CollectionRealloc<Owned = OffsetItem>,
 {
     fn default() -> Self {
         let mut offsets = Storage::For::<OffsetItem>::default();
@@ -216,8 +216,7 @@ impl<
     U: CollectionAlloc<Owned = T::Owned> + FromIterator<T::Owned>,
 > CollectionAllocIn for Offsets<T, OffsetItem, Storage, U>
 where
-    Storage::For<OffsetItem>:
-        Extend<OffsetItem> + CollectionRealloc<Owned = OffsetItem, Alloc = T::Alloc>,
+    Storage::For<OffsetItem>: CollectionRealloc<Alloc = T::Alloc>,
 {
     type Alloc = T::Alloc;
 
@@ -269,11 +268,10 @@ impl<
     T: CollectionRealloc,
     OffsetItem: Offset,
     Storage: Buffer,
-    U: CollectionAlloc<Owned = T::Owned> + FromIterator<T::Owned>,
+    U: CollectionAlloc<Owned = T::Owned>,
 > Extend<U> for Offsets<T, OffsetItem, Storage, U>
 where
-    Storage::For<OffsetItem>:
-        Extend<OffsetItem> + CollectionRealloc<Owned = OffsetItem, Alloc = T::Alloc>,
+    Storage::For<OffsetItem>: CollectionRealloc<Owned = OffsetItem>,
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
         let mut position = self
@@ -302,12 +300,11 @@ impl<
     T: CollectionRealloc,
     OffsetItem: Offset,
     Storage: Buffer,
-    U: CollectionAlloc<Owned = T::Owned> + FromIterator<T::Owned>,
+    U: CollectionAlloc<Owned = T::Owned>,
 > FromIterator<U> for Offsets<T, OffsetItem, Storage, U>
 where
     T: Default,
-    Storage::For<OffsetItem>:
-        Default + Extend<OffsetItem> + CollectionRealloc<Owned = OffsetItem, Alloc = T::Alloc>,
+    Storage::For<OffsetItem>: Default + CollectionRealloc<Owned = OffsetItem>,
 {
     fn from_iter<I: IntoIterator<Item = U>>(iter: I) -> Self {
         let mut offsets = Self::default();
@@ -383,8 +380,7 @@ impl<
     U: CollectionAlloc<Owned = T::Owned> + FromIterator<T::Owned>,
 > CollectionRealloc for Offsets<T, OffsetItem, Storage, U>
 where
-    Storage::For<OffsetItem>:
-        Extend<OffsetItem> + CollectionRealloc<Owned = OffsetItem, Alloc = T::Alloc>,
+    Storage::For<OffsetItem>: CollectionRealloc<Alloc = T::Alloc>,
 {
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
         // This is only enough for collections with len 1

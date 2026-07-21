@@ -217,7 +217,7 @@ const VALIDITY_CHUNK: usize = 1024;
 impl<
     U: Default,
     T: CollectionRealloc<Owned = U>,
-    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc<Alloc = T::Alloc>>,
+    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>,
 > Extend<Option<U>> for Validity<T, Storage>
 {
     fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
