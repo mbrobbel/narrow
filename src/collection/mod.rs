@@ -59,6 +59,12 @@ pub trait CollectionAlloc: Collection + Default + FromIterator<Self::Owned> {
 pub trait CollectionRealloc: CollectionAlloc + Extend<Self::Owned> {
     /// Reserves capacity for at least `additional` more items to be inserted in this collection.
     fn reserve(&mut self, additional: usize);
+
+    /// Shortens this collection to `len` items, dropping the rest.
+    ///
+    /// If `len` is greater than or equal to the current length, this has no
+    /// effect.
+    fn truncate(&mut self, len: usize);
 }
 
 #[cfg(test)]
