@@ -117,15 +117,15 @@ mod tests {
         assert_eq!((1, Some(1)), [false; 8].iter().bit_packed().size_hint());
         assert_eq!((2, Some(2)), [false; 9].iter().bit_packed().size_hint());
         assert_eq!(
-            (usize::MAX / 8, None),
+            (usize::MAX / 8 + 1, None),
             (0..).map(|_| true).bit_packed().size_hint()
         );
         assert_eq!(
-            (usize::MAX / 8, None),
+            (usize::MAX / 8 + 1, None),
             (0..=usize::MAX).map(|_| true).bit_packed().size_hint()
         );
         assert_eq!(
-            (usize::MAX / 8, Some(usize::MAX / 8)),
+            (usize::MAX / 8 + 1, Some(usize::MAX / 8 + 1)),
             (0..usize::MAX).map(|_| true).bit_packed().size_hint()
         );
         assert_eq!((1, Some(1)), (0..3).map(|_| true).bit_packed().size_hint());
