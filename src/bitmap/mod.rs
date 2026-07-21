@@ -25,6 +25,38 @@ pub(crate) const fn bytes_for_bits(bits: usize) -> usize {
     bits.saturating_add(7) / 8
 }
 
+/// Error returned by [`Bitmap::try_from_parts`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BitmapError {
+    /// The requested number of `bits` at `offset` does not fit in a buffer of
+    /// `bytes` bytes.
+    OutOfBounds {
+        /// The requested bit offset into the buffer.
+        offset: usize,
+        /// The requested number of bits.
+        bits: usize,
+        /// The number of bytes in the provided buffer.
+        bytes: usize,
+    },
+}
+
+impl fmt::Display for BitmapError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::OutOfBounds {
+                offset,
+                bits,
+                bytes,
+            } => write!(
+                f,
+                "offset ({offset}) + bits ({bits}) exceeds buffer capacity ({bytes} bytes)"
+            ),
+        }
+    }
+}
+
+impl core::error::Error for BitmapError {}
+
 /// A collection of bits.
 ///
 /// The validity bits are stored LSB-first in the bytes of a buffer.
@@ -56,6 +88,43 @@ impl<Storage: Buffer<For<u8>: Debug>> Debug for Bitmap<Storage> {
 }
 
 impl<Storage: Buffer> Bitmap<Storage> {
+    /// Constructs a [`Bitmap`] from its raw parts: a byte `buffer`, the number
+    /// of `bits` it stores, and a bit `offset` into the buffer.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`BitmapError`] when `offset + bits` exceeds the number of
+    /// bits available in the buffer (`8 * buffer.len()`).
+    pub fn try_from_parts(
+        buffer: Storage::For<u8>,
+        bits: usize,
+        offset: usize,
+    ) -> Result<Self, BitmapError> {
+        let bytes = buffer.borrow().len();
+        let capacity = bytes.saturating_mul(8);
+        match offset.checked_add(bits) {
+            Some(required) if required <= capacity => Ok(Self {
+                buffer,
+                bits,
+                offset,
+            }),
+            _ => Err(BitmapError::OutOfBounds {
+                offset,
+                bits,
+                bytes,
+            }),
+        }
+    }
+
+    /// Returns the raw parts of this [`Bitmap`]: its byte buffer, the number of
+    /// bits it stores, and the bit offset into the buffer.
+    ///
+    /// This is the inverse of [`Bitmap::try_from_parts`].
+    #[must_use]
+    pub fn into_parts(self) -> (Storage::For<u8>, usize, usize) {
+        (self.buffer, self.bits, self.offset)
+    }
+
     /// Returns the bit index for the element at the provided index.
     /// See [`Bitmap::byte_index`].
     #[inline]
@@ -501,6 +570,35 @@ mod tests {
             assert_eq!(iter.len(), remaining);
         }
         assert_eq!(remaining, 0);
+    }
+
+    #[test]
+    fn try_from_parts() {
+        let bitmap = Bitmap::<VecBuffer>::try_from_parts(alloc::vec![0b0000_1101], 4, 0)
+            .expect("valid parts");
+        assert_eq!(bitmap.len(), 4);
+        assert_eq!(bitmap.view(0), Some(true));
+        assert_eq!(bitmap.view(1), Some(false));
+        assert_eq!(bitmap.view(2), Some(true));
+        assert_eq!(bitmap.view(3), Some(true));
+        let (buffer, bits, offset) = bitmap.into_parts();
+        assert_eq!(buffer, alloc::vec![0b0000_1101]);
+        assert_eq!(bits, 4);
+        assert_eq!(offset, 0);
+    }
+
+    #[test]
+    fn try_from_parts_out_of_bounds() {
+        let error = Bitmap::<VecBuffer>::try_from_parts(alloc::vec![0_u8], 5, 4)
+            .expect_err("out of bounds");
+        assert_eq!(
+            error,
+            BitmapError::OutOfBounds {
+                offset: 4,
+                bits: 5,
+                bytes: 1,
+            }
+        );
     }
 
     #[test]
