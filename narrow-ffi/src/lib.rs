@@ -1,5 +1,10 @@
+//! Arrow C Data Interface support for Narrow.
+//!
+//! See [The Arrow C data interface] specification.
+//!
+//! [The Arrow C data interface]: https://arrow.apache.org/docs/format/CDataInterface.html
+
 #![no_std]
-#![doc = "Arrow C Data Interface support for Narrow."]
 #![deny(missing_docs, unsafe_op_in_unsafe_fn)]
 
 use core::{
@@ -20,14 +25,23 @@ pub const ARROW_FLAG_MAP_KEYS_SORTED: i64 = 4;
 #[repr(C)]
 #[derive(Debug)]
 pub struct ArrowSchema {
+    /// Mandatory null-terminated UTF-8 type format string.
     format: *const c_char,
+    /// Optional null-terminated UTF-8 field name.
     name: *const c_char,
+    /// Optional binary-encoded metadata, which is not null-terminated.
     metadata: *const c_char,
+    /// Bitfield of the `ARROW_FLAG_*` constants.
     flags: i64,
+    /// Number of child schemas.
     n_children: i64,
+    /// C array of `n_children` child schema pointers.
     children: *mut *mut Self,
+    /// Dictionary value schema, or null when the type is not dictionary encoded.
     dictionary: *mut Self,
+    /// Producer callback that releases the schema; [`None`] marks it released.
     release: Option<unsafe extern "C" fn(*mut Self)>,
+    /// Optional opaque producer-owned data used by the release callback.
     private_data: *mut c_void,
 }
 
@@ -69,15 +83,25 @@ impl Drop for ArrowSchema {
 #[repr(C)]
 #[derive(Debug)]
 pub struct ArrowArray {
+    /// Logical number of elements in the array.
     length: i64,
+    /// Number of null elements, or `-1` when unknown.
     null_count: i64,
+    /// Non-negative logical element offset into the physical buffers.
     offset: i64,
+    /// Number of physical buffers, excluding child buffers.
     n_buffers: i64,
+    /// Number of child arrays.
     n_children: i64,
+    /// C array of `n_buffers` physical buffer pointers.
     buffers: *mut *const c_void,
+    /// C array of `n_children` child array pointers.
     children: *mut *mut Self,
+    /// Dictionary values, or null when the array is not dictionary encoded.
     dictionary: *mut Self,
+    /// Producer callback that releases the array; [`None`] marks it released.
     release: Option<unsafe extern "C" fn(*mut Self)>,
+    /// Optional opaque producer-owned data used by the release callback.
     private_data: *mut c_void,
 }
 
