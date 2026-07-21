@@ -23,6 +23,22 @@ impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> MemoryLayout
 {
 }
 
+impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> FixedSizePrimitive<T, Nulls, Storage> {
+    /// Constructs a [`FixedSizePrimitive`] from its backing collection.
+    #[must_use]
+    pub fn from_buffer(buffer: Nulls::Collection<Storage::For<T>, Storage>) -> Self {
+        Self(buffer)
+    }
+
+    /// Returns the backing collection of this [`FixedSizePrimitive`].
+    ///
+    /// This is the inverse of [`FixedSizePrimitive::from_buffer`].
+    #[must_use]
+    pub fn into_buffer(self) -> Nulls::Collection<Storage::For<T>, Storage> {
+        self.0
+    }
+}
+
 impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> Debug
     for FixedSizePrimitive<T, Nulls, Storage>
 where
@@ -130,6 +146,17 @@ mod tests {
     use crate::{collection::tests::round_trip, fixed_size::FixedSizeArray, nullability::Nullable};
 
     use super::*;
+
+    #[test]
+    fn from_buffer() {
+        let primitive = [1, 2, 3, 4]
+            .into_iter()
+            .collect::<FixedSizePrimitive<i32>>();
+        let restored = FixedSizePrimitive::<i32>::from_buffer(primitive.into_buffer());
+        assert_eq!(restored.len(), 4);
+        assert_eq!(restored.owned(0), Some(1));
+        assert_eq!(restored.owned(3), Some(4));
+    }
 
     #[test]
     fn collection() {
