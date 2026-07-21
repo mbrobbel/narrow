@@ -62,6 +62,109 @@ pub struct Offsets<
     _collection: PhantomData<U>,
 }
 
+/// Error returned by [`Offsets::try_from_parts`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OffsetsError {
+    /// The offsets buffer is empty; it must contain at least one offset.
+    Empty,
+    /// The first offset is not zero (required by the Arrow `n + 1`
+    /// representation).
+    NonZeroFirst {
+        /// The value of the first offset.
+        first: usize,
+    },
+    /// The offset at `index` is negative.
+    Negative {
+        /// The index of the negative offset.
+        index: usize,
+    },
+    /// The offset at `index` is smaller than the preceding offset.
+    NonMonotonic {
+        /// The index of the offset that breaks monotonicity.
+        index: usize,
+    },
+    /// The last offset exceeds the length of the data.
+    OutOfBounds {
+        /// The value of the last offset.
+        last: usize,
+        /// The length of the data.
+        data: usize,
+    },
+}
+
+impl fmt::Display for OffsetsError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::Empty => write!(f, "offsets buffer must contain at least one offset"),
+            Self::NonZeroFirst { first } => write!(f, "first offset ({first}) is not zero"),
+            Self::Negative { index } => write!(f, "offset at index {index} is negative"),
+            Self::NonMonotonic { index } => {
+                write!(f, "offset at index {index} is not monotonically increasing")
+            }
+            Self::OutOfBounds { last, data } => write!(
+                f,
+                "last offset ({last}) exceeds the length of the data ({data})"
+            ),
+        }
+    }
+}
+
+impl core::error::Error for OffsetsError {}
+
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Offsets<T, OffsetItem, Storage, U> {
+    /// Constructs [`Offsets`] from a `data` collection and its `offsets`
+    /// buffer.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`OffsetsError`] when the offsets buffer is empty, its first
+    /// offset is not zero, it contains a negative offset, it is not
+    /// monotonically increasing, or when its last offset exceeds the length of
+    /// the data.
+    pub fn try_from_parts(
+        data: T,
+        offsets: Storage::For<OffsetItem>,
+    ) -> Result<Self, OffsetsError> {
+        let mut iter = offsets.borrow().iter().enumerate();
+        let (_, first) = iter.next().ok_or(OffsetsError::Empty)?;
+        let mut previous: usize = (*first)
+            .try_into()
+            .map_err(|_| OffsetsError::Negative { index: 0 })?;
+        if previous != 0 {
+            return Err(OffsetsError::NonZeroFirst { first: previous });
+        }
+        for (index, offset) in iter {
+            let current: usize = (*offset)
+                .try_into()
+                .map_err(|_| OffsetsError::Negative { index })?;
+            if current < previous {
+                return Err(OffsetsError::NonMonotonic { index });
+            }
+            previous = current;
+        }
+        let data_len = data.len();
+        if previous > data_len {
+            return Err(OffsetsError::OutOfBounds {
+                last: previous,
+                data: data_len,
+            });
+        }
+        Ok(Self {
+            data,
+            offsets,
+            _collection: PhantomData,
+        })
+    }
+
+    /// Returns the data collection and offsets buffer of these [`Offsets`].
+    ///
+    /// This is the inverse of [`Offsets::try_from_parts`].
+    #[must_use]
+    pub fn into_parts(self) -> (T, Storage::For<OffsetItem>) {
+        (self.data, self.offsets)
+    }
+}
+
 impl<T: Collection + Debug, OffsetItem: Offset, Storage: Buffer<For<OffsetItem>: Debug>, U> Debug
     for Offsets<T, OffsetItem, Storage, U>
 {
@@ -417,6 +520,51 @@ mod tests {
             end: 1,
         };
         assert!(<_ as PartialEq<Vec<_>>>::eq(&view, &vec![42]));
+    }
+
+    #[test]
+    fn try_from_parts() {
+        let offsets = Offsets::<Vec<i32>>::try_from_parts(vec![1, 2, 3, 4, 5], vec![0, 2, 3, 4, 5])
+            .expect("valid parts");
+        assert_eq!(offsets.len(), 4);
+        let (data, offsets_buffer) = offsets.into_parts();
+        assert_eq!(data, vec![1, 2, 3, 4, 5]);
+        assert_eq!(offsets_buffer, vec![0, 2, 3, 4, 5]);
+    }
+
+    #[test]
+    fn try_from_parts_empty() {
+        let error =
+            Offsets::<Vec<i32>>::try_from_parts(vec![1], vec![]).expect_err("empty offsets");
+        assert_eq!(error, OffsetsError::Empty);
+    }
+
+    #[test]
+    fn try_from_parts_non_zero_first() {
+        let error = Offsets::<Vec<i32>>::try_from_parts(vec![1, 2], vec![1, 2])
+            .expect_err("non-zero first offset");
+        assert_eq!(error, OffsetsError::NonZeroFirst { first: 1 });
+    }
+
+    #[test]
+    fn try_from_parts_negative() {
+        let error =
+            Offsets::<Vec<i32>>::try_from_parts(vec![1, 2], vec![-1, 0]).expect_err("negative");
+        assert_eq!(error, OffsetsError::Negative { index: 0 });
+    }
+
+    #[test]
+    fn try_from_parts_non_monotonic() {
+        let error = Offsets::<Vec<i32>>::try_from_parts(vec![1, 2, 3], vec![0, 2, 1])
+            .expect_err("non-monotonic");
+        assert_eq!(error, OffsetsError::NonMonotonic { index: 2 });
+    }
+
+    #[test]
+    fn try_from_parts_out_of_bounds() {
+        let error =
+            Offsets::<Vec<i32>>::try_from_parts(vec![1, 2], vec![0, 5]).expect_err("out of bounds");
+        assert_eq!(error, OffsetsError::OutOfBounds { last: 5, data: 2 });
     }
 
     #[test]
