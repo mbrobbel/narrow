@@ -79,9 +79,19 @@ pub trait CollectionAllocIn: Collection + Sized {
     fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self;
 
     /// Tries to construct an empty collection with the requested capacity.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`AllocError`] when the requested capacity cannot be
+    /// reserved.
     fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError>;
 
     /// Tries to construct a collection from `iter`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`AllocError`] when storage for the items cannot be
+    /// reserved.
     fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
         iter: I,
         alloc: Self::Alloc,
@@ -97,11 +107,20 @@ pub trait CollectionAlloc: Collection + Default + FromIterator<Self::Owned> {
 /// A re-allocatable collection of items.
 pub trait CollectionRealloc: CollectionAllocIn + Extend<Self::Owned> {
     /// Tries to reserve capacity for at least `additional` more items.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`AllocError`] when the requested capacity cannot be
+    /// reserved.
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError>;
 
     /// Tries to extend this collection with the contents of `iter`.
     ///
-    /// The collection's logical contents are unchanged when reservation fails.
+    /// # Errors
+    ///
+    /// Returns an [`AllocError`] when storage for the additional items cannot
+    /// be reserved. The collection's logical contents are unchanged when a
+    /// reservation fails.
     fn try_extend<I: IntoIterator<Item = Self::Owned>>(
         &mut self,
         iter: I,
