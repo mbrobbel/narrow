@@ -16,7 +16,7 @@ fn borrows_nested_backing_memory() {
     );
     assert_eq!(list_validity.bitmap_ref().bit_offset(), 0);
 
-    let offsets = list_validity.collection();
+    let offsets = list_validity.child_ref();
     assert_eq!(offsets.buffer_ref().as_slice(), &[0, 2]);
 
     let items = offsets.child_ref();
@@ -26,7 +26,7 @@ fn borrows_nested_backing_memory() {
         &[0b0000_0001]
     );
 
-    let flattened = item_validity.collection();
+    let flattened = item_validity.child_ref();
     assert_eq!(flattened.child_ref().buffer_ref().as_slice(), &[1, 2, 0, 0]);
 }
 

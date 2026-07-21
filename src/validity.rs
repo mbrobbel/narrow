@@ -10,7 +10,8 @@ use crate::{
     bitmap::{Bitmap, BitmapRef},
     buffer::{Buffer, VecBuffer},
     collection::{
-        AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc, view::AsView,
+        AllocError, ChildRef, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
+        view::AsView,
     },
     length::Length,
 };
@@ -77,18 +78,20 @@ impl<T: Collection, Storage: Buffer> Validity<T, Storage> {
         }
     }
 
-    /// Returns the collection that may contain null elements.
-    #[must_use]
-    pub fn collection(&self) -> &T {
-        &self.collection
-    }
-
     /// Returns the collection and validity bitmap of this [`Validity`].
     ///
     /// This is the inverse of [`Validity::try_from_parts`].
     #[must_use]
     pub fn into_parts(self) -> (T, Bitmap<Storage>) {
         (self.collection, self.bitmap)
+    }
+}
+
+impl<T: Collection, Storage: Buffer> ChildRef for Validity<T, Storage> {
+    type Child = T;
+
+    fn child_ref(&self) -> &Self::Child {
+        &self.collection
     }
 }
 
