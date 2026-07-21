@@ -4,11 +4,17 @@ release_always = false
 
 [[package]]
 name = "narrow"
-changelog_include = ["narrow-derive"]
+changelog_include = ["narrow-derive", "narrow-ffi"]
 version_group = "narrow"
 
 [[package]]
 name = "narrow-derive"
+changelog_update = false
+git_release_enable = false
+version_group = "narrow"
+
+[[package]]
+name = "narrow-ffi"
 changelog_update = false
 git_release_enable = false
 version_group = "narrow"

@@ -57,6 +57,7 @@ jobs:
           name: rustdoc
           path: target/doc
       - run: cargo docs-rs -p narrow-derive
+      - run: cargo docs-rs -p narrow-ffi
 
   deploy:
     name: Deploy
