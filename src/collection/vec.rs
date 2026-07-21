@@ -135,4 +135,17 @@ mod tests {
         );
         assert_eq!(collection, [1, 2, 3, 4]);
     }
+
+    #[test]
+    #[should_panic(expected = "capacity overflow")]
+    fn alloc_in_capacity_overflow_panics() {
+        let _ = <Vec<u32> as CollectionAllocIn>::with_capacity_in(usize::MAX, ());
+    }
+
+    #[test]
+    #[should_panic(expected = "capacity overflow")]
+    fn reserve_capacity_overflow_panics() {
+        let mut collection = alloc::vec![1_u32, 2, 3, 4];
+        CollectionRealloc::reserve(&mut collection, usize::MAX);
+    }
 }

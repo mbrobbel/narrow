@@ -69,12 +69,19 @@ pub trait CollectionAllocIn: Collection + Sized {
     type Alloc: Clone;
 
     /// Constructs a new, empty collection with at least the specified capacity
-    /// using `alloc` and its native infallible failure handling.
+    /// using `alloc`.
+    ///
+    /// Unlike [`CollectionAllocIn::try_with_capacity_in`], this method does not
+    /// return reservation failures. Implementations use their allocator's
+    /// native infallible failure handling.
     #[must_use]
     fn with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Self;
 
-    /// Constructs a collection from `iter` using `alloc` and its native
-    /// infallible failure handling.
+    /// Constructs a collection from `iter` using `alloc`.
+    ///
+    /// Unlike [`CollectionAllocIn::try_from_iter_in`], this method does not
+    /// return reservation failures. Implementations use their allocator's
+    /// native infallible failure handling.
     #[must_use]
     fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self;
 
@@ -127,6 +134,10 @@ pub trait CollectionRealloc: CollectionAllocIn + Extend<Self::Owned> {
     ) -> Result<(), AllocError>;
 
     /// Reserves capacity for at least `additional` more items to be inserted in this collection.
+    ///
+    /// Unlike [`CollectionRealloc::try_reserve`], this method does not return
+    /// reservation failures. Implementations use their allocator's native
+    /// infallible failure handling.
     fn reserve(&mut self, additional: usize);
 
     /// Shortens this collection to `len` items, dropping the rest.
