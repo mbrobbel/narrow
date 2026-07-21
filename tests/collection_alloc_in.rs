@@ -1,88 +1,109 @@
-use std::cell::Cell;
+use std::{
+    borrow::Borrow,
+    cell::{Cell, RefCell, RefMut},
+    marker::PhantomData,
+    slice,
+};
 
 use narrow::{
+    array::Array,
+    buffer::Buffer,
     collection::{AllocError, Collection, CollectionAllocIn},
+    fixed_size::FixedSize,
     length::Length,
 };
 
 #[derive(Debug)]
-struct FixedArena<const N: usize> {
-    values: [Cell<u32>; N],
+struct FixedArena<T: FixedSize, const CAPACITY: usize, const CHUNKS: usize> {
+    chunks: [RefCell<[T; CAPACITY]>; CHUNKS],
     next: Cell<usize>,
 }
 
-impl<const N: usize> FixedArena<N> {
-    fn new() -> Self {
+impl<T: FixedSize, const CAPACITY: usize, const CHUNKS: usize> FixedArena<T, CAPACITY, CHUNKS> {
+    fn new(initial: T) -> Self {
         Self {
-            values: core::array::from_fn(|_| Cell::new(0)),
+            chunks: core::array::from_fn(|_| RefCell::new([initial; CAPACITY])),
             next: Cell::new(0),
         }
     }
 
-    fn try_allocate(&self, capacity: usize) -> Result<usize, AllocError> {
-        let start = self.next.get();
-        let end = start.checked_add(capacity).ok_or(AllocError)?;
-        if end > N {
+    fn try_allocate(&self, capacity: usize) -> Result<RefMut<'_, [T; CAPACITY]>, AllocError> {
+        if capacity > CAPACITY {
             return Err(AllocError);
         }
-        self.next.set(end);
-        Ok(start)
+
+        let index = self.next.get();
+        let chunk = self.chunks.get(index).ok_or(AllocError)?;
+        let values = chunk.try_borrow_mut().map_err(|_| AllocError)?;
+        self.next.set(index + 1);
+        Ok(values)
     }
 
-    fn remaining(&self) -> usize {
-        N - self.next.get()
+    fn remaining_chunks(&self) -> usize {
+        CHUNKS - self.next.get()
     }
 }
 
 #[derive(Debug)]
-struct ArenaCollection<'arena, const N: usize> {
-    arena: &'arena FixedArena<N>,
-    start: usize,
+struct ArenaCollection<'arena, T: FixedSize, const CAPACITY: usize, const CHUNKS: usize> {
+    values: RefMut<'arena, [T; CAPACITY]>,
     len: usize,
+    _chunks: PhantomData<[(); CHUNKS]>,
 }
 
-impl<const N: usize> Length for ArenaCollection<'_, N> {
+impl<T: FixedSize, const CAPACITY: usize, const CHUNKS: usize> Length
+    for ArenaCollection<'_, T, CAPACITY, CHUNKS>
+{
     fn len(&self) -> usize {
         self.len
     }
 }
 
-impl<'arena, const N: usize> Collection for ArenaCollection<'arena, N> {
+impl<T: FixedSize, const CAPACITY: usize, const CHUNKS: usize> Borrow<[T]>
+    for ArenaCollection<'_, T, CAPACITY, CHUNKS>
+{
+    fn borrow(&self) -> &[T] {
+        &self.values[..self.len]
+    }
+}
+
+impl<'arena, T: FixedSize, const CAPACITY: usize, const CHUNKS: usize> Collection
+    for ArenaCollection<'arena, T, CAPACITY, CHUNKS>
+{
     type View<'collection>
-        = u32
+        = T
     where
         Self: 'collection;
-    type Owned = u32;
+    type Owned = T;
 
     fn view(&self, index: usize) -> Option<Self::View<'_>> {
-        if index >= self.len {
-            return None;
-        }
-        self.arena.values.get(self.start + index).map(Cell::get)
+        self.values.get(..self.len)?.get(index).copied()
     }
 
     type Iter<'collection>
-        = ArenaIter<'arena, N>
+        = core::iter::Copied<slice::Iter<'collection, T>>
     where
         Self: 'collection;
 
     fn iter_views(&self) -> Self::Iter<'_> {
-        ArenaIter {
-            arena: self.arena,
-            next: self.start,
-            end: self.start + self.len,
-        }
+        self.values[..self.len].iter().copied()
     }
 
-    type IntoIter = ArenaIter<'arena, N>;
+    type IntoIter = ArenaIntoIter<'arena, T, CAPACITY>;
 
     fn into_iter_owned(self) -> Self::IntoIter {
-        self.iter_views()
+        ArenaIntoIter {
+            values: self.values,
+            next: 0,
+            end: self.len,
+        }
     }
 }
 
-impl<'arena, const N: usize> CollectionAllocIn for ArenaCollection<'arena, N> {
-    type Alloc = &'arena FixedArena<N>;
+impl<'arena, T: FixedSize, const CAPACITY: usize, const CHUNKS: usize> CollectionAllocIn
+    for ArenaCollection<'arena, T, CAPACITY, CHUNKS>
+{
+    type Alloc = &'arena FixedArena<T, CAPACITY, CHUNKS>;
 
     fn with_capacity_in(capacity: usize, arena: Self::Alloc) -> Self {
         match Self::try_with_capacity_in(capacity, arena) {
@@ -99,11 +120,10 @@ impl<'arena, const N: usize> CollectionAllocIn for ArenaCollection<'arena, N> {
     }
 
     fn try_with_capacity_in(capacity: usize, arena: Self::Alloc) -> Result<Self, AllocError> {
-        let start = arena.try_allocate(capacity)?;
         Ok(Self {
-            arena,
-            start,
+            values: arena.try_allocate(capacity)?,
             len: 0,
+            _chunks: PhantomData,
         })
     }
 
@@ -111,39 +131,40 @@ impl<'arena, const N: usize> CollectionAllocIn for ArenaCollection<'arena, N> {
         iter: I,
         arena: Self::Alloc,
     ) -> Result<Self, AllocError> {
-        let mut values = [0; N];
+        let mut values = [None; CAPACITY];
         let mut len = 0;
         for value in iter {
-            if len == N {
+            if len == CAPACITY {
                 return Err(AllocError);
             }
-            values[len] = value;
+            values[len] = Some(value);
             len += 1;
         }
 
-        let start = arena.try_allocate(len)?;
-        for (index, value) in values.into_iter().take(len).enumerate() {
-            arena.values[start + index].set(value);
+        let mut collection = Self::try_with_capacity_in(len, arena)?;
+        for (index, value) in values.into_iter().take(len).flatten().enumerate() {
+            collection.values[index] = value;
         }
-        Ok(Self { arena, start, len })
+        collection.len = len;
+        Ok(collection)
     }
 }
 
 #[derive(Debug)]
-struct ArenaIter<'arena, const N: usize> {
-    arena: &'arena FixedArena<N>,
+struct ArenaIntoIter<'arena, T: FixedSize, const CAPACITY: usize> {
+    values: RefMut<'arena, [T; CAPACITY]>,
     next: usize,
     end: usize,
 }
 
-impl<const N: usize> Iterator for ArenaIter<'_, N> {
-    type Item = u32;
+impl<T: FixedSize, const CAPACITY: usize> Iterator for ArenaIntoIter<'_, T, CAPACITY> {
+    type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.next == self.end {
             return None;
         }
-        let value = self.arena.values.get(self.next).map(Cell::get);
+        let value = self.values.get(self.next).copied();
         self.next += 1;
         value
     }
@@ -154,26 +175,47 @@ impl<const N: usize> Iterator for ArenaIter<'_, N> {
     }
 }
 
-impl<const N: usize> ExactSizeIterator for ArenaIter<'_, N> {
+impl<T: FixedSize, const CAPACITY: usize> ExactSizeIterator for ArenaIntoIter<'_, T, CAPACITY> {
     fn len(&self) -> usize {
         self.end - self.next
     }
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+struct ArenaBuffer<'arena, const CAPACITY: usize, const CHUNKS: usize>(PhantomData<&'arena ()>);
+
+impl<'arena, const CAPACITY: usize, const CHUNKS: usize> Buffer
+    for ArenaBuffer<'arena, CAPACITY, CHUNKS>
+{
+    type For<T: FixedSize> = ArenaCollection<'arena, T, CAPACITY, CHUNKS>;
+}
+
 #[test]
 fn collection_alloc_in_uses_a_fixed_preallocated_arena() {
-    let arena = FixedArena::<6>::new();
+    let arena = FixedArena::<u32, 3, 2>::new(0);
     let first =
         ArenaCollection::try_from_iter_in([1, 2, 3], &arena).expect("first allocation fits");
     let second = ArenaCollection::try_from_iter_in([4, 5], &arena).expect("second allocation fits");
 
     assert_eq!(first.iter_views().collect::<Vec<_>>(), [1, 2, 3]);
     assert_eq!(second.into_iter_owned().collect::<Vec<_>>(), [4, 5]);
-    assert_eq!(arena.remaining(), 1);
+    assert_eq!(arena.remaining_chunks(), 0);
 
     assert!(matches!(
-        ArenaCollection::<'_, 6>::try_with_capacity_in(2, &arena),
+        ArenaCollection::try_with_capacity_in(1, &arena),
         Err(AllocError)
     ));
-    assert_eq!(arena.remaining(), 1);
+    assert_eq!(arena.remaining_chunks(), 0);
+}
+
+#[test]
+fn array_uses_the_arena_collection_as_backing() {
+    type Storage<'arena> = ArenaBuffer<'arena, 4, 1>;
+    type ArenaArray<'arena> = Array<u32, Storage<'arena>>;
+
+    let arena = FixedArena::<u32, 4, 1>::new(0);
+    let array = ArenaArray::try_from_iter_in([10, 20, 30], &arena).expect("array allocation fits");
+
+    assert_eq!(array.iter_views().collect::<Vec<_>>(), [10, 20, 30]);
+    assert_eq!(arena.remaining_chunks(), 0);
 }
