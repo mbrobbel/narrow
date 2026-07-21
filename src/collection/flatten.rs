@@ -1,7 +1,7 @@
 //! A collection that flattens an inner collection.
 
 use core::{
-    array,
+    array, fmt,
     iter::{self, Map, RepeatN, Zip},
     ops::{Deref, Range},
 };
@@ -15,6 +15,60 @@ use crate::{
 /// arrays with N items.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Flatten<C: Collection, const N: usize>(C);
+
+/// Error returned by [`Flatten::try_from_parts`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FlattenError {
+    /// The chunk size `N` is zero.
+    ZeroChunkSize,
+    /// The child collection length is not a multiple of `N`.
+    NotMultiple {
+        /// The length of the child collection.
+        len: usize,
+        /// The chunk size `N`.
+        n: usize,
+    },
+}
+
+impl fmt::Display for FlattenError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::ZeroChunkSize => write!(f, "chunk size N must be non-zero"),
+            Self::NotMultiple { len, n } => {
+                write!(f, "child length ({len}) is not a multiple of N ({n})")
+            }
+        }
+    }
+}
+
+impl core::error::Error for FlattenError {}
+
+impl<C: Collection, const N: usize> Flatten<C, N> {
+    /// Constructs a [`Flatten`] from a `child` collection.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`FlattenError`] when `N` is zero or when the length of the
+    /// child collection is not a multiple of `N`.
+    pub fn try_from_parts(child: C) -> Result<Self, FlattenError> {
+        match child.len().checked_rem(N) {
+            None => Err(FlattenError::ZeroChunkSize),
+            Some(0) => Ok(Self(child)),
+            Some(_) => Err(FlattenError::NotMultiple {
+                len: child.len(),
+                n: N,
+            }),
+        }
+    }
+
+    /// Returns the child collection of this [`Flatten`].
+    ///
+    /// This is the inverse of [`Flatten::try_from_parts`].
+    #[must_use]
+    pub fn into_parts(self) -> C {
+        self.0
+    }
+}
 
 impl<C: Collection, const N: usize> Length for Flatten<C, N> {
     fn len(&self) -> usize {
@@ -178,6 +232,28 @@ mod tests {
                 .map(|items| items.map(|item| *item)),
             Some([[5, 6], [7, 8]])
         );
+    }
+
+    #[test]
+    fn try_from_parts() {
+        let flatten =
+            Flatten::<Vec<i32>, 2>::try_from_parts(alloc::vec![1, 2, 3, 4]).expect("valid parts");
+        assert_eq!(flatten.len(), 2);
+        assert_eq!(flatten.into_parts(), alloc::vec![1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn try_from_parts_not_multiple() {
+        let error = Flatten::<Vec<i32>, 2>::try_from_parts(alloc::vec![1, 2, 3])
+            .expect_err("not a multiple");
+        assert_eq!(error, FlattenError::NotMultiple { len: 3, n: 2 });
+    }
+
+    #[test]
+    fn try_from_parts_zero_chunk() {
+        let error = Flatten::<Vec<i32>, 0>::try_from_parts(alloc::vec![1, 2, 3])
+            .expect_err("zero chunk size");
+        assert_eq!(error, FlattenError::ZeroChunkSize);
     }
 
     #[test]
