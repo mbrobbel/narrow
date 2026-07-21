@@ -4,7 +4,7 @@ use alloc::vec::{self, Vec};
 use core::{iter::Map, slice};
 
 use crate::collection::{
-    AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc, view::AsView,
+    AllocError, Collection, CollectionAllocIn, CollectionRealloc, view::AsView,
 };
 
 impl<T: for<'any> AsView<'any>> Collection for Vec<T> {
@@ -32,12 +32,6 @@ impl<T: for<'any> AsView<'any>> Collection for Vec<T> {
 
     fn into_iter_owned(self) -> Self::IntoIter {
         <Self as IntoIterator>::into_iter(self)
-    }
-}
-
-impl<T: for<'any> AsView<'any>> CollectionAlloc for Vec<T> {
-    fn with_capacity(capacity: usize) -> Self {
-        Vec::with_capacity(capacity)
     }
 }
 
@@ -117,9 +111,13 @@ impl<T: for<'any> AsView<'any>> CollectionRealloc for Vec<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::collection::CollectionAlloc;
 
     #[test]
     fn alloc_in() {
+        let reserved = <Vec<u32> as CollectionAlloc>::with_capacity(4);
+        assert!(reserved.capacity() >= 4);
+
         let collection = <Vec<u32> as CollectionAllocIn>::try_from_iter_in([1, 2, 3, 4], ())
             .expect("allocation succeeds");
         assert_eq!(collection, [1, 2, 3, 4]);
@@ -159,5 +157,18 @@ mod tests {
             Err(AllocError)
         );
         assert_eq!(collection, [1, 2, 3, 4]);
+    }
+
+    #[test]
+    #[should_panic(expected = "capacity overflow")]
+    fn alloc_in_capacity_overflow_panics() {
+        let _ = <Vec<u32> as CollectionAllocIn>::with_capacity_in(usize::MAX, ());
+    }
+
+    #[test]
+    #[should_panic(expected = "capacity overflow")]
+    fn reserve_capacity_overflow_panics() {
+        let mut collection = alloc::vec![1_u32, 2, 3, 4];
+        CollectionRealloc::reserve(&mut collection, usize::MAX);
     }
 }

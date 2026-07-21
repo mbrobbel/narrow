@@ -5,7 +5,7 @@ use core::fmt::Debug;
 
 use crate::{
     buffer::{Buffer, VecBuffer},
-    collection::{AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc},
+    collection::{AllocError, Collection, CollectionAllocIn, CollectionRealloc},
     layout::{ArrayItem, MemoryLayout},
     length::Length,
     nullability::{NonNullable, Nullability},
@@ -162,19 +162,6 @@ where
             Storage,
         >::try_from_iter_in(iter, alloc)
         .map(Self)
-    }
-}
-
-impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> CollectionAlloc
-    for VariableSizeList<T, Nulls, OffsetItem, Storage>
-where
-    Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>: CollectionAlloc,
-{
-    fn with_capacity(capacity: usize) -> Self {
-        Self(Nulls::Collection::<
-            Offsets<T::Memory<Storage>, OffsetItem, Storage>,
-            Storage,
-        >::with_capacity(capacity))
     }
 }
 

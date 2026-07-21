@@ -2,7 +2,7 @@ use core::fmt::Debug;
 
 use crate::{
     buffer::{Buffer, VecBuffer},
-    collection::{AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc},
+    collection::{AllocError, Collection, CollectionAllocIn, CollectionRealloc},
     fixed_size::FixedSize,
     layout::MemoryLayout,
     length::Length,
@@ -141,16 +141,6 @@ where
         alloc: Self::Alloc,
     ) -> Result<Self, AllocError> {
         Nulls::Collection::try_from_iter_in(iter, alloc).map(Self)
-    }
-}
-
-impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> CollectionAlloc
-    for FixedSizePrimitive<T, Nulls, Storage>
-where
-    Nulls::Collection<Storage::For<T>, Storage>: CollectionAlloc,
-{
-    fn with_capacity(capacity: usize) -> Self {
-        Self(Nulls::Collection::with_capacity(capacity))
     }
 }
 

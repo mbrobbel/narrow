@@ -326,16 +326,6 @@ impl<Storage: Buffer> Collection for Bitmap<Storage> {
     }
 }
 
-impl<Storage: Buffer<For<u8>: CollectionAlloc>> CollectionAlloc for Bitmap<Storage> {
-    fn with_capacity(capacity: usize) -> Self {
-        Self {
-            buffer: Storage::For::<u8>::with_capacity(bytes_for_bits(capacity)),
-            bits: 0,
-            offset: 0,
-        }
-    }
-}
-
 impl<Storage: Buffer<For<u8>: CollectionAllocIn>> CollectionAllocIn for Bitmap<Storage> {
     type Alloc = <Storage::For<u8> as CollectionAllocIn>::Alloc;
 
