@@ -12,6 +12,8 @@ pub mod vec;
 
 pub mod flatten;
 
+use core::fmt;
+
 use crate::{collection::owned::IntoOwned, length::Length};
 
 /// A collection of items.
@@ -47,6 +49,53 @@ pub trait Collection: Length {
 
     /// Returns an interator over items in this collection.
     fn into_iter_owned(self) -> Self::IntoIter;
+}
+
+/// Error returned when storage for a collection cannot be reserved.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AllocError;
+
+impl fmt::Display for AllocError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "collection capacity could not be reserved")
+    }
+}
+
+impl core::error::Error for AllocError {}
+
+/// An allocatable collection of items using a caller-provided allocator.
+pub trait CollectionAllocIn: Collection + Sized {
+    /// Allocator used to construct this collection.
+    type Alloc: Clone;
+
+    /// Constructs a new, empty collection with at least the specified capacity
+    /// using `alloc` and its native infallible failure handling.
+    #[must_use]
+    fn with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Self;
+
+    /// Constructs a collection from `iter` using `alloc` and its native
+    /// infallible failure handling.
+    #[must_use]
+    fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self;
+
+    /// Tries to construct an empty collection with the requested capacity.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`AllocError`] when the requested capacity cannot be
+    /// reserved.
+    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError>;
+
+    /// Tries to construct a collection from `iter`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`AllocError`] when storage for the items cannot be
+    /// reserved.
+    fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
+        iter: I,
+        alloc: Self::Alloc,
+    ) -> Result<Self, AllocError>;
 }
 
 /// An allocatable collection of items.
