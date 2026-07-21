@@ -1,8 +1,7 @@
 name: Release
 
 permissions:
-  pull-requests: write
-  contents: write
+  contents: read
 
 on:
   push:
@@ -17,6 +16,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-slim
+    permissions: {}
     environment:
       name: crates-io
     steps:
@@ -25,10 +25,12 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           token: ${{ steps.token.outputs.token }}
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -49,6 +51,7 @@ jobs:
   pr:
     name: PR
     runs-on: ubuntu-slim
+    permissions: {}
     concurrency:
       group: release-${{ github.ref }}
       cancel-in-progress: false
@@ -58,10 +61,13 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           token: ${{ steps.token.outputs.token }}
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
