@@ -138,6 +138,12 @@ impl<C: CollectionRealloc, const N: usize> CollectionRealloc for Flatten<C, N> {
     fn reserve(&mut self, additional: usize) {
         self.0.reserve(additional.strict_mul(N));
     }
+
+    fn truncate(&mut self, len: usize) {
+        if len < self.len() {
+            self.0.truncate(len.strict_mul(N));
+        }
+    }
 }
 
 /// A view of `Flatten`. This is an array with N views of the inner collection.
@@ -254,6 +260,28 @@ mod tests {
         let error = Flatten::<Vec<i32>, 0>::try_from_parts(alloc::vec![1, 2, 3])
             .expect_err("zero chunk size");
         assert_eq!(error, FlattenError::ZeroChunkSize);
+    }
+
+    #[test]
+    fn truncate() {
+        let mut flatten = [[1, 2], [3, 4], [5, 6]]
+            .into_iter()
+            .collect::<Flatten<Vec<i32>, 2>>();
+        assert_eq!(flatten.len(), 3);
+        flatten.truncate(1);
+        assert_eq!(flatten.len(), 1);
+        assert_eq!(flatten.owned(0), Some([1, 2]));
+    }
+
+    #[test]
+    fn truncate_beyond_len_is_noop() {
+        let mut flatten = [[1, 2], [3, 4]]
+            .into_iter()
+            .collect::<Flatten<Vec<i32>, 2>>();
+        // Must not overflow `len * N`.
+        flatten.truncate(usize::MAX);
+        assert_eq!(flatten.len(), 2);
+        assert_eq!(flatten.owned(1), Some([3, 4]));
     }
 
     #[test]
