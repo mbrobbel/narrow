@@ -221,6 +221,11 @@ impl<
         self.bitmap.reserve(additional);
         self.collection.reserve(additional);
     }
+
+    fn truncate(&mut self, len: usize) {
+        self.bitmap.truncate(len);
+        self.collection.truncate(len);
+    }
 }
 
 #[cfg(test)]
@@ -260,6 +265,18 @@ mod tests {
         let validity = IntoIterator::into_iter(input).collect::<Validity<Vec<_>>>();
         assert_eq!(validity.len(), 4);
         assert_eq!(Collection::iter_views(&validity).collect::<Vec<_>>(), input);
+    }
+
+    #[test]
+    fn truncate() {
+        let mut validity = [Some(1), None, Some(3), Some(4)]
+            .into_iter()
+            .collect::<Validity<Vec<_>>>();
+        validity.truncate(2);
+        assert_eq!(validity.len(), 2);
+        assert_eq!(validity.view(0), Some(Some(1)));
+        assert_eq!(validity.view(1), Some(None));
+        assert_eq!(validity.view(2), None);
     }
 
     #[test]

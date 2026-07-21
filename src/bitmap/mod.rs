@@ -289,6 +289,14 @@ impl<Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> CollectionRe
             self.buffer.reserve(bytes_for_bits(bits));
         }
     }
+
+    fn truncate(&mut self, len: usize) {
+        if len < self.bits {
+            // Bits beyond the logical end are unspecified; a subsequent
+            // extension overwrites them (see the buffer invariant).
+            self.bits = len;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -505,6 +513,23 @@ mod tests {
             assert_eq!(iter.len(), remaining);
         }
         assert_eq!(remaining, 0);
+    }
+
+    #[test]
+    fn truncate() {
+        let mut bitmap = Bitmap::<VecBuffer>::from_iter([true, false, true, true]);
+        bitmap.truncate(2);
+        assert_eq!(bitmap.len(), 2);
+        assert_eq!(bitmap.iter_views().collect::<Vec<_>>(), [true, false]);
+        // Truncating beyond the length is a no-op.
+        bitmap.truncate(5);
+        assert_eq!(bitmap.len(), 2);
+        // A subsequent extension overwrites the stale bits.
+        bitmap.extend([false, false]);
+        assert_eq!(
+            bitmap.iter_views().collect::<Vec<_>>(),
+            [true, false, false, false]
+        );
     }
 
     #[test]

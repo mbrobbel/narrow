@@ -43,4 +43,8 @@ impl<T: for<'any> AsView<'any>> CollectionRealloc for Vec<T> {
     fn reserve(&mut self, additional: usize) {
         Vec::reserve(self, additional);
     }
+
+    fn truncate(&mut self, len: usize) {
+        Vec::truncate(self, len);
+    }
 }
