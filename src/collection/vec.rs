@@ -80,6 +80,31 @@ impl<T: for<'any> AsView<'any>> CollectionAllocIn for Vec<T> {
 }
 
 impl<T: for<'any> AsView<'any>> CollectionRealloc for Vec<T> {
+    fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+        Vec::try_reserve(self, additional).map_err(|_| AllocError)
+    }
+
+    fn try_extend<I: IntoIterator<Item = Self::Owned>>(
+        &mut self,
+        iter: I,
+    ) -> Result<(), AllocError> {
+        let len = self.len();
+        let items = iter.into_iter();
+        let (additional, _) = items.size_hint();
+        Vec::try_reserve(self, additional).map_err(|_| AllocError)?;
+
+        for item in items {
+            // `Vec::push_within_capacity` would express this directly, but is nightly-only:
+            // https://doc.rust-lang.org/stable/std/vec/struct.Vec.html#method.push_within_capacity
+            if self.len() == self.capacity() && Vec::try_reserve(self, 1).is_err() {
+                Vec::truncate(self, len);
+                return Err(AllocError);
+            }
+            self.push(item);
+        }
+        Ok(())
+    }
+
     fn reserve(&mut self, additional: usize) {
         Vec::reserve(self, additional);
     }
@@ -105,9 +130,34 @@ mod tests {
 
     #[test]
     fn alloc_in_capacity_overflow() {
+        let mut collection = alloc::vec![1_u32, 2, 3, 4];
         assert_eq!(
             <Vec<u32> as CollectionAllocIn>::try_with_capacity_in(usize::MAX, ()),
             Err(AllocError)
         );
+        assert_eq!(
+            CollectionRealloc::try_reserve(&mut collection, usize::MAX),
+            Err(AllocError)
+        );
+        assert_eq!(collection, [1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn try_extend() {
+        let mut collection = alloc::vec![1_u32, 2];
+        CollectionRealloc::try_extend(&mut collection, (3..=5).filter(|_| true))
+            .expect("allocation succeeds");
+        assert_eq!(collection, [1, 2, 3, 4, 5]);
+    }
+
+    #[test]
+    fn try_extend_capacity_overflow() {
+        let mut collection = alloc::vec![1_u32, 2, 3, 4];
+        let items = core::iter::repeat_n(5, usize::MAX);
+        assert_eq!(
+            CollectionRealloc::try_extend(&mut collection, items),
+            Err(AllocError)
+        );
+        assert_eq!(collection, [1, 2, 3, 4]);
     }
 }

@@ -9,7 +9,7 @@ use core::{
 use crate::{
     bitmap::Bitmap,
     buffer::{Buffer, VecBuffer},
-    collection::{Collection, CollectionAlloc, CollectionRealloc, view::AsView},
+    collection::{AllocError, Collection, CollectionAlloc, CollectionRealloc, view::AsView},
     length::Length,
 };
 
@@ -266,6 +266,45 @@ impl<
     Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>,
 > CollectionRealloc for Validity<T, Storage>
 {
+    fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+        self.collection.try_reserve(additional)?;
+        self.bitmap.try_reserve(additional)
+    }
+
+    fn try_extend<I: IntoIterator<Item = Self::Owned>>(
+        &mut self,
+        iter: I,
+    ) -> Result<(), AllocError> {
+        let len = self.len();
+        self.collection.truncate(len);
+
+        let mut items = iter.into_iter();
+        loop {
+            let mut validity = [false; VALIDITY_CHUNK];
+            let mut count: usize = 0;
+            let values = items
+                .by_ref()
+                .take(VALIDITY_CHUNK)
+                .inspect(|item| {
+                    validity[count] = item.is_some();
+                    count = count.strict_add(1);
+                })
+                .map(Option::unwrap_or_default);
+            if let Err(error) = self.collection.try_extend(values) {
+                self.truncate(len);
+                return Err(error);
+            }
+            if let Err(error) = self.bitmap.try_extend(validity.into_iter().take(count)) {
+                self.truncate(len);
+                return Err(error);
+            }
+            if count < VALIDITY_CHUNK {
+                break;
+            }
+        }
+        Ok(())
+    }
+
     fn reserve(&mut self, additional: usize) {
         self.bitmap.reserve(additional);
         self.collection.reserve(additional);

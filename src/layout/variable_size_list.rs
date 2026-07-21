@@ -5,7 +5,7 @@ use core::fmt::Debug;
 
 use crate::{
     buffer::{Buffer, VecBuffer},
-    collection::{Collection, CollectionAlloc, CollectionRealloc},
+    collection::{AllocError, Collection, CollectionAlloc, CollectionRealloc},
     layout::{Layout, MemoryLayout},
     length::Length,
     nullability::{NonNullable, Nullability},
@@ -142,6 +142,17 @@ impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Collect
 where
     Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>: CollectionRealloc,
 {
+    fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+        self.0.try_reserve(additional)
+    }
+
+    fn try_extend<I: IntoIterator<Item = Self::Owned>>(
+        &mut self,
+        iter: I,
+    ) -> Result<(), AllocError> {
+        self.0.try_extend(iter)
+    }
+
     fn reserve(&mut self, additional: usize) {
         self.0.reserve(additional);
     }

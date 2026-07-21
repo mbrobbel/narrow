@@ -394,6 +394,60 @@ impl<Storage: Buffer<For<u8>: CollectionAllocIn>> CollectionAllocIn for Bitmap<S
 impl<Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> CollectionRealloc
     for Bitmap<Storage>
 {
+    fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+        if let Some(bits) = additional.checked_sub(self.trailing_bits()) {
+            self.buffer.try_reserve(bytes_for_bits(bits))?;
+        }
+        Ok(())
+    }
+
+    fn try_extend<I: IntoIterator<Item = Self::Owned>>(
+        &mut self,
+        iter: I,
+    ) -> Result<(), AllocError> {
+        let original_bits = self.bits;
+        let mut items = iter.into_iter().fuse();
+
+        let bit_index = self.bit_index(self.bits);
+        if bit_index != 0 {
+            let byte_index = self.byte_index(self.bits);
+            if let Some(byte) = self.buffer.borrow_mut().get_mut(byte_index) {
+                for index in bit_index..8 {
+                    if let Some(next) = items.next() {
+                        *byte = (*byte & !(1 << index)) | (u8::from(next) << index);
+                        self.bits = self.bits.strict_add(1);
+                    }
+                }
+            }
+        }
+
+        if let Some(first) = items.next() {
+            let mut consumed: usize = 0;
+            let mut packed = iter::once(first)
+                .chain(items)
+                .inspect(|_| consumed = consumed.strict_add(1))
+                .bit_packed();
+
+            let mut byte_index = self.byte_index(self.bits);
+            while let Some(byte) = self.buffer.borrow_mut().get_mut(byte_index) {
+                match packed.next() {
+                    Some(packed_byte) => {
+                        *byte = packed_byte;
+                        byte_index = byte_index.strict_add(1);
+                    }
+                    None => break,
+                }
+            }
+
+            if let Err(error) = self.buffer.try_extend(packed) {
+                self.bits = original_bits;
+                return Err(error);
+            }
+            self.bits = self.bits.strict_add(consumed);
+        }
+        Ok(())
+    }
+
     fn reserve(&mut self, additional: usize) {
         if let Some(bits) = additional.checked_sub(self.trailing_bits()) {
             self.buffer.reserve(bytes_for_bits(bits));

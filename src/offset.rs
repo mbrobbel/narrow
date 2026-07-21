@@ -16,7 +16,7 @@ use core::{
 
 use crate::{
     buffer::{Buffer, VecBuffer},
-    collection::{Collection, CollectionAlloc, CollectionRealloc, owned::IntoOwned},
+    collection::{AllocError, Collection, CollectionAlloc, CollectionRealloc, owned::IntoOwned},
     fixed_size::FixedSize,
     length::Length,
 };
@@ -337,11 +337,56 @@ impl<
     T: CollectionRealloc,
     OffsetItem: Offset,
     Storage: Buffer,
-    U: CollectionAlloc<Owned = T::Owned>,
+    U: CollectionAlloc<Owned = T::Owned> + FromIterator<T::Owned>,
 > CollectionRealloc for Offsets<T, OffsetItem, Storage, U>
 where
-    Storage::For<OffsetItem>: CollectionRealloc<Owned = OffsetItem>,
+    Storage::For<OffsetItem>: Extend<OffsetItem> + CollectionRealloc<Owned = OffsetItem>,
 {
+    fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+        self.data.try_reserve(additional)?;
+        self.offsets.try_reserve(additional)
+    }
+
+    fn try_extend<I: IntoIterator<Item = Self::Owned>>(
+        &mut self,
+        iter: I,
+    ) -> Result<(), AllocError> {
+        let rows = self.len();
+        let mut position = self
+            .offsets
+            .borrow()
+            .last()
+            .copied()
+            .expect("at least one value in the offsets buffer");
+        let data_len = position.as_usize();
+        self.data.truncate(data_len);
+
+        for collection in iter {
+            let next_result = position
+                .as_usize()
+                .checked_add(collection.len())
+                .and_then(|value| OffsetItem::try_from(value).ok())
+                .ok_or(AllocError);
+            let Ok(next_position) = next_result else {
+                self.offsets.truncate(rows.strict_add(1));
+                self.data.truncate(data_len);
+                return Err(AllocError);
+            };
+            if let Err(error) = self.data.try_extend(collection.into_iter_owned()) {
+                self.offsets.truncate(rows.strict_add(1));
+                self.data.truncate(data_len);
+                return Err(error);
+            }
+            if let Err(error) = self.offsets.try_extend(iter::once(next_position)) {
+                self.offsets.truncate(rows.strict_add(1));
+                self.data.truncate(data_len);
+                return Err(error);
+            }
+            position = next_position;
+        }
+        Ok(())
+    }
+
     fn reserve(&mut self, additional: usize) {
         // This is only enough for collections with len 1
         self.data.reserve(additional);

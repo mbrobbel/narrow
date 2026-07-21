@@ -187,6 +187,17 @@ impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> CollectionR
 where
     Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>: CollectionRealloc,
 {
+    fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+        self.0.try_reserve(additional)
+    }
+
+    fn try_extend<I: IntoIterator<Item = Self::Owned>>(
+        &mut self,
+        iter: I,
+    ) -> Result<(), AllocError> {
+        self.0.try_extend(iter)
+    }
+
     fn reserve(&mut self, additional: usize) {
         self.0.reserve(additional);
     }
