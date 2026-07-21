@@ -20,6 +20,8 @@ use crate::{
 /// collection.
 ///
 /// `Storage` is the [`Buffer`] of the [`Bitmap`].
+/// A prefix committed before a panicking extension remains readable, but an
+/// uncommitted suffix prevents subsequent extensions.
 pub struct Validity<T: Collection, Storage: Buffer = VecBuffer> {
     /// Collection that may contain null elements.
     collection: T,
@@ -164,15 +166,11 @@ impl<
 > Extend<Option<U>> for Validity<T, Storage>
 {
     fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
-        // The bitmap length is the length of this collection, so items added
-        // to the collection by an extension that panicked before their
-        // validity was flushed to the bitmap are not exposed. Surface such
-        // items as null to realign the bitmap with the collection before
-        // extending.
-        let stray = self.collection.len().strict_sub(self.bitmap.len());
-        if stray != 0 {
-            self.bitmap.extend(iter::repeat_n(false, stray));
-        }
+        assert_eq!(
+            self.collection.len(),
+            self.bitmap.len(),
+            "cannot extend Validity after an interrupted extension"
+        );
 
         // Buffer validity and flush it to the bitmap per chunk, instead of
         // extending the bitmap bit by bit: bulk bitmap extension uses the bit
@@ -183,7 +181,6 @@ impl<
         loop {
             let mut validity = [false; VALIDITY_CHUNK];
             let mut count: usize = 0;
-            let collection_len = self.collection.len();
             self.collection.extend(
                 items
                     .by_ref()
@@ -194,18 +191,7 @@ impl<
                     })
                     .map(Option::unwrap_or_default),
             );
-
-            // A nested collection can surface items left by its own
-            // interrupted extension before committing this chunk. Mark those
-            // recovered items as null before appending this chunk's validity.
-            let recovered = self
-                .collection
-                .len()
-                .strict_sub(collection_len)
-                .strict_sub(count);
-            self.bitmap.extend(
-                iter::repeat_n(false, recovered).chain(validity.iter().copied().take(count)),
-            );
+            self.bitmap.extend(validity.iter().take(count));
             if count < VALIDITY_CHUNK {
                 break;
             }
@@ -311,7 +297,7 @@ mod tests {
     }
 
     #[test]
-    fn extend_panic_realigns() {
+    fn extend_panic_preserves_prefix() {
         extern crate std;
         use std::panic::{AssertUnwindSafe, catch_unwind};
 
@@ -327,21 +313,41 @@ mod tests {
             .is_err()
         );
 
-        // The items of the interrupted extension are not exposed.
+        // Only the prefix committed before this extension remains visible.
         assert_eq!(validity.len(), 2);
         assert_eq!(validity.view(2), None);
 
-        // A subsequent extension surfaces them as null.
-        validity.extend([Some(5)]);
-        assert_eq!(validity.len(), 5);
+        assert!(catch_unwind(AssertUnwindSafe(|| validity.extend([Some(5)]))).is_err());
+        assert_eq!(validity.iter_views().collect::<Vec<_>>(), [Some(1), None]);
+    }
+
+    #[test]
+    fn extend_panic_preserves_committed_chunks() {
+        extern crate std;
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        let mut validity = Validity::<Vec<usize>>::default();
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| {
+                validity.extend(
+                    (0..(VALIDITY_CHUNK + 2))
+                        .map(Some)
+                        .chain(iter::once_with(|| panic!("boom"))),
+                );
+            }))
+            .is_err()
+        );
+
+        assert_eq!(validity.len(), VALIDITY_CHUNK);
+        assert_eq!(validity.view(0), Some(Some(0)));
         assert_eq!(
-            validity.iter_views().collect::<Vec<_>>(),
-            [Some(1), None, None, None, Some(5)]
+            validity.view(VALIDITY_CHUNK - 1),
+            Some(Some(VALIDITY_CHUNK - 1))
         );
     }
 
     #[test]
-    fn extend_panic_realigns_nested() {
+    fn extend_panic_prevents_nested_extension() {
         extern crate std;
         use std::panic::{AssertUnwindSafe, catch_unwind};
 
@@ -358,17 +364,7 @@ mod tests {
         );
 
         assert_eq!(validity.len(), 0);
-        validity.extend([Some(Some(3))]);
-        assert_eq!(validity.len(), 3);
-        assert_eq!(
-            validity.iter_views().collect::<Vec<_>>(),
-            [None, None, Some(Some(3))]
-        );
-
-        validity.extend([Some(Some(4))]);
-        assert_eq!(
-            validity.iter_views().collect::<Vec<_>>(),
-            [None, None, Some(Some(3)), Some(Some(4))]
-        );
+        assert!(catch_unwind(AssertUnwindSafe(|| validity.extend([Some(Some(3))]))).is_err());
+        assert_eq!(validity.len(), 0);
     }
 }

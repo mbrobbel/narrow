@@ -28,13 +28,13 @@ pub(crate) const fn bytes_for_bits(bits: usize) -> usize {
 /// A collection of bits.
 ///
 /// The validity bits are stored LSB-first in the bytes of a buffer.
+/// A prefix committed before a panicking extension remains readable. If a
+/// packed batch was interrupted, subsequent extensions panic.
 pub struct Bitmap<Storage: Buffer = VecBuffer> {
     /// The bits of the bitmap are stored in this buffer of bytes.
     ///
     /// Invariant: the buffer stores at least `bytes_for_bits(offset + bits)`
-    /// bytes. The values of padding bits and bytes beyond the logical end of
-    /// the bitmap (e.g. left behind by a panicking extension) are
-    /// unspecified; extensions overwrite them.
+    /// bytes. Padding bits and bytes beyond the logical end are unspecified.
     buffer: Storage::For<u8>,
 
     /// The number of bits stored in the bitmap.
@@ -43,6 +43,9 @@ pub struct Bitmap<Storage: Buffer = VecBuffer> {
     /// An offset (in number of bits) in the buffer. This enables zero-copy
     /// slicing of the bitmap on non-byte boundaries.
     offset: usize,
+
+    /// Whether a packed extension was interrupted.
+    poisoned: bool,
 }
 
 impl<Storage: Buffer<For<u8>: Debug>> Debug for Bitmap<Storage> {
@@ -51,6 +54,7 @@ impl<Storage: Buffer<For<u8>: Debug>> Debug for Bitmap<Storage> {
             .field("buffer", &self.buffer)
             .field("bits", &self.bits)
             .field("offset", &self.offset)
+            .field("poisoned", &self.poisoned)
             .finish()
     }
 }
@@ -102,6 +106,7 @@ impl<Storage: Buffer<For<u8>: Clone>> Clone for Bitmap<Storage> {
             buffer: self.buffer.clone(),
             bits: self.bits,
             offset: self.offset,
+            poisoned: self.poisoned,
         }
     }
 }
@@ -112,6 +117,7 @@ impl<Storage: Buffer<For<u8>: Default>> Default for Bitmap<Storage> {
             buffer: Default::default(),
             bits: 0,
             offset: 0,
+            poisoned: false,
         }
     }
 }
@@ -154,6 +160,11 @@ impl<T: Borrow<bool>, Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionReall
     for Bitmap<Storage>
 {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        assert!(
+            !self.poisoned,
+            "cannot extend Bitmap after an interrupted packed extension"
+        );
+
         // Fuse to prevent a resumable iterator from writing at positions
         // beyond the first `None`.
         let mut items = iter.into_iter().fuse();
@@ -178,10 +189,10 @@ impl<T: Borrow<bool>, Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionReall
         }
 
         // Use bit packed iterator for the remainder. The bit count is
-        // committed only when the extension completes: a panicking iterator
-        // leaves the bytes already written as unspecified data beyond the
-        // logical end, overwritten by subsequent extensions.
+        // committed only when the extension completes; a panic leaves the
+        // committed prefix readable and prevents subsequent extensions.
         if let Some(first) = items.next() {
+            self.poisoned = true;
             let mut consumed: usize = 0;
             let mut packed = iter::once(first)
                 .chain(items)
@@ -202,6 +213,7 @@ impl<T: Borrow<bool>, Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionReall
 
             self.buffer.extend(packed);
             self.bits = self.bits.strict_add(consumed);
+            self.poisoned = false;
         }
     }
 }
@@ -222,6 +234,7 @@ impl<T: Borrow<bool>, Storage: Buffer<For<u8>: CollectionAlloc>> FromIterator<T>
             buffer,
             bits,
             offset: 0,
+            poisoned: false,
         }
     }
 }
@@ -263,6 +276,7 @@ impl<Storage: Buffer<For<u8>: CollectionAlloc>> CollectionAlloc for Bitmap<Stora
             buffer: Storage::For::<u8>::with_capacity(bytes_for_bits(capacity)),
             bits: 0,
             offset: 0,
+            poisoned: false,
         }
     }
 }
@@ -362,6 +376,7 @@ mod tests {
             buffer: slice,
             bits: 3,
             offset: 4,
+            poisoned: false,
         };
         assert_eq!(bitmap.len(), 3);
         assert_eq!(bitmap.leading_bits(), 4);
@@ -412,7 +427,7 @@ mod tests {
     }
 
     #[test]
-    fn extend_panic_safety_packed() {
+    fn extend_panic_prevents_packed_extension() {
         extern crate std;
         use std::panic::{AssertUnwindSafe, catch_unwind};
 
@@ -434,14 +449,10 @@ mod tests {
         assert_eq!(bitmap.len(), 0);
         assert_eq!(bitmap.view(0), None);
 
-        // A subsequent extension observes a consistent state and overwrites
-        // the bytes left behind by the interrupted extension.
-        bitmap.extend([false, true, false]);
-        assert_eq!(bitmap.len(), 3);
-        assert_eq!(
-            bitmap.iter_views().collect::<Vec<_>>(),
-            [false, true, false]
-        );
+        // The committed prefix remains readable, but the interrupted packed
+        // batch prevents further extension.
+        assert!(catch_unwind(AssertUnwindSafe(|| bitmap.extend([false, true, false]))).is_err());
+        assert_eq!(bitmap.len(), 0);
     }
 
     #[test]
@@ -474,6 +485,7 @@ mod tests {
             buffer: alloc::vec![0b1111_1111],
             bits: 4,
             offset: 0,
+            poisoned: false,
         };
         bitmap.extend([false, true]);
         assert_eq!(bitmap.len(), 6);
@@ -501,6 +513,7 @@ mod tests {
             buffer: &[0b1010_0000, 0b0000_0101],
             bits: 7,
             offset: 4,
+            poisoned: false,
         };
         let mut iter = bitmap.into_iter_owned();
         let mut remaining = 7;
