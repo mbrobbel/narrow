@@ -2,7 +2,7 @@ use core::fmt::Debug;
 
 use crate::{
     buffer::{Buffer, VecBuffer},
-    collection::{Collection, CollectionAlloc, CollectionRealloc},
+    collection::{AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc},
     fixed_size::FixedSize,
     layout::MemoryLayout,
     length::Length,
@@ -114,6 +114,33 @@ impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> Collection
 
     fn into_iter_owned(self) -> Self::IntoIter {
         self.0.into_iter_owned()
+    }
+}
+
+impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> CollectionAllocIn
+    for FixedSizePrimitive<T, Nulls, Storage>
+where
+    Nulls::Collection<Storage::For<T>, Storage>: CollectionAllocIn,
+{
+    type Alloc = <Nulls::Collection<Storage::For<T>, Storage> as CollectionAllocIn>::Alloc;
+
+    fn with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Self {
+        Self(Nulls::Collection::with_capacity_in(capacity, alloc))
+    }
+
+    fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self {
+        Self(Nulls::Collection::from_iter_in(iter, alloc))
+    }
+
+    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError> {
+        Nulls::Collection::try_with_capacity_in(capacity, alloc).map(Self)
+    }
+
+    fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
+        iter: I,
+        alloc: Self::Alloc,
+    ) -> Result<Self, AllocError> {
+        Nulls::Collection::try_from_iter_in(iter, alloc).map(Self)
     }
 }
 

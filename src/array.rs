@@ -4,7 +4,7 @@ use core::fmt::Debug;
 
 use crate::{
     buffer::{Buffer, VecBuffer},
-    collection::{Collection, CollectionAlloc, CollectionRealloc},
+    collection::{AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc},
     layout::Layout,
     length::Length,
 };
@@ -104,6 +104,32 @@ impl<T: Layout, Storage: Buffer> Collection for Array<T, Storage> {
 
     fn into_iter_owned(self) -> Self::IntoIter {
         self.0.into_iter_owned()
+    }
+}
+
+impl<T: Layout, Storage: Buffer> CollectionAllocIn for Array<T, Storage>
+where
+    T::Memory<Storage>: CollectionAllocIn,
+{
+    type Alloc = <T::Memory<Storage> as CollectionAllocIn>::Alloc;
+
+    fn with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Self {
+        Self(T::Memory::<Storage>::with_capacity_in(capacity, alloc))
+    }
+
+    fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self {
+        Self(T::Memory::<Storage>::from_iter_in(iter, alloc))
+    }
+
+    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError> {
+        T::Memory::<Storage>::try_with_capacity_in(capacity, alloc).map(Self)
+    }
+
+    fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
+        iter: I,
+        alloc: Self::Alloc,
+    ) -> Result<Self, AllocError> {
+        T::Memory::<Storage>::try_from_iter_in(iter, alloc).map(Self)
     }
 }
 

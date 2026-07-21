@@ -2,7 +2,10 @@ use core::fmt::Debug;
 
 use crate::{
     buffer::{Buffer, VecBuffer},
-    collection::{Collection, CollectionAlloc, CollectionRealloc, flatten::Flatten},
+    collection::{
+        AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
+        flatten::Flatten,
+    },
     layout::{Layout, MemoryLayout},
     length::Length,
     nullability::{NonNullable, Nullability},
@@ -128,6 +131,44 @@ impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> Collection
 
     fn into_iter_owned(self) -> Self::IntoIter {
         self.0.into_iter_owned()
+    }
+}
+
+impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> CollectionAllocIn
+    for FixedSizeList<T, N, Nulls, Storage>
+where
+    Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>: CollectionAllocIn,
+{
+    type Alloc =
+        <Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage> as CollectionAllocIn>::Alloc;
+
+    fn with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Self {
+        Self(
+            Nulls::Collection::<Flatten<T::Memory<Storage>, N>, Storage>::with_capacity_in(
+                capacity, alloc,
+            ),
+        )
+    }
+
+    fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self {
+        Self(
+            Nulls::Collection::<Flatten<T::Memory<Storage>, N>, Storage>::from_iter_in(iter, alloc),
+        )
+    }
+
+    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError> {
+        Nulls::Collection::<Flatten<T::Memory<Storage>, N>, Storage>::try_with_capacity_in(
+            capacity, alloc,
+        )
+        .map(Self)
+    }
+
+    fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
+        iter: I,
+        alloc: Self::Alloc,
+    ) -> Result<Self, AllocError> {
+        Nulls::Collection::<Flatten<T::Memory<Storage>, N>, Storage>::try_from_iter_in(iter, alloc)
+            .map(Self)
     }
 }
 
