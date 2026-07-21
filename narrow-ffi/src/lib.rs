@@ -13,15 +13,47 @@ use core::{
 };
 
 /// Dictionary values are ordered.
+///
+/// # Examples
+///
+/// ```
+/// use narrow_ffi::ARROW_FLAG_DICTIONARY_ORDERED;
+///
+/// assert_eq!(ARROW_FLAG_DICTIONARY_ORDERED, 1);
+/// ```
 pub const ARROW_FLAG_DICTIONARY_ORDERED: i64 = 1;
 
 /// The field is nullable.
+///
+/// # Examples
+///
+/// ```
+/// use narrow_ffi::ARROW_FLAG_NULLABLE;
+///
+/// assert_eq!(ARROW_FLAG_NULLABLE, 2);
+/// ```
 pub const ARROW_FLAG_NULLABLE: i64 = 2;
 
 /// Map keys are sorted.
+///
+/// # Examples
+///
+/// ```
+/// use narrow_ffi::ARROW_FLAG_MAP_KEYS_SORTED;
+///
+/// assert_eq!(ARROW_FLAG_MAP_KEYS_SORTED, 4);
+/// ```
 pub const ARROW_FLAG_MAP_KEYS_SORTED: i64 = 4;
 
 /// The Arrow C Data Interface schema structure.
+///
+/// # Examples
+///
+/// ```
+/// use narrow_ffi::ArrowSchema;
+///
+/// assert!(ArrowSchema::default().is_released());
+/// ```
 #[repr(C)]
 #[derive(Debug)]
 pub struct ArrowSchema {
@@ -47,6 +79,14 @@ pub struct ArrowSchema {
 
 impl ArrowSchema {
     /// Returns whether this schema has been released.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow_ffi::ArrowSchema;
+    ///
+    /// assert!(ArrowSchema::default().is_released());
+    /// ```
     #[must_use]
     pub const fn is_released(&self) -> bool {
         self.release.is_none()
@@ -80,6 +120,14 @@ impl Drop for ArrowSchema {
 }
 
 /// The Arrow C Data Interface array structure.
+///
+/// # Examples
+///
+/// ```
+/// use narrow_ffi::ArrowArray;
+///
+/// assert!(ArrowArray::default().is_released());
+/// ```
 #[repr(C)]
 #[derive(Debug)]
 pub struct ArrowArray {
@@ -107,6 +155,14 @@ pub struct ArrowArray {
 
 impl ArrowArray {
     /// Returns whether this array has been released.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow_ffi::ArrowArray;
+    ///
+    /// assert!(ArrowArray::default().is_released());
+    /// ```
     #[must_use]
     pub const fn is_released(&self) -> bool {
         self.release.is_none()
