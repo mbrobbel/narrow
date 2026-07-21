@@ -3,7 +3,7 @@ extern crate alloc;
 use alloc::{boxed::Box, vec::Vec};
 use core::{iter::Map, slice};
 
-use crate::collection::{AllocError, Collection, CollectionAlloc, CollectionAllocIn, view::AsView};
+use crate::collection::{AllocError, Collection, CollectionAllocIn, view::AsView};
 
 impl<T: for<'any> AsView<'any>> Collection for Box<[T]> {
     type View<'collection>
@@ -30,12 +30,6 @@ impl<T: for<'any> AsView<'any>> Collection for Box<[T]> {
 
     fn into_iter_owned(self) -> Self::IntoIter {
         <Box<[T]> as IntoIterator>::into_iter(self)
-    }
-}
-
-impl<T: for<'any> AsView<'any>> CollectionAlloc for Box<[T]> {
-    fn with_capacity(capacity: usize) -> Self {
-        Vec::with_capacity(capacity).into_boxed_slice()
     }
 }
 

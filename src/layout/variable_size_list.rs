@@ -5,7 +5,7 @@ use core::fmt::Debug;
 
 use crate::{
     buffer::{Buffer, VecBuffer},
-    collection::{AllocError, Collection, CollectionAlloc, CollectionRealloc},
+    collection::{AllocError, Collection, CollectionAllocIn, CollectionRealloc},
     layout::{Layout, MemoryLayout},
     length::Length,
     nullability::{NonNullable, Nullability},
@@ -124,16 +124,44 @@ impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Collect
     }
 }
 
-impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> CollectionAlloc
+impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> CollectionAllocIn
     for VariableSizeList<T, Nulls, OffsetItem, Storage>
 where
-    Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>: CollectionAlloc,
+    Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>: CollectionAllocIn,
 {
-    fn with_capacity(capacity: usize) -> Self {
+    type Alloc = <Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage> as CollectionAllocIn>::Alloc;
+
+    fn with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Self {
         Self(Nulls::Collection::<
             Offsets<T::Memory<Storage>, OffsetItem, Storage>,
             Storage,
-        >::with_capacity(capacity))
+        >::with_capacity_in(capacity, alloc))
+    }
+
+    fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self {
+        Self(Nulls::Collection::<
+            Offsets<T::Memory<Storage>, OffsetItem, Storage>,
+            Storage,
+        >::from_iter_in(iter, alloc))
+    }
+
+    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError> {
+        Nulls::Collection::<
+            Offsets<T::Memory<Storage>, OffsetItem, Storage>,
+            Storage,
+        >::try_with_capacity_in(capacity, alloc)
+        .map(Self)
+    }
+
+    fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
+        iter: I,
+        alloc: Self::Alloc,
+    ) -> Result<Self, AllocError> {
+        Nulls::Collection::<
+            Offsets<T::Memory<Storage>, OffsetItem, Storage>,
+            Storage,
+        >::try_from_iter_in(iter, alloc)
+        .map(Self)
     }
 }
 

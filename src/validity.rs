@@ -9,7 +9,9 @@ use core::{
 use crate::{
     bitmap::Bitmap,
     buffer::{Buffer, VecBuffer},
-    collection::{AllocError, Collection, CollectionAlloc, CollectionRealloc, view::AsView},
+    collection::{
+        AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc, view::AsView,
+    },
     length::Length,
 };
 
@@ -193,7 +195,7 @@ impl<T: Collection, Storage: Buffer> Collection for Validity<T, Storage> {
 impl<
     U: Default,
     T: CollectionAlloc<Owned = U>,
-    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>,
+    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionAlloc + CollectionRealloc>,
 > FromIterator<Option<U>> for Validity<T, Storage>
 {
     fn from_iter<I: IntoIterator<Item = Option<U>>>(iter: I) -> Self {
@@ -250,20 +252,52 @@ impl<
 
 impl<
     T: CollectionRealloc<Owned: Default>,
-    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>,
-> CollectionAlloc for Validity<T, Storage>
+    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc<Alloc = T::Alloc>>,
+> CollectionAllocIn for Validity<T, Storage>
 {
-    fn with_capacity(capacity: usize) -> Self {
-        Self {
-            collection: T::with_capacity(capacity),
-            bitmap: Bitmap::with_capacity(capacity),
-        }
+    type Alloc = T::Alloc;
+
+    fn with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Self {
+        let collection = T::with_capacity_in(capacity, alloc.clone());
+        let bitmap = Bitmap::<Storage>::with_capacity_in(capacity, alloc);
+        Self { collection, bitmap }
+    }
+
+    fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self {
+        let items = iter.into_iter();
+        let (lower_bound, upper_bound) = items.size_hint();
+        let mut bitmap =
+            Bitmap::<Storage>::with_capacity_in(upper_bound.unwrap_or(lower_bound), alloc.clone());
+        let collection = T::from_iter_in(
+            items
+                .inspect(|item| bitmap.extend(iter::once(item.is_some())))
+                .map(Option::unwrap_or_default),
+            alloc,
+        );
+        Self { collection, bitmap }
+    }
+
+    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError> {
+        let collection = T::try_with_capacity_in(capacity, alloc.clone())?;
+        let bitmap = Bitmap::<Storage>::try_with_capacity_in(capacity, alloc)?;
+        Ok(Self { collection, bitmap })
+    }
+
+    fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
+        iter: I,
+        alloc: Self::Alloc,
+    ) -> Result<Self, AllocError> {
+        let items = iter.into_iter();
+        let (lower_bound, upper_bound) = items.size_hint();
+        let mut validity = Self::try_with_capacity_in(upper_bound.unwrap_or(lower_bound), alloc)?;
+        validity.try_extend(items)?;
+        Ok(validity)
     }
 }
 
 impl<
     T: CollectionRealloc<Owned: Default>,
-    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>,
+    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc<Alloc = T::Alloc>>,
 > CollectionRealloc for Validity<T, Storage>
 {
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {

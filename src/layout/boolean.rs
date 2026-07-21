@@ -3,7 +3,7 @@ use core::fmt::Debug;
 use crate::{
     bitmap::Bitmap,
     buffer::{Buffer, VecBuffer},
-    collection::{AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc},
+    collection::{AllocError, Collection, CollectionAllocIn, CollectionRealloc},
     layout::MemoryLayout,
     length::Length,
     nullability::{NonNullable, Nullability},
@@ -128,15 +128,6 @@ where
         alloc: Self::Alloc,
     ) -> Result<Self, AllocError> {
         Nulls::Collection::try_from_iter_in(iter, alloc).map(Self)
-    }
-}
-
-impl<Nulls: Nullability, Storage: Buffer> CollectionAlloc for Boolean<Nulls, Storage>
-where
-    Nulls::Collection<Bitmap<Storage>, Storage>: CollectionAlloc,
-{
-    fn with_capacity(capacity: usize) -> Self {
-        Self(Nulls::Collection::with_capacity(capacity))
     }
 }
 

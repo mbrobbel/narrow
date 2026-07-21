@@ -4,7 +4,7 @@ use core::fmt::Debug;
 
 use crate::{
     buffer::{Buffer, VecBuffer},
-    collection::{AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc},
+    collection::{AllocError, Collection, CollectionAllocIn, CollectionRealloc},
     layout::Layout,
     length::Length,
 };
@@ -133,15 +133,6 @@ where
     }
 }
 
-impl<T: Layout, Storage: Buffer> CollectionAlloc for Array<T, Storage>
-where
-    T::Memory<Storage>: CollectionAlloc,
-{
-    fn with_capacity(capacity: usize) -> Self {
-        Self(T::Memory::<Storage>::with_capacity(capacity))
-    }
-}
-
 impl<T: Layout, Storage: Buffer> CollectionRealloc for Array<T, Storage>
 where
     T::Memory<Storage>: CollectionRealloc,
@@ -183,6 +174,24 @@ mod tests {
         assert_eq!(restored.len(), 4);
         assert_eq!(restored.owned(0), Some(1));
         assert_eq!(restored.owned(3), Some(4));
+    }
+
+    #[test]
+    fn alloc_in_nested() {
+        type Nested = Array<Option<alloc::vec::Vec<i32>>>;
+
+        let infallible =
+            <Nested as CollectionAllocIn>::from_iter_in([Some(alloc::vec![1, 2]), None], ());
+        assert_eq!(infallible.owned(0), Some(Some(alloc::vec![1, 2])));
+        assert_eq!(infallible.owned(1), Some(None));
+
+        let mut array =
+            <Nested as CollectionAllocIn>::try_from_iter_in([Some(alloc::vec![1, 2]), None], ())
+                .expect("allocation succeeds");
+        array
+            .try_extend([Some(alloc::vec![3, 4, 5])])
+            .expect("allocation succeeds");
+        assert_eq!(array.owned(2), Some(Some(alloc::vec![3, 4, 5])));
     }
 
     #[test]
