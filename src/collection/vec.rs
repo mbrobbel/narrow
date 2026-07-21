@@ -35,6 +35,10 @@ impl<T: for<'any> AsView<'any>> Collection for Vec<T> {
     }
 }
 
+// The analogous fallible and allocator-aware `Vec` constructors are nightly-only:
+// https://doc.rust-lang.org/stable/std/vec/struct.Vec.html#method.try_with_capacity
+// https://doc.rust-lang.org/stable/std/vec/struct.Vec.html#method.with_capacity_in
+// This stable implementation represents the global allocator as `()`.
 impl<T: for<'any> AsView<'any>> CollectionAllocIn for Vec<T> {
     type Alloc = ();
 
