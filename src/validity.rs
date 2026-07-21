@@ -217,7 +217,7 @@ const VALIDITY_CHUNK: usize = 1024;
 impl<
     U: Default,
     T: CollectionRealloc<Owned = U>,
-    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc<Alloc = T::Alloc>>,
+    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>,
 > Extend<Option<U>> for Validity<T, Storage>
 {
     fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
@@ -292,19 +292,6 @@ impl<
         let mut validity = Self::try_with_capacity_in(upper_bound.unwrap_or(lower_bound), alloc)?;
         validity.try_extend(items)?;
         Ok(validity)
-    }
-}
-
-impl<
-    T: CollectionAlloc<Owned: Default> + CollectionRealloc,
-    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionAlloc + CollectionRealloc<Alloc = T::Alloc>>,
-> CollectionAlloc for Validity<T, Storage>
-{
-    fn with_capacity(capacity: usize) -> Self {
-        Self {
-            collection: T::with_capacity(capacity),
-            bitmap: Bitmap::with_capacity(capacity),
-        }
     }
 }
 

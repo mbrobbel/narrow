@@ -105,10 +105,26 @@ pub trait CollectionAllocIn: Collection + Sized {
     ) -> Result<Self, AllocError>;
 }
 
-/// An allocatable collection of items.
-pub trait CollectionAlloc: Collection + Default + FromIterator<Self::Owned> {
+/// An allocatable collection of items using its default allocator.
+///
+/// This trait is implemented automatically for every [`CollectionAllocIn`]
+/// whose allocator implements [`Default`] and which can be constructed through
+/// [`Default`] and [`FromIterator`].
+pub trait CollectionAlloc:
+    CollectionAllocIn<Alloc: Default> + Default + FromIterator<Self::Owned>
+{
     /// Constructs a new, empty collection with at least the specified capacity.
-    fn with_capacity(capacity: usize) -> Self;
+    #[must_use]
+    fn with_capacity(capacity: usize) -> Self {
+        <Self as CollectionAllocIn>::with_capacity_in(capacity, Default::default())
+    }
+}
+
+impl<C> CollectionAlloc for C
+where
+    C: CollectionAllocIn + Default + FromIterator<C::Owned>,
+    C::Alloc: Default,
+{
 }
 
 /// A re-allocatable collection of items.
@@ -157,6 +173,13 @@ pub(crate) mod tests {
     use crate::collection::view::AsView;
 
     use super::*;
+
+    fn assert_collection_alloc<C: CollectionAlloc>() {}
+
+    #[test]
+    fn collection_alloc_is_blanket_implemented() {
+        assert_collection_alloc::<Vec<u32>>();
+    }
 
     pub(crate) fn round_trip<
         C: for<'any> CollectionAlloc<Owned = T, View<'any>: Debug>,
