@@ -145,6 +145,10 @@ where
     fn reserve(&mut self, additional: usize) {
         self.0.reserve(additional);
     }
+
+    fn truncate(&mut self, len: usize) {
+        self.0.truncate(len);
+    }
 }
 
 #[cfg(test)]
