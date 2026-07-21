@@ -36,6 +36,14 @@ impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer>
     }
 
     /// Returns the backing collection of this [`VariableSizeList`].
+    #[must_use]
+    pub fn buffer(
+        &self,
+    ) -> &Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage> {
+        &self.0
+    }
+
+    /// Returns the backing collection of this [`VariableSizeList`].
     ///
     /// This is the inverse of [`VariableSizeList::from_buffer`].
     #[must_use]

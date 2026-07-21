@@ -64,6 +64,12 @@ impl<C: Collection, const N: usize> Flatten<C, N> {
         }
     }
 
+    /// Returns the child collection.
+    #[must_use]
+    pub fn child(&self) -> &C {
+        &self.0
+    }
+
     /// Returns the child collection of this [`Flatten`].
     ///
     /// This is the inverse of [`Flatten::try_from_parts`].

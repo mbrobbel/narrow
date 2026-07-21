@@ -172,6 +172,18 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Offsets<T, OffsetIte
         })
     }
 
+    /// Returns the flat data collection.
+    #[must_use]
+    pub fn data(&self) -> &T {
+        &self.data
+    }
+
+    /// Returns the offsets buffer.
+    #[must_use]
+    pub fn offsets(&self) -> &Storage::For<OffsetItem> {
+        &self.offsets
+    }
+
     /// Returns the data collection and offsets buffer of these [`Offsets`].
     ///
     /// This is the inverse of [`Offsets::try_from_parts`].

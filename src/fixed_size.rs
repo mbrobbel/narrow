@@ -28,6 +28,7 @@ impl FixedSize for f64 {}
 /// An array with `N` `FixedSize` items per item.
 ///
 /// Just using [T; N] causes overlapping impls.
+#[repr(transparent)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FixedSizeArray<T: FixedSize, const N: usize>([T; N]);
 

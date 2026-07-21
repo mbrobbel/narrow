@@ -26,6 +26,12 @@ impl<Nulls: Nullability, Storage: Buffer> Boolean<Nulls, Storage> {
     }
 
     /// Returns the backing collection of this [`Boolean`].
+    #[must_use]
+    pub fn buffer(&self) -> &Nulls::Collection<Bitmap<Storage>, Storage> {
+        &self.0
+    }
+
+    /// Returns the backing collection of this [`Boolean`].
     ///
     /// This is the inverse of [`Boolean::from_buffer`].
     #[must_use]

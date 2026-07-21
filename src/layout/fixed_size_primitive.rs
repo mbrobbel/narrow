@@ -31,6 +31,12 @@ impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> FixedSizePrimitive<T, Nu
     }
 
     /// Returns the backing collection of this [`FixedSizePrimitive`].
+    #[must_use]
+    pub fn buffer(&self) -> &Nulls::Collection<Storage::For<T>, Storage> {
+        &self.0
+    }
+
+    /// Returns the backing collection of this [`FixedSizePrimitive`].
     ///
     /// This is the inverse of [`FixedSizePrimitive::from_buffer`].
     #[must_use]

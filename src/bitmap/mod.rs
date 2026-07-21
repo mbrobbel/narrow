@@ -117,6 +117,18 @@ impl<Storage: Buffer> Bitmap<Storage> {
         }
     }
 
+    /// Returns the backing byte buffer of this [`Bitmap`].
+    #[must_use]
+    pub fn buffer(&self) -> &Storage::For<u8> {
+        &self.buffer
+    }
+
+    /// Returns the bit offset into the backing byte buffer.
+    #[must_use]
+    pub fn bit_offset(&self) -> usize {
+        self.offset
+    }
+
     /// Returns the raw parts of this [`Bitmap`]: its byte buffer, the number of
     /// bits it stores, and the bit offset into the buffer.
     ///

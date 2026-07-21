@@ -20,6 +20,12 @@ impl<T: ArrayItem, Storage: Buffer> Array<T, Storage> {
     }
 
     /// Returns the backing memory layout of this [`Array`].
+    #[must_use]
+    pub fn buffer(&self) -> &T::Memory<Storage> {
+        &self.0
+    }
+
+    /// Returns the backing memory layout of this [`Array`].
     ///
     /// This is the inverse of [`Array::from_buffer`].
     #[must_use]

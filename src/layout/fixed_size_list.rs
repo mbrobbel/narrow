@@ -30,6 +30,12 @@ impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer>
     }
 
     /// Returns the backing collection of this [`FixedSizeList`].
+    #[must_use]
+    pub fn buffer(&self) -> &Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage> {
+        &self.0
+    }
+
+    /// Returns the backing collection of this [`FixedSizeList`].
     ///
     /// This is the inverse of [`FixedSizeList::from_buffer`].
     #[must_use]

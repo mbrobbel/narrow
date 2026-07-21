@@ -77,6 +77,18 @@ impl<T: Collection, Storage: Buffer> Validity<T, Storage> {
         }
     }
 
+    /// Returns the collection that may contain null elements.
+    #[must_use]
+    pub fn collection(&self) -> &T {
+        &self.collection
+    }
+
+    /// Returns the validity bitmap.
+    #[must_use]
+    pub fn bitmap(&self) -> &Bitmap<Storage> {
+        &self.bitmap
+    }
+
     /// Returns the collection and validity bitmap of this [`Validity`].
     ///
     /// This is the inverse of [`Validity::try_from_parts`].
