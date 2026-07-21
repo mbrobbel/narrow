@@ -90,14 +90,6 @@ pub trait BitmapRef {
     fn bitmap_ref(&self) -> &Bitmap<Self::Storage>;
 }
 
-impl<Storage: Buffer> BitmapRef for Bitmap<Storage> {
-    type Storage = Storage;
-
-    fn bitmap_ref(&self) -> &Bitmap<Self::Storage> {
-        self
-    }
-}
-
 impl<Storage: Buffer> BufferRef for Bitmap<Storage> {
     type Buffer = Storage::For<u8>;
 

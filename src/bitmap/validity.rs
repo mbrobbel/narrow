@@ -1,7 +1,7 @@
 //! Validity information stored in a bitmap.
 
-use super::{Bitmap, BitmapRef};
-use crate::{buffer::Buffer, collection::Collection};
+use super::BitmapRef;
+use crate::collection::Collection;
 
 /// A bitmap storing the validity of elements in a collection.
 pub trait ValidityBitmap: BitmapRef {
@@ -53,5 +53,3 @@ pub trait ValidityBitmap: BitmapRef {
         self.bitmap_ref().iter_views().all(|valid| valid)
     }
 }
-
-impl<Storage: Buffer> ValidityBitmap for Bitmap<Storage> {}
