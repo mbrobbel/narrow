@@ -12,6 +12,22 @@ use crate::{
 /// An array of items `T`, stored using their [`Layout`] memory.
 pub struct Array<T: Layout, Storage: Buffer = VecBuffer>(T::Memory<Storage>);
 
+impl<T: Layout, Storage: Buffer> Array<T, Storage> {
+    /// Constructs an [`Array`] from its backing memory layout.
+    #[must_use]
+    pub fn from_buffer(memory: T::Memory<Storage>) -> Self {
+        Self(memory)
+    }
+
+    /// Returns the backing memory layout of this [`Array`].
+    ///
+    /// This is the inverse of [`Array::from_buffer`].
+    #[must_use]
+    pub fn into_buffer(self) -> T::Memory<Storage> {
+        self.0
+    }
+}
+
 impl<T: Layout, Storage: Buffer> Clone for Array<T, Storage>
 where
     T::Memory<Storage>: Clone,
@@ -107,6 +123,10 @@ where
     fn reserve(&mut self, additional: usize) {
         self.0.reserve(additional);
     }
+
+    fn truncate(&mut self, len: usize) {
+        self.0.truncate(len);
+    }
 }
 
 #[cfg(test)]
@@ -118,6 +138,15 @@ mod tests {
     use crate::{collection::tests::round_trip, fixed_size::FixedSizeArray};
 
     use super::*;
+
+    #[test]
+    fn from_buffer() {
+        let array = [1, 2, 3, 4].into_iter().collect::<Array<i32>>();
+        let restored = Array::<i32>::from_buffer(array.into_buffer());
+        assert_eq!(restored.len(), 4);
+        assert_eq!(restored.owned(0), Some(1));
+        assert_eq!(restored.owned(3), Some(4));
+    }
 
     #[test]
     fn collection() {
