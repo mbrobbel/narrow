@@ -128,12 +128,6 @@ impl<C: Collection, const N: usize> Collection for Flatten<C, N> {
     }
 }
 
-impl<C: CollectionAlloc, const N: usize> CollectionAlloc for Flatten<C, N> {
-    fn with_capacity(capacity: usize) -> Self {
-        Self(C::with_capacity(capacity.strict_mul(N)))
-    }
-}
-
 impl<C: CollectionAllocIn, const N: usize> CollectionAllocIn for Flatten<C, N> {
     type Alloc = C::Alloc;
 

@@ -296,19 +296,6 @@ impl<
 }
 
 impl<
-    T: CollectionAlloc<Owned: Default> + CollectionRealloc,
-    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionAlloc + CollectionRealloc<Alloc = T::Alloc>>,
-> CollectionAlloc for Validity<T, Storage>
-{
-    fn with_capacity(capacity: usize) -> Self {
-        Self {
-            collection: T::with_capacity(capacity),
-            bitmap: Bitmap::with_capacity(capacity),
-        }
-    }
-}
-
-impl<
     T: CollectionRealloc<Owned: Default>,
     Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc<Alloc = T::Alloc>>,
 > CollectionRealloc for Validity<T, Storage>

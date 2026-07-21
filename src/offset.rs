@@ -376,26 +376,6 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
 }
 
 impl<
-    T: CollectionAlloc + CollectionRealloc,
-    OffsetItem: Offset,
-    Storage: Buffer,
-    U: CollectionAlloc<Owned = T::Owned> + FromIterator<T::Owned>,
-> CollectionAlloc for Offsets<T, OffsetItem, Storage, U>
-where
-    Storage::For<OffsetItem>: Extend<OffsetItem>
-        + CollectionAlloc<Owned = OffsetItem>
-        + CollectionRealloc<Owned = OffsetItem, Alloc = T::Alloc>,
-{
-    fn with_capacity(capacity: usize) -> Self {
-        Self {
-            data: T::with_capacity(capacity),
-            offsets: Storage::For::<OffsetItem>::with_capacity(capacity),
-            _collection: PhantomData,
-        }
-    }
-}
-
-impl<
     T: CollectionRealloc,
     OffsetItem: Offset,
     Storage: Buffer,
@@ -406,6 +386,7 @@ where
         Extend<OffsetItem> + CollectionRealloc<Owned = OffsetItem, Alloc = T::Alloc>,
 {
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+        // This is only enough for collections with len 1
         self.data.try_reserve(additional)?;
         self.offsets.try_reserve(additional)
     }
