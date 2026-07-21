@@ -7,7 +7,10 @@ use core::{
 };
 
 use crate::{
-    collection::{Collection, CollectionAlloc, CollectionRealloc, owned::IntoOwned},
+    collection::{
+        AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
+        owned::IntoOwned,
+    },
     length::Length,
 };
 
@@ -131,6 +134,30 @@ impl<C: Collection, const N: usize> Collection for Flatten<C, N> {
 impl<C: CollectionAlloc, const N: usize> CollectionAlloc for Flatten<C, N> {
     fn with_capacity(capacity: usize) -> Self {
         Self(C::with_capacity(capacity.strict_mul(N)))
+    }
+}
+
+impl<C: CollectionAllocIn, const N: usize> CollectionAllocIn for Flatten<C, N> {
+    type Alloc = C::Alloc;
+
+    fn with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Self {
+        Self(C::with_capacity_in(capacity.strict_mul(N), alloc))
+    }
+
+    fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self {
+        Self(C::from_iter_in(iter.into_iter().flatten(), alloc))
+    }
+
+    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError> {
+        let child_capacity = capacity.checked_mul(N).ok_or(AllocError)?;
+        C::try_with_capacity_in(child_capacity, alloc).map(Self)
+    }
+
+    fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
+        iter: I,
+        alloc: Self::Alloc,
+    ) -> Result<Self, AllocError> {
+        C::try_from_iter_in(iter.into_iter().flatten(), alloc).map(Self)
     }
 }
 

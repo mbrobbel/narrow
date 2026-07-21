@@ -15,7 +15,7 @@ use unpacked::{BitUnpacked, BitUnpackedExt};
 
 use crate::{
     buffer::{Buffer, VecBuffer},
-    collection::{Collection, CollectionAlloc, CollectionRealloc},
+    collection::{AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc},
     length::Length,
 };
 
@@ -333,6 +333,61 @@ impl<Storage: Buffer<For<u8>: CollectionAlloc>> CollectionAlloc for Bitmap<Stora
             bits: 0,
             offset: 0,
         }
+    }
+}
+
+impl<Storage: Buffer<For<u8>: CollectionAllocIn>> CollectionAllocIn for Bitmap<Storage> {
+    type Alloc = <Storage::For<u8> as CollectionAllocIn>::Alloc;
+
+    fn with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Self {
+        Self {
+            buffer: Storage::For::<u8>::with_capacity_in(bytes_for_bits(capacity), alloc),
+            bits: 0,
+            offset: 0,
+        }
+    }
+
+    fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self {
+        let mut bits: usize = 0;
+        let buffer = Storage::For::<u8>::from_iter_in(
+            iter.into_iter()
+                .inspect(|_| bits = bits.strict_add(1))
+                .bit_packed(),
+            alloc,
+        );
+        Self {
+            buffer,
+            bits,
+            offset: 0,
+        }
+    }
+
+    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError> {
+        Storage::For::<u8>::try_with_capacity_in(bytes_for_bits(capacity), alloc).map(|buffer| {
+            Self {
+                buffer,
+                bits: 0,
+                offset: 0,
+            }
+        })
+    }
+
+    fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
+        iter: I,
+        alloc: Self::Alloc,
+    ) -> Result<Self, AllocError> {
+        let mut bits: usize = 0;
+        let buffer = Storage::For::<u8>::try_from_iter_in(
+            iter.into_iter()
+                .inspect(|_| bits = bits.strict_add(1))
+                .bit_packed(),
+            alloc,
+        )?;
+        Ok(Self {
+            buffer,
+            bits,
+            offset: 0,
+        })
     }
 }
 
