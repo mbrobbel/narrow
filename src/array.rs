@@ -186,6 +186,24 @@ mod tests {
     }
 
     #[test]
+    fn alloc_in_nested() {
+        type Nested = Array<Option<alloc::vec::Vec<i32>>>;
+
+        let infallible =
+            <Nested as CollectionAllocIn>::from_iter_in([Some(alloc::vec![1, 2]), None], ());
+        assert_eq!(infallible.owned(0), Some(Some(alloc::vec![1, 2])));
+        assert_eq!(infallible.owned(1), Some(None));
+
+        let mut array =
+            <Nested as CollectionAllocIn>::try_from_iter_in([Some(alloc::vec![1, 2]), None], ())
+                .expect("allocation succeeds");
+        array
+            .try_extend([Some(alloc::vec![3, 4, 5])])
+            .expect("allocation succeeds");
+        assert_eq!(array.owned(2), Some(Some(alloc::vec![3, 4, 5])));
+    }
+
+    #[test]
     fn collection() {
         // Boolean
         round_trip::<Array<_>, _>([true, false, true, true]);

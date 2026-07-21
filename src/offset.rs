@@ -16,7 +16,10 @@ use core::{
 
 use crate::{
     buffer::{Buffer, VecBuffer},
-    collection::{AllocError, Collection, CollectionAlloc, CollectionRealloc, owned::IntoOwned},
+    collection::{
+        AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
+        owned::IntoOwned,
+    },
     fixed_size::FixedSize,
     length::Length,
 };
@@ -203,6 +206,63 @@ where
             offsets,
             _collection: PhantomData,
         }
+    }
+}
+
+impl<
+    T: CollectionAllocIn + CollectionRealloc,
+    OffsetItem: Offset,
+    Storage: Buffer,
+    U: CollectionAlloc<Owned = T::Owned> + FromIterator<T::Owned>,
+> CollectionAllocIn for Offsets<T, OffsetItem, Storage, U>
+where
+    Storage::For<OffsetItem>: Extend<OffsetItem>
+        + CollectionAllocIn<Alloc = T::Alloc>
+        + CollectionRealloc<Owned = OffsetItem>,
+{
+    type Alloc = T::Alloc;
+
+    fn with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Self {
+        let data = T::with_capacity_in(capacity, alloc.clone());
+        let mut offsets =
+            Storage::For::<OffsetItem>::with_capacity_in(capacity.strict_add(1), alloc);
+        offsets.extend(iter::once(OffsetItem::default()));
+        Self {
+            data,
+            offsets,
+            _collection: PhantomData,
+        }
+    }
+
+    fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self {
+        let items = iter.into_iter();
+        let (lower_bound, upper_bound) = items.size_hint();
+        let mut offsets = Self::with_capacity_in(upper_bound.unwrap_or(lower_bound), alloc);
+        offsets.extend(items);
+        offsets
+    }
+
+    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError> {
+        let offset_capacity = capacity.checked_add(1).ok_or(AllocError)?;
+        let data = T::try_with_capacity_in(capacity, alloc.clone())?;
+        let mut offsets = Storage::For::<OffsetItem>::try_with_capacity_in(offset_capacity, alloc)?;
+        offsets.try_extend(iter::once(OffsetItem::default()))?;
+        Ok(Self {
+            data,
+            offsets,
+            _collection: PhantomData,
+        })
+    }
+
+    fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
+        iter: I,
+        alloc: Self::Alloc,
+    ) -> Result<Self, AllocError> {
+        let items = iter.into_iter();
+        let (lower_bound, upper_bound) = items.size_hint();
+        let mut offsets = Self::try_with_capacity_in(upper_bound.unwrap_or(lower_bound), alloc)?;
+        offsets.try_extend(items)?;
+        Ok(offsets)
     }
 }
 
