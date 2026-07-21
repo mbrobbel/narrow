@@ -6,24 +6,24 @@ use crate::{
         AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
         flatten::Flatten,
     },
-    layout::{Layout, MemoryLayout},
+    layout::{ArrayItem, MemoryLayout},
     length::Length,
     nullability::{NonNullable, Nullability},
 };
 
 pub struct FixedSizeList<
-    T: Layout,
+    T: ArrayItem,
     const N: usize,
     Nulls: Nullability = NonNullable,
     Storage: Buffer = VecBuffer,
 >(Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>);
 
-impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> MemoryLayout
+impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer> MemoryLayout
     for FixedSizeList<T, N, Nulls, Storage>
 {
 }
 
-impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer>
+impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer>
     FixedSizeList<T, N, Nulls, Storage>
 {
     /// Constructs a [`FixedSizeList`] from its backing collection.
@@ -41,7 +41,7 @@ impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer>
     }
 }
 
-impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> Debug
+impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer> Debug
     for FixedSizeList<T, N, Nulls, Storage>
 where
     Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>: Debug,
@@ -51,7 +51,7 @@ where
     }
 }
 
-impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> Clone
+impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer> Clone
     for FixedSizeList<T, N, Nulls, Storage>
 where
     Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>: Clone,
@@ -61,7 +61,7 @@ where
     }
 }
 
-impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> Default
+impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer> Default
     for FixedSizeList<T, N, Nulls, Storage>
 where
     Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>: Default,
@@ -71,7 +71,7 @@ where
     }
 }
 
-impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> Extend<Nulls::Item<[T; N]>>
+impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer> Extend<Nulls::Item<[T; N]>>
     for FixedSizeList<T, N, Nulls, Storage>
 where
     Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>: Extend<Nulls::Item<[T; N]>>,
@@ -81,7 +81,7 @@ where
     }
 }
 
-impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer>
+impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer>
     FromIterator<Nulls::Item<[T; N]>> for FixedSizeList<T, N, Nulls, Storage>
 where
     Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>: FromIterator<Nulls::Item<[T; N]>>,
@@ -91,7 +91,7 @@ where
     }
 }
 
-impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> Length
+impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer> Length
     for FixedSizeList<T, N, Nulls, Storage>
 {
     fn len(&self) -> usize {
@@ -99,7 +99,7 @@ impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> Length
     }
 }
 
-impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> Collection
+impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer> Collection
     for FixedSizeList<T, N, Nulls, Storage>
 {
     type View<'collection>
@@ -134,7 +134,7 @@ impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> Collection
     }
 }
 
-impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> CollectionAllocIn
+impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer> CollectionAllocIn
     for FixedSizeList<T, N, Nulls, Storage>
 where
     Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>: CollectionAllocIn,
@@ -172,7 +172,7 @@ where
     }
 }
 
-impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> CollectionAlloc
+impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer> CollectionAlloc
     for FixedSizeList<T, N, Nulls, Storage>
 where
     Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>: CollectionAlloc,
@@ -182,7 +182,7 @@ where
     }
 }
 
-impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> CollectionRealloc
+impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer> CollectionRealloc
     for FixedSizeList<T, N, Nulls, Storage>
 where
     Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>: CollectionRealloc,

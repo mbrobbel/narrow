@@ -6,25 +6,25 @@ use core::fmt::Debug;
 use crate::{
     buffer::{Buffer, VecBuffer},
     collection::{AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc},
-    layout::{Layout, MemoryLayout},
+    layout::{ArrayItem, MemoryLayout},
     length::Length,
     nullability::{NonNullable, Nullability},
     offset::{Offset, Offsets},
 };
 
 pub struct VariableSizeList<
-    T: Layout,
+    T: ArrayItem,
     Nulls: Nullability = NonNullable,
     OffsetItem: Offset = i32,
     Storage: Buffer = VecBuffer,
 >(Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>);
 
-impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> MemoryLayout
+impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> MemoryLayout
     for VariableSizeList<T, Nulls, OffsetItem, Storage>
 {
 }
 
-impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer>
+impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer>
     VariableSizeList<T, Nulls, OffsetItem, Storage>
 {
     /// Constructs a [`VariableSizeList`] from its backing collection.
@@ -46,7 +46,7 @@ impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer>
     }
 }
 
-impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Debug
+impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Debug
     for VariableSizeList<T, Nulls, OffsetItem, Storage>
 where
     Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>: Debug,
@@ -56,7 +56,7 @@ where
     }
 }
 
-impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Default
+impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Default
     for VariableSizeList<T, Nulls, OffsetItem, Storage>
 where
     Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>: Default,
@@ -66,8 +66,8 @@ where
     }
 }
 
-impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Extend<Nulls::Item<Vec<T>>>
-    for VariableSizeList<T, Nulls, OffsetItem, Storage>
+impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer>
+    Extend<Nulls::Item<Vec<T>>> for VariableSizeList<T, Nulls, OffsetItem, Storage>
 where
     Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>:
         Extend<Nulls::Item<Vec<T>>>,
@@ -77,7 +77,7 @@ where
     }
 }
 
-impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer>
+impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer>
     FromIterator<Nulls::Item<Vec<T>>> for VariableSizeList<T, Nulls, OffsetItem, Storage>
 where
     Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>:
@@ -88,7 +88,7 @@ where
     }
 }
 
-impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Length
+impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Length
     for VariableSizeList<T, Nulls, OffsetItem, Storage>
 {
     fn len(&self) -> usize {
@@ -96,7 +96,7 @@ impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Length
     }
 }
 
-impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Collection
+impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Collection
     for VariableSizeList<T, Nulls, OffsetItem, Storage>
 {
     type View<'collection> = <Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage> as Collection>::View<'collection>
@@ -124,7 +124,7 @@ impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Collect
     }
 }
 
-impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> CollectionAllocIn
+impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> CollectionAllocIn
     for VariableSizeList<T, Nulls, OffsetItem, Storage>
 where
     Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>: CollectionAllocIn,
@@ -165,7 +165,7 @@ where
     }
 }
 
-impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> CollectionAlloc
+impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> CollectionAlloc
     for VariableSizeList<T, Nulls, OffsetItem, Storage>
 where
     Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>: CollectionAlloc,
@@ -178,7 +178,7 @@ where
     }
 }
 
-impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> CollectionRealloc
+impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> CollectionRealloc
     for VariableSizeList<T, Nulls, OffsetItem, Storage>
 where
     Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>: CollectionRealloc,

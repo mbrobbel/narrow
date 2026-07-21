@@ -5,14 +5,14 @@ use core::fmt::Debug;
 use crate::{
     buffer::{Buffer, VecBuffer},
     collection::{AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc},
-    layout::Layout,
+    layout::ArrayItem,
     length::Length,
 };
 
-/// An array of items `T`, stored using their [`Layout`] memory.
-pub struct Array<T: Layout, Storage: Buffer = VecBuffer>(T::Memory<Storage>);
+/// An array of items `T`, stored using their [`ArrayItem`] memory.
+pub struct Array<T: ArrayItem, Storage: Buffer = VecBuffer>(T::Memory<Storage>);
 
-impl<T: Layout, Storage: Buffer> Array<T, Storage> {
+impl<T: ArrayItem, Storage: Buffer> Array<T, Storage> {
     /// Constructs an [`Array`] from its backing memory layout.
     #[must_use]
     pub fn from_buffer(memory: T::Memory<Storage>) -> Self {
@@ -28,7 +28,7 @@ impl<T: Layout, Storage: Buffer> Array<T, Storage> {
     }
 }
 
-impl<T: Layout, Storage: Buffer> Clone for Array<T, Storage>
+impl<T: ArrayItem, Storage: Buffer> Clone for Array<T, Storage>
 where
     T::Memory<Storage>: Clone,
 {
@@ -37,7 +37,7 @@ where
     }
 }
 
-impl<T: Layout, Storage: Buffer> Debug for Array<T, Storage>
+impl<T: ArrayItem, Storage: Buffer> Debug for Array<T, Storage>
 where
     T::Memory<Storage>: Debug,
 {
@@ -46,7 +46,7 @@ where
     }
 }
 
-impl<T: Layout, Storage: Buffer> Default for Array<T, Storage>
+impl<T: ArrayItem, Storage: Buffer> Default for Array<T, Storage>
 where
     T::Memory<Storage>: Default,
 {
@@ -55,7 +55,7 @@ where
     }
 }
 
-impl<T: Layout, U, Storage: Buffer> Extend<U> for Array<T, Storage>
+impl<T: ArrayItem, U, Storage: Buffer> Extend<U> for Array<T, Storage>
 where
     T::Memory<Storage>: Extend<U>,
 {
@@ -64,13 +64,13 @@ where
     }
 }
 
-impl<T: Layout, Storage: Buffer> Length for Array<T, Storage> {
+impl<T: ArrayItem, Storage: Buffer> Length for Array<T, Storage> {
     fn len(&self) -> usize {
         self.0.len()
     }
 }
 
-impl<T: Layout, U, Storage: Buffer> FromIterator<U> for Array<T, Storage>
+impl<T: ArrayItem, U, Storage: Buffer> FromIterator<U> for Array<T, Storage>
 where
     T::Memory<Storage>: FromIterator<U>,
 {
@@ -79,7 +79,7 @@ where
     }
 }
 
-impl<T: Layout, Storage: Buffer> Collection for Array<T, Storage> {
+impl<T: ArrayItem, Storage: Buffer> Collection for Array<T, Storage> {
     type View<'collection>
         = <T::Memory<Storage> as Collection>::View<'collection>
     where
@@ -107,7 +107,7 @@ impl<T: Layout, Storage: Buffer> Collection for Array<T, Storage> {
     }
 }
 
-impl<T: Layout, Storage: Buffer> CollectionAllocIn for Array<T, Storage>
+impl<T: ArrayItem, Storage: Buffer> CollectionAllocIn for Array<T, Storage>
 where
     T::Memory<Storage>: CollectionAllocIn,
 {
@@ -133,7 +133,7 @@ where
     }
 }
 
-impl<T: Layout, Storage: Buffer> CollectionAlloc for Array<T, Storage>
+impl<T: ArrayItem, Storage: Buffer> CollectionAlloc for Array<T, Storage>
 where
     T::Memory<Storage>: CollectionAlloc,
 {
@@ -142,7 +142,7 @@ where
     }
 }
 
-impl<T: Layout, Storage: Buffer> CollectionRealloc for Array<T, Storage>
+impl<T: ArrayItem, Storage: Buffer> CollectionRealloc for Array<T, Storage>
 where
     T::Memory<Storage>: CollectionRealloc,
 {
