@@ -2,6 +2,9 @@
 
 mod packed;
 mod unpacked;
+mod validity;
+
+pub use validity::ValidityBitmap;
 
 use core::{
     borrow::{Borrow, BorrowMut},

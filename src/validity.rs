@@ -7,7 +7,7 @@ use core::{
 };
 
 use crate::{
-    bitmap::{Bitmap, BitmapRef},
+    bitmap::{Bitmap, BitmapRef, ValidityBitmap},
     buffer::{Buffer, VecBuffer},
     collection::{
         AllocError, ChildRef, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
@@ -102,6 +102,8 @@ impl<T: Collection, Storage: Buffer> BitmapRef for Validity<T, Storage> {
         &self.bitmap
     }
 }
+
+impl<T: Collection, Storage: Buffer> ValidityBitmap for Validity<T, Storage> {}
 
 impl<T: Collection + Debug, Storage: Buffer> Debug for Validity<T, Storage>
 where
