@@ -22,7 +22,7 @@ use crate::{
 /// Returns the number of bytes required to store the given number of bits.
 #[inline]
 pub(crate) const fn bytes_for_bits(bits: usize) -> usize {
-    bits.saturating_add(7) / 8
+    bits.div_ceil(8)
 }
 
 /// Error returned by [`Bitmap::try_from_parts`].
@@ -362,6 +362,11 @@ mod tests {
     use alloc::vec::Vec;
 
     use super::*;
+
+    #[test]
+    fn bytes_for_bits_does_not_saturate_before_rounding() {
+        assert_eq!(bytes_for_bits(usize::MAX), usize::MAX / 8 + 1);
+    }
 
     #[test]
     fn from_iter() {
