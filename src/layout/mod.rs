@@ -12,7 +12,7 @@ use crate::{
         boolean::Boolean, fixed_size_list::FixedSizeList, fixed_size_primitive::FixedSizePrimitive,
         variable_size_list::VariableSizeList,
     },
-    nullability::{NonNullable, Nullable},
+    nullability::{NonNullable, Nullability, Nullable},
 };
 
 pub mod boolean;
@@ -24,40 +24,79 @@ pub mod variable_size_list;
 /// A physical memory layout.
 pub trait MemoryLayout: Collection {}
 
-/// Mapping types to their physical memory layout.
-pub trait Layout {
+/// Mapping a base type to its physical memory layout.
+pub trait Layout: Sized {
     /// The Arrow physical memory layout of this type.
+    type Memory<Nulls: Nullability, Storage: Buffer>: MemoryLayout<Owned = Nulls::Item<Self>>;
+}
+
+/// Marker for base types whose layout supports Arrow validity bitmaps.
+pub trait NullableLayout: Layout {}
+
+/// Mapping an array item type to its complete physical memory layout.
+pub trait ArrayItem: Sized {
+    /// The Arrow physical memory layout of this array item type.
     type Memory<Storage: Buffer>: MemoryLayout<Owned = Self>;
 }
 
-impl Layout for bool {
-    type Memory<Storage: Buffer> = Boolean<NonNullable, Storage>;
+impl<T: Layout> ArrayItem for T {
+    type Memory<Storage: Buffer> = T::Memory<NonNullable, Storage>;
 }
 
-impl Layout for Option<bool> {
-    type Memory<Storage: Buffer> = Boolean<Nullable, Storage>;
+impl<T: NullableLayout> ArrayItem for Option<T> {
+    type Memory<Storage: Buffer> = T::Memory<Nullable, Storage>;
 }
+
+impl Layout for bool {
+    type Memory<Nulls: Nullability, Storage: Buffer> = Boolean<Nulls, Storage>;
+}
+
+impl NullableLayout for bool {}
 
 impl<T: FixedSize> Layout for T {
-    type Memory<Storage: Buffer> = FixedSizePrimitive<T, NonNullable, Storage>;
+    type Memory<Nulls: Nullability, Storage: Buffer> = FixedSizePrimitive<T, Nulls, Storage>;
 }
 
-impl<T: FixedSize> Layout for Option<T> {
-    type Memory<Storage: Buffer> = FixedSizePrimitive<T, Nullable, Storage>;
+impl<T: FixedSize> NullableLayout for T {}
+
+impl<T: ArrayItem, const N: usize> Layout for [T; N] {
+    type Memory<Nulls: Nullability, Storage: Buffer> = FixedSizeList<T, N, Nulls, Storage>;
 }
 
-impl<T: Layout, const N: usize> Layout for [T; N] {
-    type Memory<Storage: Buffer> = FixedSizeList<T, N, NonNullable, Storage>;
+impl<T: ArrayItem, const N: usize> NullableLayout for [T; N] {}
+
+impl<T: ArrayItem> Layout for Vec<T> {
+    type Memory<Nulls: Nullability, Storage: Buffer> = VariableSizeList<T, Nulls, i32, Storage>;
 }
 
-impl<T: Layout, const N: usize> Layout for Option<[T; N]> {
-    type Memory<Storage: Buffer> = FixedSizeList<T, N, Nullable, Storage>;
-}
+impl<T: ArrayItem> NullableLayout for Vec<T> {}
 
-impl<T: Layout> Layout for Vec<T> {
-    type Memory<Storage: Buffer> = VariableSizeList<T, NonNullable, i32, Storage>;
-}
+#[cfg(test)]
+mod tests {
+    extern crate alloc;
 
-impl<T: Layout> Layout for Option<Vec<T>> {
-    type Memory<Storage: Buffer> = VariableSizeList<T, Nullable, i32, Storage>;
+    use alloc::vec::Vec;
+
+    use crate::{
+        buffer::VecBuffer,
+        layout::{
+            ArrayItem, boolean::Boolean, fixed_size_list::FixedSizeList,
+            fixed_size_primitive::FixedSizePrimitive, variable_size_list::VariableSizeList,
+        },
+        nullability::{NonNullable, Nullable},
+    };
+
+    fn assert_memory<T: ArrayItem<Memory<VecBuffer> = Memory>, Memory>() {}
+
+    #[test]
+    fn array_item_selects_nullability() {
+        assert_memory::<bool, Boolean<NonNullable, VecBuffer>>();
+        assert_memory::<Option<bool>, Boolean<Nullable, VecBuffer>>();
+        assert_memory::<i32, FixedSizePrimitive<i32, NonNullable, VecBuffer>>();
+        assert_memory::<Option<i32>, FixedSizePrimitive<i32, Nullable, VecBuffer>>();
+        assert_memory::<[Option<i32>; 2], FixedSizeList<Option<i32>, 2>>();
+        assert_memory::<Option<[Option<i32>; 2]>, FixedSizeList<Option<i32>, 2, Nullable>>();
+        assert_memory::<Vec<Option<i32>>, VariableSizeList<Option<i32>>>();
+        assert_memory::<Option<Vec<Option<i32>>>, VariableSizeList<Option<i32>, Nullable>>();
+    }
 }
