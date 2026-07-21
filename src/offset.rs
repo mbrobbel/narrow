@@ -107,6 +107,10 @@ where
             .copied()
             .expect("at least one value in the offsets buffer");
 
+        // Drop any data beyond the last offset (e.g. an unreferenced suffix)
+        // so appended items are addressed correctly.
+        self.data.truncate(position.as_usize());
+
         iter.into_iter().for_each(|collection| {
             position = position.strict_add(collection.len().try_into().expect("overflow"));
             self.offsets.extend(iter::once(position));
@@ -438,6 +442,24 @@ mod tests {
         assert_eq!(offsets.len(), 1);
         assert_eq!(offsets.owned(0), Some(vec![1, 2]));
         assert_eq!(offsets.owned(1), None);
+    }
+
+    #[test]
+    fn extend_reconciles_trailing_data() {
+        // Offsets referencing only the first list, with an unreferenced
+        // trailing element (`99`) in the data buffer.
+        let mut offsets: Offsets<Vec<i32>> = Offsets {
+            data: vec![1, 2, 99],
+            offsets: vec![0, 2],
+            _collection: PhantomData,
+        };
+        assert_eq!(offsets.len(), 1);
+        assert_eq!(offsets.owned(0), Some(vec![1, 2]));
+        // Appending must overwrite the unreferenced trailing data, not append
+        // past it.
+        offsets.extend([vec![3]]);
+        assert_eq!(offsets.len(), 2);
+        assert_eq!(offsets.owned(1), Some(vec![3]));
     }
 
     #[test]
