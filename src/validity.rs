@@ -20,6 +20,8 @@ use crate::{
 /// collection.
 ///
 /// `Storage` is the [`Buffer`] of the [`Bitmap`].
+/// A panicking extension leaves committed chunks visible. The next extension
+/// discards any uncommitted suffix.
 pub struct Validity<T: Collection, Storage: Buffer = VecBuffer> {
     /// Collection that may contain null elements.
     collection: T,
@@ -27,6 +29,59 @@ pub struct Validity<T: Collection, Storage: Buffer = VecBuffer> {
     /// The validity bitmap with validity information for the items in the
     /// data.
     bitmap: Bitmap<Storage>,
+}
+
+/// Error returned by [`Validity::try_from_parts`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ValidityError {
+    /// The collection and the validity bitmap have different lengths.
+    LengthMismatch {
+        /// The length of the collection.
+        collection: usize,
+        /// The length of the validity bitmap.
+        bitmap: usize,
+    },
+}
+
+impl fmt::Display for ValidityError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::LengthMismatch { collection, bitmap } => write!(
+                f,
+                "collection length ({collection}) does not match bitmap length ({bitmap})"
+            ),
+        }
+    }
+}
+
+impl core::error::Error for ValidityError {}
+
+impl<T: Collection, Storage: Buffer> Validity<T, Storage> {
+    /// Constructs a [`Validity`] from a `collection` and its validity `bitmap`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ValidityError`] when the length of the collection does not
+    /// match the length of the bitmap.
+    pub fn try_from_parts(collection: T, bitmap: Bitmap<Storage>) -> Result<Self, ValidityError> {
+        let (collection_len, bitmap_len) = (collection.len(), bitmap.len());
+        if collection_len == bitmap_len {
+            Ok(Self { collection, bitmap })
+        } else {
+            Err(ValidityError::LengthMismatch {
+                collection: collection_len,
+                bitmap: bitmap_len,
+            })
+        }
+    }
+
+    /// Returns the collection and validity bitmap of this [`Validity`].
+    ///
+    /// This is the inverse of [`Validity::try_from_parts`].
+    #[must_use]
+    pub fn into_parts(self) -> (T, Bitmap<Storage>) {
+        (self.collection, self.bitmap)
+    }
 }
 
 impl<T: Collection + Debug, Storage: Buffer> Debug for Validity<T, Storage>
@@ -153,6 +208,10 @@ impl<
     }
 }
 
+/// Number of items buffered before flushing their validity to the bitmap in
+/// [`Extend::extend`] for [`Validity`].
+const VALIDITY_CHUNK: usize = 1024;
+
 impl<
     U: Default,
     T: CollectionRealloc<Owned = U>,
@@ -160,11 +219,32 @@ impl<
 > Extend<Option<U>> for Validity<T, Storage>
 {
     fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
-        self.collection.extend(
-            iter.into_iter()
-                .inspect(|opt| self.bitmap.extend(iter::once(opt.is_some())))
-                .map(Option::unwrap_or_default),
-        );
+        self.collection.truncate(self.bitmap.len());
+
+        // Buffer validity and flush it to the bitmap per chunk, instead of
+        // extending the bitmap bit by bit: bulk bitmap extension uses the bit
+        // packing fast path. The bitmap is extended after the items of a
+        // chunk are committed to the collection, so a panicking iterator can
+        // not add validity for items that never arrive.
+        let mut items = iter.into_iter();
+        loop {
+            let mut validity = [false; VALIDITY_CHUNK];
+            let mut count: usize = 0;
+            self.collection.extend(
+                items
+                    .by_ref()
+                    .take(VALIDITY_CHUNK)
+                    .inspect(|opt| {
+                        validity[count] = opt.is_some();
+                        count = count.strict_add(1);
+                    })
+                    .map(Option::unwrap_or_default),
+            );
+            self.bitmap.extend(validity.iter().take(count));
+            if count < VALIDITY_CHUNK {
+                break;
+            }
+        }
     }
 }
 
@@ -189,6 +269,11 @@ impl<
     fn reserve(&mut self, additional: usize) {
         self.bitmap.reserve(additional);
         self.collection.reserve(additional);
+    }
+
+    fn truncate(&mut self, len: usize) {
+        self.bitmap.truncate(len);
+        self.collection.truncate(len);
     }
 }
 
@@ -232,6 +317,45 @@ mod tests {
     }
 
     #[test]
+    fn try_from_parts() {
+        let collection = alloc::vec![1, 0, 3, 4];
+        let bitmap = Bitmap::<VecBuffer>::from_iter([true, false, true, true]);
+        let validity = Validity::try_from_parts(collection, bitmap).expect("valid parts");
+        assert_eq!(validity.len(), 4);
+        assert_eq!(validity.view(0), Some(Some(1)));
+        assert_eq!(validity.view(1), Some(None));
+        let (values, restored) = validity.into_parts();
+        assert_eq!(values, alloc::vec![1, 0, 3, 4]);
+        assert_eq!(restored.len(), 4);
+    }
+
+    #[test]
+    fn try_from_parts_length_mismatch() {
+        let bitmap = Bitmap::<VecBuffer>::from_iter([true, false]);
+        let error = Validity::<Vec<i32>>::try_from_parts(alloc::vec![1, 2, 3], bitmap)
+            .expect_err("length mismatch");
+        assert_eq!(
+            error,
+            ValidityError::LengthMismatch {
+                collection: 3,
+                bitmap: 2,
+            }
+        );
+    }
+
+    #[test]
+    fn truncate() {
+        let mut validity = [Some(1), None, Some(3), Some(4)]
+            .into_iter()
+            .collect::<Validity<Vec<_>>>();
+        validity.truncate(2);
+        assert_eq!(validity.len(), 2);
+        assert_eq!(validity.view(0), Some(Some(1)));
+        assert_eq!(validity.view(1), Some(None));
+        assert_eq!(validity.view(2), None);
+    }
+
+    #[test]
     fn extend() {
         let input = [Some(1), None, Some(3), Some(4)];
         let mut validity = IntoIterator::into_iter(input).collect::<Validity<Vec<_>>>();
@@ -242,5 +366,108 @@ mod tests {
             validity.iter_views().collect::<Vec<_>>(),
             [Some(1), None, Some(3), Some(4), Some(5)]
         );
+    }
+
+    #[test]
+    fn from_iter_across_chunks() {
+        let input = (0..2500_u32)
+            .map(|index| (index % 3 != 0).then_some(index))
+            .collect::<Vec<_>>();
+        let validity = input.clone().into_iter().collect::<Validity<Vec<_>>>();
+        assert_eq!(validity.len(), input.len());
+        assert_eq!(validity.iter_views().collect::<Vec<_>>(), input);
+    }
+
+    #[test]
+    fn extend_across_chunks() {
+        let input = (0..2500_u32)
+            .map(|index| (index % 3 != 0).then_some(index))
+            .collect::<Vec<_>>();
+        let mut validity = Validity::<Vec<u32>>::default();
+        validity.extend(input.clone());
+        assert_eq!(validity.len(), input.len());
+        assert_eq!(validity.iter_views().collect::<Vec<_>>(), input);
+    }
+
+    #[test]
+    fn extend_panic_discards_uncommitted_suffix() {
+        extern crate std;
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        let mut validity = IntoIterator::into_iter([Some(1), None]).collect::<Validity<Vec<_>>>();
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| {
+                validity.extend(
+                    [Some(3), Some(4)]
+                        .into_iter()
+                        .chain(iter::once_with(|| panic!("boom"))),
+                );
+            }))
+            .is_err()
+        );
+
+        // Only the prefix committed before this extension remains visible.
+        assert_eq!(validity.len(), 2);
+        assert_eq!(validity.view(2), None);
+
+        validity.extend([Some(5)]);
+        assert_eq!(
+            validity.iter_views().collect::<Vec<_>>(),
+            [Some(1), None, Some(5)]
+        );
+    }
+
+    #[test]
+    fn extend_panic_preserves_committed_chunks() {
+        extern crate std;
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        let mut validity = Validity::<Vec<usize>>::default();
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| {
+                validity.extend(
+                    (0..(VALIDITY_CHUNK + 2))
+                        .map(Some)
+                        .chain(iter::once_with(|| panic!("boom"))),
+                );
+            }))
+            .is_err()
+        );
+
+        assert_eq!(validity.len(), VALIDITY_CHUNK);
+        assert_eq!(validity.view(0), Some(Some(0)));
+        assert_eq!(
+            validity.view(VALIDITY_CHUNK - 1),
+            Some(Some(VALIDITY_CHUNK - 1))
+        );
+
+        validity.extend([Some(VALIDITY_CHUNK + 3)]);
+        assert_eq!(validity.len(), VALIDITY_CHUNK + 1);
+        assert_eq!(
+            validity.view(VALIDITY_CHUNK),
+            Some(Some(VALIDITY_CHUNK + 3))
+        );
+    }
+
+    #[test]
+    fn extend_panic_discards_nested_suffix() {
+        extern crate std;
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        let mut validity = Validity::<Validity<Vec<u32>>>::default();
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| {
+                validity.extend(
+                    [Some(Some(1)), Some(Some(2))]
+                        .into_iter()
+                        .chain(iter::once_with(|| panic!("boom"))),
+                );
+            }))
+            .is_err()
+        );
+
+        assert_eq!(validity.len(), 0);
+        validity.extend([Some(Some(3))]);
+        assert_eq!(validity.iter_views().collect::<Vec<_>>(), [Some(Some(3))]);
     }
 }

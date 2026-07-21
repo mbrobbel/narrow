@@ -1,3 +1,5 @@
+//! Offset-based collections for storing variable-length items compactly.
+
 extern crate alloc;
 
 use alloc::vec::Vec;
@@ -19,6 +21,9 @@ use crate::{
     length::Length,
 };
 
+/// An integer type used to index the values in an [`Offsets`] collection.
+///
+/// The supported offset types are [`i32`] and [`i64`].
 pub trait Offset:
     Default
     + FixedSize
@@ -26,9 +31,11 @@ pub trait Offset:
     + TryInto<usize, Error = TryFromIntError>
     + sealed::Sealed
 {
+    /// Adds two offsets, panicking if the result overflows.
     #[must_use]
     fn strict_add(self, other: Self) -> Self;
 
+    /// Converts this offset to a [`usize`], panicking if it does not fit.
     fn as_usize(self) -> usize {
         self.try_into().unwrap_or_else(|e| panic!("{e}"))
     }
@@ -50,6 +57,12 @@ impl Offset for i64 {
     }
 }
 
+/// A variable-length collection backed by a flat data collection and offsets.
+///
+/// The offset buffer contains one more entry than the number of items: each
+/// adjacent pair describes the start and end of one item.
+///
+/// <https://arrow.apache.org/docs/format/Columnar.html#variable-size-binary-layout>
 pub struct Offsets<
     T: Collection,
     OffsetItem: Offset = i32,
@@ -60,6 +73,109 @@ pub struct Offsets<
     #[allow(clippy::struct_field_names)]
     offsets: Storage::For<OffsetItem>,
     _collection: PhantomData<U>,
+}
+
+/// Error returned by [`Offsets::try_from_parts`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OffsetsError {
+    /// The offsets buffer is empty; it must contain at least one offset.
+    Empty,
+    /// The first offset is not zero (required by the Arrow `n + 1`
+    /// representation).
+    NonZeroFirst {
+        /// The value of the first offset.
+        first: usize,
+    },
+    /// The offset at `index` is negative.
+    Negative {
+        /// The index of the negative offset.
+        index: usize,
+    },
+    /// The offset at `index` is smaller than the preceding offset.
+    NonMonotonic {
+        /// The index of the offset that breaks monotonicity.
+        index: usize,
+    },
+    /// The last offset exceeds the length of the data.
+    OutOfBounds {
+        /// The value of the last offset.
+        last: usize,
+        /// The length of the data.
+        data: usize,
+    },
+}
+
+impl fmt::Display for OffsetsError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::Empty => write!(f, "offsets buffer must contain at least one offset"),
+            Self::NonZeroFirst { first } => write!(f, "first offset ({first}) is not zero"),
+            Self::Negative { index } => write!(f, "offset at index {index} is negative"),
+            Self::NonMonotonic { index } => {
+                write!(f, "offset at index {index} is not monotonically increasing")
+            }
+            Self::OutOfBounds { last, data } => write!(
+                f,
+                "last offset ({last}) exceeds the length of the data ({data})"
+            ),
+        }
+    }
+}
+
+impl core::error::Error for OffsetsError {}
+
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Offsets<T, OffsetItem, Storage, U> {
+    /// Constructs [`Offsets`] from a `data` collection and its `offsets`
+    /// buffer.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`OffsetsError`] when the offsets buffer is empty, its first
+    /// offset is not zero, it contains a negative offset, it is not
+    /// monotonically increasing, or when its last offset exceeds the length of
+    /// the data.
+    pub fn try_from_parts(
+        data: T,
+        offsets: Storage::For<OffsetItem>,
+    ) -> Result<Self, OffsetsError> {
+        let mut iter = offsets.borrow().iter().enumerate();
+        let (_, first) = iter.next().ok_or(OffsetsError::Empty)?;
+        let mut previous: usize = (*first)
+            .try_into()
+            .map_err(|_| OffsetsError::Negative { index: 0 })?;
+        if previous != 0 {
+            return Err(OffsetsError::NonZeroFirst { first: previous });
+        }
+        for (index, offset) in iter {
+            let current: usize = (*offset)
+                .try_into()
+                .map_err(|_| OffsetsError::Negative { index })?;
+            if current < previous {
+                return Err(OffsetsError::NonMonotonic { index });
+            }
+            previous = current;
+        }
+        let data_len = data.len();
+        if previous > data_len {
+            return Err(OffsetsError::OutOfBounds {
+                last: previous,
+                data: data_len,
+            });
+        }
+        Ok(Self {
+            data,
+            offsets,
+            _collection: PhantomData,
+        })
+    }
+
+    /// Returns the data collection and offsets buffer of these [`Offsets`].
+    ///
+    /// This is the inverse of [`Offsets::try_from_parts`].
+    #[must_use]
+    pub fn into_parts(self) -> (T, Storage::For<OffsetItem>) {
+        (self.data, self.offsets)
+    }
 }
 
 impl<T: Collection + Debug, OffsetItem: Offset, Storage: Buffer<For<OffsetItem>: Debug>, U> Debug
@@ -106,6 +222,10 @@ where
             .last()
             .copied()
             .expect("at least one value in the offsets buffer");
+
+        // Drop any data beyond the last offset (e.g. an unreferenced suffix)
+        // so appended items are addressed correctly.
+        self.data.truncate(position.as_usize());
 
         iter.into_iter().for_each(|collection| {
             position = position.strict_add(collection.len().try_into().expect("overflow"));
@@ -227,9 +347,19 @@ where
         self.data.reserve(additional);
         self.offsets.reserve(additional);
     }
+
+    fn truncate(&mut self, len: usize) {
+        if len < self.len() {
+            // Keep `len` lists: `len + 1` offsets and the data they reference.
+            let data_len = self.offsets.owned(len).expect("offset in range").as_usize();
+            self.offsets.truncate(len.strict_add(1));
+            self.data.truncate(data_len);
+        }
+    }
 }
 
 #[expect(missing_debug_implementations)]
+/// An owning iterator over the items in an [`Offsets`] collection.
 pub struct OffsetIntoIter<T: Collection, OffsetItem: Offset, Storage: Buffer, U> {
     data: T,
     offsets: <Storage::For<OffsetItem> as Collection>::IntoIter,
@@ -266,6 +396,10 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
     }
 }
 
+/// A borrowed view of one item in an [`Offsets`] collection.
+///
+/// The view is represented by a range into the collection's flat data and
+/// remains valid only while the collection is borrowed.
 pub struct OffsetView<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U> {
     collection: &'collection Offsets<T, OffsetItem, Storage, U>,
     start: usize,
@@ -417,6 +551,81 @@ mod tests {
             end: 1,
         };
         assert!(<_ as PartialEq<Vec<_>>>::eq(&view, &vec![42]));
+    }
+
+    #[test]
+    fn try_from_parts() {
+        let offsets = Offsets::<Vec<i32>>::try_from_parts(vec![1, 2, 3, 4, 5], vec![0, 2, 3, 4, 5])
+            .expect("valid parts");
+        assert_eq!(offsets.len(), 4);
+        let (data, offsets_buffer) = offsets.into_parts();
+        assert_eq!(data, vec![1, 2, 3, 4, 5]);
+        assert_eq!(offsets_buffer, vec![0, 2, 3, 4, 5]);
+    }
+
+    #[test]
+    fn try_from_parts_empty() {
+        let error =
+            Offsets::<Vec<i32>>::try_from_parts(vec![1], vec![]).expect_err("empty offsets");
+        assert_eq!(error, OffsetsError::Empty);
+    }
+
+    #[test]
+    fn try_from_parts_non_zero_first() {
+        let error = Offsets::<Vec<i32>>::try_from_parts(vec![1, 2], vec![1, 2])
+            .expect_err("non-zero first offset");
+        assert_eq!(error, OffsetsError::NonZeroFirst { first: 1 });
+    }
+
+    #[test]
+    fn try_from_parts_negative() {
+        let error =
+            Offsets::<Vec<i32>>::try_from_parts(vec![1, 2], vec![-1, 0]).expect_err("negative");
+        assert_eq!(error, OffsetsError::Negative { index: 0 });
+    }
+
+    #[test]
+    fn try_from_parts_non_monotonic() {
+        let error = Offsets::<Vec<i32>>::try_from_parts(vec![1, 2, 3], vec![0, 2, 1])
+            .expect_err("non-monotonic");
+        assert_eq!(error, OffsetsError::NonMonotonic { index: 2 });
+    }
+
+    #[test]
+    fn try_from_parts_out_of_bounds() {
+        let error =
+            Offsets::<Vec<i32>>::try_from_parts(vec![1, 2], vec![0, 5]).expect_err("out of bounds");
+        assert_eq!(error, OffsetsError::OutOfBounds { last: 5, data: 2 });
+    }
+
+    #[test]
+    fn truncate() {
+        let mut offsets = [vec![1, 2], vec![3], vec![4, 5, 6]]
+            .into_iter()
+            .collect::<Offsets<Vec<i32>>>();
+        assert_eq!(offsets.len(), 3);
+        offsets.truncate(1);
+        assert_eq!(offsets.len(), 1);
+        assert_eq!(offsets.owned(0), Some(vec![1, 2]));
+        assert_eq!(offsets.owned(1), None);
+    }
+
+    #[test]
+    fn extend_reconciles_trailing_data() {
+        // Offsets referencing only the first list, with an unreferenced
+        // trailing element (`99`) in the data buffer.
+        let mut offsets: Offsets<Vec<i32>> = Offsets {
+            data: vec![1, 2, 99],
+            offsets: vec![0, 2],
+            _collection: PhantomData,
+        };
+        assert_eq!(offsets.len(), 1);
+        assert_eq!(offsets.owned(0), Some(vec![1, 2]));
+        // Appending must overwrite the unreferenced trailing data, not append
+        // past it.
+        offsets.extend([vec![3]]);
+        assert_eq!(offsets.len(), 2);
+        assert_eq!(offsets.owned(1), Some(vec![3]));
     }
 
     #[test]
