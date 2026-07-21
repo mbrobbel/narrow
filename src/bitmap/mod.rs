@@ -60,13 +60,14 @@ impl core::error::Error for BitmapError {}
 /// A collection of bits.
 ///
 /// The validity bits are stored LSB-first in the bytes of a buffer.
+/// A panicking extension leaves its committed prefix visible. The next
+/// extension overwrites any uncommitted bits.
 pub struct Bitmap<Storage: Buffer = VecBuffer> {
     /// The bits of the bitmap are stored in this buffer of bytes.
     ///
     /// Invariant: the buffer stores at least `bytes_for_bits(offset + bits)`
-    /// bytes. The values of padding bits and bytes beyond the logical end of
-    /// the bitmap (e.g. left behind by a panicking extension) are
-    /// unspecified; extensions overwrite them.
+    /// bytes. Padding bits and bytes beyond the logical end are unspecified
+    /// and overwritten by extensions.
     buffer: Storage::For<u8>,
 
     /// The number of bits stored in the bitmap.
@@ -247,9 +248,8 @@ impl<T: Borrow<bool>, Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionReall
         }
 
         // Use bit packed iterator for the remainder. The bit count is
-        // committed only when the extension completes: a panicking iterator
-        // leaves the bytes already written as unspecified data beyond the
-        // logical end, overwritten by subsequent extensions.
+        // committed only when the extension completes; a panic leaves the
+        // written bytes beyond the logical end to be overwritten later.
         if let Some(first) = items.next() {
             let mut consumed: usize = 0;
             let mut packed = iter::once(first)
@@ -489,7 +489,7 @@ mod tests {
     }
 
     #[test]
-    fn extend_panic_safety_packed() {
+    fn extend_panic_discards_uncommitted_packed_bits() {
         extern crate std;
         use std::panic::{AssertUnwindSafe, catch_unwind};
 
@@ -511,8 +511,6 @@ mod tests {
         assert_eq!(bitmap.len(), 0);
         assert_eq!(bitmap.view(0), None);
 
-        // A subsequent extension observes a consistent state and overwrites
-        // the bytes left behind by the interrupted extension.
         bitmap.extend([false, true, false]);
         assert_eq!(bitmap.len(), 3);
         assert_eq!(
