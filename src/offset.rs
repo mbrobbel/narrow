@@ -15,9 +15,9 @@ use core::{
 };
 
 use crate::{
-    buffer::{Buffer, VecBuffer},
+    buffer::{Buffer, BufferRef, VecBuffer},
     collection::{
-        AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
+        AllocError, ChildRef, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
         owned::IntoOwned,
     },
     fixed_size::FixedSize,
@@ -178,6 +178,26 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Offsets<T, OffsetIte
     #[must_use]
     pub fn into_parts(self) -> (T, Storage::For<OffsetItem>) {
         (self.data, self.offsets)
+    }
+}
+
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> BufferRef
+    for Offsets<T, OffsetItem, Storage, U>
+{
+    type Buffer = Storage::For<OffsetItem>;
+
+    fn buffer_ref(&self) -> &Self::Buffer {
+        &self.offsets
+    }
+}
+
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> ChildRef
+    for Offsets<T, OffsetItem, Storage, U>
+{
+    type Child = T;
+
+    fn child_ref(&self) -> &Self::Child {
+        &self.data
     }
 }
 

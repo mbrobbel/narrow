@@ -7,10 +7,11 @@ use core::{
 };
 
 use crate::{
-    bitmap::Bitmap,
+    bitmap::{Bitmap, BitmapRef, ValidityBitmap},
     buffer::{Buffer, VecBuffer},
     collection::{
-        AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc, view::AsView,
+        AllocError, ChildRef, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
+        view::AsView,
     },
     length::Length,
 };
@@ -85,6 +86,24 @@ impl<T: Collection, Storage: Buffer> Validity<T, Storage> {
         (self.collection, self.bitmap)
     }
 }
+
+impl<T: Collection, Storage: Buffer> ChildRef for Validity<T, Storage> {
+    type Child = T;
+
+    fn child_ref(&self) -> &Self::Child {
+        &self.collection
+    }
+}
+
+impl<T: Collection, Storage: Buffer> BitmapRef for Validity<T, Storage> {
+    type Storage = Storage;
+
+    fn bitmap_ref(&self) -> &Bitmap<Self::Storage> {
+        &self.bitmap
+    }
+}
+
+impl<T: Collection, Storage: Buffer> ValidityBitmap for Validity<T, Storage> {}
 
 impl<T: Collection + Debug, Storage: Buffer> Debug for Validity<T, Storage>
 where

@@ -2,6 +2,9 @@
 
 mod packed;
 mod unpacked;
+mod validity;
+
+pub use validity::ValidityBitmap;
 
 use core::{
     borrow::{Borrow, BorrowMut},
@@ -14,7 +17,7 @@ use packed::BitPackedExt;
 use unpacked::{BitUnpacked, BitUnpackedExt};
 
 use crate::{
-    buffer::{Buffer, VecBuffer},
+    buffer::{Buffer, BufferRef, VecBuffer},
     collection::{AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc},
     length::Length,
 };
@@ -78,6 +81,23 @@ pub struct Bitmap<Storage: Buffer = VecBuffer> {
     offset: usize,
 }
 
+/// Immutable access to a [`Bitmap`].
+pub trait BitmapRef {
+    /// Storage of the bitmap.
+    type Storage: Buffer;
+
+    /// Returns the bitmap.
+    fn bitmap_ref(&self) -> &Bitmap<Self::Storage>;
+}
+
+impl<Storage: Buffer> BufferRef for Bitmap<Storage> {
+    type Buffer = Storage::For<u8>;
+
+    fn buffer_ref(&self) -> &Self::Buffer {
+        &self.buffer
+    }
+}
+
 impl<Storage: Buffer<For<u8>: Debug>> Debug for Bitmap<Storage> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Bitmap")
@@ -115,6 +135,12 @@ impl<Storage: Buffer> Bitmap<Storage> {
                 bytes,
             }),
         }
+    }
+
+    /// Returns the bit offset into the backing byte buffer.
+    #[must_use]
+    pub fn bit_offset(&self) -> usize {
+        self.offset
     }
 
     /// Returns the raw parts of this [`Bitmap`]: its byte buffer, the number of

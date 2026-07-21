@@ -14,6 +14,15 @@ pub trait Buffer: Default {
     type For<T: FixedSize>: Borrow<[T]> + Collection<Owned = T>;
 }
 
+/// Immutable access to a backing buffer or collection.
+pub trait BufferRef {
+    /// Backing buffer or collection.
+    type Buffer: Collection;
+
+    /// Returns the backing buffer or collection.
+    fn buffer_ref(&self) -> &Self::Buffer;
+}
+
 #[derive(Clone, Copy, Default, Debug)]
 pub struct ArrayBuffer<const N: usize>;
 impl<const N: usize> Buffer for ArrayBuffer<N> {

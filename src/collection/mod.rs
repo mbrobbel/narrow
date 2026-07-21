@@ -51,6 +51,19 @@ pub trait Collection: Length {
     fn into_iter_owned(self) -> Self::IntoIter;
 }
 
+/// Immutable access to a physical child collection.
+///
+/// A physical child does not necessarily correspond to an Arrow schema child.
+/// For example, variable-size binary data is a physical child in Narrow but an
+/// Arrow data buffer.
+pub trait ChildRef {
+    /// Physical child collection.
+    type Child: Collection;
+
+    /// Returns the physical child collection.
+    fn child_ref(&self) -> &Self::Child;
+}
+
 /// Error returned when storage for a collection cannot be reserved.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AllocError;

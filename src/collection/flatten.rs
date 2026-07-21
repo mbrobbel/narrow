@@ -8,7 +8,7 @@ use core::{
 
 use crate::{
     collection::{
-        AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
+        AllocError, ChildRef, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
         owned::IntoOwned,
     },
     length::Length,
@@ -70,6 +70,14 @@ impl<C: Collection, const N: usize> Flatten<C, N> {
     #[must_use]
     pub fn into_parts(self) -> C {
         self.0
+    }
+}
+
+impl<C: Collection, const N: usize> ChildRef for Flatten<C, N> {
+    type Child = C;
+
+    fn child_ref(&self) -> &Self::Child {
+        &self.0
     }
 }
 

@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 
 use crate::{
-    buffer::{Buffer, VecBuffer},
+    buffer::{Buffer, BufferRef, VecBuffer},
     collection::{AllocError, Collection, CollectionAllocIn, CollectionRealloc},
     fixed_size::FixedSize,
     layout::MemoryLayout,
@@ -36,6 +36,16 @@ impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> FixedSizePrimitive<T, Nu
     #[must_use]
     pub fn into_buffer(self) -> Nulls::Collection<Storage::For<T>, Storage> {
         self.0
+    }
+}
+
+impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> BufferRef
+    for FixedSizePrimitive<T, Nulls, Storage>
+{
+    type Buffer = Nulls::Collection<Storage::For<T>, Storage>;
+
+    fn buffer_ref(&self) -> &Self::Buffer {
+        &self.0
     }
 }
 

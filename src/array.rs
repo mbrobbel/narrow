@@ -3,7 +3,7 @@
 use core::fmt::Debug;
 
 use crate::{
-    buffer::{Buffer, VecBuffer},
+    buffer::{Buffer, BufferRef, VecBuffer},
     collection::{AllocError, Collection, CollectionAllocIn, CollectionRealloc},
     layout::ArrayItem,
     length::Length,
@@ -25,6 +25,14 @@ impl<T: ArrayItem, Storage: Buffer> Array<T, Storage> {
     #[must_use]
     pub fn into_buffer(self) -> T::Memory<Storage> {
         self.0
+    }
+}
+
+impl<T: ArrayItem, Storage: Buffer> BufferRef for Array<T, Storage> {
+    type Buffer = T::Memory<Storage>;
+
+    fn buffer_ref(&self) -> &Self::Buffer {
+        &self.0
     }
 }
 
