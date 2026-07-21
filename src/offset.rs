@@ -1,3 +1,5 @@
+//! Offset-based collections for storing variable-length items compactly.
+
 extern crate alloc;
 
 use alloc::vec::Vec;
@@ -19,6 +21,9 @@ use crate::{
     length::Length,
 };
 
+/// An integer type used to index the values in an [`Offsets`] collection.
+///
+/// The supported offset types are [`i32`] and [`i64`].
 pub trait Offset:
     Default
     + FixedSize
@@ -26,9 +31,11 @@ pub trait Offset:
     + TryInto<usize, Error = TryFromIntError>
     + sealed::Sealed
 {
+    /// Adds two offsets, panicking if the result overflows.
     #[must_use]
     fn strict_add(self, other: Self) -> Self;
 
+    /// Converts this offset to a [`usize`], panicking if it does not fit.
     fn as_usize(self) -> usize {
         self.try_into().unwrap_or_else(|e| panic!("{e}"))
     }
@@ -50,6 +57,12 @@ impl Offset for i64 {
     }
 }
 
+/// A variable-length collection backed by a flat data collection and offsets.
+///
+/// The offset buffer contains one more entry than the number of items: each
+/// adjacent pair describes the start and end of one item.
+///
+/// <https://arrow.apache.org/docs/format/Columnar.html#variable-size-binary-layout>
 pub struct Offsets<
     T: Collection,
     OffsetItem: Offset = i32,
@@ -239,6 +252,7 @@ where
 }
 
 #[expect(missing_debug_implementations)]
+/// An owning iterator over the items in an [`Offsets`] collection.
 pub struct OffsetIntoIter<T: Collection, OffsetItem: Offset, Storage: Buffer, U> {
     data: T,
     offsets: <Storage::For<OffsetItem> as Collection>::IntoIter,
@@ -275,6 +289,10 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
     }
 }
 
+/// A borrowed view of one item in an [`Offsets`] collection.
+///
+/// The view is represented by a range into the collection's flat data and
+/// remains valid only while the collection is borrowed.
 pub struct OffsetView<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U> {
     collection: &'collection Offsets<T, OffsetItem, Storage, U>,
     start: usize,

@@ -18,6 +18,22 @@ pub struct Boolean<Nulls: Nullability = NonNullable, Storage: Buffer = VecBuffer
 
 impl<Nulls: Nullability, Storage: Buffer> MemoryLayout for Boolean<Nulls, Storage> {}
 
+impl<Nulls: Nullability, Storage: Buffer> Boolean<Nulls, Storage> {
+    /// Constructs a [`Boolean`] from its backing collection.
+    #[must_use]
+    pub fn from_buffer(buffer: Nulls::Collection<Bitmap<Storage>, Storage>) -> Self {
+        Self(buffer)
+    }
+
+    /// Returns the backing collection of this [`Boolean`].
+    ///
+    /// This is the inverse of [`Boolean::from_buffer`].
+    #[must_use]
+    pub fn into_buffer(self) -> Nulls::Collection<Bitmap<Storage>, Storage> {
+        self.0
+    }
+}
+
 impl<Nulls: Nullability, Storage: Buffer> Debug for Boolean<Nulls, Storage>
 where
     Nulls::Collection<Bitmap<Storage>, Storage>: Debug,
@@ -116,6 +132,17 @@ mod tests {
     use crate::{collection::tests::round_trip, nullability::Nullable};
 
     use super::*;
+
+    #[test]
+    fn from_buffer() {
+        let boolean = [true, false, true, true]
+            .into_iter()
+            .collect::<Boolean<NonNullable>>();
+        let restored = Boolean::<NonNullable>::from_buffer(boolean.into_buffer());
+        assert_eq!(restored.len(), 4);
+        assert_eq!(restored.owned(0), Some(true));
+        assert_eq!(restored.owned(1), Some(false));
+    }
 
     #[test]
     fn collection() {

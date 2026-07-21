@@ -24,6 +24,28 @@ impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> MemoryL
 {
 }
 
+impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer>
+    VariableSizeList<T, Nulls, OffsetItem, Storage>
+{
+    /// Constructs a [`VariableSizeList`] from its backing collection.
+    #[must_use]
+    pub fn from_buffer(
+        buffer: Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>,
+    ) -> Self {
+        Self(buffer)
+    }
+
+    /// Returns the backing collection of this [`VariableSizeList`].
+    ///
+    /// This is the inverse of [`VariableSizeList::from_buffer`].
+    #[must_use]
+    pub fn into_buffer(
+        self,
+    ) -> Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage> {
+        self.0
+    }
+}
+
 impl<T: Layout, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Debug
     for VariableSizeList<T, Nulls, OffsetItem, Storage>
 where
@@ -138,6 +160,17 @@ mod tests {
     use crate::{collection::tests::round_trip, nullability::Nullable};
 
     use super::*;
+
+    #[test]
+    fn from_buffer() {
+        let list = [vec![1, 2], vec![3, 4, 5]]
+            .into_iter()
+            .collect::<VariableSizeList<i32>>();
+        let restored = VariableSizeList::<i32>::from_buffer(list.into_buffer());
+        assert_eq!(restored.len(), 2);
+        assert_eq!(restored.owned(0), Some(vec![1, 2]));
+        assert_eq!(restored.owned(1), Some(vec![3, 4, 5]));
+    }
 
     #[test]
     fn collection() {
