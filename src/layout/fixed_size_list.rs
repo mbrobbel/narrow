@@ -20,6 +20,24 @@ impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> MemoryLayou
 {
 }
 
+impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer>
+    FixedSizeList<T, N, Nulls, Storage>
+{
+    /// Constructs a [`FixedSizeList`] from its backing collection.
+    #[must_use]
+    pub fn from_buffer(buffer: Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>) -> Self {
+        Self(buffer)
+    }
+
+    /// Returns the backing collection of this [`FixedSizeList`].
+    ///
+    /// This is the inverse of [`FixedSizeList::from_buffer`].
+    #[must_use]
+    pub fn into_buffer(self) -> Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage> {
+        self.0
+    }
+}
+
 impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> Debug
     for FixedSizeList<T, N, Nulls, Storage>
 where
@@ -142,6 +160,17 @@ mod tests {
     use crate::{collection::tests::round_trip, nullability::Nullable};
 
     use super::*;
+
+    #[test]
+    fn from_buffer() {
+        let list = [[1, 2], [3, 4]]
+            .into_iter()
+            .collect::<FixedSizeList<i32, 2>>();
+        let restored = FixedSizeList::<i32, 2>::from_buffer(list.into_buffer());
+        assert_eq!(restored.len(), 2);
+        assert_eq!(restored.owned(0), Some([1, 2]));
+        assert_eq!(restored.owned(1), Some([3, 4]));
+    }
 
     #[test]
     fn collection() {
