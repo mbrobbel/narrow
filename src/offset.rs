@@ -15,9 +15,9 @@ use core::{
 };
 
 use crate::{
-    buffer::{Buffer, VecBuffer},
+    buffer::{Buffer, BufferRef, VecBuffer},
     collection::{
-        AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
+        AllocError, ChildRef, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
         owned::IntoOwned,
     },
     fixed_size::FixedSize,
@@ -172,24 +172,32 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Offsets<T, OffsetIte
         })
     }
 
-    /// Returns the flat data collection.
-    #[must_use]
-    pub fn data(&self) -> &T {
-        &self.data
-    }
-
-    /// Returns the offsets buffer.
-    #[must_use]
-    pub fn offsets(&self) -> &Storage::For<OffsetItem> {
-        &self.offsets
-    }
-
     /// Returns the data collection and offsets buffer of these [`Offsets`].
     ///
     /// This is the inverse of [`Offsets::try_from_parts`].
     #[must_use]
     pub fn into_parts(self) -> (T, Storage::For<OffsetItem>) {
         (self.data, self.offsets)
+    }
+}
+
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> BufferRef
+    for Offsets<T, OffsetItem, Storage, U>
+{
+    type Buffer = Storage::For<OffsetItem>;
+
+    fn buffer_ref(&self) -> &Self::Buffer {
+        &self.offsets
+    }
+}
+
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> ChildRef
+    for Offsets<T, OffsetItem, Storage, U>
+{
+    type Child = T;
+
+    fn child_ref(&self) -> &Self::Child {
+        &self.data
     }
 }
 

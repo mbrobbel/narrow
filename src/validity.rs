@@ -7,7 +7,7 @@ use core::{
 };
 
 use crate::{
-    bitmap::Bitmap,
+    bitmap::{Bitmap, BitmapRef},
     buffer::{Buffer, VecBuffer},
     collection::{
         AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc, view::AsView,
@@ -83,18 +83,20 @@ impl<T: Collection, Storage: Buffer> Validity<T, Storage> {
         &self.collection
     }
 
-    /// Returns the validity bitmap.
-    #[must_use]
-    pub fn bitmap(&self) -> &Bitmap<Storage> {
-        &self.bitmap
-    }
-
     /// Returns the collection and validity bitmap of this [`Validity`].
     ///
     /// This is the inverse of [`Validity::try_from_parts`].
     #[must_use]
     pub fn into_parts(self) -> (T, Bitmap<Storage>) {
         (self.collection, self.bitmap)
+    }
+}
+
+impl<T: Collection, Storage: Buffer> BitmapRef for Validity<T, Storage> {
+    type Storage = Storage;
+
+    fn bitmap_ref(&self) -> &Bitmap<Self::Storage> {
+        &self.bitmap
     }
 }
 

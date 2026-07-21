@@ -2,7 +2,7 @@ use core::fmt::Debug;
 
 use crate::{
     bitmap::Bitmap,
-    buffer::{Buffer, VecBuffer},
+    buffer::{Buffer, BufferRef, VecBuffer},
     collection::{AllocError, Collection, CollectionAllocIn, CollectionRealloc},
     layout::MemoryLayout,
     length::Length,
@@ -26,17 +26,19 @@ impl<Nulls: Nullability, Storage: Buffer> Boolean<Nulls, Storage> {
     }
 
     /// Returns the backing collection of this [`Boolean`].
-    #[must_use]
-    pub fn buffer(&self) -> &Nulls::Collection<Bitmap<Storage>, Storage> {
-        &self.0
-    }
-
-    /// Returns the backing collection of this [`Boolean`].
     ///
     /// This is the inverse of [`Boolean::from_buffer`].
     #[must_use]
     pub fn into_buffer(self) -> Nulls::Collection<Bitmap<Storage>, Storage> {
         self.0
+    }
+}
+
+impl<Nulls: Nullability, Storage: Buffer> BufferRef for Boolean<Nulls, Storage> {
+    type Buffer = Nulls::Collection<Bitmap<Storage>, Storage>;
+
+    fn buffer_ref(&self) -> &Self::Buffer {
+        &self.0
     }
 }
 

@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 
 use crate::{
-    buffer::{Buffer, VecBuffer},
+    buffer::{Buffer, BufferRef, VecBuffer},
     collection::{AllocError, Collection, CollectionAllocIn, CollectionRealloc, flatten::Flatten},
     layout::{ArrayItem, MemoryLayout},
     length::Length,
@@ -30,17 +30,21 @@ impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer>
     }
 
     /// Returns the backing collection of this [`FixedSizeList`].
-    #[must_use]
-    pub fn buffer(&self) -> &Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage> {
-        &self.0
-    }
-
-    /// Returns the backing collection of this [`FixedSizeList`].
     ///
     /// This is the inverse of [`FixedSizeList::from_buffer`].
     #[must_use]
     pub fn into_buffer(self) -> Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage> {
         self.0
+    }
+}
+
+impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer> BufferRef
+    for FixedSizeList<T, N, Nulls, Storage>
+{
+    type Buffer = Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>;
+
+    fn buffer_ref(&self) -> &Self::Buffer {
+        &self.0
     }
 }
 

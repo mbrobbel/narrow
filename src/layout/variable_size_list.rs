@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 use core::fmt::Debug;
 
 use crate::{
-    buffer::{Buffer, VecBuffer},
+    buffer::{Buffer, BufferRef, VecBuffer},
     collection::{AllocError, Collection, CollectionAllocIn, CollectionRealloc},
     layout::{ArrayItem, MemoryLayout},
     length::Length,
@@ -36,14 +36,6 @@ impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer>
     }
 
     /// Returns the backing collection of this [`VariableSizeList`].
-    #[must_use]
-    pub fn buffer(
-        &self,
-    ) -> &Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage> {
-        &self.0
-    }
-
-    /// Returns the backing collection of this [`VariableSizeList`].
     ///
     /// This is the inverse of [`VariableSizeList::from_buffer`].
     #[must_use]
@@ -51,6 +43,16 @@ impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer>
         self,
     ) -> Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage> {
         self.0
+    }
+}
+
+impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> BufferRef
+    for VariableSizeList<T, Nulls, OffsetItem, Storage>
+{
+    type Buffer = Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>;
+
+    fn buffer_ref(&self) -> &Self::Buffer {
+        &self.0
     }
 }
 
