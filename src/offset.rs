@@ -196,7 +196,7 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Default
     for Offsets<T, OffsetItem, Storage, U>
 where
     T: Default,
-    Storage::For<OffsetItem>: CollectionRealloc<Owned = OffsetItem>,
+    Storage::For<OffsetItem>: Default + CollectionRealloc<Owned = OffsetItem>,
 {
     fn default() -> Self {
         let mut offsets = Storage::For::<OffsetItem>::default();
@@ -210,15 +210,13 @@ where
 }
 
 impl<
-    T: CollectionAllocIn + CollectionRealloc,
+    T: CollectionRealloc,
     OffsetItem: Offset,
     Storage: Buffer,
     U: CollectionAlloc<Owned = T::Owned> + FromIterator<T::Owned>,
 > CollectionAllocIn for Offsets<T, OffsetItem, Storage, U>
 where
-    Storage::For<OffsetItem>: Extend<OffsetItem>
-        + CollectionAllocIn<Alloc = T::Alloc>
-        + CollectionRealloc<Owned = OffsetItem>,
+    Storage::For<OffsetItem>: CollectionRealloc<Alloc = T::Alloc>,
 {
     type Alloc = T::Alloc;
 
@@ -306,7 +304,7 @@ impl<
 > FromIterator<U> for Offsets<T, OffsetItem, Storage, U>
 where
     T: Default,
-    Storage::For<OffsetItem>: CollectionRealloc<Owned = OffsetItem>,
+    Storage::For<OffsetItem>: Default + CollectionRealloc<Owned = OffsetItem>,
 {
     fn from_iter<I: IntoIterator<Item = U>>(iter: I) -> Self {
         let mut offsets = Self::default();
@@ -379,30 +377,13 @@ impl<
     T: CollectionRealloc,
     OffsetItem: Offset,
     Storage: Buffer,
-    U: CollectionAlloc<Owned = T::Owned>,
-> CollectionAlloc for Offsets<T, OffsetItem, Storage, U>
-where
-    Storage::For<OffsetItem>: CollectionRealloc<Owned = OffsetItem>,
-{
-    fn with_capacity(capacity: usize) -> Self {
-        Self {
-            data: T::with_capacity(capacity),
-            offsets: Storage::For::<OffsetItem>::with_capacity(capacity),
-            _collection: PhantomData,
-        }
-    }
-}
-
-impl<
-    T: CollectionRealloc,
-    OffsetItem: Offset,
-    Storage: Buffer,
     U: CollectionAlloc<Owned = T::Owned> + FromIterator<T::Owned>,
 > CollectionRealloc for Offsets<T, OffsetItem, Storage, U>
 where
-    Storage::For<OffsetItem>: Extend<OffsetItem> + CollectionRealloc<Owned = OffsetItem>,
+    Storage::For<OffsetItem>: CollectionRealloc<Alloc = T::Alloc>,
 {
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+        // This is only enough for collections with len 1
         self.data.try_reserve(additional)?;
         self.offsets.try_reserve(additional)
     }

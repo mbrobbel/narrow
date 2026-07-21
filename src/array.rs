@@ -4,7 +4,7 @@ use core::fmt::Debug;
 
 use crate::{
     buffer::{Buffer, VecBuffer},
-    collection::{AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc},
+    collection::{AllocError, Collection, CollectionAllocIn, CollectionRealloc},
     layout::Layout,
     length::Length,
 };
@@ -130,15 +130,6 @@ where
         alloc: Self::Alloc,
     ) -> Result<Self, AllocError> {
         T::Memory::<Storage>::try_from_iter_in(iter, alloc).map(Self)
-    }
-}
-
-impl<T: Layout, Storage: Buffer> CollectionAlloc for Array<T, Storage>
-where
-    T::Memory<Storage>: CollectionAlloc,
-{
-    fn with_capacity(capacity: usize) -> Self {
-        Self(T::Memory::<Storage>::with_capacity(capacity))
     }
 }
 

@@ -2,10 +2,7 @@ use core::fmt::Debug;
 
 use crate::{
     buffer::{Buffer, VecBuffer},
-    collection::{
-        AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
-        flatten::Flatten,
-    },
+    collection::{AllocError, Collection, CollectionAllocIn, CollectionRealloc, flatten::Flatten},
     layout::{Layout, MemoryLayout},
     length::Length,
     nullability::{NonNullable, Nullability},
@@ -169,16 +166,6 @@ where
     ) -> Result<Self, AllocError> {
         Nulls::Collection::<Flatten<T::Memory<Storage>, N>, Storage>::try_from_iter_in(iter, alloc)
             .map(Self)
-    }
-}
-
-impl<T: Layout, const N: usize, Nulls: Nullability, Storage: Buffer> CollectionAlloc
-    for FixedSizeList<T, N, Nulls, Storage>
-where
-    Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>: CollectionAlloc,
-{
-    fn with_capacity(capacity: usize) -> Self {
-        Self(Nulls::Collection::<Flatten<T::Memory<Storage>, N>, Storage>::with_capacity(capacity))
     }
 }
 

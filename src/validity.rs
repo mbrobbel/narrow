@@ -195,7 +195,7 @@ impl<T: Collection, Storage: Buffer> Collection for Validity<T, Storage> {
 impl<
     U: Default,
     T: CollectionAlloc<Owned = U>,
-    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>,
+    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionAlloc + CollectionRealloc>,
 > FromIterator<Option<U>> for Validity<T, Storage>
 {
     fn from_iter<I: IntoIterator<Item = Option<U>>>(iter: I) -> Self {
@@ -251,8 +251,8 @@ impl<
 }
 
 impl<
-    T: CollectionAllocIn + CollectionRealloc<Owned: Default>,
-    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionAllocIn<Alloc = T::Alloc> + CollectionRealloc>,
+    T: CollectionRealloc<Owned: Default>,
+    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc<Alloc = T::Alloc>>,
 > CollectionAllocIn for Validity<T, Storage>
 {
     type Alloc = T::Alloc;
@@ -297,20 +297,7 @@ impl<
 
 impl<
     T: CollectionRealloc<Owned: Default>,
-    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>,
-> CollectionAlloc for Validity<T, Storage>
-{
-    fn with_capacity(capacity: usize) -> Self {
-        Self {
-            collection: T::with_capacity(capacity),
-            bitmap: Bitmap::with_capacity(capacity),
-        }
-    }
-}
-
-impl<
-    T: CollectionRealloc<Owned: Default>,
-    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>,
+    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc<Alloc = T::Alloc>>,
 > CollectionRealloc for Validity<T, Storage>
 {
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
