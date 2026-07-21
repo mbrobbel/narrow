@@ -96,6 +96,17 @@ pub trait CollectionAlloc: Collection + Default + FromIterator<Self::Owned> {
 
 /// A re-allocatable collection of items.
 pub trait CollectionRealloc: CollectionAlloc + Extend<Self::Owned> {
+    /// Tries to reserve capacity for at least `additional` more items.
+    fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError>;
+
+    /// Tries to extend this collection with the contents of `iter`.
+    ///
+    /// The collection's logical contents are unchanged when reservation fails.
+    fn try_extend<I: IntoIterator<Item = Self::Owned>>(
+        &mut self,
+        iter: I,
+    ) -> Result<(), AllocError>;
+
     /// Reserves capacity for at least `additional` more items to be inserted in this collection.
     fn reserve(&mut self, additional: usize);
 
