@@ -3,6 +3,14 @@
 use core::{mem, ops::Deref};
 
 /// Fixed-size types.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::fixed_size::FixedSize;
+///
+/// assert_eq!(u32::SIZE, 4);
+/// ```
 pub trait FixedSize: Copy + sealed::Sealed + 'static {
     /// The size of this type in bytes.
     const SIZE: usize = mem::size_of::<Self>();
@@ -28,6 +36,15 @@ impl FixedSize for f64 {}
 /// An array with `N` `FixedSize` items per item.
 ///
 /// Just using [T; N] causes overlapping impls.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::fixed_size::FixedSizeArray;
+///
+/// let value = FixedSizeArray::from([1_u16, 2]);
+/// assert_eq!(*value, [1, 2]);
+/// ```
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FixedSizeArray<T: FixedSize, const N: usize>([T; N]);
 
