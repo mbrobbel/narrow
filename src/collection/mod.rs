@@ -17,6 +17,16 @@ use core::fmt;
 use crate::{collection::owned::IntoOwned, length::Length};
 
 /// A collection of items.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::collection::Collection;
+///
+/// let values = vec![1, 2, 3];
+/// assert_eq!(values.view(1), Some(2));
+/// assert_eq!(values.iter_views().sum::<i32>(), 6);
+/// ```
 pub trait Collection: Length {
     /// Borrowed view of an item in this collection
     type View<'collection>: Copy + IntoOwned<Self::Owned> + 'collection
@@ -28,10 +38,27 @@ pub trait Collection: Length {
 
     /// Returns a reference to an item at the given index in this collection or
     /// `None` if out of bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::Collection;
+    ///
+    /// assert_eq!([1, 2].view(1), Some(2));
+    /// assert_eq!([1, 2].view(2), None);
+    /// ```
     fn view(&self, index: usize) -> Option<Self::View<'_>>;
 
     /// Returns an owned item at the given index in this collection or `None`
     /// if out of bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::Collection;
+    ///
+    /// assert_eq!([1, 2].owned(0), Some(1));
+    /// ```
     fn owned(&self, index: usize) -> Option<Self::Owned> {
         self.view(index).map(IntoOwned::into_owned)
     }
@@ -42,12 +69,29 @@ pub trait Collection: Length {
         Self: 'collection;
 
     /// Returns an iterator over references to the items in this collection.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::Collection;
+    ///
+    /// assert_eq!([1, 2].iter_views().sum::<i32>(), 3);
+    /// ```
     fn iter_views(&self) -> Self::Iter<'_>;
 
     /// Iterator over owned items in this collection.
     type IntoIter: ExactSizeIterator<Item = Self::Owned>;
 
-    /// Returns an interator over items in this collection.
+    /// Returns an iterator over items in this collection.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::Collection;
+    ///
+    /// let values: Vec<_> = [1, 2].into_iter_owned().collect();
+    /// assert_eq!(values, [1, 2]);
+    /// ```
     fn into_iter_owned(self) -> Self::IntoIter;
 }
 
@@ -65,6 +109,15 @@ pub trait ChildRef {
 }
 
 /// Error returned when storage for a collection cannot be reserved.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::collection::{AllocError, CollectionAllocIn};
+///
+/// let result = Vec::<u8>::try_with_capacity_in(usize::MAX, ());
+/// assert_eq!(result, Err(AllocError));
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AllocError;
 
@@ -77,6 +130,15 @@ impl fmt::Display for AllocError {
 impl core::error::Error for AllocError {}
 
 /// An allocatable collection of items using a caller-provided allocator.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::collection::CollectionAllocIn;
+///
+/// let values = Vec::<u8>::from_iter_in([1, 2], ());
+/// assert_eq!(values, [1, 2]);
+/// ```
 pub trait CollectionAllocIn: Collection + Sized {
     /// Allocator used to construct this collection.
     type Alloc: Clone;
@@ -87,6 +149,15 @@ pub trait CollectionAllocIn: Collection + Sized {
     /// Unlike [`CollectionAllocIn::try_with_capacity_in`], this method does not
     /// return reservation failures. Implementations use their allocator's
     /// native infallible failure handling.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::CollectionAllocIn;
+    ///
+    /// let values = Vec::<u8>::with_capacity_in(4, ());
+    /// assert!(values.capacity() >= 4);
+    /// ```
     #[must_use]
     fn with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Self;
 
@@ -95,6 +166,14 @@ pub trait CollectionAllocIn: Collection + Sized {
     /// Unlike [`CollectionAllocIn::try_from_iter_in`], this method does not
     /// return reservation failures. Implementations use their allocator's
     /// native infallible failure handling.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::CollectionAllocIn;
+    ///
+    /// assert_eq!(Vec::<u8>::from_iter_in([1, 2], ()), [1, 2]);
+    /// ```
     #[must_use]
     fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self;
 
@@ -104,6 +183,14 @@ pub trait CollectionAllocIn: Collection + Sized {
     ///
     /// Returns an [`AllocError`] when the requested capacity cannot be
     /// reserved.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::CollectionAllocIn;
+    ///
+    /// assert!(Vec::<u8>::try_with_capacity_in(4, ()).is_ok());
+    /// ```
     fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError>;
 
     /// Tries to construct a collection from `iter`.
@@ -112,6 +199,15 @@ pub trait CollectionAllocIn: Collection + Sized {
     ///
     /// Returns an [`AllocError`] when storage for the items cannot be
     /// reserved.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::CollectionAllocIn;
+    ///
+    /// let values = Vec::<u8>::try_from_iter_in([1, 2], ()).unwrap();
+    /// assert_eq!(values, [1, 2]);
+    /// ```
     fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
         iter: I,
         alloc: Self::Alloc,
@@ -123,10 +219,28 @@ pub trait CollectionAllocIn: Collection + Sized {
 /// This trait is implemented automatically for every [`CollectionAllocIn`]
 /// whose allocator implements [`Default`] and which can be constructed through
 /// [`Default`] and [`FromIterator`].
+///
+/// # Examples
+///
+/// ```
+/// use narrow::collection::CollectionAlloc;
+///
+/// let values = <Vec<u8> as CollectionAlloc>::with_capacity(4);
+/// assert!(values.capacity() >= 4);
+/// ```
 pub trait CollectionAlloc:
     CollectionAllocIn<Alloc: Default> + Default + FromIterator<Self::Owned>
 {
     /// Constructs a new, empty collection with at least the specified capacity.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::CollectionAlloc;
+    ///
+    /// let values = <Vec<u8> as CollectionAlloc>::with_capacity(4);
+    /// assert!(values.capacity() >= 4);
+    /// ```
     #[must_use]
     fn with_capacity(capacity: usize) -> Self {
         <Self as CollectionAllocIn>::with_capacity_in(capacity, Default::default())
@@ -141,6 +255,17 @@ where
 }
 
 /// A re-allocatable collection of items.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::collection::CollectionRealloc;
+///
+/// let mut values = vec![1];
+/// CollectionRealloc::reserve(&mut values, 1);
+/// values.extend([2]);
+/// assert_eq!(values, [1, 2]);
+/// ```
 pub trait CollectionRealloc: CollectionAllocIn + Extend<Self::Owned> {
     /// Tries to reserve capacity for at least `additional` more items.
     ///
@@ -148,6 +273,15 @@ pub trait CollectionRealloc: CollectionAllocIn + Extend<Self::Owned> {
     ///
     /// Returns an [`AllocError`] when the requested capacity cannot be
     /// reserved.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::CollectionRealloc;
+    ///
+    /// let mut values = Vec::<u8>::new();
+    /// assert!(CollectionRealloc::try_reserve(&mut values, 4).is_ok());
+    /// ```
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError>;
 
     /// Tries to extend this collection with the contents of `iter`.
@@ -157,6 +291,16 @@ pub trait CollectionRealloc: CollectionAllocIn + Extend<Self::Owned> {
     /// Returns an [`AllocError`] when storage for the additional items cannot
     /// be reserved. The collection's logical contents are unchanged when a
     /// reservation fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::CollectionRealloc;
+    ///
+    /// let mut values = vec![1];
+    /// CollectionRealloc::try_extend(&mut values, [2]).unwrap();
+    /// assert_eq!(values, [1, 2]);
+    /// ```
     fn try_extend<I: IntoIterator<Item = Self::Owned>>(
         &mut self,
         iter: I,
@@ -167,12 +311,34 @@ pub trait CollectionRealloc: CollectionAllocIn + Extend<Self::Owned> {
     /// Unlike [`CollectionRealloc::try_reserve`], this method does not return
     /// reservation failures. Implementations use their allocator's native
     /// infallible failure handling.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::CollectionRealloc;
+    ///
+    /// let mut values = Vec::<u8>::new();
+    /// CollectionRealloc::reserve(&mut values, 4);
+    /// assert!(values.capacity() >= 4);
+    /// ```
     fn reserve(&mut self, additional: usize);
 
     /// Shortens this collection to `len` items, dropping the rest.
     ///
     /// If `len` is greater than or equal to the current length, this has no
     /// effect.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::CollectionRealloc;
+    ///
+    /// let mut values = vec![1, 2, 3];
+    /// CollectionRealloc::truncate(&mut values, 2);
+    /// assert_eq!(values, [1, 2]);
+    /// CollectionRealloc::truncate(&mut values, 4);
+    /// assert_eq!(values, [1, 2]);
+    /// ```
     fn truncate(&mut self, len: usize);
 }
 
