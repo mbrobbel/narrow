@@ -32,8 +32,6 @@ impl<T: for<'any> AsView<'any>> Collection for &[T] {
 
 /// An iterator over a slice that turns views into owned instances.
 ///
-/// # Design
-///
 /// A borrowed slice still needs to satisfy [`Collection::into_iter_owned`].
 /// This adapter materializes one view at a time, avoiding an intermediate
 /// collection.
