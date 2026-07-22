@@ -14,6 +14,11 @@ use core::{
 
 /// Dictionary values are ordered.
 ///
+/// # Design
+///
+/// This is the exact bit assigned by the Arrow C Data ABI, so callers can
+/// combine it directly with the other schema flags.
+///
 /// # Examples
 ///
 /// ```
@@ -24,6 +29,11 @@ use core::{
 pub const ARROW_FLAG_DICTIONARY_ORDERED: i64 = 1;
 
 /// The field is nullable.
+///
+/// # Design
+///
+/// This is the exact bit assigned by the Arrow C Data ABI, so callers can
+/// combine it directly with the other schema flags.
 ///
 /// # Examples
 ///
@@ -36,6 +46,11 @@ pub const ARROW_FLAG_NULLABLE: i64 = 2;
 
 /// Map keys are sorted.
 ///
+/// # Design
+///
+/// This is the exact bit assigned by the Arrow C Data ABI, so callers can
+/// combine it directly with the other schema flags.
+///
 /// # Examples
 ///
 /// ```
@@ -46,6 +61,12 @@ pub const ARROW_FLAG_NULLABLE: i64 = 2;
 pub const ARROW_FLAG_MAP_KEYS_SORTED: i64 = 4;
 
 /// The Arrow C Data Interface schema structure.
+///
+/// # Design
+///
+/// `repr(C)` makes this the ownership and metadata handle defined by Arrow's C
+/// ABI. The producer-provided release callback, rather than Rust ownership
+/// alone, lets foreign consumers control when its resources are freed.
 ///
 /// # Examples
 ///
@@ -79,6 +100,11 @@ pub struct ArrowSchema {
 
 impl ArrowSchema {
     /// Returns whether this schema has been released.
+    ///
+    /// # Design
+    ///
+    /// The C Data protocol uses a null release callback as its released-state
+    /// marker, so this reports protocol state without exposing private fields.
     ///
     /// # Examples
     ///
@@ -121,6 +147,12 @@ impl Drop for ArrowSchema {
 
 /// The Arrow C Data Interface array structure.
 ///
+/// # Design
+///
+/// `repr(C)` preserves the ABI's exact field layout. Buffer pointers describe
+/// the physical Arrow representation, while the release callback transfers
+/// their lifetime across the FFI boundary.
+///
 /// # Examples
 ///
 /// ```
@@ -155,6 +187,11 @@ pub struct ArrowArray {
 
 impl ArrowArray {
     /// Returns whether this array has been released.
+    ///
+    /// # Design
+    ///
+    /// The C Data protocol uses a null release callback as its released-state
+    /// marker, so this reports protocol state without exposing private fields.
     ///
     /// # Examples
     ///
