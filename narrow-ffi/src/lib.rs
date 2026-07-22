@@ -86,11 +86,11 @@ impl Drop for ArrowSchema {
 #[repr(C)]
 #[derive(Debug)]
 pub struct ArrowArray {
-    /// Logical number of elements in the array.
+    /// Number of items in the array.
     length: i64,
     /// Number of null elements, or `-1` when unknown.
     null_count: i64,
-    /// Non-negative logical element offset into the physical buffers.
+    /// Non-negative item offset into the physical buffers.
     offset: i64,
     /// Number of physical buffers, excluding child buffers.
     n_buffers: i64,

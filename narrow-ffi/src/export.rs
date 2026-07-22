@@ -89,13 +89,13 @@ trait ArrowArrayLayout: Sized {
 
     /// Converts the layout into its retained data.
     fn into_data(self) -> Self::Data;
-    /// Returns the logical array length.
+    /// Returns the number of items in the array.
     fn length(data: &Self::Data) -> usize;
     /// Returns the number of null elements, or `-1` when unknown.
     fn null_count(_data: &Self::Data) -> i64 {
         0
     }
-    /// Returns the logical element offset.
+    /// Returns the item offset into the buffers.
     fn offset(_data: &Self::Data) -> usize {
         0
     }
@@ -139,9 +139,9 @@ where
 struct BooleanData<Values> {
     /// Storage backing the value bitmap.
     values: Values,
-    /// Number of logical bits in the bitmap.
+    /// Number of array items represented by the bitmap.
     length: usize,
-    /// Logical bit offset into the bitmap.
+    /// Bit offset into the bitmap.
     offset: usize,
 }
 
