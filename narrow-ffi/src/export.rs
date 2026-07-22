@@ -16,7 +16,9 @@ use narrow::{
 
 use crate::{ArrowArray, ArrowSchema};
 
-/// A [`FixedSize`] primitive with an Arrow C Data format string.
+/// A [`FixedSize`] primitive with an [Arrow C Data format string].
+///
+/// [Arrow C Data format string]: https://arrow.apache.org/docs/format/CDataInterface.html#data-type-description-format-strings
 pub trait ArrowPrimitive: FixedSize {
     /// Arrow C Data type format.
     const FORMAT: &'static CStr;
