@@ -14,6 +14,11 @@ use crate::{
 
 /// A collection of variable-length lists.
 ///
+/// This type mirrors Arrow's offsets-plus-child representation and recursively
+/// obtains the child layout from [`ArrayItem`]. `OffsetItem` selects the
+/// standard (`i32`) or large (`i64`) Arrow list format, while `Nulls` controls
+/// only the outer list validity.
+///
 /// # Examples
 ///
 /// ```
