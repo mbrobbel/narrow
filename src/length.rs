@@ -8,10 +8,10 @@ use alloc::{boxed::Box, collections::VecDeque, rc::Rc, sync::Arc, vec::Vec};
 ///
 /// # Design
 ///
-/// Arrow layouts are assembled from several physical collections that must
-/// agree on their logical length. This small trait lets those collections
-/// participate without requiring the full [`Collection`](crate::collection::Collection)
-/// interface.
+/// `Length` is a small convenience trait for types with a meaningful number of
+/// units. It is also the minimal supertrait of
+/// [`Collection`](crate::collection::Collection), while remaining useful for
+/// types that do not provide collection access.
 ///
 /// # Examples
 ///
