@@ -10,8 +10,6 @@ use crate::{
 
 /// A collection of fixed-length lists.
 ///
-/// # Design
-///
 /// Arrow stores a fixed-size list as a flat child array; the width is schema
 /// metadata rather than an offset buffer. Encoding `N` in the Rust type keeps
 /// that schema fact attached to the memory layout:
