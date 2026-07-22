@@ -1,4 +1,4 @@
-//! Arrow C Data Interface support for Narrow.
+//! Arrow C Data Interface support for [`Array`](narrow::array::Array).
 //!
 //! See [The Arrow C data interface] specification.
 //!
@@ -11,6 +11,9 @@ use core::{
     ffi::{c_char, c_void},
     ptr,
 };
+
+mod export;
+pub use export::{ArrowPrimitive, Export};
 
 /// Dictionary values are ordered.
 pub const ARROW_FLAG_DICTIONARY_ORDERED: i64 = 1;
