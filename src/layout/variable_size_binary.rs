@@ -4,8 +4,6 @@ use crate::{
 
 /// Variable-size binary layout.
 ///
-/// # Design
-///
 /// Arrow binary data has the same physical shape as a variable-size list of
 /// bytes. This alias makes that equivalence explicit and reuses the list's
 /// offsets, storage, nullability, and collection behavior.
