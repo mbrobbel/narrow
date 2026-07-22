@@ -11,6 +11,18 @@ use crate::{
 
 /// An array of items `T`, stored using their [`ArrayItem`] memory.
 ///
+/// `Array` is the logical facade over Arrow's physical layouts. Users name the
+/// item type, and [`ArrayItem`] recursively selects the buffers encoded by that
+/// type:
+///
+/// ```text
+/// Array<Option<Vec<i32>>>
+///     -> nullable variable-size list
+///     -> validity + offsets + contiguous i32 values
+/// ```
+///
+/// The wrapper delegates collection behavior to that selected memory layout.
+///
 /// # Examples
 ///
 /// ```
