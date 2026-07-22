@@ -11,9 +11,9 @@ use crate::{
 
 /// An array of items `T`, stored using their [`ArrayItem`] memory.
 ///
-/// `Array` is the logical facade over Narrow's physical layouts. Users name the
-/// item type, and [`ArrayItem`] recursively selects the Arrow buffers encoded
-/// by that type:
+/// `Array` is the logical facade over Arrow's physical layouts. Users name the
+/// item type, and [`ArrayItem`] recursively selects the buffers encoded by that
+/// type:
 ///
 /// ```text
 /// Array<Option<Vec<i32>>>
