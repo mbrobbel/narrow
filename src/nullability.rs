@@ -5,6 +5,30 @@ use crate::{buffer::Buffer, collection::Collection, validity::Validity};
 /// Nullability trait for nullable and non-nullable type constructors.
 ///
 /// See [`NonNullable`] and [`Nullable`].
+///
+/// Nullability is a type constructor independent of the logical layout and
+/// storage backend. The same layout can therefore describe required and
+/// optional values without duplicating its implementation:
+///
+/// ```text
+/// NonNullable: T         -> values
+/// Nullable:    Option<T> -> Validity<values>
+/// ```
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{buffer::VecBuffer, length::Length};
+/// use narrow::nullability::{NonNullable, Nullability, Nullable};
+///
+/// let required: <NonNullable as Nullability>::Item<u8> = 1;
+/// let optional: <Nullable as Nullability>::Item<u8> = Some(1);
+/// assert_eq!((required, optional), (1, Some(1)));
+/// assert!(!NonNullable::NULLABLE && Nullable::NULLABLE);
+/// let values: <Nullable as Nullability>::Collection<Vec<u8>, VecBuffer> =
+///     [Some(1), None].into_iter().collect();
+/// assert_eq!(values.len(), 2);
+/// ```
 pub trait Nullability: sealed::Sealed {
     /// `true` iff this is [`Nullable`].
     const NULLABLE: bool;
@@ -20,12 +44,37 @@ pub trait Nullability: sealed::Sealed {
     >;
 
     /// Maps an item using the provided function.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::nullability::{Nullability, Nullable};
+    ///
+    /// assert_eq!(Nullable::map(Some(2), |value| value * 2), Some(4));
+    /// ```
     fn map<T, U, F: FnOnce(T) -> U>(item: Self::Item<T>, f: F) -> Self::Item<U>;
 
     /// Zip an item with another item.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::nullability::{Nullability, Nullable};
+    ///
+    /// assert_eq!(Nullable::zip(Some(1), Some(2)), Some((1, 2)));
+    /// assert_eq!(Nullable::zip(Some(1), None::<u8>), None);
+    /// ```
     fn zip<T, U>(item: Self::Item<T>, other: Self::Item<U>) -> Self::Item<(T, U)>;
 
     /// Zip item with other and apply f.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::nullability::{Nullability, NonNullable};
+    ///
+    /// assert_eq!(NonNullable::zip_with(1, 2, |(a, b)| a + b), 3);
+    /// ```
     fn zip_with<T, U, R, F: FnOnce((T, U)) -> R>(
         item: Self::Item<T>,
         other: Self::Item<U>,
@@ -49,6 +98,18 @@ mod sealed {
 /// Implements [`Nullability`] to provide:
 /// - `NonNullable::Item<T> = T`
 /// - `NonNullable::Collection<T, Buffer> = T`
+///
+/// The identity constructor represents Arrow fields that need no validity
+/// bitmap, so required data keeps exactly its underlying physical layout.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::nullability::{NonNullable, Nullability};
+///
+/// let value: <NonNullable as Nullability>::Item<u8> = 1;
+/// assert_eq!(value, 1);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NonNullable;
 
@@ -74,6 +135,18 @@ impl Nullability for NonNullable {
 /// Implements [`Nullability`] to provide:
 /// - `Nullable::Item<T> = Option<T>`
 /// - `Nullable::Collection<T, Buffer> = Validity<T, Buffer>`
+///
+/// `Option` appears at the item boundary while [`Validity`] keeps Arrow's
+/// value and validity buffers separate in the collection representation.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::nullability::{Nullability, Nullable};
+///
+/// let value: <Nullable as Nullability>::Item<u8> = None;
+/// assert_eq!(value, None);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Nullable;
 
