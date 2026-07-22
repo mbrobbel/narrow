@@ -72,20 +72,6 @@ impl ArrowType for f64 {
     const FORMAT: &'static CStr = c"g";
 }
 
-/// A [`FixedSize`] primitive supported by the Arrow C Data Interface.
-pub trait ArrowPrimitive: FixedSize + ArrowType {}
-
-impl ArrowPrimitive for i8 {}
-impl ArrowPrimitive for u8 {}
-impl ArrowPrimitive for i16 {}
-impl ArrowPrimitive for u16 {}
-impl ArrowPrimitive for i32 {}
-impl ArrowPrimitive for u32 {}
-impl ArrowPrimitive for i64 {}
-impl ArrowPrimitive for u64 {}
-impl ArrowPrimitive for f32 {}
-impl ArrowPrimitive for f64 {}
-
 /// Export an [`Array`] through the Arrow C Data Interface.
 pub trait Export {
     /// Consumes `self` and returns an [`ArrowArray`] and [`ArrowSchema`].
@@ -113,7 +99,7 @@ trait FlatArrayLayout {
 
 impl<T, Storage> FlatArrayLayout for FixedSizePrimitive<T, NonNullable, Storage>
 where
-    T: ArrowPrimitive,
+    T: FixedSize + ArrowType,
     Storage: Buffer,
     Storage::For<T>: 'static,
 {
@@ -237,12 +223,10 @@ mod tests {
         layout::{boolean::Boolean, fixed_size_primitive::FixedSizePrimitive},
     };
 
-    use super::{ArrowPrimitive, ArrowType, Export};
+    use super::{ArrowType, Export};
 
     #[test]
     fn type_format_strings_match_arrow() {
-        fn assert_primitive<T: ArrowPrimitive>() {}
-
         assert_eq!(bool::FORMAT, c"b");
         assert_eq!(i8::FORMAT, c"c");
         assert_eq!(u8::FORMAT, c"C");
@@ -254,17 +238,6 @@ mod tests {
         assert_eq!(u64::FORMAT, c"L");
         assert_eq!(f32::FORMAT, c"f");
         assert_eq!(f64::FORMAT, c"g");
-
-        assert_primitive::<i8>();
-        assert_primitive::<u8>();
-        assert_primitive::<i16>();
-        assert_primitive::<u16>();
-        assert_primitive::<i32>();
-        assert_primitive::<u32>();
-        assert_primitive::<i64>();
-        assert_primitive::<u64>();
-        assert_primitive::<f32>();
-        assert_primitive::<f64>();
     }
 
     #[test]

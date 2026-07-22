@@ -13,7 +13,7 @@ use core::{
 };
 
 mod export;
-pub use export::{ArrowPrimitive, ArrowType, Export};
+pub use export::{ArrowType, Export};
 
 /// Dictionary values are ordered.
 pub const ARROW_FLAG_DICTIONARY_ORDERED: i64 = 1;
