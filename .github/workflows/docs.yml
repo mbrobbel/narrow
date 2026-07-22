@@ -27,7 +27,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@4fd1da8b0805d2d2e936788875a7d65dbd677dc2 # nightly
-        id: rust-toolchain
       - name: Cache cargo-docs-rs
         id: cargo_docs_rs
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
