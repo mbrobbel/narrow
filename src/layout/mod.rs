@@ -23,6 +23,10 @@ pub mod variable_size_list;
 
 /// A physical memory layout.
 ///
+/// This marker is the endpoint of type-level layout selection. Requiring
+/// [`Collection`] ensures every selected Arrow representation has the same
+/// access and construction vocabulary.
+///
 /// # Examples
 ///
 /// ```
@@ -34,6 +38,17 @@ pub mod variable_size_list;
 pub trait MemoryLayout: Collection {}
 
 /// Mapping a base type to its physical memory layout.
+///
+/// `Layout` captures Arrow's mapping from a logical Rust type to physical
+/// memory while leaving nullability and buffer ownership as independent type
+/// parameters:
+///
+/// ```text
+/// base type T
+///     | Layout::Memory<Nulls, Storage>
+///     v
+/// physical MemoryLayout + Collection
+/// ```
 ///
 /// # Examples
 ///
@@ -50,6 +65,10 @@ pub trait Layout: Sized {
 
 /// Marker for base types whose layout supports Arrow validity bitmaps.
 ///
+/// This is a compile-time proof used to gate `Option<T>`. It prevents a
+/// nullable array item from selecting a layout that cannot carry Arrow
+/// validity information.
+///
 /// # Examples
 ///
 /// ```
@@ -61,6 +80,15 @@ pub trait Layout: Sized {
 pub trait NullableLayout: Layout {}
 
 /// Mapping an array item type to its complete physical memory layout.
+///
+/// This is the user-facing composition step. It resolves both the base layout
+/// and item nullability, so a concrete Rust item type fully determines its
+/// Arrow representation for the chosen storage backend:
+///
+/// ```text
+/// T         -> Layout::Memory<NonNullable, Storage>
+/// Option<T> -> Layout::Memory<Nullable, Storage>
+/// ```
 ///
 /// # Examples
 ///
