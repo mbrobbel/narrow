@@ -30,7 +30,21 @@ impl<T: for<'any> AsView<'any>> Collection for &[T] {
     }
 }
 
-/// An iterator over a slice that turns views into owned instances
+/// An iterator over a slice that turns views into owned instances.
+///
+/// A borrowed slice still needs to satisfy [`Collection::into_iter_owned`].
+/// This adapter materializes one view at a time, avoiding an intermediate
+/// collection.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::collection::{Collection, slice::SliceIntoIter};
+///
+/// let values = [1, 2];
+/// let iter: SliceIntoIter<&[i32], i32> = values.as_slice().into_iter_owned();
+/// assert_eq!(iter.collect::<Vec<_>>(), [1, 2]);
+/// ```
 #[derive(Debug)]
 pub struct SliceIntoIter<T, U> {
     /// The item that can be borrowed as slice

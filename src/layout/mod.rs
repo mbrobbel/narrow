@@ -22,18 +22,82 @@ pub mod variable_size_binary;
 pub mod variable_size_list;
 
 /// A physical memory layout.
+///
+/// This marker is the endpoint of type-level layout selection. Requiring
+/// [`Collection`] ensures every selected Arrow representation has the same
+/// access and construction vocabulary.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::layout::{MemoryLayout, fixed_size_primitive::FixedSizePrimitive};
+///
+/// fn assert_memory_layout<T: MemoryLayout>() {}
+/// assert_memory_layout::<FixedSizePrimitive<i32>>();
+/// ```
 pub trait MemoryLayout: Collection {}
 
 /// Mapping a base type to its physical memory layout.
+///
+/// `Layout` captures Arrow's mapping from a logical Rust type to physical
+/// memory while leaving nullability and buffer ownership as independent type
+/// parameters:
+///
+/// ```text
+/// base type T
+///     | Layout::Memory<Nulls, Storage>
+///     v
+/// physical MemoryLayout + Collection
+/// ```
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{buffer::VecBuffer, layout::{Layout, boolean::Boolean}, nullability::NonNullable};
+///
+/// fn assert_layout<T: Layout<Memory<NonNullable, VecBuffer> = Boolean>>() {}
+/// assert_layout::<bool>();
+/// ```
 pub trait Layout: Sized {
     /// The Arrow physical memory layout of this type.
     type Memory<Nulls: Nullability, Storage: Buffer>: MemoryLayout<Owned = Nulls::Item<Self>>;
 }
 
 /// Marker for base types whose layout supports Arrow validity bitmaps.
+///
+/// This is a compile-time proof used to gate `Option<T>`. It prevents a
+/// nullable array item from selecting a layout that cannot carry Arrow
+/// validity information.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::layout::NullableLayout;
+///
+/// fn assert_nullable<T: NullableLayout>() {}
+/// assert_nullable::<Vec<i32>>();
+/// ```
 pub trait NullableLayout: Layout {}
 
 /// Mapping an array item type to its complete physical memory layout.
+///
+/// This is the user-facing composition step. It resolves both the base layout
+/// and item nullability, so a concrete Rust item type fully determines its
+/// Arrow representation for the chosen storage backend:
+///
+/// ```text
+/// T         -> Layout::Memory<NonNullable, Storage>
+/// Option<T> -> Layout::Memory<Nullable, Storage>
+/// ```
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{buffer::VecBuffer, layout::{ArrayItem, boolean::Boolean}, nullability::Nullable};
+///
+/// fn assert_item<T: ArrayItem<Memory<VecBuffer> = Boolean<Nullable>>>() {}
+/// assert_item::<Option<bool>>();
+/// ```
 pub trait ArrayItem: Sized {
     /// The Arrow physical memory layout of this array item type.
     type Memory<Storage: Buffer>: MemoryLayout<Owned = Self>;
