@@ -12,6 +12,18 @@ use crate::{
     offset::{Offset, Offsets},
 };
 
+/// A collection of variable-length lists.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{collection::Collection, layout::variable_size_list::VariableSizeList, nullability::Nullable};
+///
+/// let values = [vec![1, 2], vec![3]].into_iter().collect::<VariableSizeList<i32>>();
+/// assert_eq!(values.owned(0), Some(vec![1, 2]));
+/// let values = [Some(vec![1]), None].into_iter().collect::<VariableSizeList<i32, Nullable>>();
+/// assert_eq!(values.owned(1), Some(None));
+/// ```
 pub struct VariableSizeList<
     T: ArrayItem,
     Nulls: Nullability = NonNullable,
@@ -28,6 +40,16 @@ impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer>
     VariableSizeList<T, Nulls, OffsetItem, Storage>
 {
     /// Constructs a [`VariableSizeList`] from its backing collection.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{collection::Collection, layout::variable_size_list::VariableSizeList};
+    ///
+    /// let original = [vec![1, 2]].into_iter().collect::<VariableSizeList<i32>>();
+    /// let restored = VariableSizeList::<i32>::from_buffer(original.into_buffer());
+    /// assert_eq!(restored.owned(0), Some(vec![1, 2]));
+    /// ```
     #[must_use]
     pub fn from_buffer(
         buffer: Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>,
@@ -38,6 +60,15 @@ impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer>
     /// Returns the backing collection of this [`VariableSizeList`].
     ///
     /// This is the inverse of [`VariableSizeList::from_buffer`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{layout::variable_size_list::VariableSizeList, length::Length};
+    ///
+    /// let values = [vec![1, 2]].into_iter().collect::<VariableSizeList<i32>>();
+    /// assert_eq!(values.into_buffer().len(), 1);
+    /// ```
     #[must_use]
     pub fn into_buffer(
         self,
