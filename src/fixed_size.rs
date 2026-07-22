@@ -4,8 +4,8 @@ use core::{mem, ops::Deref};
 
 /// Fixed-size types.
 ///
-/// Narrow uses this sealed set of scalar types wherever Arrow requires a
-/// contiguous, fixed-width value buffer. Sealing prevents unsupported
+/// This sealed set identifies scalar types that can be stored in Arrow's
+/// contiguous, fixed-width value buffers. Sealing prevents unsupported
 /// representations from entering layouts that rely on this guarantee.
 ///
 /// # Examples
