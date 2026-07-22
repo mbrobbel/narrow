@@ -8,14 +8,10 @@ on:
     branches:
       - main
 
-env:
-  SCCACHE_GHA_ENABLED: true
-  RUSTC_WRAPPER: sccache
-
 jobs:
   release:
     name: Release
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-26.04-arm
     permissions: {}
     environment:
       name: crates-io
@@ -32,15 +28,6 @@ jobs:
           token: ${{ steps.token.outputs.token }}
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: cargo-
-      - uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
       - uses: release-plz/action@2eb1d8bcb770b4c48ccfaad919734b38b51958c9 # v0.5.131
         with:
           command: release
@@ -50,8 +37,11 @@ jobs:
 
   pr:
     name: PR
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-26.04-arm
     permissions: {}
+    env:
+      SCCACHE_GHA_ENABLED: true
+      RUSTC_WRAPPER: sccache
     concurrency:
       group: release-${{ github.ref }}
       cancel-in-progress: false
@@ -69,14 +59,6 @@ jobs:
           token: ${{ steps.token.outputs.token }}
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: cargo-
       - uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
       - uses: release-plz/action@2eb1d8bcb770b4c48ccfaad919734b38b51958c9 # v0.5.131
         with:
