@@ -125,7 +125,7 @@ where
 
         // Primitive format strings and the empty name are static, so the
         // schema release callback only needs to mark the schema as released.
-        (array, flat_schema(T::FORMAT))
+        (array, ArrowSchema::flat(T::FORMAT))
     }
 }
 
@@ -172,21 +172,23 @@ where
             private_data,
         };
 
-        (array, flat_schema(c"b"))
+        (array, ArrowSchema::flat(c"b"))
     }
 }
 
-fn flat_schema(format: &'static CStr) -> ArrowSchema {
-    ArrowSchema {
-        format: format.as_ptr(),
-        name: c"".as_ptr(),
-        metadata: ptr::null(),
-        flags: 0,
-        n_children: 0,
-        children: ptr::null_mut(),
-        dictionary: ptr::null_mut(),
-        release: Some(release_schema),
-        private_data: ptr::null_mut(),
+impl ArrowSchema {
+    fn flat(format: &'static CStr) -> Self {
+        Self {
+            format: format.as_ptr(),
+            name: c"".as_ptr(),
+            metadata: ptr::null(),
+            flags: 0,
+            n_children: 0,
+            children: ptr::null_mut(),
+            dictionary: ptr::null_mut(),
+            release: Some(release_schema),
+            private_data: ptr::null_mut(),
+        }
     }
 }
 
