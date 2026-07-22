@@ -79,14 +79,12 @@ pub trait Export {
 }
 
 /// A layout that describes its [`ArrowArray`] fields.
-trait ArrowArrayLayout: Sized {
+trait ArrowArrayLayout: Length + Sized {
     /// Buffer pointers exposed by the exported array.
     type Buffers: AsRef<[*const c_void]> + AsMut<[*const c_void]> + Default + 'static;
     /// Child pointers exposed by the exported array.
     type Children: AsRef<[*mut ArrowArray]> + AsMut<[*mut ArrowArray]> + Default + 'static;
 
-    /// Returns the number of items in the array.
-    fn length(&self) -> usize;
     /// Returns the number of null elements, or `-1` when unknown.
     fn null_count(&self) -> i64 {
         0
@@ -121,7 +119,7 @@ trait ArrowArrayLayout: Sized {
         private.children = private.layout.children();
 
         // Convert platform-sized layout metadata into the Arrow C ABI fields.
-        let length = i64::try_from(private.layout.length()).expect("array length exceeds i64");
+        let length = i64::try_from(private.layout.len()).expect("array length exceeds i64");
         let null_count = private.layout.null_count();
         let offset = i64::try_from(private.layout.offset()).expect("array offset exceeds i64");
         let n_buffers =
@@ -169,10 +167,6 @@ where
     type Buffers = [*const c_void; 2];
     type Children = [*mut ArrowArray; 0];
 
-    fn length(&self) -> usize {
-        self.buffer_ref().borrow().len()
-    }
-
     fn buffers(&self) -> Self::Buffers {
         let values: &[T] = self.buffer_ref().borrow();
         [ptr::null(), values.as_ptr().cast()]
@@ -182,10 +176,6 @@ where
 impl<Storage: Buffer> ArrowArrayLayout for Boolean<NonNullable, Storage> {
     type Buffers = [*const c_void; 2];
     type Children = [*mut ArrowArray; 0];
-
-    fn length(&self) -> usize {
-        self.len()
-    }
 
     fn offset(&self) -> usize {
         self.buffer_ref().bit_offset()
