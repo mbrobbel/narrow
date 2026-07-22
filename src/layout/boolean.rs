@@ -13,6 +13,15 @@ use crate::{
 ///
 /// <https://arrow.apache.org/docs/format/Columnar.html#fixed-size-primitive-layout>
 ///
+/// Arrow represents boolean values as bits rather than one byte per value.
+/// Nullable booleans compose two independent bitmaps instead of changing that
+/// value representation:
+///
+/// ```text
+/// required: value bits
+/// optional: value bits + validity bits
+/// ```
+///
 /// # Examples
 ///
 /// ```
