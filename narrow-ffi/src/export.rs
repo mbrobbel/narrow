@@ -255,6 +255,32 @@ impl<Storage: Buffer> ArrowArrayLayout for Boolean<NonNullable, Storage> {
     }
 }
 
+impl<Storage: Buffer> ArrowArrayLayout for Boolean<Nullable, Storage> {
+    type Buffers = [*const c_void; 2];
+    type Children = [*mut ArrowArray; 0];
+
+    fn null_count(&self) -> i64 {
+        i64::try_from(ValidityBitmap::null_count(self.buffer_ref()))
+            .expect("null count exceeds i64")
+    }
+
+    fn offset(&self) -> usize {
+        let validity = self.buffer_ref();
+        let validity_offset = validity.bitmap_ref().bit_offset();
+        if validity_offset != 0 {
+            return validity_offset;
+        }
+        validity.child_ref().bit_offset()
+    }
+
+    fn buffers(&self) -> Self::Buffers {
+        let validity = self.buffer_ref();
+        let validity_values: &[u8] = validity.bitmap_ref().buffer_ref().borrow();
+        let values: &[u8] = validity.child_ref().buffer_ref().borrow();
+        [validity_values.as_ptr().cast(), values.as_ptr().cast()]
+    }
+}
+
 /// Data retained by `ArrowArray::private_data` for an array export.
 struct ArrayData<Layout: ArrowArrayLayout> {
     /// Layout backing the exported array.
@@ -500,6 +526,76 @@ mod tests {
         drop(array);
         assert!(weak.upgrade().is_none());
         drop(schema);
+    }
+
+    #[test]
+    fn exports_nullable_boolean_bitmaps_without_copying() {
+        let values = Arc::<[u8]>::from([0b0000_0001]);
+        let validity_values = Arc::<[u8]>::from([0b0000_0101]);
+        let values_weak = Arc::downgrade(&values);
+        let validity_weak = Arc::downgrade(&validity_values);
+        let values_data = values.as_ptr();
+        let validity_data = validity_values.as_ptr();
+        let values = Bitmap::<ArcBuffer>::try_from_parts(values, 3, 0).expect("valid bitmap");
+        let validity =
+            Bitmap::<ArcBuffer>::try_from_parts(validity_values, 3, 0).expect("valid bitmap");
+        let validity = Validity::try_from_parts(values, validity).expect("valid parts");
+        let array: Array<Option<bool>, ArcBuffer> =
+            Array::from_buffer(Boolean::from_buffer(validity));
+
+        let (array, schema) = array.export().expect("export array");
+
+        assert_eq!(array.length, 3);
+        assert_eq!(array.null_count, 1);
+        assert_eq!(array.offset, 0);
+        assert_eq!(array.n_buffers, 2);
+        assert_eq!(array.n_children, 0);
+        // SAFETY: The exported array owns a two-entry buffer pointer array.
+        let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
+        assert_eq!(buffers[0], validity_data.cast());
+        assert_eq!(buffers[1], values_data.cast());
+        // SAFETY: Both buffers point to bytes retained by the export.
+        assert_eq!(unsafe { *buffers[0].cast::<u8>() }, 0b0000_0101);
+        // SAFETY: The value buffer points to a byte retained by the export.
+        assert_eq!(unsafe { *buffers[1].cast::<u8>() }, 0b0000_0001);
+
+        // SAFETY: The exported schema has a live, null-terminated format string.
+        assert_eq!(unsafe { CStr::from_ptr(schema.format) }, c"b");
+        assert_eq!(schema.flags, ARROW_FLAG_NULLABLE);
+        assert!(values_weak.upgrade().is_some());
+        assert!(validity_weak.upgrade().is_some());
+
+        drop(array);
+        assert!(values_weak.upgrade().is_none());
+        assert!(validity_weak.upgrade().is_none());
+        drop(schema);
+    }
+
+    #[test]
+    fn rejects_non_zero_nullable_boolean_offsets() {
+        let values =
+            Bitmap::<ArrayBuffer<1>>::try_from_parts([0b0001_0100], 3, 2).expect("valid bitmap");
+        let validity =
+            Bitmap::<ArrayBuffer<1>>::try_from_parts([0b0000_0111], 3, 0).expect("valid bitmap");
+        let validity = Validity::try_from_parts(values, validity).expect("valid parts");
+        let array: Array<Option<bool>, ArrayBuffer<1>> =
+            Array::from_buffer(Boolean::from_buffer(validity));
+        assert_eq!(
+            array.export().expect_err("non-zero value offset"),
+            ExportError::NonZeroOffset { offset: 2 }
+        );
+
+        let values =
+            Bitmap::<ArrayBuffer<1>>::try_from_parts([0b0000_0101], 3, 0).expect("valid bitmap");
+        let validity =
+            Bitmap::<ArrayBuffer<1>>::try_from_parts([0b0001_1100], 3, 2).expect("valid bitmap");
+        let validity = Validity::try_from_parts(values, validity).expect("valid parts");
+        let array: Array<Option<bool>, ArrayBuffer<1>> =
+            Array::from_buffer(Boolean::from_buffer(validity));
+        assert_eq!(
+            array.export().expect_err("non-zero validity offset"),
+            ExportError::NonZeroOffset { offset: 2 }
+        );
     }
 
     #[test]
