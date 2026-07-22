@@ -6,6 +6,13 @@ use alloc::{boxed::Box, collections::VecDeque, rc::Rc, sync::Arc, vec::Vec};
 
 /// The length (or number of units) of an item.
 ///
+/// # Design
+///
+/// Arrow layouts are assembled from several physical collections that must
+/// agree on their logical length. This small trait lets those collections
+/// participate without requiring the full [`Collection`](crate::collection::Collection)
+/// interface.
+///
 /// # Examples
 ///
 /// ```
