@@ -1,20 +1,16 @@
-//! Borrowed import support for [`FixedSizePrimitive`].
+//! Borrowed import support for [`Boolean`].
 
-use core::{ffi::CStr, mem, slice};
+use core::{ffi::CStr, slice};
 
 use narrow::{
-    buffer::SliceBuffer, fixed_size::FixedSize, layout::fixed_size_primitive::FixedSizePrimitive,
-    nullability::NonNullable,
+    bitmap::Bitmap, buffer::SliceBuffer, layout::boolean::Boolean, nullability::NonNullable,
 };
 
 use crate::{ArrowArray, ArrowSchema, ArrowType};
 
 use super::{ArrowArrayImport, ImportError};
 
-impl<'array, T> ArrowArrayImport<'array> for FixedSizePrimitive<T, NonNullable, SliceBuffer<'array>>
-where
-    T: FixedSize + ArrowType,
-{
+impl<'array> ArrowArrayImport<'array> for Boolean<NonNullable, SliceBuffer<'array>> {
     unsafe fn import_layout(
         array: &'array ArrowArray,
         schema: &ArrowSchema,
@@ -29,7 +25,7 @@ where
             return Err(ImportError::MissingFormat);
         }
         // SAFETY: The caller guarantees a valid null-terminated schema format.
-        if unsafe { CStr::from_ptr(schema.format) } != T::FORMAT {
+        if unsafe { CStr::from_ptr(schema.format) } != bool::FORMAT {
             return Err(ImportError::UnexpectedFormat);
         }
         if schema.flags != 0 {
@@ -71,24 +67,22 @@ where
 
         // SAFETY: The caller guarantees a valid two-entry buffer pointer array.
         let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
-        let values = if length == 0 {
+        let byte_length = length.div_ceil(8);
+        let values = if byte_length == 0 {
             &[]
         } else {
-            let values = buffers[1].cast::<T>();
+            let values = buffers[1].cast::<u8>();
             if values.is_null() {
                 return Err(ImportError::MissingValuesBuffer);
             }
-            if !values.is_aligned() {
-                return Err(ImportError::MisalignedValuesBuffer {
-                    alignment: mem::align_of::<T>(),
-                });
-            }
-            // SAFETY: The caller guarantees the value buffer contains `length`
-            // properly aligned values that remain immutable for `'array`.
-            unsafe { slice::from_raw_parts(values, length) }
+            // SAFETY: The caller guarantees the value buffer contains
+            // `byte_length` bytes that remain immutable for `'array`.
+            unsafe { slice::from_raw_parts(values, byte_length) }
         };
+        let bitmap = Bitmap::try_from_parts(values, length, 0)
+            .expect("imported Boolean buffer contains the declared number of bits");
 
-        Ok(Self::from_buffer(values))
+        Ok(Self::from_buffer(bitmap))
     }
 }
 
@@ -101,33 +95,36 @@ mod tests {
 
     use narrow::{
         array::Array,
+        bitmap::Bitmap,
         buffer::{ArcBuffer, BufferRef, SliceBuffer},
-        layout::fixed_size_primitive::FixedSizePrimitive,
+        collection::Collection,
+        layout::boolean::Boolean,
     };
 
-    use crate::{
-        export::Export,
-        import::{Import, ImportError},
-    };
+    use crate::{export::Export, import::Import};
 
     #[test]
-    fn imports_primitive_values_without_copying() {
-        let storage = Arc::<[i32]>::from([1, 2, 3]);
+    fn imports_boolean_values_without_copying() {
+        let storage = Arc::<[u8]>::from([0b0000_0101]);
         let weak = Arc::downgrade(&storage);
         let data = storage.as_ptr();
-        let source: Array<i32, ArcBuffer> =
-            Array::from_buffer(FixedSizePrimitive::from_buffer(storage));
+        let bitmap = Bitmap::<ArcBuffer>::try_from_parts(storage, 3, 0).expect("valid bitmap");
+        let source: Array<bool, ArcBuffer> = Array::from_buffer(Boolean::from_buffer(bitmap));
         let (array, schema) = source.export().expect("export array");
 
         {
-            // SAFETY: The exported structures remain live and own a valid i32
-            // buffer for the lifetime of the imported array.
-            let imported: Array<i32, SliceBuffer<'_>> =
+            // SAFETY: The exported structures remain live and own a valid
+            // Boolean value bitmap for the lifetime of the imported array.
+            let imported: Array<bool, SliceBuffer<'_>> =
                 unsafe { Import::import(&array, &schema) }.expect("import array");
 
-            let imported_values: &[i32] = imported.buffer_ref().buffer_ref().borrow();
-            assert_eq!(imported_values, [1, 2, 3]);
+            let imported_values: &[u8] = imported.buffer_ref().buffer_ref().buffer_ref().borrow();
+            assert_eq!(imported_values, [0b0000_0101]);
             assert_eq!(imported_values.as_ptr(), data);
+            assert_eq!(
+                imported.iter_views().collect::<alloc::vec::Vec<_>>(),
+                [true, false, true,]
+            );
             assert!(weak.upgrade().is_some());
         };
 
@@ -135,37 +132,5 @@ mod tests {
         drop(array);
         assert!(weak.upgrade().is_none());
         drop(schema);
-    }
-
-    #[test]
-    fn rejects_mismatched_primitive_format() {
-        let source = [1_i32].into_iter().collect::<Array<i32>>();
-        let (array, mut schema) = source.export().expect("export array");
-        schema.format = c"l".as_ptr();
-
-        // SAFETY: The exported structures and value buffer remain valid; only
-        // the schema format is changed to exercise validation.
-        let error = unsafe {
-            <Array<i32, SliceBuffer<'_>> as Import>::import(&array, &schema)
-                .expect_err("mismatched format")
-        };
-
-        assert_eq!(error, ImportError::UnexpectedFormat);
-    }
-
-    #[test]
-    fn rejects_non_zero_primitive_offset() {
-        let source = [1_i32].into_iter().collect::<Array<i32>>();
-        let (mut array, schema) = source.export().expect("export array");
-        array.offset = 1;
-
-        // SAFETY: The exported structures and value buffer remain valid; only
-        // the array offset is changed to exercise validation.
-        let error = unsafe {
-            <Array<i32, SliceBuffer<'_>> as Import>::import(&array, &schema)
-                .expect_err("non-zero offset")
-        };
-
-        assert_eq!(error, ImportError::NonZeroOffset { offset: 1 });
     }
 }

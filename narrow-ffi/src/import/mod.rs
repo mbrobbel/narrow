@@ -2,6 +2,8 @@
 
 use core::fmt;
 
+use narrow::{array::Array, buffer::SliceBuffer, layout::ArrayItem};
+
 use crate::{ArrowArray, ArrowSchema};
 
 /// Borrowed import support for an Arrow C Data array.
@@ -20,6 +22,33 @@ pub trait Import<'array>: Sized {
     /// `'array` and contain enough properly aligned elements for the declared
     /// array length.
     unsafe fn import(array: &'array ArrowArray, schema: &ArrowSchema) -> Result<Self, ImportError>;
+}
+
+/// A memory layout that can borrow an Arrow C Data array.
+trait ArrowArrayImport<'array>: Sized {
+    /// Imports the memory layout described by an Arrow array and schema.
+    ///
+    /// # Safety
+    ///
+    /// The caller must uphold the requirements of [`Import::import`].
+    unsafe fn import_layout(
+        array: &'array ArrowArray,
+        schema: &ArrowSchema,
+    ) -> Result<Self, ImportError>;
+}
+
+impl<'array, T> Import<'array> for Array<T, SliceBuffer<'array>>
+where
+    T: ArrayItem,
+    T::Memory<SliceBuffer<'array>>: ArrowArrayImport<'array>,
+{
+    unsafe fn import(array: &'array ArrowArray, schema: &ArrowSchema) -> Result<Self, ImportError> {
+        // SAFETY: The caller upholds the requirements of `Import::import`.
+        let memory = unsafe {
+            <T::Memory<SliceBuffer<'array>> as ArrowArrayImport>::import_layout(array, schema)
+        }?;
+        Ok(Self::from_buffer(memory))
+    }
 }
 
 /// Error returned when Arrow C Data cannot be borrowed as a Narrow array.
@@ -70,7 +99,7 @@ pub enum ImportError {
     UnexpectedDictionary,
     /// The Arrow array does not contain its buffer pointer array.
     MissingBufferPointers,
-    /// A non-empty primitive array does not contain a value buffer.
+    /// A non-empty array does not contain a value buffer.
     MissingValuesBuffer,
     /// The primitive value buffer is not aligned for its element type.
     MisalignedValuesBuffer {
@@ -120,5 +149,7 @@ impl fmt::Display for ImportError {
 
 impl core::error::Error for ImportError {}
 
+/// Borrowed import support for Boolean arrays.
+mod boolean;
 /// Borrowed import support for fixed-size primitive arrays.
 mod fixed_size_primitive;
