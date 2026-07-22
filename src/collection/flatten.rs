@@ -17,6 +17,10 @@ use crate::{
 /// A collection that flattens an inner collection and exposes its items as
 /// arrays with N items.
 ///
+/// Arrow fixed-size lists are one flat child collection plus a constant width,
+/// rather than a collection of separately allocated arrays. `Flatten` presents
+/// that physical form as logical `[T; N]` items.
+///
 /// # Examples
 ///
 /// ```
@@ -29,6 +33,10 @@ use crate::{
 pub struct Flatten<C: Collection, const N: usize>(C);
 
 /// Error returned by [`Flatten::try_from_parts`].
+///
+/// Validation happens when raw parts enter the safe representation. This lets
+/// later indexing assume that `N` is non-zero and every logical item has a
+/// complete group of child values.
 ///
 /// # Examples
 ///
@@ -224,6 +232,9 @@ impl<C: CollectionRealloc, const N: usize> CollectionRealloc for Flatten<C, N> {
 
 /// A view of `Flatten`. This is an array with N views of the inner collection.
 ///
+/// The array of child views is assembled by value, so reading a fixed-size list
+/// does not materialize or allocate its owned child items.
+///
 /// # Examples
 ///
 /// ```
@@ -268,6 +279,9 @@ impl<C: Collection, const N: usize> IntoOwned<[C::Owned; N]> for FlattenView<'_,
 }
 
 /// An iterator over N elements of the inner iterator at a time.
+///
+/// This is the consuming counterpart to [`FlattenView`]: it reconstructs each
+/// owned array directly from the flat child iterator.
 ///
 /// # Examples
 ///

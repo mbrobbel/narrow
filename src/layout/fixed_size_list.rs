@@ -8,6 +8,18 @@ use crate::{
     nullability::{NonNullable, Nullability},
 };
 
+/// A collection of fixed-length lists.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{collection::Collection, layout::fixed_size_list::FixedSizeList, nullability::Nullable};
+///
+/// let values = [[1, 2], [3, 4]].into_iter().collect::<FixedSizeList<i32, 2>>();
+/// assert_eq!(values.owned(1), Some([3, 4]));
+/// let values = [Some([1, 2]), None].into_iter().collect::<FixedSizeList<i32, 2, Nullable>>();
+/// assert_eq!(values.owned(1), Some(None));
+/// ```
 pub struct FixedSizeList<
     T: ArrayItem,
     const N: usize,
@@ -24,6 +36,16 @@ impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer>
     FixedSizeList<T, N, Nulls, Storage>
 {
     /// Constructs a [`FixedSizeList`] from its backing collection.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{collection::Collection, layout::fixed_size_list::FixedSizeList};
+    ///
+    /// let original = [[1, 2]].into_iter().collect::<FixedSizeList<i32, 2>>();
+    /// let restored = FixedSizeList::<i32, 2>::from_buffer(original.into_buffer());
+    /// assert_eq!(restored.owned(0), Some([1, 2]));
+    /// ```
     #[must_use]
     pub fn from_buffer(buffer: Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>) -> Self {
         Self(buffer)
@@ -32,6 +54,15 @@ impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer>
     /// Returns the backing collection of this [`FixedSizeList`].
     ///
     /// This is the inverse of [`FixedSizeList::from_buffer`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{layout::fixed_size_list::FixedSizeList, length::Length};
+    ///
+    /// let values = [[1, 2]].into_iter().collect::<FixedSizeList<i32, 2>>();
+    /// assert_eq!(values.into_buffer().len(), 1);
+    /// ```
     #[must_use]
     pub fn into_buffer(self) -> Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage> {
         self.0
