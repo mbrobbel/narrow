@@ -57,6 +57,13 @@ pub trait Collection: Length {
 /// For example, variable-size binary data is a physical child in Narrow but an
 /// Arrow data buffer.
 ///
+/// # Design
+///
+/// Nested layouts are wrappers around other physical collections. A shared
+/// child-access trait lets exporters and introspection code recurse through
+/// those wrappers without matching every concrete layout, while the name
+/// deliberately distinguishes physical children from schema children.
+///
 /// # Examples
 ///
 /// ```
