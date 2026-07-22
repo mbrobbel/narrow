@@ -12,6 +12,17 @@ use crate::{
 /// A collection of `FixedSize` items.
 ///
 /// <https://arrow.apache.org/docs/format/Columnar.html#fixed-size-primitive-layout>
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{collection::Collection, layout::fixed_size_primitive::FixedSizePrimitive, nullability::Nullable};
+///
+/// let values = [1, 2].into_iter().collect::<FixedSizePrimitive<i32>>();
+/// assert_eq!(values.owned(1), Some(2));
+/// let values = [Some(1), None].into_iter().collect::<FixedSizePrimitive<i32, Nullable>>();
+/// assert_eq!(values.owned(1), Some(None));
+/// ```
 pub struct FixedSizePrimitive<
     T: FixedSize,
     Nulls: Nullability = NonNullable,
@@ -25,6 +36,15 @@ impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> MemoryLayout
 
 impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> FixedSizePrimitive<T, Nulls, Storage> {
     /// Constructs a [`FixedSizePrimitive`] from its backing collection.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{collection::Collection, layout::fixed_size_primitive::FixedSizePrimitive};
+    ///
+    /// let values = FixedSizePrimitive::<i32>::from_buffer(vec![1, 2]);
+    /// assert_eq!(values.owned(0), Some(1));
+    /// ```
     #[must_use]
     pub fn from_buffer(buffer: Nulls::Collection<Storage::For<T>, Storage>) -> Self {
         Self(buffer)
@@ -33,6 +53,15 @@ impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> FixedSizePrimitive<T, Nu
     /// Returns the backing collection of this [`FixedSizePrimitive`].
     ///
     /// This is the inverse of [`FixedSizePrimitive::from_buffer`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::layout::fixed_size_primitive::FixedSizePrimitive;
+    ///
+    /// let values = [1, 2].into_iter().collect::<FixedSizePrimitive<i32>>();
+    /// assert_eq!(values.into_buffer(), [1, 2]);
+    /// ```
     #[must_use]
     pub fn into_buffer(self) -> Nulls::Collection<Storage::For<T>, Storage> {
         self.0

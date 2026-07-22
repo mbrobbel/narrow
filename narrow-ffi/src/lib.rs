@@ -1,16 +1,73 @@
-//! Arrow C Data Interface support for Narrow.
+//! Arrow C Data Interface support for [`Array`](narrow::array::Array).
 //!
 //! See [The Arrow C data interface] specification.
 //!
 //! [The Arrow C data interface]: https://arrow.apache.org/docs/format/CDataInterface.html
 
 #![no_std]
-#![deny(missing_docs, unsafe_op_in_unsafe_fn)]
+// The goal of the list of lints here is to help reduce complexity and improve consistency
+#![deny(
+    // Rustc
+    missing_copy_implementations,
+    missing_debug_implementations,
+    missing_docs,
+    noop_method_call,
+    unsafe_op_in_unsafe_fn,
+    warnings,
+    unused,
+    // Clippy
+    clippy::all,
+    clippy::suspicious,
+    clippy::style,
+    clippy::complexity,
+    clippy::perf,
+    clippy::pedantic,
+    // clippy::restriction,
+    clippy::arithmetic_side_effects,
+    clippy::as_conversions,
+    clippy::as_underscore,
+    clippy::clone_on_ref_ptr,
+    clippy::decimal_literal_representation,
+    clippy::empty_structs_with_brackets,
+    clippy::get_unwrap,
+    clippy::if_then_some_else_none,
+    // clippy::missing_docs_in_private_items,
+    clippy::multiple_unsafe_ops_per_block,
+    clippy::pattern_type_mismatch,
+    clippy::rest_pat_in_fully_bound_structs,
+    clippy::same_name_method,
+    clippy::self_named_module_files,
+    clippy::semicolon_outside_block,
+    clippy::shadow_reuse,
+    clippy::shadow_same,
+    clippy::shadow_unrelated,
+    clippy::str_to_string,
+    clippy::string_add,
+    clippy::tests_outside_test_module,
+    clippy::undocumented_unsafe_blocks,
+    clippy::unnecessary_safety_comment,
+    clippy::unnecessary_safety_doc,
+    clippy::unnecessary_self_imports,
+    clippy::unneeded_field_pattern,
+    clippy::unseparated_literal_suffix,
+    clippy::unwrap_used,
+    // Rustdoc
+    rustdoc::all
+)]
+#![allow(
+    clippy::into_iter_without_iter,
+    clippy::iter_not_returning_iterator,
+    clippy::module_name_repetitions,
+    clippy::pub_use
+)]
 
 use core::{
     ffi::{c_char, c_void},
     ptr,
 };
+
+mod export;
+pub use export::{ArrowType, Export, ExportError};
 
 /// Dictionary values are ordered.
 pub const ARROW_FLAG_DICTIONARY_ORDERED: i64 = 1;
@@ -83,11 +140,11 @@ impl Drop for ArrowSchema {
 #[repr(C)]
 #[derive(Debug)]
 pub struct ArrowArray {
-    /// Logical number of elements in the array.
+    /// Number of items in the array.
     length: i64,
     /// Number of null elements, or `-1` when unknown.
     null_count: i64,
-    /// Non-negative logical element offset into the physical buffers.
+    /// Non-negative item offset into the physical buffers.
     offset: i64,
     /// Number of physical buffers, excluding child buffers.
     n_buffers: i64,

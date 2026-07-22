@@ -27,6 +27,21 @@ use crate::{
 /// An integer type used to index the values in an [`Offsets`] collection.
 ///
 /// The supported offset types are [`i32`] and [`i64`].
+///
+/// These two types match Arrow's standard and large variable-size layouts.
+/// Restricting the trait to them keeps the Rust type sufficient to determine
+/// the corresponding Arrow format.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::offset::Offset;
+///
+/// fn to_index<T: Offset>(offset: T) -> usize {
+///     offset.as_usize()
+/// }
+/// assert_eq!(to_index(3_i32), 3);
+/// ```
 pub trait Offset:
     Default
     + FixedSize
@@ -35,10 +50,26 @@ pub trait Offset:
     + sealed::Sealed
 {
     /// Adds two offsets, panicking if the result overflows.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::offset::Offset;
+    ///
+    /// assert_eq!(Offset::strict_add(1_i32, 2), 3);
+    /// ```
     #[must_use]
     fn strict_add(self, other: Self) -> Self;
 
     /// Converts this offset to a [`usize`], panicking if it does not fit.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::offset::Offset;
+    ///
+    /// assert_eq!(3_i64.as_usize(), 3);
+    /// ```
     fn as_usize(self) -> usize {
         self.try_into().unwrap_or_else(|e| panic!("{e}"))
     }
@@ -66,6 +97,27 @@ impl Offset for i64 {
 /// adjacent pair describes the start and end of one item.
 ///
 /// <https://arrow.apache.org/docs/format/Columnar.html#variable-size-binary-layout>
+///
+/// Lists and binary values share Arrow's flat representation. The child stores
+/// all elements contiguously, while adjacent offsets recover each logical item:
+///
+/// ```text
+/// offsets: [0, 2, 2, 5]
+/// data:    [a, b, c, d, e]
+/// items:   [a, b]  []  [c, d, e]
+/// ```
+///
+/// `U` controls the owned item reconstructed from a range; it does not change
+/// these physical buffers.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{collection::Collection, offset::Offsets};
+///
+/// let values = [vec![1, 2], vec![3]].into_iter().collect::<Offsets<Vec<i32>>>();
+/// assert_eq!(values.owned(0), Some(vec![1, 2]));
+/// ```
 pub struct Offsets<
     T: Collection,
     OffsetItem: Offset = i32,
@@ -79,6 +131,27 @@ pub struct Offsets<
 }
 
 /// Error returned by [`Offsets::try_from_parts`].
+///
+/// Arrow relies on an initial zero and monotonically increasing, in-bounds
+/// offsets. Validating those rules once makes every adjacent pair a safe range
+/// into the flat child collection.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::offset::{Offsets, OffsetsError};
+///
+/// let error = Offsets::<Vec<i32>>::try_from_parts(vec![], vec![]).unwrap_err();
+/// assert_eq!(error, OffsetsError::Empty);
+/// let error = Offsets::<Vec<i32>>::try_from_parts(vec![], vec![1]).unwrap_err();
+/// assert_eq!(error, OffsetsError::NonZeroFirst { first: 1 });
+/// let error = Offsets::<Vec<i32>>::try_from_parts(vec![], vec![0, -1]).unwrap_err();
+/// assert_eq!(error, OffsetsError::Negative { index: 1 });
+/// let error = Offsets::<Vec<i32>>::try_from_parts(vec![0], vec![0, 1, 0]).unwrap_err();
+/// assert_eq!(error, OffsetsError::NonMonotonic { index: 2 });
+/// let error = Offsets::<Vec<i32>>::try_from_parts(vec![], vec![0, 1]).unwrap_err();
+/// assert_eq!(error, OffsetsError::OutOfBounds { last: 1, data: 0 });
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OffsetsError {
     /// The offsets buffer is empty; it must contain at least one offset.
@@ -137,6 +210,15 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Offsets<T, OffsetIte
     /// offset is not zero, it contains a negative offset, it is not
     /// monotonically increasing, or when its last offset exceeds the length of
     /// the data.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{collection::Collection, offset::Offsets};
+    ///
+    /// let values = Offsets::<Vec<i32>>::try_from_parts(vec![1, 2, 3], vec![0, 2, 3]).unwrap();
+    /// assert_eq!(values.owned(0), Some(vec![1, 2]));
+    /// ```
     pub fn try_from_parts(
         data: T,
         offsets: Storage::For<OffsetItem>,
@@ -175,6 +257,15 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Offsets<T, OffsetIte
     /// Returns the data collection and offsets buffer of these [`Offsets`].
     ///
     /// This is the inverse of [`Offsets::try_from_parts`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::offset::Offsets;
+    ///
+    /// let values = Offsets::<Vec<i32>>::try_from_parts(vec![1, 2], vec![0, 2]).unwrap();
+    /// assert_eq!(values.into_parts(), (vec![1, 2], vec![0, 2]));
+    /// ```
     #[must_use]
     pub fn into_parts(self) -> (T, Storage::For<OffsetItem>) {
         (self.data, self.offsets)
@@ -465,6 +556,21 @@ where
 
 #[expect(missing_debug_implementations)]
 /// An owning iterator over the items in an [`Offsets`] collection.
+///
+/// Consuming the offset buffer turns each adjacent boundary into one owned `U`
+/// while retaining the compact flat child representation until values are
+/// requested.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{buffer::VecBuffer, collection::Collection, offset::{OffsetIntoIter, Offsets}};
+///
+/// let values = [vec![1, 2]].into_iter().collect::<Offsets<Vec<i32>>>();
+/// let iter: OffsetIntoIter<Vec<i32>, i32, VecBuffer, Vec<i32>> = values.into_iter_owned();
+/// assert_eq!(iter.len(), 1);
+/// assert_eq!(iter.collect::<Vec<_>>(), [vec![1, 2]]);
+/// ```
 pub struct OffsetIntoIter<T: Collection, OffsetItem: Offset, Storage: Buffer, U> {
     data: T,
     offsets: <Storage::For<OffsetItem> as Collection>::IntoIter,
@@ -505,6 +611,21 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
 ///
 /// The view is represented by a range into the collection's flat data and
 /// remains valid only while the collection is borrowed.
+///
+/// Keeping only a range and a reference avoids allocating a temporary
+/// container when reading a variable-size item.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{buffer::VecBuffer, collection::{Collection, owned::IntoOwned}, length::Length, offset::{OffsetView, Offsets}};
+///
+/// let values = [vec![1, 2]].into_iter().collect::<Offsets<Vec<i32>>>();
+/// let view: OffsetView<'_, Vec<i32>, i32, VecBuffer, Vec<i32>> = values.view(0).unwrap();
+/// assert_eq!(view.len(), 2);
+/// assert!(<_ as PartialEq<Vec<_>>>::eq(&view, &vec![1, 2]));
+/// assert_eq!(view.into_owned(), vec![1, 2]);
+/// ```
 pub struct OffsetView<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U> {
     collection: &'collection Offsets<T, OffsetItem, Storage, U>,
     start: usize,
