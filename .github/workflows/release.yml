@@ -11,7 +11,7 @@ on:
 jobs:
   release:
     name: Release
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-26.04-arm
     permissions: {}
     environment:
       name: crates-io
@@ -37,7 +37,7 @@ jobs:
 
   pr:
     name: PR
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-26.04-arm
     permissions: {}
     env:
       SCCACHE_GHA_ENABLED: true
