@@ -5,6 +5,12 @@ use crate::collection::Collection;
 
 /// A bitmap storing the validity of elements in a collection.
 ///
+/// # Design
+///
+/// Layouts that carry nullability all expose the same semantic questions even
+/// when their value buffers differ. This trait centralizes those queries over
+/// [`BitmapRef`] so callers do not need to interpret validity bits themselves.
+///
 /// # Examples
 ///
 /// ```

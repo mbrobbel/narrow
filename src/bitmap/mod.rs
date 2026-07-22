@@ -83,6 +83,12 @@ pub struct Bitmap<Storage: Buffer = VecBuffer> {
 
 /// Immutable access to a [`Bitmap`].
 ///
+/// # Design
+///
+/// [`BufferRef`] exposes bitmap bytes, but bytes alone omit the logical bit
+/// length and offset. `BitmapRef` preserves those Arrow semantics for generic
+/// validity and interoperability code.
+///
 /// # Examples
 ///
 /// ```
