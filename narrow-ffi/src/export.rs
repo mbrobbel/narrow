@@ -70,8 +70,11 @@ pub trait Export {
     fn export(self) -> (ArrowArray, ArrowSchema);
 }
 
+/// Data retained by `ArrowArray::private_data` for a primitive array export.
 struct PrimitiveArrayData<Values> {
-    _values: Values,
+    /// Values backing the exported data buffer.
+    values: Values,
+    /// Arrow C Data buffer pointers for validity and values.
     buffers: [*const c_void; 2],
 }
 
@@ -82,16 +85,25 @@ where
     Storage::For<T>: 'static,
 {
     fn export(self) -> (ArrowArray, ArrowSchema) {
+        // Remove the type-level wrappers while preserving the original storage.
         let primitive: FixedSizePrimitive<T, NonNullable, Storage> = self.into_buffer();
         let values = primitive.into_buffer();
+
+        // Pin the storage before taking its address. This is required for
+        // inline buffers, whose values would otherwise move with the wrapper.
         let mut private = Box::new(PrimitiveArrayData {
-            _values: values,
+            values,
             buffers: [ptr::null(); 2],
         });
-        let values: &[T] = private._values.borrow();
+        let values: &[T] = private.values.borrow();
         let length = i64::try_from(values.len()).expect("array length exceeds i64");
+
+        // Primitive arrays have validity and value buffers. A non-nullable
+        // array may expose a null validity buffer because its null count is zero.
         private.buffers[1] = values.as_ptr().cast();
 
+        // Transfer ownership of the pinned storage to `private_data`. The
+        // release callback reconstructs this Box with the concrete buffer type.
         let buffers = private.buffers.as_mut_ptr();
         let private_data = Box::into_raw(private).cast();
         let array = ArrowArray {
@@ -103,9 +115,12 @@ where
             buffers,
             children: ptr::null_mut(),
             dictionary: ptr::null_mut(),
-            release: Some(release_primitive::<Storage::For<T>>),
+            release: Some(release_array::<PrimitiveArrayData<Storage::For<T>>>),
             private_data,
         };
+
+        // Primitive format strings and the empty name are static, so the
+        // schema release callback only needs to mark the schema as released.
         let schema = ArrowSchema {
             format: T::FORMAT.as_ptr(),
             name: c"".as_ptr(),
@@ -121,7 +136,7 @@ where
     }
 }
 
-unsafe extern "C" fn release_primitive<Values>(array: *mut ArrowArray) {
+unsafe extern "C" fn release_array<PrivateData>(array: *mut ArrowArray) {
     // SAFETY: The Arrow C Data contract passes the live structure to its
     // producer-provided callback.
     let array = unsafe { &mut *array };
@@ -131,12 +146,8 @@ unsafe extern "C" fn release_primitive<Values>(array: *mut ArrowArray) {
     array.buffers = ptr::null_mut();
 
     // SAFETY: `private_data` was created with `Box::into_raw` for this exact
-    // `PrimitiveArrayData<Values>` instantiation and is released only once.
-    unsafe {
-        drop(Box::from_raw(
-            private_data.cast::<PrimitiveArrayData<Values>>(),
-        ))
-    };
+    // `PrivateData` type and is released only once.
+    unsafe { drop(Box::from_raw(private_data.cast::<PrivateData>())) };
 }
 
 unsafe extern "C" fn release_schema(schema: *mut ArrowSchema) {
