@@ -12,9 +12,5 @@ license.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
-[features]
-default = []
-
 [dependencies]
-
-[dev-dependencies]
+narrow = { path = "..", version = "0.16.0" }

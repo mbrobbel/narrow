@@ -29,6 +29,20 @@ pub(crate) const fn bytes_for_bits(bits: usize) -> usize {
 }
 
 /// Error returned by [`Bitmap::try_from_parts`].
+///
+/// Raw byte buffers carry no logical length or offset themselves. Validating
+/// those metadata at construction lets every safe bitmap operation assume its
+/// requested bit range is present.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::bitmap::{Bitmap, BitmapError};
+///
+/// let error = Bitmap::<narrow::buffer::VecBuffer>::try_from_parts(vec![0_u8], 2, 7)
+///     .unwrap_err();
+/// assert_eq!(error, BitmapError::OutOfBounds { offset: 7, bits: 2, bytes: 1 });
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BitmapError {
     /// The requested number of `bits` at `offset` does not fit in a buffer of
@@ -65,6 +79,24 @@ impl core::error::Error for BitmapError {}
 /// The validity bits are stored LSB-first in the bytes of a buffer.
 /// A panicking extension leaves its committed prefix visible. The next
 /// extension overwrites any uncommitted bits.
+///
+/// Arrow stores booleans and validity as packed bits. Keeping the logical bit
+/// offset alongside the bytes also permits a view to start at a non-byte
+/// boundary without changing the physical representation:
+///
+/// ```text
+/// buffer bits: [padding | logical bits | padding]
+///                       ^ offset       ^ offset + length
+/// ```
+///
+/// # Examples
+///
+/// ```
+/// use narrow::bitmap::Bitmap;
+///
+/// let bitmap = [true, false, true].into_iter().collect::<Bitmap>();
+/// assert_eq!(bitmap.into_iter().collect::<Vec<_>>(), [true, false, true]);
+/// ```
 pub struct Bitmap<Storage: Buffer = VecBuffer> {
     /// The bits of the bitmap are stored in this buffer of bytes.
     ///
@@ -82,11 +114,29 @@ pub struct Bitmap<Storage: Buffer = VecBuffer> {
 }
 
 /// Immutable access to a [`Bitmap`].
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{bitmap::BitmapRef, length::Length, validity::Validity};
+///
+/// let values = [Some(1), None].into_iter().collect::<Validity<Vec<i32>>>();
+/// assert_eq!(values.bitmap_ref().len(), 2);
+/// ```
 pub trait BitmapRef {
     /// Storage of the bitmap.
     type Storage: Buffer;
 
     /// Returns the bitmap.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{bitmap::BitmapRef, length::Length, validity::Validity};
+    ///
+    /// let values = [Some(1), None].into_iter().collect::<Validity<Vec<i32>>>();
+    /// assert_eq!(values.bitmap_ref().len(), 2);
+    /// ```
     fn bitmap_ref(&self) -> &Bitmap<Self::Storage>;
 }
 
@@ -116,6 +166,17 @@ impl<Storage: Buffer> Bitmap<Storage> {
     ///
     /// Returns a [`BitmapError`] when `offset + bits` exceeds the number of
     /// bits available in the buffer (`8 * buffer.len()`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::bitmap::Bitmap;
+    ///
+    /// let bitmap = Bitmap::<narrow::buffer::VecBuffer>::try_from_parts(
+    ///     vec![0b0000_0110], 2, 1,
+    /// ).unwrap();
+    /// assert_eq!(bitmap.into_iter().collect::<Vec<_>>(), [true, true]);
+    /// ```
     pub fn try_from_parts(
         buffer: Storage::For<u8>,
         bits: usize,
@@ -138,6 +199,15 @@ impl<Storage: Buffer> Bitmap<Storage> {
     }
 
     /// Returns the bit offset into the backing byte buffer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{bitmap::Bitmap, buffer::VecBuffer};
+    ///
+    /// let bitmap = Bitmap::<VecBuffer>::try_from_parts(vec![0], 2, 3).unwrap();
+    /// assert_eq!(bitmap.bit_offset(), 3);
+    /// ```
     #[must_use]
     pub fn bit_offset(&self) -> usize {
         self.offset
@@ -147,6 +217,17 @@ impl<Storage: Buffer> Bitmap<Storage> {
     /// bits it stores, and the bit offset into the buffer.
     ///
     /// This is the inverse of [`Bitmap::try_from_parts`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::bitmap::Bitmap;
+    ///
+    /// let bitmap = Bitmap::<narrow::buffer::VecBuffer>::try_from_parts(
+    ///     vec![0b0000_0110], 2, 1,
+    /// ).unwrap();
+    /// assert_eq!(bitmap.into_parts(), (vec![0b0000_0110], 2, 1));
+    /// ```
     #[must_use]
     pub fn into_parts(self) -> (Storage::For<u8>, usize, usize) {
         (self.buffer, self.bits, self.offset)

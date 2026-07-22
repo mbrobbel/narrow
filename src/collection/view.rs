@@ -4,11 +4,34 @@ use crate::{collection::owned::IntoOwned, fixed_size::FixedSize};
 use alloc::vec::Vec;
 
 /// Convert items into views.
+///
+/// This is the dual of [`IntoOwned`]: copyable Arrow scalars remain values,
+/// while variable-size values become borrowed slices. Collections can
+/// therefore expose the cheapest useful item representation through one API.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::collection::view::AsView;
+///
+/// let values = vec![1, 2];
+/// let view: &[i32] = values.as_view();
+/// assert_eq!(view, [1, 2]);
+/// ```
 pub trait AsView<'collection>: Sized {
     /// The view type.
     type View: Copy + IntoOwned<Self> + 'collection;
 
     /// Returns a view of self.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::view::AsView;
+    ///
+    /// let values = vec![1, 2];
+    /// assert_eq!(values.as_view(), &[1, 2]);
+    /// ```
     fn as_view(&'collection self) -> Self::View;
 }
 
