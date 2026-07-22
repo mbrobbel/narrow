@@ -11,7 +11,6 @@ use core::{
 
 use narrow::{
     array::Array,
-    bitmap::Bitmap,
     buffer::{Buffer, BufferRef},
     fixed_size::FixedSize,
     layout::{ArrayItem, boolean::Boolean, fixed_size_primitive::FixedSizePrimitive},
@@ -79,58 +78,57 @@ pub trait Export {
     fn export(self) -> (ArrowArray, ArrowSchema);
 }
 
-/// Layout-specific data required to build an [`ArrowArray`].
+/// A layout that describes its [`ArrowArray`] fields.
 trait ArrowArrayLayout: Sized {
-    /// Data retained for the lifetime of the export.
-    type Data: 'static;
     /// Buffer pointers exposed by the exported array.
     type Buffers: AsRef<[*const c_void]> + AsMut<[*const c_void]> + Default + 'static;
     /// Child pointers exposed by the exported array.
     type Children: AsRef<[*mut ArrowArray]> + AsMut<[*mut ArrowArray]> + Default + 'static;
 
-    /// Converts the layout into its retained data.
-    fn into_data(self) -> Self::Data;
     /// Returns the number of items in the array.
-    fn length(data: &Self::Data) -> usize;
+    fn length(&self) -> usize;
     /// Returns the number of null elements, or `-1` when unknown.
-    fn null_count(_data: &Self::Data) -> i64 {
+    fn null_count(&self) -> i64 {
         0
     }
     /// Returns the item offset into the buffers.
-    fn offset(_data: &Self::Data) -> usize {
+    fn offset(&self) -> usize {
         0
     }
     /// Returns the array's buffer pointers.
-    fn buffers(data: &Self::Data) -> Self::Buffers;
+    fn buffers(&self) -> Self::Buffers;
     /// Returns the array's child pointers.
-    fn children(_data: &mut Self::Data) -> Self::Children {
+    fn children(&mut self) -> Self::Children {
         Self::Children::default()
     }
     /// Returns the dictionary array pointer.
-    fn dictionary(_data: &mut Self::Data) -> *mut ArrowArray {
+    fn dictionary(&mut self) -> *mut ArrowArray {
         ptr::null_mut()
     }
 
     /// Builds an [`ArrowArray`] and [`ArrowSchema`] from this layout.
-    fn export<T: ArrowType>(self) -> (ArrowArray, ArrowSchema) {
-        // Pin the retained data before asking the layout for pointers into it.
+    fn export<T: ArrowType>(self) -> (ArrowArray, ArrowSchema)
+    where
+        Self: 'static,
+    {
+        // Pin the layout before asking it for pointers into its storage.
         let mut private = Box::new(ArrayData::<Self> {
-            data: self.into_data(),
+            layout: self,
             buffers: Self::Buffers::default(),
             children: Self::Children::default(),
         });
-        private.buffers = Self::buffers(&private.data);
-        private.children = Self::children(&mut private.data);
+        private.buffers = private.layout.buffers();
+        private.children = private.layout.children();
 
         // Convert platform-sized layout metadata into the Arrow C ABI fields.
-        let length = i64::try_from(Self::length(&private.data)).expect("array length exceeds i64");
-        let null_count = Self::null_count(&private.data);
-        let offset = i64::try_from(Self::offset(&private.data)).expect("array offset exceeds i64");
+        let length = i64::try_from(private.layout.length()).expect("array length exceeds i64");
+        let null_count = private.layout.null_count();
+        let offset = i64::try_from(private.layout.offset()).expect("array offset exceeds i64");
         let n_buffers =
             i64::try_from(private.buffers.as_ref().len()).expect("buffer count exceeds i64");
         let n_children =
             i64::try_from(private.children.as_ref().len()).expect("child count exceeds i64");
-        let dictionary = Self::dictionary(&mut private.data);
+        let dictionary = private.layout.dictionary();
 
         // Keep the layout data and pointer collections alive until release.
         let buffers = private.buffers.as_mut();
@@ -167,57 +165,42 @@ impl<T, Storage> ArrowArrayLayout for FixedSizePrimitive<T, NonNullable, Storage
 where
     T: FixedSize + ArrowType,
     Storage: Buffer,
-    Storage::For<T>: 'static,
 {
-    type Data = Storage::For<T>;
     type Buffers = [*const c_void; 2];
     type Children = [*mut ArrowArray; 0];
 
-    fn into_data(self) -> Self::Data {
-        self.into_buffer()
+    fn length(&self) -> usize {
+        self.buffer_ref().borrow().len()
     }
 
-    fn length(data: &Self::Data) -> usize {
-        data.borrow().len()
-    }
-
-    fn buffers(data: &Self::Data) -> Self::Buffers {
-        let values: &[T] = data.borrow();
+    fn buffers(&self) -> Self::Buffers {
+        let values: &[T] = self.buffer_ref().borrow();
         [ptr::null(), values.as_ptr().cast()]
     }
 }
 
-impl<Storage> ArrowArrayLayout for Boolean<NonNullable, Storage>
-where
-    Storage: Buffer,
-    Bitmap<Storage>: 'static,
-{
-    type Data = Bitmap<Storage>;
+impl<Storage: Buffer> ArrowArrayLayout for Boolean<NonNullable, Storage> {
     type Buffers = [*const c_void; 2];
     type Children = [*mut ArrowArray; 0];
 
-    fn into_data(self) -> Self::Data {
-        self.into_buffer()
+    fn length(&self) -> usize {
+        self.len()
     }
 
-    fn length(data: &Self::Data) -> usize {
-        data.len()
+    fn offset(&self) -> usize {
+        self.buffer_ref().bit_offset()
     }
 
-    fn offset(data: &Self::Data) -> usize {
-        data.bit_offset()
-    }
-
-    fn buffers(data: &Self::Data) -> Self::Buffers {
-        let values: &[u8] = data.buffer_ref().borrow();
+    fn buffers(&self) -> Self::Buffers {
+        let values: &[u8] = self.buffer_ref().buffer_ref().borrow();
         [ptr::null(), values.as_ptr().cast()]
     }
 }
 
 /// Data retained by `ArrowArray::private_data` for an array export.
 struct ArrayData<Layout: ArrowArrayLayout> {
-    /// Layout-specific owned data.
-    data: Layout::Data,
+    /// Layout backing the exported array.
+    layout: Layout,
     /// Arrow C Data buffer pointers.
     buffers: Layout::Buffers,
     /// Arrow C Data child pointers.
@@ -228,7 +211,7 @@ impl<T, Storage> Export for Array<T, Storage>
 where
     T: ArrayItem + ArrowType,
     Storage: Buffer,
-    T::Memory<Storage>: ArrowArrayLayout,
+    T::Memory<Storage>: ArrowArrayLayout + 'static,
 {
     fn export(self) -> (ArrowArray, ArrowSchema) {
         self.into_buffer().export::<T>()
