@@ -18,6 +18,8 @@ mod boolean;
 mod fixed_size_list;
 /// Export support for [`narrow::layout::fixed_size_primitive::FixedSizePrimitive`].
 mod fixed_size_primitive;
+/// Export support for [`narrow::layout::variable_size_list::VariableSizeList`].
+mod variable_size_list;
 
 /// A type with an [Arrow C Data format string].
 ///
