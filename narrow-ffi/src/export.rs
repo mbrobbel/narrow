@@ -12,9 +12,10 @@ use core::{
 use narrow::{
     array::Array,
     bitmap::Bitmap,
-    buffer::Buffer,
+    buffer::{Buffer, BufferRef},
     fixed_size::FixedSize,
     layout::{ArrayItem, boolean::Boolean, fixed_size_primitive::FixedSizePrimitive},
+    length::Length,
     nullability::NonNullable,
 };
 
@@ -135,45 +136,29 @@ where
     }
 }
 
-/// Data retained for a Boolean array export.
-struct BooleanData<Values> {
-    /// Storage backing the value bitmap.
-    values: Values,
-    /// Number of array items represented by the bitmap.
-    length: usize,
-    /// Bit offset into the bitmap.
-    offset: usize,
-}
-
 impl<Storage> ArrowArrayLayout for Boolean<NonNullable, Storage>
 where
     Storage: Buffer,
-    Storage::For<u8>: 'static,
+    Bitmap<Storage>: 'static,
 {
-    type Data = BooleanData<Storage::For<u8>>;
+    type Data = Bitmap<Storage>;
     type Buffers = [*const c_void; 2];
     type Children = [*mut ArrowArray; 0];
 
     fn into_data(self) -> Self::Data {
-        let bitmap: Bitmap<Storage> = self.into_buffer();
-        let (values, length, offset) = bitmap.into_parts();
-        BooleanData {
-            values,
-            length,
-            offset,
-        }
+        self.into_buffer()
     }
 
     fn length(data: &Self::Data) -> usize {
-        data.length
+        data.len()
     }
 
     fn offset(data: &Self::Data) -> usize {
-        data.offset
+        data.bit_offset()
     }
 
     fn buffers(data: &Self::Data) -> Self::Buffers {
-        let values: &[u8] = data.values.borrow();
+        let values: &[u8] = data.buffer_ref().borrow();
         [ptr::null(), values.as_ptr().cast()]
     }
 }
