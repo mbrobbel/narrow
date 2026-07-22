@@ -97,7 +97,7 @@ pub enum ExportError {
 
 impl fmt::Display for ExportError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
+        match *self {
             Self::NonZeroOffset { offset } => {
                 write!(f, "array offset ({offset}) is not supported")
             }
@@ -162,7 +162,12 @@ trait ArrowArrayLayout: Length + Sized {
         let length = i64::try_from(self.len()).expect("array length exceeds i64");
         let null_count = self.null_count();
         let dictionary = self.dictionary();
-        let private = ArrayData::<(), Self>::new((), self.buffers(), self.children()?);
+        let mut private = Box::new(ArrayData::<(), Self>::new(
+            (),
+            self.buffers(),
+            self.children()?,
+        ));
+        private.set_child_pointers();
 
         Ok(private.into_array(length, null_count, dictionary))
     }
@@ -329,16 +334,14 @@ struct ArrayData<Owner, Layout: ArrowArrayLayout> {
 }
 
 impl<Owner: 'static, Layout: ArrowArrayLayout + 'static> ArrayData<Owner, Layout> {
-    /// Creates pinned private data for an exported array.
-    fn new(owner: Owner, buffers: Layout::Buffers, children: Layout::Children) -> Box<Self> {
-        let mut data = Box::new(Self {
+    /// Creates private data for an exported array.
+    fn new(owner: Owner, buffers: Layout::Buffers, children: Layout::Children) -> Self {
+        Self {
             buffers,
             children,
             child_pointers: Vec::new(),
             owner,
-        });
-        data.set_child_pointers();
-        data
+        }
     }
 
     /// Updates child pointers after the child arrays are pinned.
@@ -363,7 +366,7 @@ impl<Owner: 'static, Layout: ArrowArrayLayout + 'static> ArrayData<Owner, Layout
         let n_children = i64::try_from(self.child_pointers.len()).expect("child count exceeds i64");
 
         let buffers = self.buffers.as_mut();
-        let buffers = if buffers.is_empty() {
+        let buffer_pointers = if buffers.is_empty() {
             ptr::null_mut()
         } else {
             buffers.as_mut_ptr()
@@ -381,7 +384,7 @@ impl<Owner: 'static, Layout: ArrowArrayLayout + 'static> ArrayData<Owner, Layout
             offset: 0,
             n_buffers,
             n_children,
-            buffers,
+            buffers: buffer_pointers,
             children,
             dictionary,
             release: Some(release_array::<Self>),
@@ -419,19 +422,19 @@ impl ArrowSchema {
 
     /// Builds a fixed-size-list schema and retains its child schema.
     fn fixed_size_list<const N: usize>(child: Self) -> Self {
-        let format = CString::new(format!("+w:{N}")).expect("valid fixed-size list format");
+        let format_string = CString::new(format!("+w:{N}")).expect("valid fixed-size list format");
         let mut private = Box::new(FixedSizeListSchemaData {
-            format,
+            format: format_string,
             children: [child],
             child_pointers: [ptr::null_mut()],
         });
         private.child_pointers[0] = ptr::from_mut(&mut private.children[0]);
 
-        let format = private.format.as_ptr();
+        let format_pointer = private.format.as_ptr();
         let children = private.child_pointers.as_mut_ptr();
         let private_data = Box::into_raw(private).cast();
         Self {
-            format,
+            format: format_pointer,
             name: c"".as_ptr(),
             metadata: ptr::null(),
             flags: 0,
@@ -458,13 +461,13 @@ struct FixedSizeListSchemaData {
 unsafe extern "C" fn release_array<PrivateData>(array: *mut ArrowArray) {
     // SAFETY: The Arrow C Data contract passes the live structure to its
     // producer-provided callback.
-    let array = unsafe { &mut *array };
-    let private_data = array.private_data;
-    array.release = None;
-    array.private_data = ptr::null_mut();
-    array.buffers = ptr::null_mut();
-    array.children = ptr::null_mut();
-    array.dictionary = ptr::null_mut();
+    let array_ref = unsafe { &mut *array };
+    let private_data = array_ref.private_data;
+    array_ref.release = None;
+    array_ref.private_data = ptr::null_mut();
+    array_ref.buffers = ptr::null_mut();
+    array_ref.children = ptr::null_mut();
+    array_ref.dictionary = ptr::null_mut();
 
     // SAFETY: `private_data` was created with `Box::into_raw` for this exact
     // `PrivateData` type and is released only once.
@@ -482,12 +485,12 @@ unsafe extern "C" fn release_flat_schema(schema: *mut ArrowSchema) {
 unsafe extern "C" fn release_schema<PrivateData>(schema: *mut ArrowSchema) {
     // SAFETY: The Arrow C Data contract passes the live structure to its
     // producer-provided callback.
-    let schema = unsafe { &mut *schema };
-    let private_data = schema.private_data;
-    schema.release = None;
-    schema.private_data = ptr::null_mut();
-    schema.children = ptr::null_mut();
-    schema.dictionary = ptr::null_mut();
+    let schema_ref = unsafe { &mut *schema };
+    let private_data = schema_ref.private_data;
+    schema_ref.release = None;
+    schema_ref.private_data = ptr::null_mut();
+    schema_ref.children = ptr::null_mut();
+    schema_ref.dictionary = ptr::null_mut();
 
     // SAFETY: `private_data` was created with `Box::into_raw` for this exact
     // `PrivateData` type and is released only once.
@@ -539,10 +542,10 @@ mod tests {
         let values = Arc::<[i32]>::from([1, 2, 3]);
         let weak = Arc::downgrade(&values);
         let data = values.as_ptr();
-        let array: Array<i32, ArcBuffer> =
+        let narrow_array: Array<i32, ArcBuffer> =
             Array::from_buffer(FixedSizePrimitive::from_buffer(values));
 
-        let (array, schema) = array.export().expect("export array");
+        let (array, schema) = narrow_array.export().expect("export array");
 
         assert_eq!(array.length, 3);
         assert_eq!(array.null_count, 0);
@@ -555,8 +558,8 @@ mod tests {
         let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
         assert!(buffers[0].is_null());
         assert_eq!(buffers[1], data.cast());
-        // SAFETY: The second buffer points to three i32 values held by the export.
         assert_eq!(
+            // SAFETY: The second buffer points to three i32 values held by the export.
             unsafe { slice::from_raw_parts(buffers[1].cast::<i32>(), 3) },
             [1, 2, 3]
         );
@@ -576,16 +579,16 @@ mod tests {
 
     #[test]
     fn pins_inline_values_for_export() {
-        let array: Array<i32, ArrayBuffer<3>> =
+        let narrow_array: Array<i32, ArrayBuffer<3>> =
             Array::from_buffer(FixedSizePrimitive::from_buffer([1, 2, 3]));
 
-        let (array, _schema) = array.export().expect("export array");
+        let (array, _schema) = narrow_array.export().expect("export array");
 
         // SAFETY: The exported array owns a two-entry buffer pointer array.
         let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
-        // SAFETY: The second buffer points to three inline i32 values pinned in
-        // the export's private allocation.
         assert_eq!(
+            // SAFETY: The second buffer points to three inline i32 values pinned in
+            // the export's private allocation.
             unsafe { slice::from_raw_parts(buffers[1].cast::<i32>(), 3) },
             [1, 2, 3]
         );
@@ -602,10 +605,10 @@ mod tests {
         let bitmap =
             Bitmap::<ArcBuffer>::try_from_parts(validity_values, 3, 0).expect("valid bitmap");
         let validity = Validity::try_from_parts(values, bitmap).expect("valid parts");
-        let array: Array<Option<i32>, ArcBuffer> =
+        let narrow_array: Array<Option<i32>, ArcBuffer> =
             Array::from_buffer(FixedSizePrimitive::from_buffer(validity));
 
-        let (array, schema) = array.export().expect("export array");
+        let (array, schema) = narrow_array.export().expect("export array");
 
         assert_eq!(array.length, 3);
         assert_eq!(array.null_count, 1);
@@ -618,8 +621,8 @@ mod tests {
         assert_eq!(buffers[1], values_data.cast());
         // SAFETY: The buffers point to storage retained by the export.
         assert_eq!(unsafe { *buffers[0].cast::<u8>() }, 0b0000_0101);
-        // SAFETY: The value buffer points to three i32 values.
         assert_eq!(
+            // SAFETY: The value buffer points to three i32 values.
             unsafe { slice::from_raw_parts(buffers[1].cast::<i32>(), 3) },
             [1, 0, 3]
         );
@@ -655,9 +658,9 @@ mod tests {
         let weak = Arc::downgrade(&values);
         let data = values.as_ptr();
         let bitmap = Bitmap::<ArcBuffer>::try_from_parts(values, 3, 0).expect("valid bitmap");
-        let array: Array<bool, ArcBuffer> = Array::from_buffer(Boolean::from_buffer(bitmap));
+        let narrow_array: Array<bool, ArcBuffer> = Array::from_buffer(Boolean::from_buffer(bitmap));
 
-        let (array, schema) = array.export().expect("export array");
+        let (array, schema) = narrow_array.export().expect("export array");
 
         assert_eq!(array.length, 3);
         assert_eq!(array.null_count, 0);
@@ -688,20 +691,22 @@ mod tests {
 
     #[test]
     fn exports_nullable_boolean_bitmaps_without_copying() {
-        let values = Arc::<[u8]>::from([0b0000_0001]);
+        let value_bytes = Arc::<[u8]>::from([0b0000_0001]);
         let validity_values = Arc::<[u8]>::from([0b0000_0101]);
-        let values_weak = Arc::downgrade(&values);
+        let values_weak = Arc::downgrade(&value_bytes);
         let validity_weak = Arc::downgrade(&validity_values);
-        let values_data = values.as_ptr();
+        let values_data = value_bytes.as_ptr();
         let validity_data = validity_values.as_ptr();
-        let values = Bitmap::<ArcBuffer>::try_from_parts(values, 3, 0).expect("valid bitmap");
-        let validity =
+        let value_bitmap =
+            Bitmap::<ArcBuffer>::try_from_parts(value_bytes, 3, 0).expect("valid bitmap");
+        let validity_bitmap =
             Bitmap::<ArcBuffer>::try_from_parts(validity_values, 3, 0).expect("valid bitmap");
-        let validity = Validity::try_from_parts(values, validity).expect("valid parts");
-        let array: Array<Option<bool>, ArcBuffer> =
+        let validity =
+            Validity::try_from_parts(value_bitmap, validity_bitmap).expect("valid parts");
+        let narrow_array: Array<Option<bool>, ArcBuffer> =
             Array::from_buffer(Boolean::from_buffer(validity));
 
-        let (array, schema) = array.export().expect("export array");
+        let (array, schema) = narrow_array.export().expect("export array");
 
         assert_eq!(array.length, 3);
         assert_eq!(array.null_count, 1);
@@ -731,42 +736,48 @@ mod tests {
 
     #[test]
     fn rejects_non_zero_nullable_boolean_offsets() {
-        let values =
+        let offset_values =
             Bitmap::<ArrayBuffer<1>>::try_from_parts([0b0001_0100], 3, 2).expect("valid bitmap");
-        let validity =
+        let zero_validity =
             Bitmap::<ArrayBuffer<1>>::try_from_parts([0b0000_0111], 3, 0).expect("valid bitmap");
-        let validity = Validity::try_from_parts(values, validity).expect("valid parts");
-        let array: Array<Option<bool>, ArrayBuffer<1>> =
-            Array::from_buffer(Boolean::from_buffer(validity));
+        let offset_values_validity =
+            Validity::try_from_parts(offset_values, zero_validity).expect("valid parts");
+        let offset_values_array: Array<Option<bool>, ArrayBuffer<1>> =
+            Array::from_buffer(Boolean::from_buffer(offset_values_validity));
         assert_eq!(
-            array.export().expect_err("non-zero value offset"),
+            offset_values_array
+                .export()
+                .expect_err("non-zero value offset"),
             ExportError::NonZeroOffset { offset: 2 }
         );
 
-        let values =
+        let zero_values =
             Bitmap::<ArrayBuffer<1>>::try_from_parts([0b0000_0101], 3, 0).expect("valid bitmap");
-        let validity =
+        let offset_validity =
             Bitmap::<ArrayBuffer<1>>::try_from_parts([0b0001_1100], 3, 2).expect("valid bitmap");
-        let validity = Validity::try_from_parts(values, validity).expect("valid parts");
-        let array: Array<Option<bool>, ArrayBuffer<1>> =
-            Array::from_buffer(Boolean::from_buffer(validity));
+        let offset_validity_values =
+            Validity::try_from_parts(zero_values, offset_validity).expect("valid parts");
+        let offset_validity_array: Array<Option<bool>, ArrayBuffer<1>> =
+            Array::from_buffer(Boolean::from_buffer(offset_validity_values));
         assert_eq!(
-            array.export().expect_err("non-zero validity offset"),
+            offset_validity_array
+                .export()
+                .expect_err("non-zero validity offset"),
             ExportError::NonZeroOffset { offset: 2 }
         );
     }
 
     #[test]
     fn exports_fixed_size_list_child_without_copying_values() {
-        let values = Arc::<[i32]>::from([1, 2, 3, 4]);
-        let weak = Arc::downgrade(&values);
-        let data = values.as_ptr();
-        let values = FixedSizePrimitive::from_buffer(values);
-        let values = Flatten::try_from_parts(values).expect("valid fixed-size list");
-        let array: Array<[i32; 2], ArcBuffer> =
-            Array::from_buffer(FixedSizeList::from_buffer(values));
+        let value_storage = Arc::<[i32]>::from([1, 2, 3, 4]);
+        let weak = Arc::downgrade(&value_storage);
+        let data = value_storage.as_ptr();
+        let values_layout = FixedSizePrimitive::from_buffer(value_storage);
+        let flattened = Flatten::try_from_parts(values_layout).expect("valid fixed-size list");
+        let narrow_array: Array<[i32; 2], ArcBuffer> =
+            Array::from_buffer(FixedSizeList::from_buffer(flattened));
 
-        let (array, schema) = array.export().expect("export array");
+        let (array, schema) = narrow_array.export().expect("export array");
 
         assert_eq!(array.length, 2);
         assert_eq!(array.null_count, 0);
@@ -777,18 +788,18 @@ mod tests {
         let buffers = unsafe { slice::from_raw_parts(array.buffers, 1) };
         assert!(buffers[0].is_null());
         // SAFETY: The exported array owns a one-entry child pointer array.
-        let children = unsafe { slice::from_raw_parts(array.children, 1) };
+        let array_children = unsafe { slice::from_raw_parts(array.children, 1) };
         // SAFETY: The child pointer refers to an array retained by the parent.
-        let child = unsafe { &*children[0] };
-        assert_eq!(child.length, 4);
-        assert_eq!(child.n_buffers, 2);
-        assert_eq!(child.n_children, 0);
+        let child_array = unsafe { &*array_children[0] };
+        assert_eq!(child_array.length, 4);
+        assert_eq!(child_array.n_buffers, 2);
+        assert_eq!(child_array.n_children, 0);
         // SAFETY: The child owns a two-entry buffer pointer array.
-        let child_buffers = unsafe { slice::from_raw_parts(child.buffers, 2) };
+        let child_buffers = unsafe { slice::from_raw_parts(child_array.buffers, 2) };
         assert!(child_buffers[0].is_null());
         assert_eq!(child_buffers[1], data.cast());
-        // SAFETY: The value buffer points to four values retained by the parent.
         assert_eq!(
+            // SAFETY: The value buffer points to four values retained by the parent.
             unsafe { slice::from_raw_parts(child_buffers[1].cast::<i32>(), 4) },
             [1, 2, 3, 4]
         );
@@ -798,13 +809,13 @@ mod tests {
         assert_eq!(schema.flags, 0);
         assert_eq!(schema.n_children, 1);
         // SAFETY: The schema owns a one-entry child pointer array.
-        let children = unsafe { slice::from_raw_parts(schema.children, 1) };
+        let schema_children = unsafe { slice::from_raw_parts(schema.children, 1) };
         // SAFETY: The child pointer refers to a schema retained by the parent.
-        let child = unsafe { &*children[0] };
+        let child_schema = unsafe { &*schema_children[0] };
         // SAFETY: The child schema has a live, null-terminated format string.
-        assert_eq!(unsafe { CStr::from_ptr(child.format) }, c"i");
-        assert_eq!(child.flags, 0);
-        assert_eq!(child.n_children, 0);
+        assert_eq!(unsafe { CStr::from_ptr(child_schema.format) }, c"i");
+        assert_eq!(child_schema.flags, 0);
+        assert_eq!(child_schema.n_children, 0);
         assert!(weak.upgrade().is_some());
 
         drop(array);
@@ -817,10 +828,10 @@ mod tests {
         let bitmap = Bitmap::<ArrayBuffer<4>>::try_from_parts([0b0011_1100, 0, 0, 0], 4, 2)
             .expect("valid bitmap");
         let validity = Validity::try_from_parts([1, 2, 3, 4], bitmap).expect("valid parts");
-        let values = FixedSizePrimitive::from_buffer(validity);
-        let values = Flatten::try_from_parts(values).expect("valid fixed-size list");
+        let values_layout = FixedSizePrimitive::from_buffer(validity);
+        let flattened = Flatten::try_from_parts(values_layout).expect("valid fixed-size list");
         let array: Array<[Option<i32>; 2], ArrayBuffer<4>> =
-            Array::from_buffer(FixedSizeList::from_buffer(values));
+            Array::from_buffer(FixedSizeList::from_buffer(flattened));
 
         let error = array.export().expect_err("non-zero child offset");
 
@@ -831,9 +842,10 @@ mod tests {
     fn pins_inline_boolean_bitmap_for_export() {
         let bitmap =
             Bitmap::<ArrayBuffer<1>>::try_from_parts([0b0000_0101], 3, 0).expect("valid bitmap");
-        let array: Array<bool, ArrayBuffer<1>> = Array::from_buffer(Boolean::from_buffer(bitmap));
+        let narrow_array: Array<bool, ArrayBuffer<1>> =
+            Array::from_buffer(Boolean::from_buffer(bitmap));
 
-        let (array, _schema) = array.export().expect("export array");
+        let (array, _schema) = narrow_array.export().expect("export array");
 
         // SAFETY: The exported array owns a two-entry buffer pointer array.
         let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
