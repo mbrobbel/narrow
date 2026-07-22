@@ -162,7 +162,12 @@ trait ArrowArrayLayout: Length + Sized {
         let length = i64::try_from(self.len()).expect("array length exceeds i64");
         let null_count = self.null_count();
         let dictionary = self.dictionary();
-        let private = ArrayData::<(), Self>::new((), self.buffers(), self.children()?);
+        let mut private = Box::new(ArrayData::<(), Self>::new(
+            (),
+            self.buffers(),
+            self.children()?,
+        ));
+        private.set_child_pointers();
 
         Ok(private.into_array(length, null_count, dictionary))
     }
@@ -329,17 +334,14 @@ struct ArrayData<Owner, Layout: ArrowArrayLayout> {
 }
 
 impl<Owner: 'static, Layout: ArrowArrayLayout + 'static> ArrayData<Owner, Layout> {
-    /// Creates pinned private data for an exported array.
-    #[allow(clippy::unnecessary_box_returns)]
-    fn new(owner: Owner, buffers: Layout::Buffers, children: Layout::Children) -> Box<Self> {
-        let mut data = Box::new(Self {
+    /// Creates private data for an exported array.
+    fn new(owner: Owner, buffers: Layout::Buffers, children: Layout::Children) -> Self {
+        Self {
             buffers,
             children,
             child_pointers: Vec::new(),
             owner,
-        });
-        data.set_child_pointers();
-        data
+        }
     }
 
     /// Updates child pointers after the child arrays are pinned.
