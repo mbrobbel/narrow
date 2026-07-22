@@ -6,8 +6,6 @@ use alloc::{boxed::Box, collections::VecDeque, rc::Rc, sync::Arc, vec::Vec};
 
 /// The length (or number of units) of an item.
 ///
-/// # Design
-///
 /// `Length` is a small convenience trait for types with a meaningful number of
 /// units. It is also the minimal supertrait of
 /// [`Collection`](crate::collection::Collection), while remaining useful for
