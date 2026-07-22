@@ -36,16 +36,21 @@ jobs:
       - if: steps.cargo_docs_rs.outputs.cache-hit != 'true'
         run: cargo install --locked cargo-docs-rs --version 1.0.4
       - run: cargo docs-rs
+      - run: cargo docs-rs -p narrow-derive
+      - run: cargo docs-rs -p narrow-ffi
       - run: mv "target/$(rustc -vV | awk '/^host/ { print $2 }')/doc" "target/doc"
       - run: chmod -c -R +rX "target/doc"
       - run: echo "<meta http-equiv=refresh content=0;url=narrow>" > target/doc/index.html
+      - name: Verify documentation bundle
+        run: |
+          test -f target/doc/narrow/index.html
+          test -f target/doc/narrow_derive/index.html
+          test -f target/doc/narrow_ffi/index.html
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: rustdoc
           path: target/doc
-      - run: cargo docs-rs -p narrow-derive
-      - run: cargo docs-rs -p narrow-ffi
 
   deploy:
     name: Deploy
