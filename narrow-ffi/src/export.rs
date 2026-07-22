@@ -11,14 +11,16 @@ use core::{
 
 use narrow::{
     array::Array,
+    bitmap::{BitmapRef, ValidityBitmap},
     buffer::{Buffer, BufferRef},
+    collection::ChildRef,
     fixed_size::FixedSize,
     layout::{ArrayItem, boolean::Boolean, fixed_size_primitive::FixedSizePrimitive},
     length::Length,
-    nullability::NonNullable,
+    nullability::{NonNullable, Nullable},
 };
 
-use crate::{ArrowArray, ArrowSchema};
+use crate::{ARROW_FLAG_NULLABLE, ArrowArray, ArrowSchema};
 
 /// A type with an [Arrow C Data format string].
 ///
@@ -26,6 +28,13 @@ use crate::{ArrowArray, ArrowSchema};
 pub trait ArrowType {
     /// Arrow C Data type format.
     const FORMAT: &'static CStr;
+    /// Arrow C Data schema flags.
+    const FLAGS: i64 = 0;
+}
+
+impl<T: ArrowType> ArrowType for Option<T> {
+    const FORMAT: &'static CStr = T::FORMAT;
+    const FLAGS: i64 = T::FLAGS | ARROW_FLAG_NULLABLE;
 }
 
 impl ArrowType for bool {
@@ -207,6 +216,31 @@ where
     }
 }
 
+impl<T, Storage> ArrowArrayLayout for FixedSizePrimitive<T, Nullable, Storage>
+where
+    T: FixedSize + ArrowType,
+    Storage: Buffer,
+{
+    type Buffers = [*const c_void; 2];
+    type Children = [*mut ArrowArray; 0];
+
+    fn null_count(&self) -> i64 {
+        i64::try_from(ValidityBitmap::null_count(self.buffer_ref()))
+            .expect("null count exceeds i64")
+    }
+
+    fn offset(&self) -> usize {
+        self.buffer_ref().bitmap_ref().bit_offset()
+    }
+
+    fn buffers(&self) -> Self::Buffers {
+        let validity = self.buffer_ref();
+        let validity_values: &[u8] = validity.bitmap_ref().buffer_ref().borrow();
+        let values: &[T] = validity.child_ref().borrow();
+        [validity_values.as_ptr().cast(), values.as_ptr().cast()]
+    }
+}
+
 impl<Storage: Buffer> ArrowArrayLayout for Boolean<NonNullable, Storage> {
     type Buffers = [*const c_void; 2];
     type Children = [*mut ArrowArray; 0];
@@ -248,7 +282,7 @@ impl ArrowSchema {
             format: T::FORMAT.as_ptr(),
             name: c"".as_ptr(),
             metadata: ptr::null(),
-            flags: 0,
+            flags: T::FLAGS,
             n_children: 0,
             children: ptr::null_mut(),
             dictionary: ptr::null_mut(),
@@ -287,11 +321,14 @@ mod tests {
     use alloc::sync::Arc;
     use core::{ffi::CStr, slice};
 
+    use crate::ARROW_FLAG_NULLABLE;
+
     use narrow::{
         array::Array,
         bitmap::Bitmap,
         buffer::{ArcBuffer, ArrayBuffer},
         layout::{boolean::Boolean, fixed_size_primitive::FixedSizePrimitive},
+        validity::Validity,
     };
 
     use super::{ArrowType, Export, ExportError};
@@ -309,6 +346,8 @@ mod tests {
         assert_eq!(u64::FORMAT, c"L");
         assert_eq!(f32::FORMAT, c"f");
         assert_eq!(f64::FORMAT, c"g");
+        assert_eq!(<Option<i32>>::FORMAT, c"i");
+        assert_eq!(<Option<i32>>::FLAGS, ARROW_FLAG_NULLABLE);
     }
 
     #[test]
@@ -366,6 +405,64 @@ mod tests {
             unsafe { slice::from_raw_parts(buffers[1].cast::<i32>(), 3) },
             [1, 2, 3]
         );
+    }
+
+    #[test]
+    fn exports_nullable_primitive_buffers_without_copying() {
+        let values = Arc::<[i32]>::from([1, 0, 3]);
+        let validity_values = Arc::<[u8]>::from([0b0000_0101]);
+        let values_weak = Arc::downgrade(&values);
+        let validity_weak = Arc::downgrade(&validity_values);
+        let values_data = values.as_ptr();
+        let validity_data = validity_values.as_ptr();
+        let bitmap =
+            Bitmap::<ArcBuffer>::try_from_parts(validity_values, 3, 0).expect("valid bitmap");
+        let validity = Validity::try_from_parts(values, bitmap).expect("valid parts");
+        let array: Array<Option<i32>, ArcBuffer> =
+            Array::from_buffer(FixedSizePrimitive::from_buffer(validity));
+
+        let (array, schema) = array.export().expect("export array");
+
+        assert_eq!(array.length, 3);
+        assert_eq!(array.null_count, 1);
+        assert_eq!(array.offset, 0);
+        assert_eq!(array.n_buffers, 2);
+        assert_eq!(array.n_children, 0);
+        // SAFETY: The exported array owns a two-entry buffer pointer array.
+        let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
+        assert_eq!(buffers[0], validity_data.cast());
+        assert_eq!(buffers[1], values_data.cast());
+        // SAFETY: The buffers point to storage retained by the export.
+        assert_eq!(unsafe { *buffers[0].cast::<u8>() }, 0b0000_0101);
+        // SAFETY: The value buffer points to three i32 values.
+        assert_eq!(
+            unsafe { slice::from_raw_parts(buffers[1].cast::<i32>(), 3) },
+            [1, 0, 3]
+        );
+
+        // SAFETY: The exported schema has a live, null-terminated format string.
+        assert_eq!(unsafe { CStr::from_ptr(schema.format) }, c"i");
+        assert_eq!(schema.flags, ARROW_FLAG_NULLABLE);
+        assert!(values_weak.upgrade().is_some());
+        assert!(validity_weak.upgrade().is_some());
+
+        drop(array);
+        assert!(values_weak.upgrade().is_none());
+        assert!(validity_weak.upgrade().is_none());
+        drop(schema);
+    }
+
+    #[test]
+    fn rejects_non_zero_nullable_primitive_offset() {
+        let bitmap = Bitmap::<ArrayBuffer<3>>::try_from_parts([0b0001_0100, 0, 0], 3, 2)
+            .expect("valid bitmap");
+        let validity = Validity::try_from_parts([1, 0, 3], bitmap).expect("valid parts");
+        let array: Array<Option<i32>, ArrayBuffer<3>> =
+            Array::from_buffer(FixedSizePrimitive::from_buffer(validity));
+
+        let error = array.export().expect_err("non-zero offset");
+
+        assert_eq!(error, ExportError::NonZeroOffset { offset: 2 });
     }
 
     #[test]
