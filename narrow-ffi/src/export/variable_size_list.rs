@@ -6,14 +6,15 @@ use alloc::boxed::Box;
 use core::{borrow::Borrow, ffi::CStr, ffi::c_void, ptr};
 
 use narrow::{
+    bitmap::{BitmapRef, ValidityBitmap},
     buffer::{Buffer, BufferRef},
     collection::ChildRef,
     layout::{ArrayItem, variable_size_list::VariableSizeList},
-    nullability::NonNullable,
+    nullability::{NonNullable, Nullability, Nullable},
     offset::Offset,
 };
 
-use crate::{ArrowArray, ArrowSchema};
+use crate::{ARROW_FLAG_NULLABLE, ArrowArray, ArrowSchema};
 
 use super::{ArrowArrayLayout, ExportError, release_schema};
 
@@ -43,7 +44,7 @@ where
     type Children = [ArrowArray; 1];
 
     fn schema() -> ArrowSchema {
-        ArrowSchema::variable_size_list::<OffsetItem>(<T::Memory<Storage>>::schema())
+        ArrowSchema::variable_size_list::<OffsetItem, NonNullable>(<T::Memory<Storage>>::schema())
     }
 
     fn buffers(&self) -> Self::Buffers {
@@ -56,9 +57,44 @@ where
     }
 }
 
+impl<T, OffsetItem, Storage> ArrowArrayLayout for VariableSizeList<T, Nullable, OffsetItem, Storage>
+where
+    T: ArrayItem,
+    OffsetItem: ArrowListOffset,
+    Storage: Buffer,
+    T::Memory<Storage>: ArrowArrayLayout + 'static,
+{
+    type Buffers = [*const c_void; 2];
+    type Children = [ArrowArray; 1];
+
+    fn schema() -> ArrowSchema {
+        ArrowSchema::variable_size_list::<OffsetItem, Nullable>(<T::Memory<Storage>>::schema())
+    }
+
+    fn null_count(&self) -> i64 {
+        i64::try_from(ValidityBitmap::null_count(self.buffer_ref()))
+            .expect("null count exceeds i64")
+    }
+
+    fn offset(&self) -> usize {
+        self.buffer_ref().bitmap_ref().bit_offset()
+    }
+
+    fn buffers(&self) -> Self::Buffers {
+        let validity = self.buffer_ref();
+        let validity_values: &[u8] = validity.bitmap_ref().buffer_ref().borrow();
+        let offsets: &[OffsetItem] = validity.child_ref().buffer_ref().borrow();
+        [validity_values.as_ptr().cast(), offsets.as_ptr().cast()]
+    }
+
+    fn children(&self) -> Result<Self::Children, ExportError> {
+        Ok([self.buffer_ref().child_ref().child_ref().child_array()?])
+    }
+}
+
 impl ArrowSchema {
     /// Builds a variable-size-list schema and retains its child schema.
-    fn variable_size_list<OffsetItem: ArrowListOffset>(child: Self) -> Self {
+    fn variable_size_list<OffsetItem: ArrowListOffset, Nulls: Nullability>(child: Self) -> Self {
         let mut private = Box::new(VariableSizeListSchemaData {
             children: [child],
             child_pointers: [ptr::null_mut()],
@@ -71,7 +107,11 @@ impl ArrowSchema {
             format: OffsetItem::FORMAT.as_ptr(),
             name: c"".as_ptr(),
             metadata: ptr::null(),
-            flags: 0,
+            flags: if Nulls::NULLABLE {
+                ARROW_FLAG_NULLABLE
+            } else {
+                0
+            },
             n_children: 1,
             children,
             dictionary: ptr::null_mut(),
@@ -98,12 +138,19 @@ mod tests {
 
     use narrow::{
         array::Array,
-        buffer::ArcBuffer,
+        bitmap::Bitmap,
+        buffer::{ArcBuffer, ArrayBuffer},
         layout::{fixed_size_primitive::FixedSizePrimitive, variable_size_list::VariableSizeList},
         offset::Offsets,
+        validity::Validity,
     };
 
-    use super::{super::Export, ArrowListOffset};
+    use crate::ARROW_FLAG_NULLABLE;
+
+    use super::{
+        super::{Export, ExportError},
+        ArrowListOffset,
+    };
 
     #[test]
     fn list_format_strings_match_arrow() {
@@ -167,5 +214,79 @@ mod tests {
         assert!(values_weak.upgrade().is_none());
         assert!(offsets_weak.upgrade().is_none());
         drop(schema);
+    }
+
+    #[test]
+    fn exports_nullable_variable_size_list_without_copying_buffers() {
+        let value_storage = Arc::<[i32]>::from([1, 2, 3]);
+        let offset_storage = Arc::<[i32]>::from([0, 2, 3]);
+        let validity_storage = Arc::<[u8]>::from([0b0000_0001]);
+        let values_weak = Arc::downgrade(&value_storage);
+        let offsets_weak = Arc::downgrade(&offset_storage);
+        let validity_weak = Arc::downgrade(&validity_storage);
+        let values_data = value_storage.as_ptr();
+        let offsets_data = offset_storage.as_ptr();
+        let validity_data = validity_storage.as_ptr();
+        let values_layout = FixedSizePrimitive::from_buffer(value_storage);
+        let offsets =
+            Offsets::try_from_parts(values_layout, offset_storage).expect("valid offsets");
+        let bitmap =
+            Bitmap::<ArcBuffer>::try_from_parts(validity_storage, 2, 0).expect("valid bitmap");
+        let validity = Validity::try_from_parts(offsets, bitmap).expect("valid parts");
+        let narrow_array: Array<Option<Vec<i32>>, ArcBuffer> =
+            Array::from_buffer(VariableSizeList::from_buffer(validity));
+
+        let (array, schema) = narrow_array.export().expect("export array");
+
+        assert_eq!(array.length, 2);
+        assert_eq!(array.null_count, 1);
+        assert_eq!(array.offset, 0);
+        assert_eq!(array.n_buffers, 2);
+        assert_eq!(array.n_children, 1);
+        // SAFETY: The exported array owns a two-entry buffer pointer array.
+        let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
+        assert_eq!(buffers[0], validity_data.cast());
+        assert_eq!(buffers[1], offsets_data.cast());
+        // SAFETY: The exported array owns a one-entry child pointer array.
+        let array_children = unsafe { slice::from_raw_parts(array.children, 1) };
+        // SAFETY: The child pointer refers to an array retained by the parent.
+        let child_array = unsafe { &*array_children[0] };
+        assert_eq!(child_array.length, 3);
+        // SAFETY: The child owns a two-entry buffer pointer array.
+        let child_buffers = unsafe { slice::from_raw_parts(child_array.buffers, 2) };
+        assert_eq!(child_buffers[1], values_data.cast());
+
+        // SAFETY: The exported schema has a live, null-terminated format string.
+        assert_eq!(unsafe { CStr::from_ptr(schema.format) }, c"+l");
+        assert_eq!(schema.flags, ARROW_FLAG_NULLABLE);
+        // SAFETY: The schema owns a one-entry child pointer array.
+        let schema_children = unsafe { slice::from_raw_parts(schema.children, 1) };
+        // SAFETY: The child pointer refers to a schema retained by the parent.
+        let child_schema = unsafe { &*schema_children[0] };
+        assert_eq!(child_schema.flags, 0);
+        assert!(values_weak.upgrade().is_some());
+        assert!(offsets_weak.upgrade().is_some());
+        assert!(validity_weak.upgrade().is_some());
+
+        drop(array);
+        assert!(values_weak.upgrade().is_none());
+        assert!(offsets_weak.upgrade().is_none());
+        assert!(validity_weak.upgrade().is_none());
+        drop(schema);
+    }
+
+    #[test]
+    fn rejects_non_zero_nullable_variable_size_list_offset() {
+        let values_layout = FixedSizePrimitive::from_buffer([1, 2, 3]);
+        let offsets = Offsets::try_from_parts(values_layout, [0, 2, 3]).expect("valid offsets");
+        let bitmap = Bitmap::<ArrayBuffer<3>>::try_from_parts([0b0000_1100, 0, 0], 2, 2)
+            .expect("valid bitmap");
+        let validity = Validity::try_from_parts(offsets, bitmap).expect("valid parts");
+        let array: Array<Option<Vec<i32>>, ArrayBuffer<3>> =
+            Array::from_buffer(VariableSizeList::from_buffer(validity));
+
+        let error = array.export().expect_err("non-zero offset");
+
+        assert_eq!(error, ExportError::NonZeroOffset { offset: 2 });
     }
 }
