@@ -26,8 +26,6 @@ use crate::{
 /// A panicking extension leaves committed chunks visible. The next extension
 /// discards any uncommitted suffix.
 ///
-/// # Design
-///
 /// Arrow stores nullness separately from values instead of interleaving
 /// `Option<T>` objects. Invalid positions still have a physical placeholder,
 /// and the bitmap determines whether that value is visible:
@@ -56,8 +54,6 @@ pub struct Validity<T: Collection, Storage: Buffer = VecBuffer> {
 }
 
 /// Error returned by [`Validity::try_from_parts`].
-///
-/// # Design
 ///
 /// The value and validity collections must stay row-aligned. Checking their
 /// lengths at the raw-parts boundary makes that invariant available to every
