@@ -28,6 +28,12 @@ use crate::{
 ///
 /// The supported offset types are [`i32`] and [`i64`].
 ///
+/// # Design
+///
+/// These two types match Arrow's standard and large variable-size layouts.
+/// Restricting the trait to them keeps the Rust type sufficient to determine
+/// the corresponding Arrow format.
+///
 /// # Examples
 ///
 /// ```
@@ -94,6 +100,20 @@ impl Offset for i64 {
 ///
 /// <https://arrow.apache.org/docs/format/Columnar.html#variable-size-binary-layout>
 ///
+/// # Design
+///
+/// Lists and binary values share Arrow's flat representation. The child stores
+/// all elements contiguously, while adjacent offsets recover each logical item:
+///
+/// ```text
+/// offsets: [0, 2, 2, 5]
+/// data:    [a, b, c, d, e]
+/// items:   [a, b]  []  [c, d, e]
+/// ```
+///
+/// `U` controls the owned item reconstructed from a range; it does not change
+/// these physical buffers.
+///
 /// # Examples
 ///
 /// ```
@@ -115,6 +135,12 @@ pub struct Offsets<
 }
 
 /// Error returned by [`Offsets::try_from_parts`].
+///
+/// # Design
+///
+/// Arrow relies on an initial zero and monotonically increasing, in-bounds
+/// offsets. Validating those rules once makes every adjacent pair a safe range
+/// into the flat child collection.
 ///
 /// # Examples
 ///
@@ -537,6 +563,12 @@ where
 #[expect(missing_debug_implementations)]
 /// An owning iterator over the items in an [`Offsets`] collection.
 ///
+/// # Design
+///
+/// Consuming the offset buffer turns each adjacent boundary into one owned `U`
+/// while retaining the compact flat child representation until values are
+/// requested.
+///
 /// # Examples
 ///
 /// ```
@@ -587,6 +619,11 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
 ///
 /// The view is represented by a range into the collection's flat data and
 /// remains valid only while the collection is borrowed.
+///
+/// # Design
+///
+/// Keeping only a range and a reference avoids allocating a temporary
+/// container when reading a variable-size item.
 ///
 /// # Examples
 ///
