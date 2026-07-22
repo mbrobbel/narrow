@@ -16,10 +16,38 @@ use crate::{
 
 /// A collection that flattens an inner collection and exposes its items as
 /// arrays with N items.
+///
+/// Arrow fixed-size lists are one flat child collection plus a constant width,
+/// rather than a collection of separately allocated arrays. `Flatten` presents
+/// that physical form as logical `[T; N]` items.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::collection::{Collection, flatten::Flatten};
+///
+/// let values = [[1, 2], [3, 4]].into_iter().collect::<Flatten<Vec<_>, 2>>();
+/// assert_eq!(values.owned(1), Some([3, 4]));
+/// ```
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Flatten<C: Collection, const N: usize>(C);
 
 /// Error returned by [`Flatten::try_from_parts`].
+///
+/// Validation happens when raw parts enter the safe representation. This lets
+/// later indexing assume that `N` is non-zero and every logical item has a
+/// complete group of child values.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::collection::flatten::{Flatten, FlattenError};
+///
+/// let error = Flatten::<Vec<_>, 2>::try_from_parts(vec![1]).unwrap_err();
+/// assert_eq!(error, FlattenError::NotMultiple { len: 1, n: 2 });
+/// let error = Flatten::<Vec<i32>, 0>::try_from_parts(vec![]).unwrap_err();
+/// assert_eq!(error, FlattenError::ZeroChunkSize);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FlattenError {
     /// The chunk size `N` is zero.
@@ -53,6 +81,15 @@ impl<C: Collection, const N: usize> Flatten<C, N> {
     ///
     /// Returns a [`FlattenError`] when `N` is zero or when the length of the
     /// child collection is not a multiple of `N`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::{Collection, flatten::Flatten};
+    ///
+    /// let values = Flatten::<Vec<_>, 2>::try_from_parts(vec![1, 2]).unwrap();
+    /// assert_eq!(values.owned(0), Some([1, 2]));
+    /// ```
     pub fn try_from_parts(child: C) -> Result<Self, FlattenError> {
         match child.len().checked_rem(N) {
             None => Err(FlattenError::ZeroChunkSize),
@@ -67,6 +104,15 @@ impl<C: Collection, const N: usize> Flatten<C, N> {
     /// Returns the child collection of this [`Flatten`].
     ///
     /// This is the inverse of [`Flatten::try_from_parts`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::flatten::Flatten;
+    ///
+    /// let values = Flatten::<Vec<_>, 2>::try_from_parts(vec![1, 2]).unwrap();
+    /// assert_eq!(values.into_parts(), [1, 2]);
+    /// ```
     #[must_use]
     pub fn into_parts(self) -> C {
         self.0
@@ -185,6 +231,19 @@ impl<C: CollectionRealloc, const N: usize> CollectionRealloc for Flatten<C, N> {
 }
 
 /// A view of `Flatten`. This is an array with N views of the inner collection.
+///
+/// The array of child views is assembled by value, so reading a fixed-size list
+/// does not materialize or allocate its owned child items.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::collection::{Collection, flatten::{Flatten, FlattenView}};
+///
+/// let values = [[1, 2]].into_iter().collect::<Flatten<Vec<_>, 2>>();
+/// let view: FlattenView<'_, Vec<i32>, 2> = values.view(0).unwrap();
+/// assert_eq!(*view, [1, 2]);
+/// ```
 #[derive(Debug)]
 pub struct FlattenView<'collection, C: Collection + 'collection, const N: usize>(
     [C::View<'collection>; N],
@@ -220,6 +279,19 @@ impl<C: Collection, const N: usize> IntoOwned<[C::Owned; N]> for FlattenView<'_,
 }
 
 /// An iterator over N elements of the inner iterator at a time.
+///
+/// This is the consuming counterpart to [`FlattenView`]: it reconstructs each
+/// owned array directly from the flat child iterator.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::collection::{Collection, flatten::{ArrayChunks, Flatten}};
+///
+/// let values = [[1, 2]].into_iter().collect::<Flatten<Vec<_>, 2>>();
+/// let mut chunks: ArrayChunks<2, _> = values.into_iter_owned();
+/// assert_eq!(chunks.next(), Some([1, 2]));
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct ArrayChunks<const N: usize, I: ExactSizeIterator>(I);
 

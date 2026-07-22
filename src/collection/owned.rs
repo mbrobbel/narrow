@@ -4,8 +4,29 @@ use crate::fixed_size::FixedSize;
 use alloc::vec::Vec;
 
 /// Convert into owned items.
+///
+/// Collection views may borrow nested data even when their owned item is a
+/// container. This trait gives generic code one explicit boundary at which to
+/// materialize that ownership.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::collection::owned::IntoOwned;
+///
+/// let owned: Vec<_> = (&[1, 2][..]).into_owned();
+/// assert_eq!(owned, [1, 2]);
+/// ```
 pub trait IntoOwned<Owned> {
     /// Returns the owned instance of self.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::owned::IntoOwned;
+    ///
+    /// assert_eq!((&[1, 2][..]).into_owned(), vec![1, 2]);
+    /// ```
     fn into_owned(self) -> Owned;
 }
 

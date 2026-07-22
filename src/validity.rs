@@ -25,6 +25,25 @@ use crate::{
 /// `Storage` is the [`Buffer`] of the [`Bitmap`].
 /// A panicking extension leaves committed chunks visible. The next extension
 /// discards any uncommitted suffix.
+///
+/// Arrow stores nullness separately from values instead of interleaving
+/// `Option<T>` objects. Invalid positions still have a physical placeholder,
+/// and the bitmap determines whether that value is visible:
+///
+/// ```text
+/// values:   [v0, __, v2]
+/// validity: [ 1,  0,  1]
+/// ```
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{collection::Collection, validity::Validity};
+///
+/// let values = [Some(1), None].into_iter().collect::<Validity<Vec<i32>>>();
+/// assert_eq!(values.owned(0), Some(Some(1)));
+/// assert_eq!(values.owned(1), Some(None));
+/// ```
 pub struct Validity<T: Collection, Storage: Buffer = VecBuffer> {
     /// Collection that may contain null elements.
     collection: T,
@@ -35,6 +54,19 @@ pub struct Validity<T: Collection, Storage: Buffer = VecBuffer> {
 }
 
 /// Error returned by [`Validity::try_from_parts`].
+///
+/// The value and validity collections must stay row-aligned. Checking their
+/// lengths at the raw-parts boundary makes that invariant available to every
+/// subsequent collection operation.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{bitmap::Bitmap, validity::{Validity, ValidityError}};
+///
+/// let result = Validity::try_from_parts(vec![1, 2], [true].into_iter().collect::<Bitmap>());
+/// assert_eq!(result.unwrap_err(), ValidityError::LengthMismatch { collection: 2, bitmap: 1 });
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ValidityError {
     /// The collection and the validity bitmap have different lengths.
@@ -66,6 +98,16 @@ impl<T: Collection, Storage: Buffer> Validity<T, Storage> {
     ///
     /// Returns a [`ValidityError`] when the length of the collection does not
     /// match the length of the bitmap.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{bitmap::Bitmap, collection::Collection, validity::Validity};
+    ///
+    /// let bitmap = [true, false].into_iter().collect::<Bitmap>();
+    /// let values = Validity::try_from_parts(vec![1, 0], bitmap).unwrap();
+    /// assert_eq!(values.owned(1), Some(None));
+    /// ```
     pub fn try_from_parts(collection: T, bitmap: Bitmap<Storage>) -> Result<Self, ValidityError> {
         let (collection_len, bitmap_len) = (collection.len(), bitmap.len());
         if collection_len == bitmap_len {
@@ -81,6 +123,18 @@ impl<T: Collection, Storage: Buffer> Validity<T, Storage> {
     /// Returns the collection and validity bitmap of this [`Validity`].
     ///
     /// This is the inverse of [`Validity::try_from_parts`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{bitmap::Bitmap, validity::Validity};
+    ///
+    /// let bitmap = [true, true].into_iter().collect::<Bitmap>();
+    /// let values = Validity::try_from_parts(vec![1, 2], bitmap).unwrap();
+    /// let (data, validity) = values.into_parts();
+    /// assert_eq!(data, [1, 2]);
+    /// assert_eq!(validity.into_iter().collect::<Vec<_>>(), [true, true]);
+    /// ```
     #[must_use]
     pub fn into_parts(self) -> (T, Bitmap<Storage>) {
         (self.collection, self.bitmap)
