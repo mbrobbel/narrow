@@ -12,6 +12,17 @@ use crate::{
 /// A collection of booleans, stored as bits in a [`Bitmap`].
 ///
 /// <https://arrow.apache.org/docs/format/Columnar.html#fixed-size-primitive-layout>
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{collection::Collection, layout::boolean::Boolean, nullability::Nullable};
+///
+/// let values = [true, false].into_iter().collect::<Boolean>();
+/// assert_eq!(values.owned(1), Some(false));
+/// let values = [Some(true), None].into_iter().collect::<Boolean<Nullable>>();
+/// assert_eq!(values.owned(1), Some(None));
+/// ```
 pub struct Boolean<Nulls: Nullability = NonNullable, Storage: Buffer = VecBuffer>(
     Nulls::Collection<Bitmap<Storage>, Storage>,
 );
@@ -20,6 +31,16 @@ impl<Nulls: Nullability, Storage: Buffer> MemoryLayout for Boolean<Nulls, Storag
 
 impl<Nulls: Nullability, Storage: Buffer> Boolean<Nulls, Storage> {
     /// Constructs a [`Boolean`] from its backing collection.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{bitmap::Bitmap, collection::Collection, layout::boolean::Boolean};
+    ///
+    /// let bitmap = [true, false].into_iter().collect::<Bitmap>();
+    /// let values = Boolean::<narrow::nullability::NonNullable>::from_buffer(bitmap);
+    /// assert_eq!(values.owned(0), Some(true));
+    /// ```
     #[must_use]
     pub fn from_buffer(buffer: Nulls::Collection<Bitmap<Storage>, Storage>) -> Self {
         Self(buffer)
@@ -28,6 +49,15 @@ impl<Nulls: Nullability, Storage: Buffer> Boolean<Nulls, Storage> {
     /// Returns the backing collection of this [`Boolean`].
     ///
     /// This is the inverse of [`Boolean::from_buffer`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{layout::boolean::Boolean, length::Length};
+    ///
+    /// let bitmap = [true, false].into_iter().collect::<Boolean>().into_buffer();
+    /// assert_eq!(bitmap.len(), 2);
+    /// ```
     #[must_use]
     pub fn into_buffer(self) -> Nulls::Collection<Bitmap<Storage>, Storage> {
         self.0

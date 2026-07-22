@@ -100,11 +100,29 @@ pub trait Collection: Length {
 /// A physical child does not necessarily correspond to an Arrow schema child.
 /// For example, variable-size binary data is a physical child in Narrow but an
 /// Arrow data buffer.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{collection::ChildRef, offset::Offsets};
+///
+/// let values = [vec![1, 2]].into_iter().collect::<Offsets<Vec<i32>>>();
+/// assert_eq!(values.child_ref(), &[1, 2]);
+/// ```
 pub trait ChildRef {
     /// Physical child collection.
     type Child: Collection;
 
     /// Returns the physical child collection.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{collection::ChildRef, offset::Offsets};
+    ///
+    /// let values = [vec![1, 2]].into_iter().collect::<Offsets<Vec<i32>>>();
+    /// assert_eq!(values.child_ref(), &[1, 2]);
+    /// ```
     fn child_ref(&self) -> &Self::Child;
 }
 
