@@ -1,4 +1,4 @@
-//! Arrow C Data Interface support for Narrow.
+//! Arrow C Data Interface support for [`Array`](narrow::array::Array).
 //!
 //! See [The Arrow C data interface] specification.
 //!

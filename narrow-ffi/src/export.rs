@@ -1,4 +1,4 @@
-//! Export Narrow arrays through the Arrow C Data Interface.
+//! Export [`Array`] values through the Arrow C Data Interface.
 
 extern crate alloc;
 
@@ -16,42 +16,59 @@ use narrow::{
 
 use crate::{ArrowArray, ArrowSchema};
 
-/// A fixed-size primitive with an Arrow C Data format string.
+/// A [`FixedSize`] primitive with an Arrow C Data format string.
 pub trait ArrowPrimitive: FixedSize {
     /// Arrow C Data type format.
     const FORMAT: &'static CStr;
 }
 
-macro_rules! primitive {
-    ($($type:ty => $format:literal),+ $(,)?) => {
-        $(
-            impl ArrowPrimitive for $type {
-                const FORMAT: &'static CStr = $format;
-            }
-        )+
-    };
+impl ArrowPrimitive for i8 {
+    const FORMAT: &'static CStr = c"c";
 }
 
-primitive! {
-    i8 => c"c",
-    u8 => c"C",
-    i16 => c"s",
-    u16 => c"S",
-    i32 => c"i",
-    u32 => c"I",
-    i64 => c"l",
-    u64 => c"L",
-    f32 => c"f",
-    f64 => c"g",
+impl ArrowPrimitive for u8 {
+    const FORMAT: &'static CStr = c"C";
 }
 
-/// Export a Narrow array through the Arrow C Data Interface.
+impl ArrowPrimitive for i16 {
+    const FORMAT: &'static CStr = c"s";
+}
+
+impl ArrowPrimitive for u16 {
+    const FORMAT: &'static CStr = c"S";
+}
+
+impl ArrowPrimitive for i32 {
+    const FORMAT: &'static CStr = c"i";
+}
+
+impl ArrowPrimitive for u32 {
+    const FORMAT: &'static CStr = c"I";
+}
+
+impl ArrowPrimitive for i64 {
+    const FORMAT: &'static CStr = c"l";
+}
+
+impl ArrowPrimitive for u64 {
+    const FORMAT: &'static CStr = c"L";
+}
+
+impl ArrowPrimitive for f32 {
+    const FORMAT: &'static CStr = c"f";
+}
+
+impl ArrowPrimitive for f64 {
+    const FORMAT: &'static CStr = c"g";
+}
+
+/// Export an [`Array`] through the Arrow C Data Interface.
 pub trait Export {
-    /// Consumes the array and returns its Arrow C Data array and schema.
+    /// Consumes `self` and returns an [`ArrowArray`] and [`ArrowSchema`].
     fn export(self) -> (ArrowArray, ArrowSchema);
 }
 
-struct PrimitivePrivate<Values> {
+struct PrimitiveArrayData<Values> {
     _values: Values,
     buffers: [*const c_void; 2],
 }
@@ -65,7 +82,7 @@ where
     fn export(self) -> (ArrowArray, ArrowSchema) {
         let primitive: FixedSizePrimitive<T, NonNullable, Storage> = self.into_buffer();
         let values = primitive.into_buffer();
-        let mut private = Box::new(PrimitivePrivate {
+        let mut private = Box::new(PrimitiveArrayData {
             _values: values,
             buffers: [ptr::null(); 2],
         });
@@ -112,10 +129,10 @@ unsafe extern "C" fn release_primitive<Values>(array: *mut ArrowArray) {
     array.buffers = ptr::null_mut();
 
     // SAFETY: `private_data` was created with `Box::into_raw` for this exact
-    // `PrimitivePrivate<Values>` instantiation and is released only once.
+    // `PrimitiveArrayData<Values>` instantiation and is released only once.
     unsafe {
         drop(Box::from_raw(
-            private_data.cast::<PrimitivePrivate<Values>>(),
+            private_data.cast::<PrimitiveArrayData<Values>>(),
         ))
     };
 }
