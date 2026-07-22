@@ -6,6 +6,15 @@ use crate::{buffer::Buffer, collection::Collection, validity::Validity};
 ///
 /// See [`NonNullable`] and [`Nullable`].
 ///
+/// Nullability is a type constructor independent of the logical layout and
+/// storage backend. The same layout can therefore describe required and
+/// optional values without duplicating its implementation:
+///
+/// ```text
+/// NonNullable: T         -> values
+/// Nullable:    Option<T> -> Validity<values>
+/// ```
+///
 /// # Examples
 ///
 /// ```
@@ -90,6 +99,9 @@ mod sealed {
 /// - `NonNullable::Item<T> = T`
 /// - `NonNullable::Collection<T, Buffer> = T`
 ///
+/// The identity constructor represents Arrow fields that need no validity
+/// bitmap, so required data keeps exactly its underlying physical layout.
+///
 /// # Examples
 ///
 /// ```
@@ -123,6 +135,9 @@ impl Nullability for NonNullable {
 /// Implements [`Nullability`] to provide:
 /// - `Nullable::Item<T> = Option<T>`
 /// - `Nullable::Collection<T, Buffer> = Validity<T, Buffer>`
+///
+/// `Option` appears at the item boundary while [`Validity`] keeps Arrow's
+/// value and validity buffers separate in the collection representation.
 ///
 /// # Examples
 ///
