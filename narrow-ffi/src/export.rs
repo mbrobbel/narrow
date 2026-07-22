@@ -26,6 +26,10 @@ use crate::{ARROW_FLAG_NULLABLE, ArrowArray, ArrowSchema};
 ///
 /// [Arrow C Data format string]: https://arrow.apache.org/docs/format/CDataInterface.html#data-type-description-format-strings
 ///
+/// The Rust item type already determines its Arrow layout. These associated
+/// constants carry the corresponding C schema description at the type level,
+/// including the nullable flag added by `Option<T>`.
+///
 /// # Examples
 ///
 /// ```
@@ -92,6 +96,10 @@ impl ArrowType for f64 {
 
 /// Error returned when an [`Array`] cannot be exported.
 ///
+/// Export rejects representation details it cannot preserve faithfully instead
+/// of silently changing their meaning. The enum is non-exhaustive so further
+/// unsupported Arrow conditions can be reported explicitly.
+///
 /// # Examples
 ///
 /// ```
@@ -127,6 +135,11 @@ impl core::error::Error for ExportError {}
 /// Export an [`Array`] through the Arrow C Data Interface.
 ///
 /// Only arrays with an offset of zero are currently supported.
+///
+/// Export consumes the array because the returned C handles must retain its
+/// storage after Rust leaves this call. That storage and the exposed pointer
+/// tables live in `private_data` until the foreign consumer invokes the Arrow
+/// release callback.
 ///
 /// # Examples
 ///
