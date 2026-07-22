@@ -13,6 +13,12 @@ use crate::{
 ///
 /// <https://arrow.apache.org/docs/format/Columnar.html#fixed-size-primitive-layout>
 ///
+/// # Design
+///
+/// Fixed-width Arrow values map directly to one contiguous typed buffer.
+/// Nullability wraps that buffer with validity metadata while leaving the
+/// value bytes and scalar type unchanged.
+///
 /// # Examples
 ///
 /// ```
