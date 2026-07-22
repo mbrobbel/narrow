@@ -68,6 +68,8 @@ use core::{
 
 mod export;
 pub use export::{ArrowType, Export, ExportError};
+mod import;
+pub use import::{Import, ImportError};
 
 /// Dictionary values are ordered.
 pub const ARROW_FLAG_DICTIONARY_ORDERED: i64 = 1;
