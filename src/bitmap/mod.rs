@@ -30,6 +30,12 @@ pub(crate) const fn bytes_for_bits(bits: usize) -> usize {
 
 /// Error returned by [`Bitmap::try_from_parts`].
 ///
+/// # Design
+///
+/// Raw byte buffers carry no logical length or offset themselves. Validating
+/// those metadata at construction lets every safe bitmap operation assume its
+/// requested bit range is present.
+///
 /// # Examples
 ///
 /// ```
@@ -75,6 +81,17 @@ impl core::error::Error for BitmapError {}
 /// The validity bits are stored LSB-first in the bytes of a buffer.
 /// A panicking extension leaves its committed prefix visible. The next
 /// extension overwrites any uncommitted bits.
+///
+/// # Design
+///
+/// Arrow stores booleans and validity as packed bits. Keeping the logical bit
+/// offset alongside the bytes also permits a view to start at a non-byte
+/// boundary without changing the physical representation:
+///
+/// ```text
+/// buffer bits: [padding | logical bits | padding]
+///                       ^ offset       ^ offset + length
+/// ```
 ///
 /// # Examples
 ///
