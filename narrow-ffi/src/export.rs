@@ -10,8 +10,12 @@ use core::{
 };
 
 use narrow::{
-    array::Array, buffer::Buffer, fixed_size::FixedSize,
-    layout::fixed_size_primitive::FixedSizePrimitive, nullability::NonNullable,
+    array::Array,
+    bitmap::Bitmap,
+    buffer::Buffer,
+    fixed_size::FixedSize,
+    layout::{boolean::Boolean, fixed_size_primitive::FixedSizePrimitive},
+    nullability::NonNullable,
 };
 
 use crate::{ArrowArray, ArrowSchema};
@@ -70,9 +74,9 @@ pub trait Export {
     fn export(self) -> (ArrowArray, ArrowSchema);
 }
 
-/// Data retained by `ArrowArray::private_data` for a primitive array export.
-struct PrimitiveArrayData<Values> {
-    /// Values backing the exported data buffer.
+/// Data retained by `ArrowArray::private_data` for an array export.
+struct ArrayData<Values> {
+    /// Storage backing the exported value buffer.
     values: Values,
     /// Arrow C Data buffer pointers for validity and values.
     buffers: [*const c_void; 2],
@@ -91,7 +95,7 @@ where
 
         // Pin the storage before taking its address. This is required for
         // inline buffers, whose values would otherwise move with the wrapper.
-        let mut private = Box::new(PrimitiveArrayData {
+        let mut private = Box::new(ArrayData {
             values,
             buffers: [ptr::null(); 2],
         });
@@ -115,24 +119,74 @@ where
             buffers,
             children: ptr::null_mut(),
             dictionary: ptr::null_mut(),
-            release: Some(release_array::<PrimitiveArrayData<Storage::For<T>>>),
+            release: Some(release_array::<ArrayData<Storage::For<T>>>),
             private_data,
         };
 
         // Primitive format strings and the empty name are static, so the
         // schema release callback only needs to mark the schema as released.
-        let schema = ArrowSchema {
-            format: T::FORMAT.as_ptr(),
-            name: c"".as_ptr(),
-            metadata: ptr::null(),
-            flags: 0,
+        (array, flat_schema(T::FORMAT))
+    }
+}
+
+impl<Storage> Export for Array<bool, Storage>
+where
+    Storage: Buffer,
+    Storage::For<u8>: 'static,
+{
+    fn export(self) -> (ArrowArray, ArrowSchema) {
+        // Remove the Boolean and bitmap wrappers without copying their storage.
+        let boolean: Boolean<NonNullable, Storage> = self.into_buffer();
+        let bitmap: Bitmap<Storage> = boolean.into_buffer();
+        let (values, bits, offset) = bitmap.into_parts();
+
+        // Pin the storage before exposing its address so inline buffers remain
+        // at a stable location for the lifetime of the export.
+        let mut private = Box::new(ArrayData {
+            values,
+            buffers: [ptr::null(); 2],
+        });
+        let values: &[u8] = private.values.borrow();
+        let length = i64::try_from(bits).expect("array length exceeds i64");
+        let offset = i64::try_from(offset).expect("array offset exceeds i64");
+
+        // Boolean arrays have validity and value bitmaps. The validity buffer
+        // is null for this non-nullable array; the bitmap offset is expressed
+        // through `ArrowArray::offset`.
+        private.buffers[1] = values.as_ptr().cast();
+
+        // Keep the bitmap storage and its buffer pointer array alive until the
+        // consumer invokes the release callback.
+        let buffers = private.buffers.as_mut_ptr();
+        let private_data = Box::into_raw(private).cast();
+        let array = ArrowArray {
+            length,
+            null_count: 0,
+            offset,
+            n_buffers: 2,
             n_children: 0,
+            buffers,
             children: ptr::null_mut(),
             dictionary: ptr::null_mut(),
-            release: Some(release_schema),
-            private_data: ptr::null_mut(),
+            release: Some(release_array::<ArrayData<Storage::For<u8>>>),
+            private_data,
         };
-        (array, schema)
+
+        (array, flat_schema(c"b"))
+    }
+}
+
+fn flat_schema(format: &'static CStr) -> ArrowSchema {
+    ArrowSchema {
+        format: format.as_ptr(),
+        name: c"".as_ptr(),
+        metadata: ptr::null(),
+        flags: 0,
+        n_children: 0,
+        children: ptr::null_mut(),
+        dictionary: ptr::null_mut(),
+        release: Some(release_schema),
+        private_data: ptr::null_mut(),
     }
 }
 
@@ -165,8 +219,9 @@ mod tests {
 
     use narrow::{
         array::Array,
+        bitmap::Bitmap,
         buffer::{ArcBuffer, ArrayBuffer},
-        layout::fixed_size_primitive::FixedSizePrimitive,
+        layout::{boolean::Boolean, fixed_size_primitive::FixedSizePrimitive},
     };
 
     use super::{ArrowPrimitive, Export};
@@ -240,5 +295,57 @@ mod tests {
             unsafe { slice::from_raw_parts(buffers[1].cast::<i32>(), 3) },
             [1, 2, 3]
         );
+    }
+
+    #[test]
+    fn exports_boolean_bitmap_without_copying_values() {
+        let values = Arc::<[u8]>::from([0b0001_0100]);
+        let weak = Arc::downgrade(&values);
+        let data = values.as_ptr();
+        let bitmap = Bitmap::<ArcBuffer>::try_from_parts(values, 3, 2).expect("valid bitmap");
+        let array: Array<bool, ArcBuffer> = Array::from_buffer(Boolean::from_buffer(bitmap));
+
+        let (array, schema) = array.export();
+
+        assert_eq!(array.length, 3);
+        assert_eq!(array.null_count, 0);
+        assert_eq!(array.offset, 2);
+        assert_eq!(array.n_buffers, 2);
+        assert_eq!(array.n_children, 0);
+        assert!(array.children.is_null());
+        assert!(array.dictionary.is_null());
+        // SAFETY: The exported array owns a two-entry buffer pointer array.
+        let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
+        assert!(buffers[0].is_null());
+        assert_eq!(buffers[1], data.cast());
+        // SAFETY: The value buffer points to the byte held by the export.
+        assert_eq!(unsafe { *buffers[1].cast::<u8>() }, 0b0001_0100);
+
+        // SAFETY: The exported schema has a live, null-terminated format string.
+        assert_eq!(unsafe { CStr::from_ptr(schema.format) }, c"b");
+        assert_eq!(schema.flags, 0);
+        assert_eq!(schema.n_children, 0);
+        assert!(schema.children.is_null());
+        assert!(schema.dictionary.is_null());
+        assert!(weak.upgrade().is_some());
+
+        drop(array);
+        assert!(weak.upgrade().is_none());
+        drop(schema);
+    }
+
+    #[test]
+    fn pins_inline_boolean_bitmap_for_export() {
+        let bitmap =
+            Bitmap::<ArrayBuffer<1>>::try_from_parts([0b0000_0101], 3, 0).expect("valid bitmap");
+        let array: Array<bool, ArrayBuffer<1>> = Array::from_buffer(Boolean::from_buffer(bitmap));
+
+        let (array, _schema) = array.export();
+
+        // SAFETY: The exported array owns a two-entry buffer pointer array.
+        let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
+        // SAFETY: The value buffer points to the inline byte pinned in the
+        // export's private allocation.
+        assert_eq!(unsafe { *buffers[1].cast::<u8>() }, 0b0000_0101);
     }
 }
