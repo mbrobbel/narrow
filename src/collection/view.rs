@@ -5,6 +5,12 @@ use alloc::vec::Vec;
 
 /// Convert items into views.
 ///
+/// # Design
+///
+/// This is the dual of [`IntoOwned`]: copyable Arrow scalars remain values,
+/// while variable-size values become borrowed slices. Collections can
+/// therefore expose the cheapest useful item representation through one API.
+///
 /// # Examples
 ///
 /// ```

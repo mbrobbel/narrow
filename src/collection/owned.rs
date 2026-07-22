@@ -5,6 +5,12 @@ use alloc::vec::Vec;
 
 /// Convert into owned items.
 ///
+/// # Design
+///
+/// Collection views may borrow nested data even when their owned item is a
+/// container. This trait gives generic code one explicit boundary at which to
+/// materialize that ownership.
+///
 /// # Examples
 ///
 /// ```
