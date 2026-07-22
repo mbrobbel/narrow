@@ -26,9 +26,9 @@ use crate::{ARROW_FLAG_NULLABLE, ArrowArray, ArrowSchema};
 ///
 /// [Arrow C Data format string]: https://arrow.apache.org/docs/format/CDataInterface.html#data-type-description-format-strings
 ///
-/// Narrow's Rust item type already determines its Arrow layout. These
-/// associated constants carry the corresponding C schema description at the
-/// type level, including the nullable flag added by `Option<T>`.
+/// The Rust item type already determines its Arrow layout. These associated
+/// constants carry the corresponding C schema description at the type level,
+/// including the nullable flag added by `Option<T>`.
 ///
 /// # Examples
 ///
