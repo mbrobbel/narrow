@@ -2,7 +2,16 @@ use crate::{
     buffer::VecBuffer, layout::variable_size_list::VariableSizeList, nullability::NonNullable,
 };
 
-/// Variable size binary layout.
+/// Variable-size binary layout.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{collection::Collection, layout::variable_size_binary::VariableSizeBinary};
+///
+/// let values = [b"hi".to_vec()].into_iter().collect::<VariableSizeBinary>();
+/// assert_eq!(values.owned(0), Some(b"hi".to_vec()));
+/// ```
 pub type VariableSizeBinary<Nulls = NonNullable, OffsetItem = i32, Storage = VecBuffer> =
     VariableSizeList<u8, Nulls, OffsetItem, Storage>;
 
