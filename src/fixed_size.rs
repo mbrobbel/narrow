@@ -4,6 +4,10 @@ use core::{mem, ops::Deref};
 
 /// Fixed-size types.
 ///
+/// This sealed set identifies scalar types that can be stored in Arrow's
+/// contiguous, fixed-width value buffers. Sealing prevents unsupported
+/// representations from entering layouts that rely on this guarantee.
+///
 /// # Examples
 ///
 /// ```
@@ -36,6 +40,14 @@ impl FixedSize for f64 {}
 /// An array with `N` `FixedSize` items per item.
 ///
 /// Just using [T; N] causes overlapping impls.
+///
+/// The newtype distinguishes one fixed-width scalar made of `N` values from an
+/// Arrow fixed-size list. The distinction is expressed entirely in the type:
+///
+/// ```text
+/// [T; N]                       -> fixed-size list layout
+/// FixedSizeArray<T, N>         -> fixed-width primitive layout
+/// ```
 ///
 /// # Examples
 ///
