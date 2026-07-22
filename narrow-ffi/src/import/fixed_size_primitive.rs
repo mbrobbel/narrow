@@ -9,9 +9,9 @@ use narrow::{
 
 use crate::{ArrowArray, ArrowSchema, ArrowType};
 
-use super::{ArrowArrayImport, ImportError};
+use super::{ImportError, ImportLayout};
 
-impl<'array, T> ArrowArrayImport<'array> for FixedSizePrimitive<T, NonNullable, SliceBuffer<'array>>
+impl<'array, T> ImportLayout<'array> for FixedSizePrimitive<T, NonNullable, SliceBuffer<'array>>
 where
     T: FixedSize + ArrowType,
 {

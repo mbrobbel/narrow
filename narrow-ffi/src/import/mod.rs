@@ -25,7 +25,7 @@ pub trait Import<'array>: Sized {
 }
 
 /// A memory layout that can borrow an Arrow C Data array.
-trait ArrowArrayImport<'array>: Sized {
+trait ImportLayout<'array>: Sized {
     /// Imports the memory layout described by an Arrow array and schema.
     ///
     /// # Safety
@@ -40,12 +40,12 @@ trait ArrowArrayImport<'array>: Sized {
 impl<'array, T> Import<'array> for Array<T, SliceBuffer<'array>>
 where
     T: ArrayItem,
-    T::Memory<SliceBuffer<'array>>: ArrowArrayImport<'array>,
+    T::Memory<SliceBuffer<'array>>: ImportLayout<'array>,
 {
     unsafe fn import(array: &'array ArrowArray, schema: &ArrowSchema) -> Result<Self, ImportError> {
         // SAFETY: The caller upholds the requirements of `Import::import`.
         let memory = unsafe {
-            <T::Memory<SliceBuffer<'array>> as ArrowArrayImport>::import_layout(array, schema)
+            <T::Memory<SliceBuffer<'array>> as ImportLayout>::import_layout(array, schema)
         }?;
         Ok(Self::from_buffer(memory))
     }

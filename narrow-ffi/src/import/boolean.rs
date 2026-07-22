@@ -8,9 +8,9 @@ use narrow::{
 
 use crate::{ArrowArray, ArrowSchema, ArrowType};
 
-use super::{ArrowArrayImport, ImportError};
+use super::{ImportError, ImportLayout};
 
-impl<'array> ArrowArrayImport<'array> for Boolean<NonNullable, SliceBuffer<'array>> {
+impl<'array> ImportLayout<'array> for Boolean<NonNullable, SliceBuffer<'array>> {
     unsafe fn import_layout(
         array: &'array ArrowArray,
         schema: &ArrowSchema,
