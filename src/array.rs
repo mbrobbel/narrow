@@ -10,10 +10,30 @@ use crate::{
 };
 
 /// An array of items `T`, stored using their [`ArrayItem`] memory.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{array::Array, collection::Collection};
+///
+/// let values = [Some(1), None].into_iter().collect::<Array<Option<i32>>>();
+/// assert_eq!(values.owned(0), Some(Some(1)));
+/// assert_eq!(values.owned(1), Some(None));
+/// ```
 pub struct Array<T: ArrayItem, Storage: Buffer = VecBuffer>(T::Memory<Storage>);
 
 impl<T: ArrayItem, Storage: Buffer> Array<T, Storage> {
     /// Constructs an [`Array`] from its backing memory layout.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{array::Array, length::Length};
+    ///
+    /// let original = [1, 2].into_iter().collect::<Array<i32>>();
+    /// let restored = Array::<i32>::from_buffer(original.into_buffer());
+    /// assert_eq!(restored.len(), 2);
+    /// ```
     #[must_use]
     pub fn from_buffer(memory: T::Memory<Storage>) -> Self {
         Self(memory)
@@ -22,6 +42,15 @@ impl<T: ArrayItem, Storage: Buffer> Array<T, Storage> {
     /// Returns the backing memory layout of this [`Array`].
     ///
     /// This is the inverse of [`Array::from_buffer`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{array::Array, length::Length};
+    ///
+    /// let memory = [1, 2].into_iter().collect::<Array<i32>>().into_buffer();
+    /// assert_eq!(memory.len(), 2);
+    /// ```
     #[must_use]
     pub fn into_buffer(self) -> T::Memory<Storage> {
         self.0

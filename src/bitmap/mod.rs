@@ -30,6 +30,10 @@ pub(crate) const fn bytes_for_bits(bits: usize) -> usize {
 
 /// Error returned by [`Bitmap::try_from_parts`].
 ///
+/// Raw byte buffers carry no logical length or offset themselves. Validating
+/// those metadata at construction lets every safe bitmap operation assume its
+/// requested bit range is present.
+///
 /// # Examples
 ///
 /// ```
@@ -76,6 +80,15 @@ impl core::error::Error for BitmapError {}
 /// A panicking extension leaves its committed prefix visible. The next
 /// extension overwrites any uncommitted bits.
 ///
+/// Arrow stores booleans and validity as packed bits. Keeping the logical bit
+/// offset alongside the bytes also permits a view to start at a non-byte
+/// boundary without changing the physical representation:
+///
+/// ```text
+/// buffer bits: [padding | logical bits | padding]
+///                       ^ offset       ^ offset + length
+/// ```
+///
 /// # Examples
 ///
 /// ```
@@ -101,11 +114,29 @@ pub struct Bitmap<Storage: Buffer = VecBuffer> {
 }
 
 /// Immutable access to a [`Bitmap`].
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{bitmap::BitmapRef, length::Length, validity::Validity};
+///
+/// let values = [Some(1), None].into_iter().collect::<Validity<Vec<i32>>>();
+/// assert_eq!(values.bitmap_ref().len(), 2);
+/// ```
 pub trait BitmapRef {
     /// Storage of the bitmap.
     type Storage: Buffer;
 
     /// Returns the bitmap.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{bitmap::BitmapRef, length::Length, validity::Validity};
+    ///
+    /// let values = [Some(1), None].into_iter().collect::<Validity<Vec<i32>>>();
+    /// assert_eq!(values.bitmap_ref().len(), 2);
+    /// ```
     fn bitmap_ref(&self) -> &Bitmap<Self::Storage>;
 }
 
@@ -168,6 +199,15 @@ impl<Storage: Buffer> Bitmap<Storage> {
     }
 
     /// Returns the bit offset into the backing byte buffer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{bitmap::Bitmap, buffer::VecBuffer};
+    ///
+    /// let bitmap = Bitmap::<VecBuffer>::try_from_parts(vec![0], 2, 3).unwrap();
+    /// assert_eq!(bitmap.bit_offset(), 3);
+    /// ```
     #[must_use]
     pub fn bit_offset(&self) -> usize {
         self.offset
