@@ -329,6 +329,7 @@ struct ArrayData<Owner, Layout: ArrowArrayLayout> {
 }
 
 impl<Owner: 'static, Layout: ArrowArrayLayout + 'static> ArrayData<Owner, Layout> {
+    /// Creates pinned private data for an exported array.
     fn new(owner: Owner, buffers: Layout::Buffers, children: Layout::Children) -> Box<Self> {
         let mut data = Box::new(Self {
             buffers,
@@ -340,6 +341,7 @@ impl<Owner: 'static, Layout: ArrowArrayLayout + 'static> ArrayData<Owner, Layout
         data
     }
 
+    /// Updates child pointers after the child arrays are pinned.
     fn set_child_pointers(&mut self) {
         self.child_pointers = self
             .children
@@ -349,6 +351,7 @@ impl<Owner: 'static, Layout: ArrowArrayLayout + 'static> ArrayData<Owner, Layout
             .collect();
     }
 
+    /// Builds an [`ArrowArray`] backed by this private data.
     fn into_array(
         mut self: Box<Self>,
         length: i64,
@@ -399,6 +402,7 @@ where
 }
 
 impl ArrowSchema {
+    /// Builds a childless schema for an [`ArrowType`].
     fn flat<T: ArrowType>() -> Self {
         Self {
             format: T::FORMAT.as_ptr(),
@@ -413,6 +417,7 @@ impl ArrowSchema {
         }
     }
 
+    /// Builds a fixed-size-list schema and retains its child schema.
     fn fixed_size_list<const N: usize>(child: Self) -> Self {
         let format = CString::new(format!("+w:{N}")).expect("valid fixed-size list format");
         let mut private = Box::new(FixedSizeListSchemaData {
@@ -449,6 +454,7 @@ struct FixedSizeListSchemaData {
     child_pointers: [*mut ArrowSchema; 1],
 }
 
+/// Releases private data retained by an [`ArrowArray`].
 unsafe extern "C" fn release_array<PrivateData>(array: *mut ArrowArray) {
     // SAFETY: The Arrow C Data contract passes the live structure to its
     // producer-provided callback.
@@ -465,12 +471,14 @@ unsafe extern "C" fn release_array<PrivateData>(array: *mut ArrowArray) {
     unsafe { drop(Box::from_raw(private_data.cast::<PrivateData>())) };
 }
 
+/// Marks a schema backed only by static data as released.
 unsafe extern "C" fn release_flat_schema(schema: *mut ArrowSchema) {
     // SAFETY: The Arrow C Data contract passes the live structure to its
     // producer-provided callback.
     unsafe { (*schema).release = None };
 }
 
+/// Releases private data retained by an [`ArrowSchema`].
 unsafe extern "C" fn release_schema<PrivateData>(schema: *mut ArrowSchema) {
     // SAFETY: The Arrow C Data contract passes the live structure to its
     // producer-provided callback.
