@@ -114,11 +114,29 @@ pub struct Bitmap<Storage: Buffer = VecBuffer> {
 }
 
 /// Immutable access to a [`Bitmap`].
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{bitmap::BitmapRef, length::Length, validity::Validity};
+///
+/// let values = [Some(1), None].into_iter().collect::<Validity<Vec<i32>>>();
+/// assert_eq!(values.bitmap_ref().len(), 2);
+/// ```
 pub trait BitmapRef {
     /// Storage of the bitmap.
     type Storage: Buffer;
 
     /// Returns the bitmap.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{bitmap::BitmapRef, length::Length, validity::Validity};
+    ///
+    /// let values = [Some(1), None].into_iter().collect::<Validity<Vec<i32>>>();
+    /// assert_eq!(values.bitmap_ref().len(), 2);
+    /// ```
     fn bitmap_ref(&self) -> &Bitmap<Self::Storage>;
 }
 
@@ -181,6 +199,15 @@ impl<Storage: Buffer> Bitmap<Storage> {
     }
 
     /// Returns the bit offset into the backing byte buffer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{bitmap::Bitmap, buffer::VecBuffer};
+    ///
+    /// let bitmap = Bitmap::<VecBuffer>::try_from_parts(vec![0], 2, 3).unwrap();
+    /// assert_eq!(bitmap.bit_offset(), 3);
+    /// ```
     #[must_use]
     pub fn bit_offset(&self) -> usize {
         self.offset
