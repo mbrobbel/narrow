@@ -17,23 +17,12 @@ jobs:
   msrv:
     name: Minimum supported Rust version
     runs-on: ubuntu-26.04-arm
-    permissions:
-      actions: write
-      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@ab40b01f54fe82bdf65693ea090a1e4942c136e7 # 1.91
         id: rust-toolchain
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: cargo-
       - run: cargo check --workspace --all-targets --no-default-features
       - run: cargo check --workspace --all-targets --all-features
       - run: cargo test --workspace --all-features --lib --bins --examples --tests -- --skip expand
@@ -43,9 +32,6 @@ jobs:
   check:
     name: Check
     runs-on: ubuntu-26.04-arm
-    permissions:
-      actions: write
-      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -54,14 +40,6 @@ jobs:
         id: rust-toolchain
         with:
           components: clippy, rustfmt
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: cargo-
       - name: Test
         run: cargo test --workspace --all-targets --all-features
       - name: Doctest
@@ -85,14 +63,6 @@ jobs:
         id: rust-toolchain
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: cargo-
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
           path: ~/.cache/miri
           key: miri-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.cachekey }}
       - run: cargo miri setup
@@ -103,9 +73,6 @@ jobs:
     name: Coverage
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-26.04-arm
-    permissions:
-      actions: write
-      contents: read
     env:
       RUSTFLAGS: "-C instrument-coverage"
       RUSTDOCFLAGS: "-C instrument-coverage"
@@ -117,14 +84,6 @@ jobs:
         id: rust-toolchain
         with:
           components: llvm-tools-preview
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: cargo-
       - run: cargo test --workspace --all-targets --all-features
         env:
           LLVM_PROFILE_FILE: "narrow-%p-%m.profraw"
