@@ -24,6 +24,19 @@ mod variable_size_list;
 /// A type with an [Arrow C Data format string].
 ///
 /// [Arrow C Data format string]: https://arrow.apache.org/docs/format/CDataInterface.html#data-type-description-format-strings
+///
+/// The Rust item type already determines its Arrow layout. These associated
+/// constants carry the corresponding C schema description at the type level,
+/// including the nullable flag added by `Option<T>`.
+///
+/// # Examples
+///
+/// ```
+/// use narrow_ffi::{ARROW_FLAG_NULLABLE, ArrowType};
+///
+/// assert_eq!(i32::FORMAT, c"i");
+/// assert_eq!(<Option<i32>>::FLAGS, ARROW_FLAG_NULLABLE);
+/// ```
 pub trait ArrowType {
     /// Arrow C Data type format.
     const FORMAT: &'static CStr;
@@ -37,6 +50,21 @@ impl<T: ArrowType> ArrowType for Option<T> {
 }
 
 /// Error returned when an [`Array`] cannot be exported.
+///
+/// Export rejects representation details it cannot preserve faithfully instead
+/// of silently changing their meaning. The enum is non-exhaustive so further
+/// unsupported Arrow conditions can be reported explicitly.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{array::Array, bitmap::Bitmap, layout::boolean::Boolean};
+/// use narrow_ffi::{Export, ExportError};
+///
+/// let bitmap = Bitmap::try_from_parts(vec![0], 1, 1).unwrap();
+/// let array = Array::<bool>::from_buffer(Boolean::from_buffer(bitmap));
+/// assert_eq!(array.export().unwrap_err(), ExportError::NonZeroOffset { offset: 1 });
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ExportError {
@@ -62,6 +90,22 @@ impl core::error::Error for ExportError {}
 /// Export an [`Array`] through the Arrow C Data Interface.
 ///
 /// Only arrays with an offset of zero are currently supported.
+///
+/// Export consumes the array because the returned C handles must retain its
+/// storage after Rust leaves this call. That storage and the exposed pointer
+/// tables live in `private_data` until the foreign consumer invokes the Arrow
+/// release callback.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::array::Array;
+/// use narrow_ffi::Export;
+///
+/// let values = [1, 2].into_iter().collect::<Array<i32>>();
+/// let (array, schema) = values.export().unwrap();
+/// assert!(!array.is_released() && !schema.is_released());
+/// ```
 pub trait Export {
     /// Consumes `self` and returns an [`ArrowArray`] and [`ArrowSchema`].
     ///
@@ -69,6 +113,16 @@ pub trait Export {
     ///
     /// Returns [`ExportError::NonZeroOffset`] when the array has a non-zero
     /// offset.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::array::Array;
+    /// use narrow_ffi::Export;
+    ///
+    /// let values = [1, 2].into_iter().collect::<Array<i32>>();
+    /// assert!(values.export().is_ok());
+    /// ```
     fn export(self) -> Result<(ArrowArray, ArrowSchema), ExportError>;
 }
 
