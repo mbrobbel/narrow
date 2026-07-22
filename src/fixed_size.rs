@@ -4,8 +4,6 @@ use core::{mem, ops::Deref};
 
 /// Fixed-size types.
 ///
-/// # Design
-///
 /// Narrow uses this sealed set of scalar types wherever Arrow requires a
 /// contiguous, fixed-width value buffer. Sealing prevents unsupported
 /// representations from entering layouts that rely on this guarantee.
@@ -42,8 +40,6 @@ impl FixedSize for f64 {}
 /// An array with `N` `FixedSize` items per item.
 ///
 /// Just using [T; N] causes overlapping impls.
-///
-/// # Design
 ///
 /// The newtype distinguishes one fixed-width scalar made of `N` values from an
 /// Arrow fixed-size list. The distinction is expressed entirely in the type:
