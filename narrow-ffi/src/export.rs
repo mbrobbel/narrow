@@ -78,99 +78,179 @@ pub trait Export {
     fn export(self) -> (ArrowArray, ArrowSchema);
 }
 
-/// Data retained by `ArrowArray::private_data` for an array export.
-struct ArrayData<Values> {
-    /// Storage backing the exported value buffer.
-    values: Values,
-    /// Arrow C Data buffer pointers for validity and values.
-    buffers: [*const c_void; 2],
+/// Layout-specific data required to build an [`ArrowArray`].
+trait ArrowArrayLayout: Sized {
+    /// Data retained for the lifetime of the export.
+    type Data: 'static;
+    /// Buffer pointers exposed by the exported array.
+    type Buffers: AsRef<[*const c_void]> + AsMut<[*const c_void]> + Default + 'static;
+    /// Child pointers exposed by the exported array.
+    type Children: AsRef<[*mut ArrowArray]> + AsMut<[*mut ArrowArray]> + Default + 'static;
+
+    /// Converts the layout into its retained data.
+    fn into_data(self) -> Self::Data;
+    /// Returns the logical array length.
+    fn length(data: &Self::Data) -> usize;
+    /// Returns the number of null elements, or `-1` when unknown.
+    fn null_count(_data: &Self::Data) -> i64 {
+        0
+    }
+    /// Returns the logical element offset.
+    fn offset(_data: &Self::Data) -> usize {
+        0
+    }
+    /// Returns the array's buffer pointers.
+    fn buffers(data: &Self::Data) -> Self::Buffers;
+    /// Returns the array's child pointers.
+    fn children(_data: &mut Self::Data) -> Self::Children {
+        Self::Children::default()
+    }
+    /// Returns the dictionary array pointer.
+    fn dictionary(_data: &mut Self::Data) -> *mut ArrowArray {
+        ptr::null_mut()
+    }
 }
 
-/// A flat, non-nullable layout backed by one value buffer.
-trait FlatArrayLayout {
-    /// Item stored in the value buffer.
-    type Value: FixedSize;
-    /// Owned value-buffer storage retained by the export.
-    type Values: Borrow<[Self::Value]> + 'static;
-
-    /// Returns the value storage, logical length, and logical offset.
-    fn into_parts(self) -> (Self::Values, usize, usize);
-}
-
-impl<T, Storage> FlatArrayLayout for FixedSizePrimitive<T, NonNullable, Storage>
+impl<T, Storage> ArrowArrayLayout for FixedSizePrimitive<T, NonNullable, Storage>
 where
     T: FixedSize + ArrowType,
     Storage: Buffer,
     Storage::For<T>: 'static,
 {
-    type Value = T;
-    type Values = Storage::For<T>;
+    type Data = Storage::For<T>;
+    type Buffers = [*const c_void; 2];
+    type Children = [*mut ArrowArray; 0];
 
-    fn into_parts(self) -> (Self::Values, usize, usize) {
-        let values = self.into_buffer();
-        let length = values.borrow().len();
-        (values, length, 0)
+    fn into_data(self) -> Self::Data {
+        self.into_buffer()
+    }
+
+    fn length(data: &Self::Data) -> usize {
+        data.borrow().len()
+    }
+
+    fn buffers(data: &Self::Data) -> Self::Buffers {
+        let values: &[T] = data.borrow();
+        [ptr::null(), values.as_ptr().cast()]
     }
 }
 
-impl<Storage> FlatArrayLayout for Boolean<NonNullable, Storage>
+/// Data retained for a Boolean array export.
+struct BooleanData<Values> {
+    /// Storage backing the value bitmap.
+    values: Values,
+    /// Number of logical bits in the bitmap.
+    length: usize,
+    /// Logical bit offset into the bitmap.
+    offset: usize,
+}
+
+impl<Storage> ArrowArrayLayout for Boolean<NonNullable, Storage>
 where
     Storage: Buffer,
     Storage::For<u8>: 'static,
 {
-    type Value = u8;
-    type Values = Storage::For<u8>;
+    type Data = BooleanData<Storage::For<u8>>;
+    type Buffers = [*const c_void; 2];
+    type Children = [*mut ArrowArray; 0];
 
-    fn into_parts(self) -> (Self::Values, usize, usize) {
+    fn into_data(self) -> Self::Data {
         let bitmap: Bitmap<Storage> = self.into_buffer();
-        bitmap.into_parts()
+        let (values, length, offset) = bitmap.into_parts();
+        BooleanData {
+            values,
+            length,
+            offset,
+        }
     }
+
+    fn length(data: &Self::Data) -> usize {
+        data.length
+    }
+
+    fn offset(data: &Self::Data) -> usize {
+        data.offset
+    }
+
+    fn buffers(data: &Self::Data) -> Self::Buffers {
+        let values: &[u8] = data.values.borrow();
+        [ptr::null(), values.as_ptr().cast()]
+    }
+}
+
+/// Data retained by `ArrowArray::private_data` for an array export.
+struct ArrayData<Layout: ArrowArrayLayout> {
+    /// Layout-specific owned data.
+    data: Layout::Data,
+    /// Arrow C Data buffer pointers.
+    buffers: Layout::Buffers,
+    /// Arrow C Data child pointers.
+    children: Layout::Children,
 }
 
 impl<T, Storage> Export for Array<T, Storage>
 where
     T: ArrayItem + ArrowType,
     Storage: Buffer,
-    T::Memory<Storage>: FlatArrayLayout,
+    T::Memory<Storage>: ArrowArrayLayout,
 {
     fn export(self) -> (ArrowArray, ArrowSchema) {
-        // Remove the layout wrappers without copying their storage.
-        let (values, length, offset) = self.into_buffer().into_parts();
-
-        // Pin the storage before exposing its address so inline buffers remain
-        // at a stable location for the lifetime of the export.
-        let mut private = Box::new(ArrayData {
-            values,
-            buffers: [ptr::null(); 2],
-        });
-        let length = i64::try_from(length).expect("array length exceeds i64");
-        let offset = i64::try_from(offset).expect("array offset exceeds i64");
-
-        // Flat arrays have validity and value buffers. A non-nullable array may
-        // expose a null validity buffer because its null count is zero.
-        private.buffers[1] = private.values.borrow().as_ptr().cast();
-
-        // Keep the value storage and its buffer pointer array alive until the
-        // consumer invokes the release callback.
-        let buffers = private.buffers.as_mut_ptr();
-        let private_data = Box::into_raw(private).cast();
-        let array = ArrowArray {
-            length,
-            null_count: 0,
-            offset,
-            n_buffers: 2,
-            n_children: 0,
-            buffers,
-            children: ptr::null_mut(),
-            dictionary: ptr::null_mut(),
-            release: Some(
-                release_array::<ArrayData<<T::Memory<Storage> as FlatArrayLayout>::Values>>,
-            ),
-            private_data,
-        };
-
-        (array, ArrowSchema::flat::<T>())
+        export_array::<T, _>(self.into_buffer())
     }
+}
+
+fn export_array<T, Layout>(layout: Layout) -> (ArrowArray, ArrowSchema)
+where
+    T: ArrowType,
+    Layout: ArrowArrayLayout,
+{
+    // Pin the retained data before asking the layout for pointers into it.
+    let mut private = Box::new(ArrayData::<Layout> {
+        data: layout.into_data(),
+        buffers: Layout::Buffers::default(),
+        children: Layout::Children::default(),
+    });
+    private.buffers = Layout::buffers(&private.data);
+    private.children = Layout::children(&mut private.data);
+
+    // Convert platform-sized layout metadata into the Arrow C ABI fields.
+    let length = i64::try_from(Layout::length(&private.data)).expect("array length exceeds i64");
+    let null_count = Layout::null_count(&private.data);
+    let offset = i64::try_from(Layout::offset(&private.data)).expect("array offset exceeds i64");
+    let n_buffers =
+        i64::try_from(private.buffers.as_ref().len()).expect("buffer count exceeds i64");
+    let n_children =
+        i64::try_from(private.children.as_ref().len()).expect("child count exceeds i64");
+    let dictionary = Layout::dictionary(&mut private.data);
+
+    // Keep the layout data and pointer collections alive until release.
+    let buffers = private.buffers.as_mut();
+    let buffers = if buffers.is_empty() {
+        ptr::null_mut()
+    } else {
+        buffers.as_mut_ptr()
+    };
+    let children = private.children.as_mut();
+    let children = if children.is_empty() {
+        ptr::null_mut()
+    } else {
+        children.as_mut_ptr()
+    };
+    let private_data = Box::into_raw(private).cast();
+    let array = ArrowArray {
+        length,
+        null_count,
+        offset,
+        n_buffers,
+        n_children,
+        buffers,
+        children,
+        dictionary,
+        release: Some(release_array::<ArrayData<Layout>>),
+        private_data,
+    };
+
+    (array, ArrowSchema::flat::<T>())
 }
 
 impl ArrowSchema {
@@ -197,6 +277,8 @@ unsafe extern "C" fn release_array<PrivateData>(array: *mut ArrowArray) {
     array.release = None;
     array.private_data = ptr::null_mut();
     array.buffers = ptr::null_mut();
+    array.children = ptr::null_mut();
+    array.dictionary = ptr::null_mut();
 
     // SAFETY: `private_data` was created with `Box::into_raw` for this exact
     // `PrivateData` type and is released only once.
