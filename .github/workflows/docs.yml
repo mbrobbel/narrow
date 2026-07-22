@@ -36,9 +36,9 @@ jobs:
       - if: steps.cargo_docs_rs.outputs.cache-hit != 'true'
         run: cargo install --locked cargo-docs-rs --version 1.0.4
       - run: cargo docs-rs
-      - run: cargo docs-rs -p narrow-derive
       - run: cargo docs-rs -p narrow-ffi
       - run: mv "target/$(rustc -vV | awk '/^host/ { print $2 }')/doc" "target/doc"
+      - run: cargo docs-rs -p narrow-derive
       - run: chmod -c -R +rX "target/doc"
       - run: echo "<meta http-equiv=refresh content=0;url=narrow>" > target/doc/index.html
       - name: Verify documentation bundle
