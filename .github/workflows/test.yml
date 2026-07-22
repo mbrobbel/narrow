@@ -20,9 +20,6 @@ jobs:
     permissions:
       actions: write
       contents: read
-    env:
-      SCCACHE_GHA_ENABLED: true
-      RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -37,7 +34,6 @@ jobs:
             ~/.cargo/git/db/
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-
-      - uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
       - run: cargo check --workspace --all-targets --no-default-features
       - run: cargo check --workspace --all-targets --all-features
       - run: cargo test --workspace --all-features --lib --bins --examples --tests -- --skip expand
@@ -50,9 +46,6 @@ jobs:
     permissions:
       actions: write
       contents: read
-    env:
-      SCCACHE_GHA_ENABLED: true
-      RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -69,7 +62,6 @@ jobs:
             ~/.cargo/git/db/
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-
-      - uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
       - name: Test
         run: cargo test --workspace --all-targets --all-features
       - name: Doctest
@@ -115,8 +107,6 @@ jobs:
       actions: write
       contents: read
     env:
-      SCCACHE_GHA_ENABLED: true
-      RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-C instrument-coverage"
       RUSTDOCFLAGS: "-C instrument-coverage"
     steps:
@@ -135,7 +125,6 @@ jobs:
             ~/.cargo/git/db/
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-
-      - uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
       - run: cargo test --workspace --all-targets --all-features
         env:
           LLVM_PROFILE_FILE: "narrow-%p-%m.profraw"
