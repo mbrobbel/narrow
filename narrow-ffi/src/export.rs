@@ -266,6 +266,7 @@ impl<Storage: Buffer> ArrowArrayLayout for Boolean<Nullable, Storage> {
 
     fn offset(&self) -> usize {
         let validity = self.buffer_ref();
+        // Surface either bitmap offset so the exporter rejects unsupported offsets.
         let validity_offset = validity.bitmap_ref().bit_offset();
         if validity_offset != 0 {
             return validity_offset;
