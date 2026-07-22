@@ -1,4 +1,4 @@
-//! Arrow C Data Interface support for Narrow.
+//! Arrow C Data Interface support for [`Array`](narrow::array::Array).
 //!
 //! See [The Arrow C data interface] specification.
 //!
@@ -11,6 +11,9 @@ use core::{
     ffi::{c_char, c_void},
     ptr,
 };
+
+mod export;
+pub use export::{ArrowType, Export};
 
 /// Dictionary values are ordered.
 pub const ARROW_FLAG_DICTIONARY_ORDERED: i64 = 1;
@@ -83,11 +86,11 @@ impl Drop for ArrowSchema {
 #[repr(C)]
 #[derive(Debug)]
 pub struct ArrowArray {
-    /// Logical number of elements in the array.
+    /// Number of items in the array.
     length: i64,
     /// Number of null elements, or `-1` when unknown.
     null_count: i64,
-    /// Non-negative logical element offset into the physical buffers.
+    /// Non-negative item offset into the physical buffers.
     offset: i64,
     /// Number of physical buffers, excluding child buffers.
     n_buffers: i64,
