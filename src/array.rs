@@ -11,8 +11,6 @@ use crate::{
 
 /// An array of items `T`, stored using their [`ArrayItem`] memory.
 ///
-/// # Design
-///
 /// `Array` is the logical facade over Narrow's physical layouts. Users name the
 /// item type, and [`ArrayItem`] recursively selects the Arrow buffers encoded
 /// by that type:
