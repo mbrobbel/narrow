@@ -110,6 +110,57 @@ trait ArrowArrayLayout: Sized {
     fn dictionary(_data: &mut Self::Data) -> *mut ArrowArray {
         ptr::null_mut()
     }
+
+    /// Builds an [`ArrowArray`] and [`ArrowSchema`] from this layout.
+    fn export<T: ArrowType>(self) -> (ArrowArray, ArrowSchema) {
+        // Pin the retained data before asking the layout for pointers into it.
+        let mut private = Box::new(ArrayData::<Self> {
+            data: self.into_data(),
+            buffers: Self::Buffers::default(),
+            children: Self::Children::default(),
+        });
+        private.buffers = Self::buffers(&private.data);
+        private.children = Self::children(&mut private.data);
+
+        // Convert platform-sized layout metadata into the Arrow C ABI fields.
+        let length = i64::try_from(Self::length(&private.data)).expect("array length exceeds i64");
+        let null_count = Self::null_count(&private.data);
+        let offset = i64::try_from(Self::offset(&private.data)).expect("array offset exceeds i64");
+        let n_buffers =
+            i64::try_from(private.buffers.as_ref().len()).expect("buffer count exceeds i64");
+        let n_children =
+            i64::try_from(private.children.as_ref().len()).expect("child count exceeds i64");
+        let dictionary = Self::dictionary(&mut private.data);
+
+        // Keep the layout data and pointer collections alive until release.
+        let buffers = private.buffers.as_mut();
+        let buffers = if buffers.is_empty() {
+            ptr::null_mut()
+        } else {
+            buffers.as_mut_ptr()
+        };
+        let children = private.children.as_mut();
+        let children = if children.is_empty() {
+            ptr::null_mut()
+        } else {
+            children.as_mut_ptr()
+        };
+        let private_data = Box::into_raw(private).cast();
+        let array = ArrowArray {
+            length,
+            null_count,
+            offset,
+            n_buffers,
+            n_children,
+            buffers,
+            children,
+            dictionary,
+            release: Some(release_array::<ArrayData<Self>>),
+            private_data,
+        };
+
+        (array, ArrowSchema::flat::<T>())
+    }
 }
 
 impl<T, Storage> ArrowArrayLayout for FixedSizePrimitive<T, NonNullable, Storage>
@@ -180,62 +231,8 @@ where
     T::Memory<Storage>: ArrowArrayLayout,
 {
     fn export(self) -> (ArrowArray, ArrowSchema) {
-        export_array::<T, _>(self.into_buffer())
+        self.into_buffer().export::<T>()
     }
-}
-
-fn export_array<T, Layout>(layout: Layout) -> (ArrowArray, ArrowSchema)
-where
-    T: ArrowType,
-    Layout: ArrowArrayLayout,
-{
-    // Pin the retained data before asking the layout for pointers into it.
-    let mut private = Box::new(ArrayData::<Layout> {
-        data: layout.into_data(),
-        buffers: Layout::Buffers::default(),
-        children: Layout::Children::default(),
-    });
-    private.buffers = Layout::buffers(&private.data);
-    private.children = Layout::children(&mut private.data);
-
-    // Convert platform-sized layout metadata into the Arrow C ABI fields.
-    let length = i64::try_from(Layout::length(&private.data)).expect("array length exceeds i64");
-    let null_count = Layout::null_count(&private.data);
-    let offset = i64::try_from(Layout::offset(&private.data)).expect("array offset exceeds i64");
-    let n_buffers =
-        i64::try_from(private.buffers.as_ref().len()).expect("buffer count exceeds i64");
-    let n_children =
-        i64::try_from(private.children.as_ref().len()).expect("child count exceeds i64");
-    let dictionary = Layout::dictionary(&mut private.data);
-
-    // Keep the layout data and pointer collections alive until release.
-    let buffers = private.buffers.as_mut();
-    let buffers = if buffers.is_empty() {
-        ptr::null_mut()
-    } else {
-        buffers.as_mut_ptr()
-    };
-    let children = private.children.as_mut();
-    let children = if children.is_empty() {
-        ptr::null_mut()
-    } else {
-        children.as_mut_ptr()
-    };
-    let private_data = Box::into_raw(private).cast();
-    let array = ArrowArray {
-        length,
-        null_count,
-        offset,
-        n_buffers,
-        n_children,
-        buffers,
-        children,
-        dictionary,
-        release: Some(release_array::<ArrayData<Layout>>),
-        private_data,
-    };
-
-    (array, ArrowSchema::flat::<T>())
 }
 
 impl ArrowSchema {
