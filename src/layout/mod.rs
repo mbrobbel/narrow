@@ -22,18 +22,54 @@ pub mod variable_size_binary;
 pub mod variable_size_list;
 
 /// A physical memory layout.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::layout::{MemoryLayout, fixed_size_primitive::FixedSizePrimitive};
+///
+/// fn assert_memory_layout<T: MemoryLayout>() {}
+/// assert_memory_layout::<FixedSizePrimitive<i32>>();
+/// ```
 pub trait MemoryLayout: Collection {}
 
 /// Mapping a base type to its physical memory layout.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{buffer::VecBuffer, layout::{Layout, boolean::Boolean}, nullability::NonNullable};
+///
+/// fn assert_layout<T: Layout<Memory<NonNullable, VecBuffer> = Boolean>>() {}
+/// assert_layout::<bool>();
+/// ```
 pub trait Layout: Sized {
     /// The Arrow physical memory layout of this type.
     type Memory<Nulls: Nullability, Storage: Buffer>: MemoryLayout<Owned = Nulls::Item<Self>>;
 }
 
 /// Marker for base types whose layout supports Arrow validity bitmaps.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::layout::NullableLayout;
+///
+/// fn assert_nullable<T: NullableLayout>() {}
+/// assert_nullable::<Vec<i32>>();
+/// ```
 pub trait NullableLayout: Layout {}
 
 /// Mapping an array item type to its complete physical memory layout.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{buffer::VecBuffer, layout::{ArrayItem, boolean::Boolean}, nullability::Nullable};
+///
+/// fn assert_item<T: ArrayItem<Memory<VecBuffer> = Boolean<Nullable>>>() {}
+/// assert_item::<Option<bool>>();
+/// ```
 pub trait ArrayItem: Sized {
     /// The Arrow physical memory layout of this array item type.
     type Memory<Storage: Buffer>: MemoryLayout<Owned = Self>;

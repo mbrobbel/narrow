@@ -29,6 +29,16 @@ pub(crate) const fn bytes_for_bits(bits: usize) -> usize {
 }
 
 /// Error returned by [`Bitmap::try_from_parts`].
+///
+/// # Examples
+///
+/// ```
+/// use narrow::bitmap::{Bitmap, BitmapError};
+///
+/// let error = Bitmap::<narrow::buffer::VecBuffer>::try_from_parts(vec![0_u8], 2, 7)
+///     .unwrap_err();
+/// assert_eq!(error, BitmapError::OutOfBounds { offset: 7, bits: 2, bytes: 1 });
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BitmapError {
     /// The requested number of `bits` at `offset` does not fit in a buffer of
@@ -65,6 +75,15 @@ impl core::error::Error for BitmapError {}
 /// The validity bits are stored LSB-first in the bytes of a buffer.
 /// A panicking extension leaves its committed prefix visible. The next
 /// extension overwrites any uncommitted bits.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::bitmap::Bitmap;
+///
+/// let bitmap = [true, false, true].into_iter().collect::<Bitmap>();
+/// assert_eq!(bitmap.into_iter().collect::<Vec<_>>(), [true, false, true]);
+/// ```
 pub struct Bitmap<Storage: Buffer = VecBuffer> {
     /// The bits of the bitmap are stored in this buffer of bytes.
     ///
@@ -134,6 +153,17 @@ impl<Storage: Buffer> Bitmap<Storage> {
     ///
     /// Returns a [`BitmapError`] when `offset + bits` exceeds the number of
     /// bits available in the buffer (`8 * buffer.len()`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::bitmap::Bitmap;
+    ///
+    /// let bitmap = Bitmap::<narrow::buffer::VecBuffer>::try_from_parts(
+    ///     vec![0b0000_0110], 2, 1,
+    /// ).unwrap();
+    /// assert_eq!(bitmap.into_iter().collect::<Vec<_>>(), [true, true]);
+    /// ```
     pub fn try_from_parts(
         buffer: Storage::For<u8>,
         bits: usize,
@@ -174,6 +204,17 @@ impl<Storage: Buffer> Bitmap<Storage> {
     /// bits it stores, and the bit offset into the buffer.
     ///
     /// This is the inverse of [`Bitmap::try_from_parts`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::bitmap::Bitmap;
+    ///
+    /// let bitmap = Bitmap::<narrow::buffer::VecBuffer>::try_from_parts(
+    ///     vec![0b0000_0110], 2, 1,
+    /// ).unwrap();
+    /// assert_eq!(bitmap.into_parts(), (vec![0b0000_0110], 2, 1));
+    /// ```
     #[must_use]
     pub fn into_parts(self) -> (Storage::For<u8>, usize, usize) {
         (self.buffer, self.bits, self.offset)
