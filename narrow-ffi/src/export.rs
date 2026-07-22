@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use core::{
     borrow::Borrow,
     ffi::{CStr, c_void},
-    ptr,
+    fmt, ptr,
 };
 
 use narrow::{
@@ -72,10 +72,40 @@ impl ArrowType for f64 {
     const FORMAT: &'static CStr = c"g";
 }
 
+/// Error returned when an [`Array`] cannot be exported.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ExportError {
+    /// The array has a non-zero offset, which is not currently supported.
+    NonZeroOffset {
+        /// Unsupported array offset.
+        offset: usize,
+    },
+}
+
+impl fmt::Display for ExportError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NonZeroOffset { offset } => {
+                write!(f, "array offset ({offset}) is not supported")
+            }
+        }
+    }
+}
+
+impl core::error::Error for ExportError {}
+
 /// Export an [`Array`] through the Arrow C Data Interface.
+///
+/// Only arrays with an offset of zero are currently supported.
 pub trait Export {
     /// Consumes `self` and returns an [`ArrowArray`] and [`ArrowSchema`].
-    fn export(self) -> (ArrowArray, ArrowSchema);
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExportError::NonZeroOffset`] when the array has a non-zero
+    /// offset.
+    fn export(self) -> Result<(ArrowArray, ArrowSchema), ExportError>;
 }
 
 /// A layout that describes its [`ArrowArray`] fields.
@@ -105,10 +135,15 @@ trait ArrowArrayLayout: Length + Sized {
     }
 
     /// Builds an [`ArrowArray`] and [`ArrowSchema`] from this layout.
-    fn export<T: ArrowType>(self) -> (ArrowArray, ArrowSchema)
+    fn export<T: ArrowType>(self) -> Result<(ArrowArray, ArrowSchema), ExportError>
     where
         Self: 'static,
     {
+        let offset = self.offset();
+        if offset != 0 {
+            return Err(ExportError::NonZeroOffset { offset });
+        }
+
         // Pin the layout before asking it for pointers into its storage.
         let mut private = Box::new(ArrayData::<Self> {
             layout: self,
@@ -121,7 +156,6 @@ trait ArrowArrayLayout: Length + Sized {
         // Convert platform-sized layout metadata into the Arrow C ABI fields.
         let length = i64::try_from(private.layout.len()).expect("array length exceeds i64");
         let null_count = private.layout.null_count();
-        let offset = i64::try_from(private.layout.offset()).expect("array offset exceeds i64");
         let n_buffers =
             i64::try_from(private.buffers.as_ref().len()).expect("buffer count exceeds i64");
         let n_children =
@@ -145,7 +179,7 @@ trait ArrowArrayLayout: Length + Sized {
         let array = ArrowArray {
             length,
             null_count,
-            offset,
+            offset: 0,
             n_buffers,
             n_children,
             buffers,
@@ -155,7 +189,7 @@ trait ArrowArrayLayout: Length + Sized {
             private_data,
         };
 
-        (array, ArrowSchema::flat::<T>())
+        Ok((array, ArrowSchema::flat::<T>()))
     }
 }
 
@@ -203,7 +237,7 @@ where
     Storage: Buffer,
     T::Memory<Storage>: ArrowArrayLayout + 'static,
 {
-    fn export(self) -> (ArrowArray, ArrowSchema) {
+    fn export(self) -> Result<(ArrowArray, ArrowSchema), ExportError> {
         self.into_buffer().export::<T>()
     }
 }
@@ -260,7 +294,7 @@ mod tests {
         layout::{boolean::Boolean, fixed_size_primitive::FixedSizePrimitive},
     };
 
-    use super::{ArrowType, Export};
+    use super::{ArrowType, Export, ExportError};
 
     #[test]
     fn type_format_strings_match_arrow() {
@@ -285,7 +319,7 @@ mod tests {
         let array: Array<i32, ArcBuffer> =
             Array::from_buffer(FixedSizePrimitive::from_buffer(values));
 
-        let (array, schema) = array.export();
+        let (array, schema) = array.export().expect("export array");
 
         assert_eq!(array.length, 3);
         assert_eq!(array.null_count, 0);
@@ -322,7 +356,7 @@ mod tests {
         let array: Array<i32, ArrayBuffer<3>> =
             Array::from_buffer(FixedSizePrimitive::from_buffer([1, 2, 3]));
 
-        let (array, _schema) = array.export();
+        let (array, _schema) = array.export().expect("export array");
 
         // SAFETY: The exported array owns a two-entry buffer pointer array.
         let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
@@ -336,17 +370,17 @@ mod tests {
 
     #[test]
     fn exports_boolean_bitmap_without_copying_values() {
-        let values = Arc::<[u8]>::from([0b0001_0100]);
+        let values = Arc::<[u8]>::from([0b0000_0101]);
         let weak = Arc::downgrade(&values);
         let data = values.as_ptr();
-        let bitmap = Bitmap::<ArcBuffer>::try_from_parts(values, 3, 2).expect("valid bitmap");
+        let bitmap = Bitmap::<ArcBuffer>::try_from_parts(values, 3, 0).expect("valid bitmap");
         let array: Array<bool, ArcBuffer> = Array::from_buffer(Boolean::from_buffer(bitmap));
 
-        let (array, schema) = array.export();
+        let (array, schema) = array.export().expect("export array");
 
         assert_eq!(array.length, 3);
         assert_eq!(array.null_count, 0);
-        assert_eq!(array.offset, 2);
+        assert_eq!(array.offset, 0);
         assert_eq!(array.n_buffers, 2);
         assert_eq!(array.n_children, 0);
         assert!(array.children.is_null());
@@ -356,7 +390,7 @@ mod tests {
         assert!(buffers[0].is_null());
         assert_eq!(buffers[1], data.cast());
         // SAFETY: The value buffer points to the byte held by the export.
-        assert_eq!(unsafe { *buffers[1].cast::<u8>() }, 0b0001_0100);
+        assert_eq!(unsafe { *buffers[1].cast::<u8>() }, 0b0000_0101);
 
         // SAFETY: The exported schema has a live, null-terminated format string.
         assert_eq!(unsafe { CStr::from_ptr(schema.format) }, c"b");
@@ -377,12 +411,23 @@ mod tests {
             Bitmap::<ArrayBuffer<1>>::try_from_parts([0b0000_0101], 3, 0).expect("valid bitmap");
         let array: Array<bool, ArrayBuffer<1>> = Array::from_buffer(Boolean::from_buffer(bitmap));
 
-        let (array, _schema) = array.export();
+        let (array, _schema) = array.export().expect("export array");
 
         // SAFETY: The exported array owns a two-entry buffer pointer array.
         let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
         // SAFETY: The value buffer points to the inline byte pinned in the
         // export's private allocation.
         assert_eq!(unsafe { *buffers[1].cast::<u8>() }, 0b0000_0101);
+    }
+
+    #[test]
+    fn rejects_non_zero_boolean_offset() {
+        let bitmap =
+            Bitmap::<ArrayBuffer<1>>::try_from_parts([0b0001_0100], 3, 2).expect("valid bitmap");
+        let array: Array<bool, ArrayBuffer<1>> = Array::from_buffer(Boolean::from_buffer(bitmap));
+
+        let error = array.export().expect_err("non-zero offset");
+
+        assert_eq!(error, ExportError::NonZeroOffset { offset: 2 });
     }
 }
