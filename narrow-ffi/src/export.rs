@@ -14,59 +14,77 @@ use narrow::{
     bitmap::Bitmap,
     buffer::Buffer,
     fixed_size::FixedSize,
-    layout::{boolean::Boolean, fixed_size_primitive::FixedSizePrimitive},
+    layout::{ArrayItem, boolean::Boolean, fixed_size_primitive::FixedSizePrimitive},
     nullability::NonNullable,
 };
 
 use crate::{ArrowArray, ArrowSchema};
 
-/// A [`FixedSize`] primitive with an [Arrow C Data format string].
+/// A type with an [Arrow C Data format string].
 ///
 /// [Arrow C Data format string]: https://arrow.apache.org/docs/format/CDataInterface.html#data-type-description-format-strings
-pub trait ArrowPrimitive: FixedSize {
+pub trait ArrowType {
     /// Arrow C Data type format.
     const FORMAT: &'static CStr;
 }
 
-impl ArrowPrimitive for i8 {
+impl ArrowType for bool {
+    const FORMAT: &'static CStr = c"b";
+}
+
+impl ArrowType for i8 {
     const FORMAT: &'static CStr = c"c";
 }
 
-impl ArrowPrimitive for u8 {
+impl ArrowType for u8 {
     const FORMAT: &'static CStr = c"C";
 }
 
-impl ArrowPrimitive for i16 {
+impl ArrowType for i16 {
     const FORMAT: &'static CStr = c"s";
 }
 
-impl ArrowPrimitive for u16 {
+impl ArrowType for u16 {
     const FORMAT: &'static CStr = c"S";
 }
 
-impl ArrowPrimitive for i32 {
+impl ArrowType for i32 {
     const FORMAT: &'static CStr = c"i";
 }
 
-impl ArrowPrimitive for u32 {
+impl ArrowType for u32 {
     const FORMAT: &'static CStr = c"I";
 }
 
-impl ArrowPrimitive for i64 {
+impl ArrowType for i64 {
     const FORMAT: &'static CStr = c"l";
 }
 
-impl ArrowPrimitive for u64 {
+impl ArrowType for u64 {
     const FORMAT: &'static CStr = c"L";
 }
 
-impl ArrowPrimitive for f32 {
+impl ArrowType for f32 {
     const FORMAT: &'static CStr = c"f";
 }
 
-impl ArrowPrimitive for f64 {
+impl ArrowType for f64 {
     const FORMAT: &'static CStr = c"g";
 }
+
+/// A [`FixedSize`] primitive supported by the Arrow C Data Interface.
+pub trait ArrowPrimitive: FixedSize + ArrowType {}
+
+impl ArrowPrimitive for i8 {}
+impl ArrowPrimitive for u8 {}
+impl ArrowPrimitive for i16 {}
+impl ArrowPrimitive for u16 {}
+impl ArrowPrimitive for i32 {}
+impl ArrowPrimitive for u32 {}
+impl ArrowPrimitive for i64 {}
+impl ArrowPrimitive for u64 {}
+impl ArrowPrimitive for f32 {}
+impl ArrowPrimitive for f64 {}
 
 /// Export an [`Array`] through the Arrow C Data Interface.
 pub trait Export {
@@ -82,63 +100,56 @@ struct ArrayData<Values> {
     buffers: [*const c_void; 2],
 }
 
-impl<T, Storage> Export for Array<T, Storage>
+/// A flat, non-nullable layout backed by one value buffer.
+trait FlatArrayLayout {
+    /// Item stored in the value buffer.
+    type Value: FixedSize;
+    /// Owned value-buffer storage retained by the export.
+    type Values: Borrow<[Self::Value]> + 'static;
+
+    /// Returns the value storage, logical length, and logical offset.
+    fn into_parts(self) -> (Self::Values, usize, usize);
+}
+
+impl<T, Storage> FlatArrayLayout for FixedSizePrimitive<T, NonNullable, Storage>
 where
     T: ArrowPrimitive,
     Storage: Buffer,
     Storage::For<T>: 'static,
 {
-    fn export(self) -> (ArrowArray, ArrowSchema) {
-        // Remove the type-level wrappers while preserving the original storage.
-        let primitive: FixedSizePrimitive<T, NonNullable, Storage> = self.into_buffer();
-        let values = primitive.into_buffer();
+    type Value = T;
+    type Values = Storage::For<T>;
 
-        // Pin the storage before taking its address. This is required for
-        // inline buffers, whose values would otherwise move with the wrapper.
-        let mut private = Box::new(ArrayData {
-            values,
-            buffers: [ptr::null(); 2],
-        });
-        let values: &[T] = private.values.borrow();
-        let length = i64::try_from(values.len()).expect("array length exceeds i64");
-
-        // Primitive arrays have validity and value buffers. A non-nullable
-        // array may expose a null validity buffer because its null count is zero.
-        private.buffers[1] = values.as_ptr().cast();
-
-        // Transfer ownership of the pinned storage to `private_data`. The
-        // release callback reconstructs this Box with the concrete buffer type.
-        let buffers = private.buffers.as_mut_ptr();
-        let private_data = Box::into_raw(private).cast();
-        let array = ArrowArray {
-            length,
-            null_count: 0,
-            offset: 0,
-            n_buffers: 2,
-            n_children: 0,
-            buffers,
-            children: ptr::null_mut(),
-            dictionary: ptr::null_mut(),
-            release: Some(release_array::<ArrayData<Storage::For<T>>>),
-            private_data,
-        };
-
-        // Primitive format strings and the empty name are static, so the
-        // schema release callback only needs to mark the schema as released.
-        (array, ArrowSchema::flat(T::FORMAT))
+    fn into_parts(self) -> (Self::Values, usize, usize) {
+        let values = self.into_buffer();
+        let length = values.borrow().len();
+        (values, length, 0)
     }
 }
 
-impl<Storage> Export for Array<bool, Storage>
+impl<Storage> FlatArrayLayout for Boolean<NonNullable, Storage>
 where
     Storage: Buffer,
     Storage::For<u8>: 'static,
 {
+    type Value = u8;
+    type Values = Storage::For<u8>;
+
+    fn into_parts(self) -> (Self::Values, usize, usize) {
+        let bitmap: Bitmap<Storage> = self.into_buffer();
+        bitmap.into_parts()
+    }
+}
+
+impl<T, Storage> Export for Array<T, Storage>
+where
+    T: ArrayItem + ArrowType,
+    Storage: Buffer,
+    T::Memory<Storage>: FlatArrayLayout,
+{
     fn export(self) -> (ArrowArray, ArrowSchema) {
-        // Remove the Boolean and bitmap wrappers without copying their storage.
-        let boolean: Boolean<NonNullable, Storage> = self.into_buffer();
-        let bitmap: Bitmap<Storage> = boolean.into_buffer();
-        let (values, bits, offset) = bitmap.into_parts();
+        // Remove the layout wrappers without copying their storage.
+        let (values, length, offset) = self.into_buffer().into_parts();
 
         // Pin the storage before exposing its address so inline buffers remain
         // at a stable location for the lifetime of the export.
@@ -146,16 +157,14 @@ where
             values,
             buffers: [ptr::null(); 2],
         });
-        let values: &[u8] = private.values.borrow();
-        let length = i64::try_from(bits).expect("array length exceeds i64");
+        let length = i64::try_from(length).expect("array length exceeds i64");
         let offset = i64::try_from(offset).expect("array offset exceeds i64");
 
-        // Boolean arrays have validity and value bitmaps. The validity buffer
-        // is null for this non-nullable array; the bitmap offset is expressed
-        // through `ArrowArray::offset`.
-        private.buffers[1] = values.as_ptr().cast();
+        // Flat arrays have validity and value buffers. A non-nullable array may
+        // expose a null validity buffer because its null count is zero.
+        private.buffers[1] = private.values.borrow().as_ptr().cast();
 
-        // Keep the bitmap storage and its buffer pointer array alive until the
+        // Keep the value storage and its buffer pointer array alive until the
         // consumer invokes the release callback.
         let buffers = private.buffers.as_mut_ptr();
         let private_data = Box::into_raw(private).cast();
@@ -168,18 +177,20 @@ where
             buffers,
             children: ptr::null_mut(),
             dictionary: ptr::null_mut(),
-            release: Some(release_array::<ArrayData<Storage::For<u8>>>),
+            release: Some(
+                release_array::<ArrayData<<T::Memory<Storage> as FlatArrayLayout>::Values>>,
+            ),
             private_data,
         };
 
-        (array, ArrowSchema::flat(c"b"))
+        (array, ArrowSchema::flat::<T>())
     }
 }
 
 impl ArrowSchema {
-    fn flat(format: &'static CStr) -> Self {
+    fn flat<T: ArrowType>() -> Self {
         Self {
-            format: format.as_ptr(),
+            format: T::FORMAT.as_ptr(),
             name: c"".as_ptr(),
             metadata: ptr::null(),
             flags: 0,
@@ -226,20 +237,34 @@ mod tests {
         layout::{boolean::Boolean, fixed_size_primitive::FixedSizePrimitive},
     };
 
-    use super::{ArrowPrimitive, Export};
+    use super::{ArrowPrimitive, ArrowType, Export};
 
     #[test]
-    fn primitive_format_strings_match_arrow() {
-        assert_eq!(<i8 as ArrowPrimitive>::FORMAT, c"c");
-        assert_eq!(<u8 as ArrowPrimitive>::FORMAT, c"C");
-        assert_eq!(<i16 as ArrowPrimitive>::FORMAT, c"s");
-        assert_eq!(<u16 as ArrowPrimitive>::FORMAT, c"S");
-        assert_eq!(<i32 as ArrowPrimitive>::FORMAT, c"i");
-        assert_eq!(<u32 as ArrowPrimitive>::FORMAT, c"I");
-        assert_eq!(<i64 as ArrowPrimitive>::FORMAT, c"l");
-        assert_eq!(<u64 as ArrowPrimitive>::FORMAT, c"L");
-        assert_eq!(<f32 as ArrowPrimitive>::FORMAT, c"f");
-        assert_eq!(<f64 as ArrowPrimitive>::FORMAT, c"g");
+    fn type_format_strings_match_arrow() {
+        fn assert_primitive<T: ArrowPrimitive>() {}
+
+        assert_eq!(bool::FORMAT, c"b");
+        assert_eq!(i8::FORMAT, c"c");
+        assert_eq!(u8::FORMAT, c"C");
+        assert_eq!(i16::FORMAT, c"s");
+        assert_eq!(u16::FORMAT, c"S");
+        assert_eq!(i32::FORMAT, c"i");
+        assert_eq!(u32::FORMAT, c"I");
+        assert_eq!(i64::FORMAT, c"l");
+        assert_eq!(u64::FORMAT, c"L");
+        assert_eq!(f32::FORMAT, c"f");
+        assert_eq!(f64::FORMAT, c"g");
+
+        assert_primitive::<i8>();
+        assert_primitive::<u8>();
+        assert_primitive::<i16>();
+        assert_primitive::<u16>();
+        assert_primitive::<i32>();
+        assert_primitive::<u32>();
+        assert_primitive::<i64>();
+        assert_primitive::<u64>();
+        assert_primitive::<f32>();
+        assert_primitive::<f64>();
     }
 
     #[test]
