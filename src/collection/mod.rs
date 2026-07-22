@@ -18,8 +18,6 @@ use crate::{collection::owned::IntoOwned, length::Length};
 
 /// A collection of items.
 ///
-/// # Design
-///
 /// Arrow values range from copyable scalars to borrowed slices of nested
 /// data. `Collection` gives both forms one physical-sequence interface while
 /// allowing each implementation to choose its cheapest view:
@@ -122,8 +120,6 @@ pub trait ChildRef {
 
 /// Error returned when storage for a collection cannot be reserved.
 ///
-/// # Design
-///
 /// A backend-neutral error keeps fallible construction generic over the
 /// storage selected by [`Buffer`](crate::buffer::Buffer).
 ///
@@ -147,8 +143,6 @@ impl fmt::Display for AllocError {
 impl core::error::Error for AllocError {}
 
 /// An allocatable collection of items using a caller-provided allocator.
-///
-/// # Design
 ///
 /// Allocation is a separate capability from [`Collection`], so borrowed and
 /// fixed-capacity storage can still represent Arrow data. Making the allocator
@@ -244,8 +238,6 @@ pub trait CollectionAllocIn: Collection + Sized {
 /// whose allocator implements [`Default`] and which can be constructed through
 /// [`Default`] and [`FromIterator`].
 ///
-/// # Design
-///
 /// This convenience layer removes the allocator argument only when a storage
 /// backend has a natural default. Generic layout code can use
 /// [`CollectionAllocIn`] when that assumption does not hold.
@@ -285,8 +277,6 @@ where
 }
 
 /// A re-allocatable collection of items.
-///
-/// # Design
 ///
 /// Growth is modeled separately from initial allocation because not every
 /// Arrow buffer can grow. Builders can require this trait without excluding
