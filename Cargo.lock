@@ -16,3 +16,6 @@ version = "0.16.0"
 [[package]]
 name = "narrow-ffi"
 version = "0.16.0"
+dependencies = [
+ "narrow",
+]
