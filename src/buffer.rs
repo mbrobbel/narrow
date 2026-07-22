@@ -9,6 +9,12 @@ use crate::{collection::Collection, fixed_size::FixedSize};
 
 /// Constructor for contiguous [`Collection`]s of [`FixedSize`] items.
 ///
+/// # Design
+///
+/// Arrow describes buffer contents, not how those buffers are owned. `Buffer`
+/// keeps layout types independent of ownership by mapping each element type
+/// `T` to a concrete contiguous collection through [`Buffer::For`].
+///
 /// # Examples
 ///
 /// ```
@@ -24,6 +30,12 @@ pub trait Buffer: Default {
 }
 
 /// Immutable access to a backing buffer or collection.
+///
+/// # Design
+///
+/// Layout wrappers intentionally hide their representation during ordinary
+/// collection access. This trait provides a uniform escape hatch for
+/// interoperability code that needs the exact Arrow backing buffer.
 ///
 /// # Examples
 ///
@@ -52,6 +64,11 @@ pub trait BufferRef {
 
 /// Fixed-length array storage.
 ///
+/// # Design
+///
+/// Stores a statically known number of values inline, which is useful when the
+/// complete buffer size belongs in the type and no allocation is desired.
+///
 /// # Examples
 ///
 /// ```
@@ -67,6 +84,11 @@ impl<const N: usize> Buffer for ArrayBuffer<N> {
 }
 
 /// Growable vector storage.
+///
+/// # Design
+///
+/// This is the default storage because it supports efficient construction and
+/// extension while retaining Arrow's required contiguous representation.
 ///
 /// # Examples
 ///
@@ -84,6 +106,11 @@ impl Buffer for VecBuffer {
 
 /// Owned boxed-slice storage.
 ///
+/// # Design
+///
+/// Represents an owned, fixed-capacity buffer without retaining the spare
+/// capacity of a [`Vec`].
+///
 /// # Examples
 ///
 /// ```
@@ -99,6 +126,11 @@ impl Buffer for BoxBuffer {
 }
 
 /// Reference-counted storage.
+///
+/// # Design
+///
+/// Allows immutable Arrow buffers to be shared within one thread without
+/// copying their values.
 ///
 /// # Examples
 ///
@@ -117,6 +149,11 @@ impl Buffer for RcBuffer {
 
 /// Atomically reference-counted storage.
 ///
+/// # Design
+///
+/// Allows immutable Arrow buffers to be shared across threads without copying
+/// their values.
+///
 /// # Examples
 ///
 /// ```
@@ -133,6 +170,11 @@ impl Buffer for ArcBuffer {
 }
 
 /// Borrowed slice storage.
+///
+/// # Design
+///
+/// Lets a layout view caller-owned contiguous memory. The lifetime in the
+/// storage type makes the borrowed ownership model visible to the compiler.
 ///
 /// # Examples
 ///
