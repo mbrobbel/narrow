@@ -52,19 +52,11 @@ jobs:
   miri:
     name: Miri
     runs-on: ubuntu-26.04-arm
-    permissions:
-      actions: write
-      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@49a8ff4eadd9ad85042f0e2f761eaab3888d767a # miri
-        id: rust-toolchain
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/miri
-          key: miri-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.cachekey }}
       - run: cargo miri setup
       - run: cargo miri test --no-default-features
       - run: cargo miri test --all-features
