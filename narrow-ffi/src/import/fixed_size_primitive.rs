@@ -15,60 +15,18 @@ impl<'array, T> ImportLayout<'array> for FixedSizePrimitive<T, NonNullable, Slic
 where
     T: FixedSize + ArrowType,
 {
-    unsafe fn import_layout(
+    const N_BUFFERS: i64 = 2;
+    const N_CHILDREN: i64 = 0;
+
+    fn matches_format(format: &CStr) -> bool {
+        format == T::FORMAT
+    }
+
+    unsafe fn import_validated(
         array: &'array ArrowArray,
-        schema: &ArrowSchema,
+        _schema: &ArrowSchema,
+        length: usize,
     ) -> Result<Self, ImportError> {
-        if array.is_released() {
-            return Err(ImportError::ReleasedArray);
-        }
-        if schema.is_released() {
-            return Err(ImportError::ReleasedSchema);
-        }
-        if schema.format.is_null() {
-            return Err(ImportError::MissingFormat);
-        }
-        // SAFETY: The caller guarantees a valid null-terminated schema format.
-        if unsafe { CStr::from_ptr(schema.format) } != T::FORMAT {
-            return Err(ImportError::UnexpectedFormat);
-        }
-        if schema.flags != 0 {
-            return Err(ImportError::UnexpectedFlags {
-                flags: schema.flags,
-            });
-        }
-
-        let length = usize::try_from(array.length).map_err(|_| ImportError::InvalidLength {
-            length: array.length,
-        })?;
-        if array.offset != 0 {
-            return Err(ImportError::NonZeroOffset {
-                offset: array.offset,
-            });
-        }
-        if array.null_count != 0 {
-            return Err(ImportError::UnexpectedNullCount {
-                null_count: array.null_count,
-            });
-        }
-        if array.n_buffers != 2 {
-            return Err(ImportError::UnexpectedBufferCount {
-                count: array.n_buffers,
-            });
-        }
-        if array.n_children != 0 || schema.n_children != 0 {
-            return Err(ImportError::UnexpectedChildCount {
-                array: array.n_children,
-                schema: schema.n_children,
-            });
-        }
-        if !array.dictionary.is_null() || !schema.dictionary.is_null() {
-            return Err(ImportError::UnexpectedDictionary);
-        }
-        if array.buffers.is_null() {
-            return Err(ImportError::MissingBufferPointers);
-        }
-
         // SAFETY: The caller guarantees a valid two-entry buffer pointer array.
         let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
         let values = if length == 0 {
