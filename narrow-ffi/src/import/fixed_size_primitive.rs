@@ -3,11 +3,14 @@
 use core::{ffi::CStr, mem, slice};
 
 use narrow::{
-    buffer::SliceBuffer, fixed_size::FixedSize, layout::fixed_size_primitive::FixedSizePrimitive,
-    nullability::NonNullable,
+    buffer::SliceBuffer,
+    fixed_size::FixedSize,
+    layout::fixed_size_primitive::FixedSizePrimitive,
+    nullability::{NonNullable, Nullable},
+    validity::Validity,
 };
 
-use crate::{ArrowArray, ArrowSchema, ArrowType};
+use crate::{ARROW_FLAG_NULLABLE, ArrowArray, ArrowSchema, ArrowType};
 
 use super::{ImportError, ImportLayout};
 
@@ -50,17 +53,70 @@ where
     }
 }
 
+impl<'array, T> ImportLayout<'array> for FixedSizePrimitive<T, Nullable, SliceBuffer<'array>>
+where
+    T: FixedSize + ArrowType,
+{
+    const FLAGS: i64 = ARROW_FLAG_NULLABLE;
+    const BUFFERS: i64 = 2;
+    const CHILDREN: i64 = 0;
+
+    fn matches_format(format: &CStr) -> bool {
+        format == T::FORMAT
+    }
+
+    unsafe fn import_validated(
+        array: &'array ArrowArray,
+        _schema: &ArrowSchema,
+        length: usize,
+    ) -> Result<Self, ImportError> {
+        // SAFETY: The caller guarantees a valid two-entry buffer pointer array.
+        let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
+        let values = if length == 0 {
+            &[]
+        } else {
+            let values = buffers[1].cast::<T>();
+            if values.is_null() {
+                return Err(ImportError::MissingValuesBuffer);
+            }
+            if !values.is_aligned() {
+                return Err(ImportError::MisalignedValuesBuffer {
+                    alignment: mem::align_of::<T>(),
+                });
+            }
+            // SAFETY: The caller guarantees the value buffer contains `length`
+            // properly aligned values that remain immutable for `'array`.
+            unsafe { slice::from_raw_parts(values, length) }
+        };
+
+        // SAFETY: Common validation and the caller guarantee a valid optional
+        // validity buffer for the declared array length.
+        let optional_bitmap = unsafe { Self::import_validity(array, length) }?;
+        let validity = match optional_bitmap {
+            Some(explicit_bitmap) => {
+                Validity::try_from_parts(values, explicit_bitmap).expect("validity lengths match")
+            }
+            None => Validity::from_collection(values),
+        };
+
+        Ok(Self::from_buffer(validity))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     extern crate alloc;
 
     use alloc::sync::Arc;
-    use core::borrow::Borrow;
+    use core::{borrow::Borrow, ptr};
 
     use narrow::{
         array::Array,
+        bitmap::{Bitmap, ValidityBitmap},
         buffer::{ArcBuffer, BufferRef, SliceBuffer},
+        collection::{ChildRef, Collection},
         layout::fixed_size_primitive::FixedSizePrimitive,
+        validity::Validity,
     };
 
     use crate::{
@@ -125,5 +181,103 @@ mod tests {
         };
 
         assert_eq!(error, ImportError::NonZeroOffset { offset: 1 });
+    }
+
+    #[test]
+    fn imports_nullable_primitive_values_without_copying() {
+        let values = Arc::<[i32]>::from([1, 0, 3]);
+        let validity_values = Arc::<[u8]>::from([0b0000_0101]);
+        let values_data = values.as_ptr();
+        let validity_data = validity_values.as_ptr();
+        let bitmap =
+            Bitmap::<ArcBuffer>::try_from_parts(validity_values, 3, 0).expect("valid bitmap");
+        let validity = Validity::try_from_parts(values, bitmap).expect("valid parts");
+        let source: Array<Option<i32>, ArcBuffer> =
+            Array::from_buffer(FixedSizePrimitive::from_buffer(validity));
+        let (array, schema) = source.export().expect("export array");
+
+        // SAFETY: The exported structures retain valid value and validity
+        // buffers for the lifetime of the imported array.
+        let imported: Array<Option<i32>, SliceBuffer<'_>> =
+            unsafe { Import::import(&array, &schema) }.expect("import array");
+
+        let imported_validity = imported.buffer_ref().buffer_ref();
+        let imported_values: &[i32] = imported_validity.child_ref().borrow();
+        let imported_bitmap = imported_validity.bitmap_ref().expect("explicit validity");
+        let imported_validity_values: &[u8] = imported_bitmap.buffer_ref().borrow();
+        assert_eq!(imported_values.as_ptr(), values_data);
+        assert_eq!(imported_validity_values.as_ptr(), validity_data);
+        assert_eq!(
+            imported.iter_views().collect::<alloc::vec::Vec<_>>(),
+            [Some(1), None, Some(3)]
+        );
+    }
+
+    #[test]
+    fn imports_nullable_primitive_values_with_implicit_validity() {
+        let values = Arc::<[i32]>::from([1, 2, 3]);
+        let data = values.as_ptr();
+        let validity = Validity::<_, ArcBuffer>::from_collection(values);
+        let source: Array<Option<i32>, ArcBuffer> =
+            Array::from_buffer(FixedSizePrimitive::from_buffer(validity));
+        let (array, schema) = source.export().expect("export array");
+
+        // SAFETY: The exported structures retain a valid value buffer for the
+        // lifetime of the imported array.
+        let imported: Array<Option<i32>, SliceBuffer<'_>> =
+            unsafe { Import::import(&array, &schema) }.expect("import array");
+
+        let imported_validity = imported.buffer_ref().buffer_ref();
+        let imported_values: &[i32] = imported_validity.child_ref().borrow();
+        assert_eq!(imported_values.as_ptr(), data);
+        assert!(imported_validity.bitmap_ref().is_none());
+        assert_eq!(
+            imported.iter_views().collect::<alloc::vec::Vec<_>>(),
+            [Some(1), Some(2), Some(3)]
+        );
+    }
+
+    #[test]
+    fn rejects_missing_nullable_primitive_validity() {
+        let source = [Some(1_i32), None]
+            .into_iter()
+            .collect::<Array<Option<i32>>>();
+        let (array, schema) = source.export().expect("export array");
+        // SAFETY: The exported array owns a writable two-entry buffer pointer
+        // array. Clearing its validity entry exercises import validation.
+        unsafe { *array.buffers = ptr::null() };
+
+        // SAFETY: The value buffer remains valid, and the missing validity
+        // buffer is the condition under test.
+        let error = unsafe {
+            <Array<Option<i32>, SliceBuffer<'_>> as Import>::import(&array, &schema)
+                .expect_err("missing validity")
+        };
+
+        assert_eq!(error, ImportError::MissingValidityBuffer);
+    }
+
+    #[test]
+    fn rejects_nullable_primitive_null_count_mismatch() {
+        let source = [Some(1_i32), None]
+            .into_iter()
+            .collect::<Array<Option<i32>>>();
+        let (mut array, schema) = source.export().expect("export array");
+        array.null_count = 0;
+
+        // SAFETY: The exported buffers remain valid; only the null count is
+        // changed to exercise validation.
+        let error = unsafe {
+            <Array<Option<i32>, SliceBuffer<'_>> as Import>::import(&array, &schema)
+                .expect_err("mismatched null count")
+        };
+
+        assert_eq!(
+            error,
+            ImportError::NullCountMismatch {
+                null_count: 0,
+                bitmap: 1,
+            }
+        );
     }
 }

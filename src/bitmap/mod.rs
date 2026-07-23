@@ -113,37 +113,6 @@ pub struct Bitmap<Storage: Buffer = VecBuffer> {
     offset: usize,
 }
 
-/// Immutable access to a [`Bitmap`].
-///
-/// [`BufferRef`] exposes bitmap bytes, but bytes alone omit the logical bit
-/// length and offset. `BitmapRef` preserves those Arrow semantics for generic
-/// validity and interoperability code.
-///
-/// # Examples
-///
-/// ```
-/// use narrow::{bitmap::BitmapRef, length::Length, validity::Validity};
-///
-/// let values = [Some(1), None].into_iter().collect::<Validity<Vec<i32>>>();
-/// assert_eq!(values.bitmap_ref().len(), 2);
-/// ```
-pub trait BitmapRef {
-    /// Storage of the bitmap.
-    type Storage: Buffer;
-
-    /// Returns the bitmap.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use narrow::{bitmap::BitmapRef, length::Length, validity::Validity};
-    ///
-    /// let values = [Some(1), None].into_iter().collect::<Validity<Vec<i32>>>();
-    /// assert_eq!(values.bitmap_ref().len(), 2);
-    /// ```
-    fn bitmap_ref(&self) -> &Bitmap<Self::Storage>;
-}
-
 impl<Storage: Buffer> BufferRef for Bitmap<Storage> {
     type Buffer = Storage::For<u8>;
 

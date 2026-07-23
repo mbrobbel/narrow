@@ -2,9 +2,12 @@
 
 use core::{ffi::CStr, fmt, slice};
 
-use narrow::{array::Array, buffer::SliceBuffer, layout::ArrayItem, offset::OffsetsError};
+use narrow::{
+    array::Array, bitmap::Bitmap, buffer::SliceBuffer, collection::Collection, layout::ArrayItem,
+    offset::OffsetsError,
+};
 
-use crate::{ArrowArray, ArrowSchema};
+use crate::{ARROW_FLAG_NULLABLE, ArrowArray, ArrowSchema};
 
 /// Borrowed import support for an Arrow C Data array.
 pub trait Import<'array>: Sized {
@@ -84,9 +87,18 @@ trait ImportLayout<'array>: Sized {
                 offset: array.offset,
             });
         }
-        if array.null_count != 0 {
+        if Self::FLAGS & ARROW_FLAG_NULLABLE == 0 && array.null_count != 0 {
             return Err(ImportError::UnexpectedNullCount {
                 null_count: array.null_count,
+            });
+        }
+        if Self::FLAGS & ARROW_FLAG_NULLABLE != 0
+            && (array.null_count < -1
+                || array.null_count > i64::try_from(length).unwrap_or(i64::MAX))
+        {
+            return Err(ImportError::InvalidNullCount {
+                null_count: array.null_count,
+                length,
             });
         }
         if array.n_buffers != Self::BUFFERS {
@@ -116,6 +128,54 @@ trait ImportLayout<'array>: Sized {
         // SAFETY: Common fields have been validated and the caller upholds the
         // Arrow C Data pointer and buffer requirements.
         unsafe { Self::import_validated(array, schema, length) }
+    }
+
+    /// Imports the optional validity bitmap of a nullable layout.
+    ///
+    /// # Safety
+    ///
+    /// Common fields must be validated, and the caller must uphold the
+    /// requirements of [`Import::import`] for the validity buffer.
+    unsafe fn import_validity(
+        array: &'array ArrowArray,
+        length: usize,
+    ) -> Result<Option<Bitmap<SliceBuffer<'array>>>, ImportError> {
+        assert!(
+            Self::FLAGS & ARROW_FLAG_NULLABLE != 0,
+            "validity requires a nullable layout"
+        );
+        let buffers = usize::try_from(Self::BUFFERS).expect("buffer count must fit in usize");
+        assert!(buffers != 0, "validity requires a buffer");
+        // SAFETY: Common validation and the caller guarantee a valid buffer
+        // pointer array with `buffers` entries.
+        let buffer_pointers = unsafe { slice::from_raw_parts(array.buffers, buffers) };
+        let validity = buffer_pointers[0].cast::<u8>();
+        if validity.is_null() {
+            return if array.null_count == 0 {
+                Ok(None)
+            } else {
+                Err(ImportError::MissingValidityBuffer)
+            };
+        }
+
+        let byte_length = length.div_ceil(8);
+        // SAFETY: The caller guarantees the validity buffer contains
+        // `byte_length` bytes that remain immutable for `'array`.
+        let values = unsafe { slice::from_raw_parts(validity, byte_length) };
+        let bitmap = Bitmap::try_from_parts(values, length, 0)
+            .expect("imported validity buffer contains the declared number of bits");
+
+        if array.null_count >= 0 {
+            let actual = bitmap.iter_views().filter(|valid| !*valid).count();
+            if usize::try_from(array.null_count) != Ok(actual) {
+                return Err(ImportError::NullCountMismatch {
+                    null_count: array.null_count,
+                    bitmap: actual,
+                });
+            }
+        }
+
+        Ok(Some(bitmap))
     }
 
     /// Imports a child memory layout at `index`.
@@ -209,6 +269,22 @@ pub enum ImportError {
         /// Null count supplied by the producer.
         null_count: i64,
     },
+    /// A nullable array reports an invalid null count.
+    InvalidNullCount {
+        /// Null count supplied by the producer.
+        null_count: i64,
+        /// Number of items in the array.
+        length: usize,
+    },
+    /// A nullable array with nulls does not contain a validity buffer.
+    MissingValidityBuffer,
+    /// A nullable array's null count does not match its validity bitmap.
+    NullCountMismatch {
+        /// Null count supplied by the producer.
+        null_count: i64,
+        /// Number of nulls found in the validity bitmap.
+        bitmap: usize,
+    },
     /// The Arrow array has an unexpected number of buffers.
     UnexpectedBufferCount {
         /// Buffer count supplied by the producer.
@@ -283,6 +359,17 @@ impl fmt::Display for ImportError {
             Self::UnexpectedNullCount { null_count } => {
                 write!(f, "non-nullable Arrow array has null count {null_count}")
             }
+            Self::InvalidNullCount { null_count, length } => write!(
+                f,
+                "Arrow array null count ({null_count}) is invalid for length {length}"
+            ),
+            Self::MissingValidityBuffer => {
+                write!(f, "nullable Arrow array validity buffer is missing")
+            }
+            Self::NullCountMismatch { null_count, bitmap } => write!(
+                f,
+                "Arrow array null count ({null_count}) does not match validity bitmap ({bitmap})"
+            ),
             Self::UnexpectedBufferCount { count } => {
                 write!(f, "Arrow array buffer count ({count}) does not match")
             }

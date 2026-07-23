@@ -3,7 +3,7 @@
 use core::{borrow::Borrow, ffi::c_void, ptr};
 
 use narrow::{
-    bitmap::{BitmapRef, ValidityBitmap},
+    bitmap::ValidityBitmap,
     buffer::{Buffer, BufferRef},
     collection::ChildRef,
     fixed_size::FixedSize,
@@ -51,14 +51,22 @@ where
     }
 
     fn offset(&self) -> usize {
-        self.buffer_ref().bitmap_ref().bit_offset()
+        self.buffer_ref()
+            .bitmap_ref()
+            .map_or(0, narrow::bitmap::Bitmap::bit_offset)
     }
 
     fn buffers(&self) -> Self::Buffers {
         let validity = self.buffer_ref();
-        let validity_values: &[u8] = validity.bitmap_ref().buffer_ref().borrow();
+        let validity_values = validity.bitmap_ref().map(|bitmap| {
+            let values: &[u8] = bitmap.buffer_ref().borrow();
+            values.as_ptr().cast()
+        });
         let values: &[T] = validity.child_ref().borrow();
-        [validity_values.as_ptr().cast(), values.as_ptr().cast()]
+        [
+            validity_values.unwrap_or(ptr::null()),
+            values.as_ptr().cast(),
+        ]
     }
 }
 

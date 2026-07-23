@@ -1,13 +1,13 @@
-//! Validity information stored in a bitmap.
+//! Optional validity information stored in a bitmap.
 
-use super::BitmapRef;
-use crate::collection::Collection;
+use super::Bitmap;
+use crate::{buffer::Buffer, collection::Collection, length::Length};
 
 /// A bitmap storing the validity of elements in a collection.
 ///
 /// Layouts that carry nullability all expose the same semantic questions even
-/// when their value buffers differ. This trait centralizes those queries over
-/// [`BitmapRef`] so callers do not need to interpret validity bits themselves.
+/// when their value buffers differ. This trait centralizes those queries so
+/// callers do not need to interpret validity bits themselves.
 ///
 /// # Examples
 ///
@@ -17,7 +17,18 @@ use crate::collection::Collection;
 /// let values = [Some(1), None].into_iter().collect::<Validity<Vec<i32>>>();
 /// assert_eq!((values.valid_count(), values.null_count()), (1, 1));
 /// ```
-pub trait ValidityBitmap: BitmapRef {
+pub trait ValidityBitmap: Length {
+    /// Storage of the validity bitmap.
+    type Storage: Buffer;
+
+    /// Returns the validity bitmap, or [`None`] when all items are valid.
+    ///
+    /// Arrow permits arrays without a validity bitmap when their null count is
+    /// zero. See the [Arrow validity bitmap specification].
+    ///
+    /// [Arrow validity bitmap specification]: https://arrow.apache.org/docs/format/Columnar.html#validity-bitmaps
+    fn bitmap_ref(&self) -> Option<&Bitmap<Self::Storage>>;
+
     /// Returns whether the element at `index` is null, or [`None`] when the
     /// index is out of bounds.
     ///
@@ -44,10 +55,9 @@ pub trait ValidityBitmap: BitmapRef {
     /// assert_eq!(values.null_count(), 1);
     /// ```
     fn null_count(&self) -> usize {
-        self.bitmap_ref()
-            .iter_views()
-            .filter(|valid| !*valid)
-            .count()
+        self.bitmap_ref().map_or(0, |bitmap| {
+            bitmap.iter_views().filter(|valid| !*valid).count()
+        })
     }
 
     /// Returns whether the element at `index` is valid, or [`None`] when the
@@ -62,7 +72,10 @@ pub trait ValidityBitmap: BitmapRef {
     /// assert_eq!(values.is_valid(0), Some(true));
     /// ```
     fn is_valid(&self, index: usize) -> Option<bool> {
-        self.bitmap_ref().view(index)
+        (index < self.len()).then(|| {
+            self.bitmap_ref()
+                .is_none_or(|bitmap| bitmap.view(index).expect("validity lengths match"))
+        })
     }
 
     /// Returns the number of valid elements.
@@ -76,10 +89,7 @@ pub trait ValidityBitmap: BitmapRef {
     /// assert_eq!(values.valid_count(), 1);
     /// ```
     fn valid_count(&self) -> usize {
-        self.bitmap_ref()
-            .iter_views()
-            .filter(|valid| *valid)
-            .count()
+        self.len().strict_sub(self.null_count())
     }
 
     /// Returns whether the collection contains at least one null element.
@@ -93,7 +103,8 @@ pub trait ValidityBitmap: BitmapRef {
     /// assert!(values.any_null());
     /// ```
     fn any_null(&self) -> bool {
-        self.bitmap_ref().iter_views().any(|valid| !valid)
+        self.bitmap_ref()
+            .is_some_and(|bitmap| bitmap.iter_views().any(|valid| !valid))
     }
 
     /// Returns whether all elements in the collection are null.
@@ -107,7 +118,7 @@ pub trait ValidityBitmap: BitmapRef {
     /// assert!(values.all_null());
     /// ```
     fn all_null(&self) -> bool {
-        self.bitmap_ref().iter_views().all(|valid| !valid)
+        self.null_count() == self.len()
     }
 
     /// Returns whether the collection contains at least one valid element.
@@ -121,7 +132,7 @@ pub trait ValidityBitmap: BitmapRef {
     /// assert!(values.any_valid());
     /// ```
     fn any_valid(&self) -> bool {
-        self.bitmap_ref().iter_views().any(|valid| valid)
+        self.valid_count() != 0
     }
 
     /// Returns whether all elements in the collection are valid.
@@ -135,6 +146,6 @@ pub trait ValidityBitmap: BitmapRef {
     /// assert!(values.all_valid());
     /// ```
     fn all_valid(&self) -> bool {
-        self.bitmap_ref().iter_views().all(|valid| valid)
+        self.null_count() == 0
     }
 }
