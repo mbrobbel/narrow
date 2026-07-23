@@ -31,6 +31,8 @@ where
             return false;
         }
 
+        // Parse the decimal width without allocating, rejecting non-digits
+        // and arithmetic overflow before comparing it with `N`.
         digits.iter().try_fold(0_usize, |size, byte| {
             let digit = (*byte).checked_sub(b'0')?;
             if digit > 9 {
