@@ -1,8 +1,8 @@
 //! Borrow Arrow C Data Interface arrays as Narrow arrays.
 
-use core::{ffi::CStr, fmt};
+use core::{ffi::CStr, fmt, slice};
 
-use narrow::{array::Array, buffer::SliceBuffer, layout::ArrayItem};
+use narrow::{array::Array, buffer::SliceBuffer, layout::ArrayItem, offset::OffsetsError};
 
 use crate::{ArrowArray, ArrowSchema};
 
@@ -117,6 +117,50 @@ trait ImportLayout<'array>: Sized {
         // Arrow C Data pointer and buffer requirements.
         unsafe { Self::import_validated(array, schema, length) }
     }
+
+    /// Imports a child memory layout at `index`.
+    ///
+    /// # Safety
+    ///
+    /// Common parent fields must be validated, and the caller must uphold the
+    /// requirements of [`Import::import`] for the child structures.
+    unsafe fn import_child<Child>(
+        array: &'array ArrowArray,
+        schema: &ArrowSchema,
+        index: usize,
+    ) -> Result<Child, ImportError>
+    where
+        Child: ImportLayout<'array>,
+    {
+        let children = usize::try_from(Self::CHILDREN).expect("child count must fit in usize");
+        assert!(index < children, "child index is out of bounds");
+
+        // SAFETY: Common validation and the caller guarantee a valid child
+        // pointer array with `children` entries.
+        let array_children = unsafe { slice::from_raw_parts(array.children, children) };
+        let child_array_pointer = array_children[index];
+        if child_array_pointer.is_null() {
+            return Err(ImportError::MissingArrayChildren);
+        }
+        // SAFETY: The caller guarantees that the child array is retained by
+        // the parent for `'array`.
+        let child_array: &'array ArrowArray = unsafe { &*child_array_pointer };
+
+        // SAFETY: Common validation and the caller guarantee a valid child
+        // pointer array with `children` entries.
+        let schema_children = unsafe { slice::from_raw_parts(schema.children, children) };
+        let child_schema_pointer = schema_children[index];
+        if child_schema_pointer.is_null() {
+            return Err(ImportError::MissingSchemaChildren);
+        }
+        // SAFETY: The caller guarantees that the child schema is valid while
+        // the parent schema is borrowed.
+        let child_schema = unsafe { &*child_schema_pointer };
+
+        // SAFETY: The child structures are covered by the caller's Arrow C
+        // Data guarantees and retained by their respective parents.
+        unsafe { Child::import_layout(child_array, child_schema) }
+    }
 }
 
 impl<'array, T> Import<'array> for Array<T, SliceBuffer<'array>>
@@ -199,6 +243,18 @@ pub enum ImportError {
         /// Number of child items per parent item.
         size: usize,
     },
+    /// A non-empty offsets buffer is missing.
+    MissingOffsetsBuffer,
+    /// The offsets buffer is not aligned for its element type.
+    MisalignedOffsetsBuffer {
+        /// Required byte alignment of the offset type.
+        alignment: usize,
+    },
+    /// An offsets buffer does not satisfy the Arrow offset invariants.
+    InvalidOffsets {
+        /// Offset invariant that was violated.
+        error: OffsetsError,
+    },
     /// A non-empty array does not contain a value buffer.
     MissingValuesBuffer,
     /// The primitive value buffer is not aligned for its element type.
@@ -251,6 +307,12 @@ impl fmt::Display for ImportError {
                 f,
                 "fixed-size-list length ({length}) with width ({size}) does not match child length ({child_length})"
             ),
+            Self::MissingOffsetsBuffer => write!(f, "Arrow offsets buffer is missing"),
+            Self::MisalignedOffsetsBuffer { alignment } => write!(
+                f,
+                "Arrow offsets buffer does not have the required alignment ({alignment})"
+            ),
+            Self::InvalidOffsets { error } => write!(f, "invalid Arrow offsets: {error}"),
             Self::MissingValuesBuffer => write!(f, "Arrow value buffer is missing"),
             Self::MisalignedValuesBuffer { alignment } => write!(
                 f,
@@ -260,7 +322,14 @@ impl fmt::Display for ImportError {
     }
 }
 
-impl core::error::Error for ImportError {}
+impl core::error::Error for ImportError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
+        match *self {
+            Self::InvalidOffsets { ref error } => Some(error),
+            _ => None,
+        }
+    }
+}
 
 /// Borrowed import support for Boolean arrays.
 mod boolean;
@@ -268,3 +337,5 @@ mod boolean;
 mod fixed_size_list;
 /// Borrowed import support for fixed-size primitive arrays.
 mod fixed_size_primitive;
+/// Borrowed import support for variable-size-list arrays.
+mod variable_size_list;

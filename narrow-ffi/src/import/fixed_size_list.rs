@@ -1,6 +1,6 @@
 //! Borrowed import support for [`FixedSizeList`].
 
-use core::{ffi::CStr, slice};
+use core::ffi::CStr;
 
 use narrow::{
     buffer::SliceBuffer,
@@ -51,34 +51,10 @@ where
             return Err(ImportError::UnsupportedFixedSizeListSize { size: N });
         }
 
-        // SAFETY: Common validation guarantees a one-entry child pointer array.
-        let array_children = unsafe { slice::from_raw_parts(array.children, 1) };
-        let child_array_pointer = array_children[0];
-        if child_array_pointer.is_null() {
-            return Err(ImportError::MissingArrayChildren);
-        }
-        // SAFETY: The caller guarantees that the child array is retained by
-        // the parent for `'array`.
-        let child_array: &'array ArrowArray = unsafe { &*child_array_pointer };
-
-        // SAFETY: Common validation guarantees a one-entry child pointer array.
-        let schema_children = unsafe { slice::from_raw_parts(schema.children, 1) };
-        let child_schema_pointer = schema_children[0];
-        if child_schema_pointer.is_null() {
-            return Err(ImportError::MissingSchemaChildren);
-        }
-        // SAFETY: The caller guarantees that the child schema is valid while
-        // the parent schema is borrowed.
-        let child_schema = unsafe { &*child_schema_pointer };
-
-        // SAFETY: The child structures are covered by the caller's Arrow C
-        // Data guarantees and retained by their respective parents.
-        let child = unsafe {
-            <T::Memory<SliceBuffer<'array>> as ImportLayout>::import_layout(
-                child_array,
-                child_schema,
-            )
-        }?;
+        // SAFETY: Common parent fields are validated and the caller upholds
+        // the Arrow C Data requirements for the retained child structures.
+        let child =
+            unsafe { Self::import_child::<T::Memory<SliceBuffer<'array>>>(array, schema, 0) }?;
         let child_length = child.len();
         if length.checked_mul(N) != Some(child_length) {
             return Err(ImportError::FixedSizeListLengthMismatch {
