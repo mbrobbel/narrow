@@ -29,9 +29,9 @@ trait ImportLayout<'array>: Sized {
     /// Expected Arrow schema flags.
     const FLAGS: i64 = 0;
     /// Expected number of Arrow array buffers.
-    const N_BUFFERS: i64;
+    const BUFFERS: i64;
     /// Expected number of Arrow array and schema children.
-    const N_CHILDREN: i64;
+    const CHILDREN: i64;
 
     /// Returns whether an Arrow format matches this memory layout.
     fn matches_format(format: &CStr) -> bool;
@@ -89,12 +89,12 @@ trait ImportLayout<'array>: Sized {
                 null_count: array.null_count,
             });
         }
-        if array.n_buffers != Self::N_BUFFERS {
+        if array.n_buffers != Self::BUFFERS {
             return Err(ImportError::UnexpectedBufferCount {
                 count: array.n_buffers,
             });
         }
-        if array.n_children != Self::N_CHILDREN || schema.n_children != Self::N_CHILDREN {
+        if array.n_children != Self::CHILDREN || schema.n_children != Self::CHILDREN {
             return Err(ImportError::UnexpectedChildCount {
                 array: array.n_children,
                 schema: schema.n_children,
@@ -103,13 +103,13 @@ trait ImportLayout<'array>: Sized {
         if !array.dictionary.is_null() || !schema.dictionary.is_null() {
             return Err(ImportError::UnexpectedDictionary);
         }
-        if Self::N_BUFFERS != 0 && array.buffers.is_null() {
+        if Self::BUFFERS != 0 && array.buffers.is_null() {
             return Err(ImportError::MissingBufferPointers);
         }
-        if Self::N_CHILDREN != 0 && array.children.is_null() {
+        if Self::CHILDREN != 0 && array.children.is_null() {
             return Err(ImportError::MissingArrayChildren);
         }
-        if Self::N_CHILDREN != 0 && schema.children.is_null() {
+        if Self::CHILDREN != 0 && schema.children.is_null() {
             return Err(ImportError::MissingSchemaChildren);
         }
 

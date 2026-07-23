@@ -20,8 +20,8 @@ where
     T: ArrayItem,
     T::Memory<SliceBuffer<'array>>: ImportLayout<'array>,
 {
-    const N_BUFFERS: i64 = 1;
-    const N_CHILDREN: i64 = 1;
+    const BUFFERS: i64 = 1;
+    const CHILDREN: i64 = 1;
 
     fn matches_format(format: &CStr) -> bool {
         let Some(digits) = format.to_bytes().strip_prefix(b"+w:") else {

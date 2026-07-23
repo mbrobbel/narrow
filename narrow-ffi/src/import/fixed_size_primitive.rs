@@ -15,8 +15,8 @@ impl<'array, T> ImportLayout<'array> for FixedSizePrimitive<T, NonNullable, Slic
 where
     T: FixedSize + ArrowType,
 {
-    const N_BUFFERS: i64 = 2;
-    const N_CHILDREN: i64 = 0;
+    const BUFFERS: i64 = 2;
+    const CHILDREN: i64 = 0;
 
     fn matches_format(format: &CStr) -> bool {
         format == T::FORMAT

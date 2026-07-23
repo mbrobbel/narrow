@@ -11,8 +11,8 @@ use crate::{ArrowArray, ArrowSchema, ArrowType};
 use super::{ImportError, ImportLayout};
 
 impl<'array> ImportLayout<'array> for Boolean<NonNullable, SliceBuffer<'array>> {
-    const N_BUFFERS: i64 = 2;
-    const N_CHILDREN: i64 = 0;
+    const BUFFERS: i64 = 2;
+    const CHILDREN: i64 = 0;
 
     fn matches_format(format: &CStr) -> bool {
         format == bool::FORMAT
