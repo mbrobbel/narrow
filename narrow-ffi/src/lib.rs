@@ -62,14 +62,30 @@
 )]
 
 use core::{
-    ffi::{c_char, c_void},
+    ffi::{CStr, c_char, c_void},
     ptr,
 };
+
+use narrow::offset::Offset;
 
 mod export;
 pub use export::{ArrowType, Export, ExportError};
 mod import;
 pub use import::{Import, ImportError};
+
+/// An Arrow list offset with a C Data format string.
+trait ArrowListOffset: Offset {
+    /// Arrow C Data format for a list using this offset width.
+    const FORMAT: &'static CStr;
+}
+
+impl ArrowListOffset for i32 {
+    const FORMAT: &'static CStr = c"+l";
+}
+
+impl ArrowListOffset for i64 {
+    const FORMAT: &'static CStr = c"+L";
+}
 
 /// Dictionary values are ordered.
 pub const ARROW_FLAG_DICTIONARY_ORDERED: i64 = 1;

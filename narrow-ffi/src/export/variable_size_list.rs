@@ -3,7 +3,7 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use core::{borrow::Borrow, ffi::CStr, ffi::c_void, ptr};
+use core::{borrow::Borrow, ffi::c_void, ptr};
 
 use narrow::{
     bitmap::{BitmapRef, ValidityBitmap},
@@ -11,26 +11,11 @@ use narrow::{
     collection::ChildRef,
     layout::{ArrayItem, variable_size_list::VariableSizeList},
     nullability::{NonNullable, Nullability, Nullable},
-    offset::Offset,
 };
 
-use crate::{ARROW_FLAG_NULLABLE, ArrowArray, ArrowSchema};
+use crate::{ARROW_FLAG_NULLABLE, ArrowArray, ArrowListOffset, ArrowSchema};
 
 use super::{ArrowArrayLayout, ExportError, release_schema};
-
-/// An Arrow list offset with a C Data format string.
-trait ArrowListOffset: Offset {
-    /// Arrow C Data format for a list using this offset width.
-    const FORMAT: &'static CStr;
-}
-
-impl ArrowListOffset for i32 {
-    const FORMAT: &'static CStr = c"+l";
-}
-
-impl ArrowListOffset for i64 {
-    const FORMAT: &'static CStr = c"+L";
-}
 
 impl<T, OffsetItem, Storage> ArrowArrayLayout
     for VariableSizeList<T, NonNullable, OffsetItem, Storage>
@@ -145,12 +130,9 @@ mod tests {
         validity::Validity,
     };
 
-    use crate::ARROW_FLAG_NULLABLE;
+    use crate::{ARROW_FLAG_NULLABLE, ArrowListOffset};
 
-    use super::{
-        super::{Export, ExportError},
-        ArrowListOffset,
-    };
+    use super::super::{Export, ExportError};
 
     #[test]
     fn list_format_strings_match_arrow() {
