@@ -55,9 +55,8 @@ pub trait ValidityBitmap: Length {
     /// assert_eq!(values.null_count(), 1);
     /// ```
     fn null_count(&self) -> usize {
-        self.bitmap_ref().map_or(0, |bitmap| {
-            bitmap.iter_views().filter(|valid| !*valid).count()
-        })
+        self.bitmap_ref()
+            .map_or(0, |bitmap| bitmap.len().strict_sub(bitmap.count_ones()))
     }
 
     /// Returns whether the element at `index` is valid, or [`None`] when the

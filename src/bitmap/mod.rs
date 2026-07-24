@@ -186,6 +186,52 @@ impl<Storage: Buffer> Bitmap<Storage> {
         self.offset
     }
 
+    /// Returns the number of set bits in this [`Bitmap`].
+    ///
+    /// Leading and trailing padding bits outside the bitmap are ignored.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{bitmap::Bitmap, buffer::VecBuffer};
+    ///
+    /// let bitmap =
+    ///     Bitmap::<VecBuffer>::try_from_parts(vec![0b1110_1101], 4, 1).unwrap();
+    /// assert_eq!(bitmap.count_ones(), 2);
+    /// ```
+    #[must_use]
+    pub fn count_ones(&self) -> usize {
+        if self.bits == 0 {
+            return 0;
+        }
+
+        let start_byte = self.offset.strict_div(8);
+        let start_bit = self.offset.rem_euclid(8);
+        let end = self.offset.strict_add(self.bits);
+        let end_bit = end.rem_euclid(8);
+        let bytes = &self.buffer.borrow()[start_byte..end.div_ceil(8)];
+        let last = bytes.len().strict_sub(1);
+
+        bytes
+            .iter()
+            .enumerate()
+            .fold(0_usize, |count, (index, byte)| {
+                let leading_mask = if index == 0 {
+                    u8::MAX << start_bit
+                } else {
+                    u8::MAX
+                };
+                let trailing_mask = if index == last && end_bit != 0 {
+                    (1_u8 << end_bit).strict_sub(1)
+                } else {
+                    u8::MAX
+                };
+                let ones = usize::try_from((byte & leading_mask & trailing_mask).count_ones())
+                    .unwrap_or_default();
+                count.strict_add(ones)
+            })
+    }
+
     /// Returns the raw parts of this [`Bitmap`]: its byte buffer, the number of
     /// bits it stores, and the bit offset into the buffer.
     ///
@@ -785,6 +831,18 @@ mod tests {
                 bytes: 1,
             }
         );
+    }
+
+    #[test]
+    fn count_ones_ignores_padding_bits() {
+        let bitmap =
+            Bitmap::<VecBuffer>::try_from_parts(alloc::vec![0b1111_0000, 0b1111_1111], 10, 2)
+                .expect("valid parts");
+        assert_eq!(bitmap.count_ones(), 8);
+
+        let within_one_byte = Bitmap::<VecBuffer>::try_from_parts(alloc::vec![0b1110_1101], 3, 2)
+            .expect("valid parts");
+        assert_eq!(within_one_byte.count_ones(), 2);
     }
 
     #[test]
