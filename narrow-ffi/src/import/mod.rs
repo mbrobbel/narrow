@@ -1,6 +1,6 @@
 //! Borrow Arrow C Data Interface arrays as Narrow arrays.
 
-use core::{ffi::CStr, fmt, slice};
+use core::{ffi::CStr, fmt, marker::PhantomData, slice};
 
 use narrow::{
     array::Array,
@@ -17,6 +17,34 @@ use crate::{ARROW_FLAG_NULLABLE, ArrowArray, ArrowSchema};
 
 /// Borrowed import support for an Arrow C Data array.
 pub trait Import<'array>: Sized {
+    /// Validates an [`ArrowSchema`] for this array type.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`ImportError`] when the schema does not describe the
+    /// expected array representation.
+    ///
+    /// # Safety
+    ///
+    /// Every non-null pointer read from `schema` must be valid for the required
+    /// reads, including null-terminated format strings and child schemas.
+    unsafe fn validate_schema(schema: &ArrowSchema) -> Result<(), ImportError>;
+
+    /// Imports an [`ArrowArray`] after its schema is validated.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`ImportError`] when the array does not match the expected
+    /// representation.
+    ///
+    /// # Safety
+    ///
+    /// Every non-null pointer read from `array` must be valid for the required
+    /// reads. Referenced buffers must remain immutable for `'array` and contain
+    /// enough properly aligned elements for the declared array length. The
+    /// array must conform to the schema validated for this array type.
+    unsafe fn import_array(array: &'array ArrowArray) -> Result<Self, ImportError>;
+
     /// Imports an [`ArrowArray`] and [`ArrowSchema`] without copying buffers.
     ///
     /// # Errors
@@ -30,7 +58,95 @@ pub trait Import<'array>: Sized {
     /// required reads. Referenced buffers must remain immutable for `'array`
     /// and contain enough properly aligned elements for the declared array
     /// length. Scalar metadata is validated by the importer.
-    unsafe fn import(array: &'array ArrowArray, schema: &ArrowSchema) -> Result<Self, ImportError>;
+    unsafe fn import(array: &'array ArrowArray, schema: &ArrowSchema) -> Result<Self, ImportError> {
+        // SAFETY: The caller upholds the schema requirements of this method.
+        unsafe { Self::validate_schema(schema) }?;
+        // SAFETY: The caller upholds the array requirements of this method.
+        unsafe { Self::import_array(array) }
+    }
+}
+
+/// A reusable importer for a validated Arrow schema.
+///
+/// The schema is not retained and may be released after construction.
+///
+/// ```
+/// use narrow::{array::Array, buffer::SliceBuffer, collection::Collection};
+/// use narrow_ffi::{Export, Importer};
+///
+/// let source = [1_i32, 2, 3].into_iter().collect::<Array<i32>>();
+/// let (array, schema) = source.export().unwrap();
+///
+/// // SAFETY: The exported schema and its format string are valid.
+/// let importer = unsafe { Importer::<i32>::try_new(&schema) }.unwrap();
+/// drop(schema);
+///
+/// // SAFETY: The exported array owns a valid primitive value buffer.
+/// let imported: Array<i32, SliceBuffer<'_>> =
+///     unsafe { importer.import(&array) }.unwrap();
+/// assert_eq!(imported.owned(1), Some(2));
+/// ```
+pub struct Importer<T> {
+    /// Imported array item type.
+    item: PhantomData<fn() -> T>,
+}
+
+impl<T> Clone for Importer<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T> Copy for Importer<T> {}
+
+impl<T> fmt::Debug for Importer<T> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.debug_struct("Importer").finish()
+    }
+}
+
+impl<T> Importer<T>
+where
+    T: ArrayItem,
+    for<'array> Array<T, SliceBuffer<'array>>: Import<'array>,
+{
+    /// Validates an Arrow schema for arrays of `T`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`ImportError`] when the schema does not describe the
+    /// expected array representation.
+    ///
+    /// # Safety
+    ///
+    /// Every non-null pointer read from `schema` must be valid for the required
+    /// reads, including null-terminated format strings and child schemas.
+    pub unsafe fn try_new(schema: &ArrowSchema) -> Result<Self, ImportError> {
+        // SAFETY: The caller upholds the schema requirements of this method.
+        unsafe { <Array<T, SliceBuffer<'static>> as Import<'static>>::validate_schema(schema) }?;
+        Ok(Self { item: PhantomData })
+    }
+
+    /// Borrows an Arrow array without revalidating its schema.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`ImportError`] when the array does not match the validated
+    /// schema.
+    ///
+    /// # Safety
+    ///
+    /// Every non-null pointer read from `array` must be valid for the required
+    /// reads. Referenced buffers must remain immutable for `'array` and contain
+    /// enough properly aligned elements for the declared array length. The
+    /// array must conform to the schema used to construct this importer.
+    pub unsafe fn import<'array>(
+        &self,
+        array: &'array ArrowArray,
+    ) -> Result<Array<T, SliceBuffer<'array>>, ImportError> {
+        // SAFETY: The caller upholds the array requirements of this method.
+        unsafe { <Array<T, SliceBuffer<'array>> as Import<'array>>::import_array(array) }
+    }
 }
 
 /// Arrow import behavior for a [`Nullability`] type constructor.
@@ -134,23 +250,26 @@ trait ImportLayout<'array>: Sized {
     /// The caller must uphold the requirements of [`Import::import`].
     unsafe fn import_validated(
         array: &'array ArrowArray,
-        schema: &ArrowSchema,
         length: usize,
     ) -> Result<Self, ImportError>;
 
-    /// Validates and imports the memory layout described by an Arrow array and
-    /// schema.
+    /// Validates child schemas after the common parent fields are validated.
     ///
     /// # Safety
     ///
-    /// The caller must uphold the requirements of [`Import::import`].
-    unsafe fn import_layout(
-        array: &'array ArrowArray,
-        schema: &ArrowSchema,
-    ) -> Result<Self, ImportError> {
-        if array.is_released() {
-            return Err(ImportError::ReleasedArray);
-        }
+    /// Every child schema pointer read from `schema` must be valid for the
+    /// required reads.
+    unsafe fn validate_child_schemas(_schema: &ArrowSchema) -> Result<(), ImportError> {
+        Ok(())
+    }
+
+    /// Validates an Arrow schema for this memory layout.
+    ///
+    /// # Safety
+    ///
+    /// Every non-null pointer read from `schema` must be valid for the required
+    /// reads, including null-terminated format strings and child schemas.
+    unsafe fn validate_schema(schema: &ArrowSchema) -> Result<(), ImportError> {
         if schema.is_released() {
             return Err(ImportError::ReleasedSchema);
         }
@@ -166,7 +285,33 @@ trait ImportLayout<'array>: Sized {
                 flags: schema.flags,
             });
         }
+        if schema.n_children != Self::CHILDREN {
+            return Err(ImportError::UnexpectedSchemaChildCount {
+                count: schema.n_children,
+            });
+        }
+        if !schema.dictionary.is_null() {
+            return Err(ImportError::UnexpectedDictionary);
+        }
+        if Self::CHILDREN != 0 && schema.children.is_null() {
+            return Err(ImportError::MissingSchemaChildren);
+        }
 
+        // SAFETY: Common schema fields have been validated and the caller
+        // upholds the Arrow C Data pointer requirements.
+        unsafe { Self::validate_child_schemas(schema) }
+    }
+
+    /// Validates and imports an Arrow array for this memory layout.
+    ///
+    /// # Safety
+    ///
+    /// The caller must uphold the array and buffer requirements of
+    /// [`Importer::import`].
+    unsafe fn import_array(array: &'array ArrowArray) -> Result<Self, ImportError> {
+        if array.is_released() {
+            return Err(ImportError::ReleasedArray);
+        }
         let length = usize::try_from(array.length).map_err(|_| ImportError::InvalidLength {
             length: array.length,
         })?;
@@ -191,13 +336,12 @@ trait ImportLayout<'array>: Sized {
                 count: array.n_buffers,
             });
         }
-        if array.n_children != Self::CHILDREN || schema.n_children != Self::CHILDREN {
-            return Err(ImportError::UnexpectedChildCount {
-                array: array.n_children,
-                schema: schema.n_children,
+        if array.n_children != Self::CHILDREN {
+            return Err(ImportError::UnexpectedArrayChildCount {
+                count: array.n_children,
             });
         }
-        if !array.dictionary.is_null() || !schema.dictionary.is_null() {
+        if !array.dictionary.is_null() {
             return Err(ImportError::UnexpectedDictionary);
         }
         if Self::BUFFERS != 0 && array.buffers.is_null() {
@@ -206,13 +350,42 @@ trait ImportLayout<'array>: Sized {
         if Self::CHILDREN != 0 && array.children.is_null() {
             return Err(ImportError::MissingArrayChildren);
         }
-        if Self::CHILDREN != 0 && schema.children.is_null() {
-            return Err(ImportError::MissingSchemaChildren);
-        }
 
         // SAFETY: Common fields have been validated and the caller upholds the
         // Arrow C Data pointer and buffer requirements.
-        unsafe { Self::import_validated(array, schema, length) }
+        unsafe { Self::import_validated(array, length) }
+    }
+
+    /// Validates a child schema at `index`.
+    ///
+    /// # Safety
+    ///
+    /// Common parent fields must be validated, and every child schema pointer
+    /// read from `schema` must be valid for the required reads.
+    unsafe fn validate_child_schema<Child>(
+        schema: &ArrowSchema,
+        index: usize,
+    ) -> Result<(), ImportError>
+    where
+        Child: ImportLayout<'array>,
+    {
+        let children = usize::try_from(Self::CHILDREN).expect("child count must fit in usize");
+        assert!(index < children, "child index is out of bounds");
+
+        // SAFETY: Common validation and the caller guarantee a valid child
+        // pointer array with `children` entries.
+        let schema_children = unsafe { slice::from_raw_parts(schema.children, children) };
+        let child_schema_pointer = schema_children[index];
+        if child_schema_pointer.is_null() {
+            return Err(ImportError::MissingSchemaChildren);
+        }
+        // SAFETY: The caller guarantees that the child schema is valid for the
+        // duration of this validation.
+        let child_schema = unsafe { &*child_schema_pointer };
+
+        // SAFETY: The child schema is covered by the caller's Arrow C Data
+        // guarantees.
+        unsafe { Child::validate_schema(child_schema) }
     }
 
     /// Imports a child memory layout at `index`.
@@ -223,7 +396,6 @@ trait ImportLayout<'array>: Sized {
     /// requirements of [`Import::import`] for the child structures.
     unsafe fn import_child<Child>(
         array: &'array ArrowArray,
-        schema: &ArrowSchema,
         index: usize,
     ) -> Result<Child, ImportError>
     where
@@ -243,20 +415,9 @@ trait ImportLayout<'array>: Sized {
         // the parent for `'array`.
         let child_array: &'array ArrowArray = unsafe { &*child_array_pointer };
 
-        // SAFETY: Common validation and the caller guarantee a valid child
-        // pointer array with `children` entries.
-        let schema_children = unsafe { slice::from_raw_parts(schema.children, children) };
-        let child_schema_pointer = schema_children[index];
-        if child_schema_pointer.is_null() {
-            return Err(ImportError::MissingSchemaChildren);
-        }
-        // SAFETY: The caller guarantees that the child schema is valid while
-        // the parent schema is borrowed.
-        let child_schema = unsafe { &*child_schema_pointer };
-
-        // SAFETY: The child structures are covered by the caller's Arrow C
-        // Data guarantees and retained by their respective parents.
-        unsafe { Child::import_layout(child_array, child_schema) }
+        // SAFETY: The child array is covered by the caller's Arrow C Data
+        // guarantees and retained by its parent.
+        unsafe { Child::import_array(child_array) }
     }
 }
 
@@ -265,11 +426,16 @@ where
     T: ArrayItem,
     T::Memory<SliceBuffer<'array>>: ImportLayout<'array>,
 {
-    unsafe fn import(array: &'array ArrowArray, schema: &ArrowSchema) -> Result<Self, ImportError> {
-        // SAFETY: The caller upholds the requirements of `Import::import`.
-        let memory = unsafe {
-            <T::Memory<SliceBuffer<'array>> as ImportLayout>::import_layout(array, schema)
-        }?;
+    unsafe fn validate_schema(schema: &ArrowSchema) -> Result<(), ImportError> {
+        // SAFETY: The caller upholds the requirements of this method.
+        unsafe { <T::Memory<SliceBuffer<'array>> as ImportLayout>::validate_schema(schema) }?;
+        Ok(())
+    }
+
+    unsafe fn import_array(array: &'array ArrowArray) -> Result<Self, ImportError> {
+        // SAFETY: The caller upholds the requirements of this method.
+        let memory =
+            unsafe { <T::Memory<SliceBuffer<'array>> as ImportLayout>::import_array(array) }?;
         Ok(Self::from_buffer(memory))
     }
 }
@@ -320,12 +486,15 @@ pub enum ImportError {
         /// Buffer count supplied by the producer.
         count: i64,
     },
-    /// The Arrow array or schema has an unexpected number of children.
-    UnexpectedChildCount {
+    /// The Arrow array has an unexpected number of children.
+    UnexpectedArrayChildCount {
         /// Array child count supplied by the producer.
-        array: i64,
+        count: i64,
+    },
+    /// The Arrow schema has an unexpected number of children.
+    UnexpectedSchemaChildCount {
         /// Schema child count supplied by the producer.
-        schema: i64,
+        count: i64,
     },
     /// The Arrow array or schema contains an unexpected dictionary.
     UnexpectedDictionary,
@@ -405,10 +574,12 @@ impl fmt::Display for ImportError {
             Self::UnexpectedBufferCount { count } => {
                 write!(f, "Arrow array buffer count ({count}) does not match")
             }
-            Self::UnexpectedChildCount { array, schema } => write!(
-                f,
-                "Arrow child counts do not match the imported layout: array {array}, schema {schema}"
-            ),
+            Self::UnexpectedArrayChildCount { count } => {
+                write!(f, "Arrow array child count ({count}) does not match")
+            }
+            Self::UnexpectedSchemaChildCount { count } => {
+                write!(f, "Arrow schema child count ({count}) does not match")
+            }
             Self::UnexpectedDictionary => {
                 write!(f, "Arrow dictionary is not supported for this array")
             }
@@ -438,6 +609,79 @@ impl fmt::Display for ImportError {
                 "Arrow value buffer does not have the required alignment ({alignment})"
             ),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate alloc;
+
+    use alloc::{vec, vec::Vec};
+
+    use narrow::{array::Array, buffer::SliceBuffer, collection::Collection};
+
+    use crate::{Export, ImportError, Importer};
+
+    #[test]
+    fn imports_multiple_arrays_after_releasing_schema() {
+        let first_source = [vec![1_i32, 2], vec![3]]
+            .into_iter()
+            .collect::<Array<Vec<i32>>>();
+        let second_source = [vec![4_i32], vec![5, 6]]
+            .into_iter()
+            .collect::<Array<Vec<i32>>>();
+        let (first_array, schema) = first_source.export().expect("export first array");
+        let (second_array, second_schema) = second_source.export().expect("export second array");
+
+        // SAFETY: The exported schema and its child schema are valid.
+        let importer = unsafe { Importer::<Vec<i32>>::try_new(&schema) }.expect("validate schema");
+        drop(schema);
+        drop(second_schema);
+
+        // SAFETY: Both exported arrays conform to the validated schema and
+        // retain their buffers for the imported borrows.
+        let first: Array<Vec<i32>, SliceBuffer<'_>> =
+            unsafe { importer.import(&first_array) }.expect("import first array");
+        // SAFETY: Both exported arrays conform to the validated schema and
+        // retain their buffers for the imported borrows.
+        let second: Array<Vec<i32>, SliceBuffer<'_>> =
+            unsafe { importer.import(&second_array) }.expect("import second array");
+
+        assert_eq!(first.owned(0), Some(vec![1, 2]));
+        assert_eq!(first.owned(1), Some(vec![3]));
+        assert_eq!(second.owned(0), Some(vec![4]));
+        assert_eq!(second.owned(1), Some(vec![5, 6]));
+    }
+
+    #[test]
+    fn rejects_schema_before_importing_an_array() {
+        let source = [true, false].into_iter().collect::<Array<bool>>();
+        let (_array, schema) = source.export().expect("export array");
+
+        // SAFETY: The exported Boolean schema is valid but does not describe
+        // the requested primitive type.
+        let error = unsafe { Importer::<i32>::try_new(&schema) }.expect_err("mismatched schema");
+
+        assert_eq!(error, ImportError::UnexpectedFormat);
+    }
+
+    #[test]
+    fn validates_nested_child_schemas() {
+        let source = [vec![1_i32, 2]].into_iter().collect::<Array<Vec<i32>>>();
+        let (_array, schema) = source.export().expect("export array");
+        // SAFETY: The exported schema owns a readable one-entry child pointer
+        // array containing a live child schema.
+        let child_pointer = unsafe { *schema.children };
+        // SAFETY: The child pointer refers to a live, writable child schema.
+        let child = unsafe { &mut *child_pointer };
+        child.format = c"g".as_ptr();
+
+        // SAFETY: The schema and child pointers remain valid; the child format
+        // mismatch is validated by the importer.
+        let error =
+            unsafe { Importer::<Vec<i32>>::try_new(&schema) }.expect_err("mismatched child schema");
+
+        assert_eq!(error, ImportError::UnexpectedFormat);
     }
 }
 
