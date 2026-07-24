@@ -3,7 +3,7 @@
 use core::{
     borrow::BorrowMut,
     fmt::{self, Debug},
-    iter,
+    iter::{self, FusedIterator},
 };
 
 use crate::{
@@ -268,6 +268,27 @@ where
             |bits| self.values.len().min(bits.len()),
         )
     }
+}
+
+impl<Value, Values, Bits> DoubleEndedIterator for ValidityIter<Values, Bits>
+where
+    Values: DoubleEndedIterator<Item = Value>,
+    Bits: DoubleEndedIterator<Item = bool>,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let valid = match self.bits.as_mut() {
+            Some(bits) => bits.next_back()?,
+            None => true,
+        };
+        self.values.next_back().map(|value| valid.then_some(value))
+    }
+}
+
+impl<Value, Values, Bits> FusedIterator for ValidityIter<Values, Bits>
+where
+    Values: FusedIterator<Item = Value>,
+    Bits: FusedIterator<Item = bool>,
+{
 }
 
 impl<'collection, T: Collection, Storage: Buffer> IntoIterator
@@ -749,6 +770,30 @@ mod tests {
         let validity = IntoIterator::into_iter(input).collect::<Validity<Vec<_>>>();
         assert_eq!(validity.len(), 4);
         assert_eq!(Collection::iter_views(&validity).collect::<Vec<_>>(), input);
+    }
+
+    #[test]
+    fn iter_double_ended() {
+        let input = [Some(1), None, Some(3), Some(4)];
+        let validity = IntoIterator::into_iter(input).collect::<Validity<Vec<_>>>();
+        assert_eq!(
+            validity.iter_views().rev().collect::<Vec<_>>(),
+            [Some(4), Some(3), None, Some(1)]
+        );
+
+        let implicit = Validity::<Vec<i32>>::from_collection(alloc::vec![1, 2, 3]);
+        assert_eq!(
+            implicit.into_iter_owned().rev().collect::<Vec<_>>(),
+            [Some(3), Some(2), Some(1)]
+        );
+    }
+
+    #[test]
+    fn iter_is_fused() {
+        fn assert_fused<I: FusedIterator>(_: I) {}
+
+        let validity = Validity::<Vec<i32>>::from_collection(alloc::vec![1, 2, 3]);
+        assert_fused(validity.into_iter_owned());
     }
 
     #[test]

@@ -1,6 +1,6 @@
 //! An iterator that unpacks boolean values.
 
-use core::borrow::Borrow;
+use core::{borrow::Borrow, iter::FusedIterator, ops::Range};
 
 /// An iterator that unpacks boolean values from an iterator (`I`) over items
 /// (`T`) that can be borrowed as bytes, by interpreting the bits of these bytes
@@ -17,10 +17,10 @@ where
 {
     /// The iterator over the bytes storing packed bits.
     iter: I,
-    /// The popped byte yielding bits.
-    byte: Option<u8>,
-    /// The mask selecting bits from the popped byte.
-    mask: u8,
+    /// A byte and the range of its bits remaining at the front.
+    front: Option<(u8, Range<u8>)>,
+    /// A byte and the range of its bits remaining at the back.
+    back: Option<(u8, Range<u8>)>,
 }
 
 impl<I, T> Iterator for BitUnpacked<I, T>
@@ -32,36 +32,37 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        // Check if we need to fetch the next byte from the inner iterator.
-        if self.mask == 0x01 {
-            self.byte = self.iter.next().map(|item| *item.borrow());
+        if let Some(front) = self.front.as_mut()
+            && let Some(bit) = front.1.next()
+        {
+            return Some(front.0 & (1 << bit) != 0);
+        }
+        self.front = None;
+
+        if let Some(item) = self.iter.next() {
+            let byte = *item.borrow();
+            self.front = Some((byte, 1..8));
+            return Some(byte & 1 != 0);
         }
 
-        // If we have a byte there are still boolean values to yield.
-        self.byte.map(|byte| {
-            let next = (byte & self.mask) != 0;
-            self.mask = self.mask.rotate_left(1);
-            next
-        })
+        if let Some(back) = self.back.as_mut()
+            && let Some(bit) = back.1.next()
+        {
+            return Some(back.0 & (1 << bit) != 0);
+        }
+        self.back = None;
+        None
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (lower, upper) = self.iter.size_hint();
 
-        // Bits not yet yielded from the currently buffered byte. The mask
-        // rotates back to the least-significant bit when a byte is exhausted,
-        // so a rotated mask indicates bits remaining in the buffered byte.
-        let buffered = if self.mask == 0x01 {
-            0
-        } else {
-            8_usize.strict_sub(
-                self.mask
-                    .trailing_zeros()
-                    .try_into()
-                    .expect("bit count fits in usize"),
-            )
-        };
+        let buffered = self
+            .front
+            .as_ref()
+            .map_or(0, |front| front.1.len())
+            .strict_add(self.back.as_ref().map_or(0, |back| back.1.len()));
 
         // 8 items are returned per one item in the inner iterator, plus the
         // bits buffered from a partially yielded byte.
@@ -76,11 +77,48 @@ where
     // todo(mb): advance_by, nth
 }
 
+impl<I, T> DoubleEndedIterator for BitUnpacked<I, T>
+where
+    I: DoubleEndedIterator<Item = T>,
+    T: Borrow<u8>,
+{
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if let Some(back) = self.back.as_mut()
+            && let Some(bit) = back.1.next_back()
+        {
+            return Some(back.0 & (1 << bit) != 0);
+        }
+        self.back = None;
+
+        if let Some(item) = self.iter.next_back() {
+            let byte = *item.borrow();
+            self.back = Some((byte, 0..7));
+            return Some(byte & (1 << 7) != 0);
+        }
+
+        if let Some(front) = self.front.as_mut()
+            && let Some(bit) = front.1.next_back()
+        {
+            return Some(front.0 & (1 << bit) != 0);
+        }
+        self.front = None;
+        None
+    }
+}
+
 // If the inner iterator is ExactSizeIterator, the bounds reported by
 // the size hint of this iterator are exact.
 impl<I, T> ExactSizeIterator for BitUnpacked<I, T>
 where
     I: ExactSizeIterator<Item = T>,
+    T: Borrow<u8>,
+{
+}
+
+impl<I, T> FusedIterator for BitUnpacked<I, T>
+where
+    I: FusedIterator<Item = T>,
     T: Borrow<u8>,
 {
 }
@@ -97,8 +135,8 @@ where
     {
         BitUnpacked {
             iter: self.into_iter(),
-            byte: None,
-            mask: 0x01,
+            front: None,
+            back: None,
         }
     }
 }
@@ -149,5 +187,21 @@ mod tests {
             assert_eq!(iter.size_hint(), (remaining, Some(remaining)));
         }
         assert_eq!(iter.size_hint(), (0, Some(0)));
+    }
+
+    #[test]
+    fn double_ended() {
+        let mut iter = [0b1000_0001, 0b0100_0010].iter().bit_unpacked();
+        assert_eq!(iter.next(), Some(true));
+        assert_eq!(iter.next_back(), Some(false));
+        assert_eq!(iter.next(), Some(false));
+        assert_eq!(iter.next_back(), Some(true));
+        assert_eq!(iter.len(), 12);
+        assert_eq!(
+            iter.rev().collect::<Vec<_>>(),
+            [
+                false, false, false, false, true, false, true, false, false, false, false, false
+            ]
+        );
     }
 }

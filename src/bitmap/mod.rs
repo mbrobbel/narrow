@@ -709,6 +709,10 @@ mod tests {
         assert_eq!(bitmap.iter_views().filter(|x| !*x).count(), 2);
         assert_eq!(bitmap.iter_views().filter(|x| *x).count(), 1);
         assert_eq!(
+            bitmap.iter_views().rev().collect::<Vec<_>>(),
+            [false, true, false]
+        );
+        assert_eq!(
             IntoIterator::into_iter(bitmap).collect::<Vec<_>>(),
             [false, true, false]
         );
