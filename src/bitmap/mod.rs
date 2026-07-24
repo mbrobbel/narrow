@@ -464,6 +464,10 @@ impl<Storage: Buffer<For<u8>: CollectionAllocIn>> CollectionAllocIn for Bitmap<S
 impl<Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> CollectionRealloc
     for Bitmap<Storage>
 {
+    fn allocator(&self) -> Self::Alloc {
+        self.buffer.allocator()
+    }
+
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
         if let Some(bits) = additional.checked_sub(self.trailing_bits()) {
             self.buffer.try_reserve(bytes_for_bits(bits))?;

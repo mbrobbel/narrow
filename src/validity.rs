@@ -1,4 +1,4 @@
-//! Nullable data with a validity bitmap.
+//! Nullable data with an optional validity bitmap.
 
 use core::{
     borrow::BorrowMut,
@@ -16,11 +16,10 @@ use crate::{
     length::Length,
 };
 
-/// Nullable data with a validity bitmap.
+/// Nullable data with an optional validity bitmap.
 ///
-/// Store a [`Collection`] `T` with a validity [`Bitmap`] that indicates the
-/// validity (non-nullness) or invalidity (nullness) of items in the
-/// collection.
+/// Stores a [`Collection`] `T` and an optional validity [`Bitmap`]. An omitted
+/// bitmap means every item in the collection is valid.
 ///
 /// `Storage` is the [`Buffer`] of the [`Bitmap`].
 /// A panicking extension leaves committed chunks visible. The next extension
@@ -48,15 +47,8 @@ pub struct Validity<T: Collection, Storage: Buffer = VecBuffer> {
     /// Collection that may contain null elements.
     collection: T,
 
-    /// Backing storage for the validity bitmap.
-    ///
-    /// This bitmap is empty while `implicit` is `true`. Keeping its storage
-    /// allows a growable collection to materialize the bitmap with the same
-    /// allocator.
-    bitmap: Bitmap<Storage>,
-
-    /// Whether every item is valid without an explicit bitmap.
-    implicit: bool,
+    /// Explicit validity bitmap, or [`None`] when every item is valid.
+    bitmap: Option<Bitmap<Storage>>,
 }
 
 /// Error returned by [`Validity::try_from_parts`].
@@ -119,8 +111,7 @@ impl<T: Collection, Storage: Buffer> Validity<T, Storage> {
         if collection_len == bitmap_len {
             Ok(Self {
                 collection,
-                bitmap,
-                implicit: false,
+                bitmap: Some(bitmap),
             })
         } else {
             Err(ValidityError::LengthMismatch {
@@ -148,11 +139,9 @@ impl<T: Collection, Storage: Buffer> Validity<T, Storage> {
     /// ```
     #[must_use]
     pub fn into_parts(self) -> (T, Option<Bitmap<Storage>>) {
-        (self.collection, (!self.implicit).then_some(self.bitmap))
+        (self.collection, self.bitmap)
     }
-}
 
-impl<T: Collection, Storage: Buffer<For<u8>: Default>> Validity<T, Storage> {
     /// Constructs a [`Validity`] whose items are all valid without storing a
     /// bitmap.
     ///
@@ -172,8 +161,7 @@ impl<T: Collection, Storage: Buffer<For<u8>: Default>> Validity<T, Storage> {
     pub fn from_collection(collection: T) -> Self {
         Self {
             collection,
-            bitmap: Bitmap::default(),
-            implicit: true,
+            bitmap: None,
         }
     }
 }
@@ -190,7 +178,7 @@ impl<T: Collection, Storage: Buffer> ValidityBitmap for Validity<T, Storage> {
     type Storage = Storage;
 
     fn bitmap_ref(&self) -> Option<&Bitmap<Self::Storage>> {
-        (!self.implicit).then_some(&self.bitmap)
+        self.bitmap.as_ref()
     }
 }
 
@@ -202,17 +190,15 @@ where
         f.debug_struct("Validity")
             .field("collection", &self.collection)
             .field("bitmap", &self.bitmap)
-            .field("implicit", &self.implicit)
             .finish()
     }
 }
 
-impl<T: Default + Collection, Storage: Buffer<For<u8>: Default>> Default for Validity<T, Storage> {
+impl<T: Default + Collection, Storage: Buffer> Default for Validity<T, Storage> {
     fn default() -> Self {
         Self {
             collection: Default::default(),
-            bitmap: Bitmap::default(),
-            implicit: false,
+            bitmap: None,
         }
     }
 }
@@ -226,11 +212,9 @@ impl<'collection, T: AsView<'collection>> AsView<'collection> for Option<T> {
 
 impl<T: Collection, Storage: Buffer> Length for Validity<T, Storage> {
     fn len(&self) -> usize {
-        if self.implicit {
-            self.collection.len()
-        } else {
-            self.bitmap.len()
-        }
+        self.bitmap
+            .as_ref()
+            .map_or_else(|| self.collection.len(), Length::len)
     }
 }
 
@@ -298,11 +282,7 @@ impl<'collection, T: Collection, Storage: Buffer> IntoIterator
     fn into_iter(self) -> Self::IntoIter {
         ValidityIter {
             values: self.collection.iter_views(),
-            bits: if self.implicit {
-                None
-            } else {
-                Some(self.bitmap.iter_views())
-            },
+            bits: self.bitmap.as_ref().map(IntoIterator::into_iter),
         }
     }
 }
@@ -316,7 +296,7 @@ impl<T: Collection, Storage: Buffer> IntoIterator for Validity<T, Storage> {
     fn into_iter(self) -> Self::IntoIter {
         ValidityIter {
             values: self.collection.into_iter_owned(),
-            bits: (!self.implicit).then(|| self.bitmap.into_iter_owned()),
+            bits: self.bitmap.map(Collection::into_iter_owned),
         }
     }
 }
@@ -358,6 +338,37 @@ impl<T: Collection, Storage: Buffer> Collection for Validity<T, Storage> {
 }
 
 impl<
+    T: CollectionRealloc,
+    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc<Alloc = T::Alloc>>,
+> Validity<T, Storage>
+{
+    /// Materializes an explicit all-valid bitmap with the collection's
+    /// allocator.
+    fn materialize_bitmap(&mut self) {
+        if self.bitmap.is_none() {
+            let bitmap = Bitmap::<Storage>::from_iter_in(
+                iter::repeat_n(true, self.collection.len()),
+                self.collection.allocator(),
+            );
+            self.bitmap = Some(bitmap);
+        }
+    }
+
+    /// Tries to materialize an explicit all-valid bitmap with the collection's
+    /// allocator.
+    fn try_materialize_bitmap(&mut self) -> Result<(), AllocError> {
+        if self.bitmap.is_none() {
+            let bitmap = Bitmap::<Storage>::try_from_iter_in(
+                iter::repeat_n(true, self.collection.len()),
+                self.collection.allocator(),
+            )?;
+            self.bitmap = Some(bitmap);
+        }
+        Ok(())
+    }
+}
+
+impl<
     U: Default,
     T: CollectionAlloc<Owned = U>,
     Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionAlloc + CollectionRealloc>,
@@ -373,8 +384,7 @@ impl<
             .collect();
         Self {
             collection,
-            bitmap,
-            implicit: false,
+            bitmap: Some(bitmap),
         }
     }
 }
@@ -386,16 +396,17 @@ const VALIDITY_CHUNK: usize = 1024;
 impl<
     U: Default,
     T: CollectionRealloc<Owned = U>,
-    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>,
+    Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc<Alloc = T::Alloc>>,
 > Extend<Option<U>> for Validity<T, Storage>
 {
     fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
-        if self.implicit {
-            self.bitmap
-                .extend(iter::repeat_n(true, self.collection.len()));
-            self.implicit = false;
-        }
-        self.collection.truncate(self.bitmap.len());
+        self.materialize_bitmap();
+        let bitmap_len = self
+            .bitmap
+            .as_ref()
+            .expect("validity bitmap is materialized")
+            .len();
+        self.collection.truncate(bitmap_len);
 
         // Buffer validity and flush it to the bitmap per chunk, instead of
         // extending the bitmap bit by bit: bulk bitmap extension uses the bit
@@ -416,7 +427,10 @@ impl<
                     })
                     .map(Option::unwrap_or_default),
             );
-            self.bitmap.extend(validity.iter().take(count));
+            self.bitmap
+                .as_mut()
+                .expect("validity bitmap is materialized")
+                .extend(validity.iter().take(count));
             if count < VALIDITY_CHUNK {
                 break;
             }
@@ -436,8 +450,7 @@ impl<
         let bitmap = Bitmap::<Storage>::with_capacity_in(capacity, alloc);
         Self {
             collection,
-            bitmap,
-            implicit: false,
+            bitmap: Some(bitmap),
         }
     }
 
@@ -454,8 +467,7 @@ impl<
         );
         Self {
             collection,
-            bitmap,
-            implicit: false,
+            bitmap: Some(bitmap),
         }
     }
 
@@ -464,8 +476,7 @@ impl<
         let bitmap = Bitmap::<Storage>::try_with_capacity_in(capacity, alloc)?;
         Ok(Self {
             collection,
-            bitmap,
-            implicit: false,
+            bitmap: Some(bitmap),
         })
     }
 
@@ -486,14 +497,17 @@ impl<
     Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc<Alloc = T::Alloc>>,
 > CollectionRealloc for Validity<T, Storage>
 {
+    fn allocator(&self) -> Self::Alloc {
+        self.collection.allocator()
+    }
+
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+        self.try_materialize_bitmap()?;
         self.collection.try_reserve(additional)?;
-        if self.implicit {
-            self.bitmap
-                .try_extend(iter::repeat_n(true, self.collection.len()))?;
-            self.implicit = false;
-        }
-        self.bitmap.try_reserve(additional)
+        self.bitmap
+            .as_mut()
+            .expect("validity bitmap is materialized")
+            .try_reserve(additional)
     }
 
     fn try_extend<I: IntoIterator<Item = Self::Owned>>(
@@ -501,11 +515,7 @@ impl<
         iter: I,
     ) -> Result<(), AllocError> {
         let len = self.len();
-        if self.implicit {
-            self.bitmap
-                .try_extend(iter::repeat_n(true, self.collection.len()))?;
-            self.implicit = false;
-        }
+        self.try_materialize_bitmap()?;
         self.collection.truncate(len);
 
         let mut items = iter.into_iter();
@@ -524,7 +534,12 @@ impl<
                 self.truncate(len);
                 return Err(error);
             }
-            if let Err(error) = self.bitmap.try_extend(validity.into_iter().take(count)) {
+            if let Err(error) = self
+                .bitmap
+                .as_mut()
+                .expect("validity bitmap is materialized")
+                .try_extend(validity.into_iter().take(count))
+            {
                 self.truncate(len);
                 return Err(error);
             }
@@ -536,18 +551,17 @@ impl<
     }
 
     fn reserve(&mut self, additional: usize) {
-        if self.implicit {
-            self.bitmap
-                .extend(iter::repeat_n(true, self.collection.len()));
-            self.implicit = false;
-        }
-        self.bitmap.reserve(additional);
+        self.materialize_bitmap();
+        self.bitmap
+            .as_mut()
+            .expect("validity bitmap is materialized")
+            .reserve(additional);
         self.collection.reserve(additional);
     }
 
     fn truncate(&mut self, len: usize) {
-        if !self.implicit {
-            self.bitmap.truncate(len);
+        if let Some(bitmap) = self.bitmap.as_mut() {
+            bitmap.truncate(len);
         }
         self.collection.truncate(len);
     }
@@ -558,8 +572,155 @@ mod tests {
     extern crate alloc;
 
     use alloc::vec::Vec;
+    use core::{
+        borrow::{Borrow, BorrowMut},
+        slice,
+    };
 
     use super::*;
+    use crate::fixed_size::FixedSize;
+
+    /// Non-default allocator handle used to verify lazy bitmap allocation.
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    struct TestAllocator(u8);
+
+    /// Buffer whose collections retain a [`TestAllocator`].
+    #[derive(Clone, Copy, Debug, Default)]
+    struct TestBuffer;
+
+    impl Buffer for TestBuffer {
+        type For<T: FixedSize> = TestCollection<T>;
+    }
+
+    /// Growable test collection with an explicit allocator handle.
+    #[derive(Debug)]
+    struct TestCollection<T> {
+        /// Stored values.
+        values: Vec<T>,
+        /// Allocator used to create the collection.
+        allocator: TestAllocator,
+    }
+
+    impl<T> Borrow<[T]> for TestCollection<T> {
+        fn borrow(&self) -> &[T] {
+            &self.values
+        }
+    }
+
+    impl<T> BorrowMut<[T]> for TestCollection<T> {
+        fn borrow_mut(&mut self) -> &mut [T] {
+            &mut self.values
+        }
+    }
+
+    impl<T: FixedSize> Collection for TestCollection<T> {
+        type View<'collection>
+            = T
+        where
+            Self: 'collection;
+        type Owned = T;
+
+        fn view(&self, index: usize) -> Option<Self::View<'_>> {
+            self.values.get(index).copied()
+        }
+
+        type Iter<'collection>
+            = core::iter::Copied<slice::Iter<'collection, T>>
+        where
+            Self: 'collection;
+
+        fn iter_views(&self) -> Self::Iter<'_> {
+            self.values.iter().copied()
+        }
+
+        type IntoIter = alloc::vec::IntoIter<T>;
+
+        fn into_iter_owned(self) -> Self::IntoIter {
+            self.values.into_iter()
+        }
+    }
+
+    impl<T> Length for TestCollection<T> {
+        fn len(&self) -> usize {
+            self.values.len()
+        }
+    }
+
+    impl<T: FixedSize> CollectionAllocIn for TestCollection<T> {
+        type Alloc = TestAllocator;
+
+        fn with_capacity_in(capacity: usize, allocator: Self::Alloc) -> Self {
+            Self {
+                values: Vec::with_capacity(capacity),
+                allocator,
+            }
+        }
+
+        fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(
+            iter: I,
+            allocator: Self::Alloc,
+        ) -> Self {
+            Self {
+                values: iter.into_iter().collect(),
+                allocator,
+            }
+        }
+
+        fn try_with_capacity_in(
+            capacity: usize,
+            allocator: Self::Alloc,
+        ) -> Result<Self, AllocError> {
+            let mut values = Vec::new();
+            values.try_reserve_exact(capacity).map_err(|_| AllocError)?;
+            Ok(Self { values, allocator })
+        }
+
+        fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
+            iter: I,
+            allocator: Self::Alloc,
+        ) -> Result<Self, AllocError> {
+            let items = iter.into_iter();
+            let (capacity, _) = items.size_hint();
+            let mut collection = Self::try_with_capacity_in(capacity, allocator)?;
+            collection.try_extend(items)?;
+            Ok(collection)
+        }
+    }
+
+    impl<T: FixedSize> Extend<T> for TestCollection<T> {
+        fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+            self.values.extend(iter);
+        }
+    }
+
+    impl<T: FixedSize> CollectionRealloc for TestCollection<T> {
+        fn allocator(&self) -> Self::Alloc {
+            self.allocator.clone()
+        }
+
+        fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+            self.values.try_reserve(additional).map_err(|_| AllocError)
+        }
+
+        fn try_extend<I: IntoIterator<Item = Self::Owned>>(
+            &mut self,
+            iter: I,
+        ) -> Result<(), AllocError> {
+            let items = iter.into_iter();
+            let (additional, _) = items.size_hint();
+            self.try_reserve(additional)?;
+            self.values.extend(items);
+            Ok(())
+        }
+
+        fn reserve(&mut self, additional: usize) {
+            self.values.reserve(additional);
+        }
+
+        fn truncate(&mut self, len: usize) {
+            self.values.truncate(len);
+        }
+    }
 
     #[test]
     fn from_iter() {
@@ -627,6 +788,18 @@ mod tests {
             validity.iter_views().collect::<Vec<_>>(),
             [Some(1), Some(2), None, Some(4)]
         );
+    }
+
+    #[test]
+    fn materializes_with_the_collection_allocator() {
+        let allocator = TestAllocator(7);
+        let collection = TestCollection::from_iter_in([1_i32, 2], allocator.clone());
+        let mut validity = Validity::<_, TestBuffer>::from_collection(collection);
+
+        validity.extend([None, Some(4)]);
+
+        let (_, bitmap) = validity.into_parts();
+        assert_eq!(bitmap.expect("materialized bitmap").allocator(), allocator);
     }
 
     #[test]

@@ -156,8 +156,8 @@ impl Nullability for Nullable {
     /// Nullable items are wrapped in an [`Option`].
     type Item<T> = Option<T>;
 
-    /// Nullable collections are wrapped together with a
-    /// [`crate::bitmap::Bitmap`].
+    /// Nullable collections are wrapped with optional validity bitmap
+    /// storage.
     type Collection<T: Collection, Storage: Buffer> = Validity<T, Storage>;
 
     fn map<T, U, F: FnOnce(T) -> U>(item: Self::Item<T>, f: F) -> Self::Item<U> {

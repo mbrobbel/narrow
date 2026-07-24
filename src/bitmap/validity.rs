@@ -3,7 +3,7 @@
 use super::Bitmap;
 use crate::{buffer::Buffer, collection::Collection, length::Length};
 
-/// A bitmap storing the validity of elements in a collection.
+/// Optional bitmap storage for the validity of elements in a collection.
 ///
 /// Layouts that carry nullability all expose the same semantic questions even
 /// when their value buffers differ. This trait centralizes those queries so

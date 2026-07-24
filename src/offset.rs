@@ -492,6 +492,10 @@ impl<
 where
     Storage::For<OffsetItem>: CollectionRealloc<Alloc = T::Alloc>,
 {
+    fn allocator(&self) -> Self::Alloc {
+        self.data.allocator()
+    }
+
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
         // This is only enough for collections with len 1
         self.data.try_reserve(additional)?;

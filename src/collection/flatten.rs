@@ -207,6 +207,10 @@ impl<C: CollectionAllocIn, const N: usize> CollectionAllocIn for Flatten<C, N> {
 }
 
 impl<C: CollectionRealloc, const N: usize> CollectionRealloc for Flatten<C, N> {
+    fn allocator(&self) -> Self::Alloc {
+        self.0.allocator()
+    }
+
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
         let child_additional = additional.checked_mul(N).ok_or(AllocError)?;
         self.0.try_reserve(child_additional)

@@ -248,6 +248,31 @@ mod tests {
     }
 
     #[test]
+    fn exports_nullable_primitive_without_validity_bitmap() {
+        let values = Arc::<[i32]>::from([1, 2, 3]);
+        let weak = Arc::downgrade(&values);
+        let values_data = values.as_ptr();
+        let validity = Validity::<_, ArcBuffer>::from_collection(values);
+        let narrow_array: Array<Option<i32>, ArcBuffer> =
+            Array::from_buffer(FixedSizePrimitive::from_buffer(validity));
+
+        let (array, schema) = narrow_array.export().expect("export array");
+
+        assert_eq!(array.length, 3);
+        assert_eq!(array.null_count, 0);
+        // SAFETY: The exported array owns a two-entry buffer pointer array.
+        let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
+        assert!(buffers[0].is_null());
+        assert_eq!(buffers[1], values_data.cast());
+        assert_eq!(schema.flags, ARROW_FLAG_NULLABLE);
+        assert!(weak.upgrade().is_some());
+
+        drop(array);
+        assert!(weak.upgrade().is_none());
+        drop(schema);
+    }
+
+    #[test]
     fn rejects_non_zero_nullable_primitive_offset() {
         let bitmap = Bitmap::<ArrayBuffer<3>>::try_from_parts([0b0001_0100, 0, 0], 3, 2)
             .expect("valid bitmap");

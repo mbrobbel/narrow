@@ -186,6 +186,10 @@ impl<T: ArrayItem, Storage: Buffer> CollectionRealloc for Array<T, Storage>
 where
     T::Memory<Storage>: CollectionRealloc,
 {
+    fn allocator(&self) -> Self::Alloc {
+        self.0.allocator()
+    }
+
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
         self.0.try_reserve(additional)
     }

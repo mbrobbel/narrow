@@ -182,6 +182,10 @@ impl<Nulls: Nullability, Storage: Buffer> CollectionRealloc for Boolean<Nulls, S
 where
     Nulls::Collection<Bitmap<Storage>, Storage>: CollectionRealloc,
 {
+    fn allocator(&self) -> Self::Alloc {
+        self.0.allocator()
+    }
+
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
         self.0.try_reserve(additional)
     }
