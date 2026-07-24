@@ -5,21 +5,22 @@ use core::{ffi::CStr, mem, slice};
 use narrow::{
     buffer::SliceBuffer,
     layout::{ArrayItem, variable_size_list::VariableSizeList},
-    nullability::NonNullable,
     offset::Offsets,
 };
 
 use crate::{ArrowArray, ArrowListOffset, ArrowSchema};
 
-use super::{ImportError, ImportLayout};
+use super::{ImportError, ImportLayout, ImportNullability};
 
-impl<'array, T, OffsetItem> ImportLayout<'array>
-    for VariableSizeList<T, NonNullable, OffsetItem, SliceBuffer<'array>>
+impl<'array, T, Nulls, OffsetItem> ImportLayout<'array>
+    for VariableSizeList<T, Nulls, OffsetItem, SliceBuffer<'array>>
 where
     T: ArrayItem,
+    Nulls: ImportNullability<'array>,
     OffsetItem: ArrowListOffset,
     T::Memory<SliceBuffer<'array>>: ImportLayout<'array>,
 {
+    const FLAGS: i64 = Nulls::FLAGS;
     const BUFFERS: i64 = 2;
     const CHILDREN: i64 = 1;
 
@@ -57,7 +58,10 @@ where
         let offsets = Offsets::try_from_parts(child, offset_values)
             .map_err(|error| ImportError::InvalidOffsets { error })?;
 
-        Ok(Self::from_buffer(offsets))
+        // SAFETY: Common validation and the caller guarantee a valid optional
+        // validity buffer for the imported offsets collection.
+        let collection = unsafe { Nulls::wrap(array, offsets) }?;
+        Ok(Self::from_buffer(collection))
     }
 }
 
@@ -70,10 +74,12 @@ mod tests {
 
     use narrow::{
         array::Array,
+        bitmap::{Bitmap, ValidityBitmap},
         buffer::{ArcBuffer, BufferRef, SliceBuffer},
         collection::{ChildRef, Collection},
         layout::{fixed_size_primitive::FixedSizePrimitive, variable_size_list::VariableSizeList},
         offset::{Offsets, OffsetsError},
+        validity::Validity,
     };
 
     use crate::{
@@ -120,6 +126,62 @@ mod tests {
         assert!(values_weak.upgrade().is_none());
         assert!(offsets_weak.upgrade().is_none());
         drop(schema);
+    }
+
+    #[test]
+    fn imports_nullable_variable_size_list_buffers_without_copying() {
+        let value_storage = Arc::<[i32]>::from([1, 2, 3]);
+        let offset_storage = Arc::<[i32]>::from([0, 2, 3]);
+        let validity_storage = Arc::<[u8]>::from([0b0000_0001]);
+        let values_data = value_storage.as_ptr();
+        let offsets_data = offset_storage.as_ptr();
+        let validity_data = validity_storage.as_ptr();
+        let values = FixedSizePrimitive::from_buffer(value_storage);
+        let offsets = Offsets::try_from_parts(values, offset_storage).expect("valid offsets");
+        let bitmap =
+            Bitmap::<ArcBuffer>::try_from_parts(validity_storage, 2, 0).expect("valid bitmap");
+        let validity = Validity::try_from_parts(offsets, bitmap).expect("valid parts");
+        let source: Array<Option<Vec<i32>>, ArcBuffer> =
+            Array::from_buffer(VariableSizeList::from_buffer(validity));
+        let (mut array, schema) = source.export().expect("export array");
+        array.null_count = -1;
+
+        // SAFETY: The exported structures retain valid offsets, child, and
+        // validity buffers for the lifetime of the imported array.
+        let imported: Array<Option<Vec<i32>>, SliceBuffer<'_>> =
+            unsafe { Import::import(&array, &schema) }.expect("import array");
+
+        let imported_validity = imported.buffer_ref().buffer_ref();
+        let imported_offsets = imported_validity.child_ref();
+        let offset_values: &[i32] = imported_offsets.buffer_ref().borrow();
+        let imported_values: &[i32] = imported_offsets.child_ref().buffer_ref().borrow();
+        let imported_bitmap = imported_validity.bitmap_ref().expect("explicit validity");
+        let imported_validity_values: &[u8] = imported_bitmap.buffer_ref().borrow();
+        assert_eq!(offset_values.as_ptr(), offsets_data);
+        assert_eq!(imported_values.as_ptr(), values_data);
+        assert_eq!(imported_validity_values.as_ptr(), validity_data);
+        assert_eq!(imported.owned(0), Some(Some(vec![1, 2])));
+        assert_eq!(imported.owned(1), Some(None));
+    }
+
+    #[test]
+    fn imports_nullable_variable_size_list_with_implicit_validity() {
+        let values = FixedSizePrimitive::from_buffer(vec![1, 2, 3]);
+        let offsets = Offsets::try_from_parts(values, vec![0, 2, 3]).expect("valid offsets");
+        let validity = Validity::from_collection(offsets);
+        let source: Array<Option<Vec<i32>>> =
+            Array::from_buffer(VariableSizeList::from_buffer(validity));
+        let (array, schema) = source.export().expect("export array");
+
+        // SAFETY: The exported structures retain valid offsets and child
+        // buffers for the lifetime of the imported array.
+        let imported: Array<Option<Vec<i32>>, SliceBuffer<'_>> =
+            unsafe { Import::import(&array, &schema) }.expect("import array");
+
+        let imported_validity = imported.buffer_ref().buffer_ref();
+        assert!(imported_validity.bitmap_ref().is_none());
+        assert_eq!(imported.owned(0), Some(Some(vec![1, 2])));
+        assert_eq!(imported.owned(1), Some(Some(vec![3])));
     }
 
     #[test]
