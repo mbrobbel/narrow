@@ -346,10 +346,8 @@ impl<
     /// allocator.
     fn materialize_bitmap(&mut self) {
         if self.bitmap.is_none() {
-            let bitmap = Bitmap::<Storage>::from_iter_in(
-                iter::repeat_n(true, self.collection.len()),
-                self.collection.allocator(),
-            );
+            let bitmap =
+                Bitmap::<Storage>::all_set_in(self.collection.len(), self.collection.allocator());
             self.bitmap = Some(bitmap);
         }
     }
@@ -358,8 +356,8 @@ impl<
     /// allocator.
     fn try_materialize_bitmap(&mut self) -> Result<(), AllocError> {
         if self.bitmap.is_none() {
-            let bitmap = Bitmap::<Storage>::try_from_iter_in(
-                iter::repeat_n(true, self.collection.len()),
+            let bitmap = Bitmap::<Storage>::try_all_set_in(
+                self.collection.len(),
                 self.collection.allocator(),
             )?;
             self.bitmap = Some(bitmap);
