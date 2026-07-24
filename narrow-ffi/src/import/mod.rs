@@ -4,7 +4,7 @@ use core::{ffi::CStr, fmt, slice};
 
 use narrow::{array::Array, buffer::SliceBuffer, layout::ArrayItem, offset::OffsetsError};
 
-use crate::{ArrowArray, ArrowSchema};
+use crate::{ARROW_FLAG_NULLABLE, ArrowArray, ArrowSchema};
 
 /// Borrowed import support for an Arrow C Data array.
 pub trait Import<'array>: Sized {
@@ -26,7 +26,7 @@ pub trait Import<'array>: Sized {
 
 /// A memory layout that can borrow an Arrow C Data array.
 trait ImportLayout<'array>: Sized {
-    /// Expected Arrow schema flags.
+    /// Expected Arrow schema nullable flag.
     const FLAGS: i64 = 0;
     /// Expected number of Arrow array buffers.
     const BUFFERS: i64;
@@ -70,7 +70,7 @@ trait ImportLayout<'array>: Sized {
         if !Self::matches_format(unsafe { CStr::from_ptr(schema.format) }) {
             return Err(ImportError::UnexpectedFormat);
         }
-        if schema.flags != Self::FLAGS {
+        if schema.flags & ARROW_FLAG_NULLABLE != Self::FLAGS {
             return Err(ImportError::UnexpectedFlags {
                 flags: schema.flags,
             });
@@ -84,7 +84,13 @@ trait ImportLayout<'array>: Sized {
                 offset: array.offset,
             });
         }
-        if array.null_count != 0 {
+        // Arrow permits -1 when the null count has not been computed. Known
+        // counts must fit the array, and non-nullable layouts cannot contain
+        // known null items.
+        if array.null_count < -1
+            || array.null_count > array.length
+            || (Self::FLAGS == 0 && array.null_count > 0)
+        {
             return Err(ImportError::UnexpectedNullCount {
                 null_count: array.null_count,
             });
@@ -189,7 +195,7 @@ pub enum ImportError {
     MissingFormat,
     /// The Arrow format does not match the requested Narrow array type.
     UnexpectedFormat,
-    /// The Arrow schema has unsupported flags.
+    /// The Arrow schema nullable flag does not match the imported layout.
     UnexpectedFlags {
         /// Schema flags supplied by the producer.
         flags: i64,
@@ -204,7 +210,7 @@ pub enum ImportError {
         /// Unsupported offset supplied by the producer.
         offset: i64,
     },
-    /// A non-nullable array reports a non-zero null count.
+    /// The Arrow array null count does not match its length or imported layout.
     UnexpectedNullCount {
         /// Null count supplied by the producer.
         null_count: i64,
@@ -272,7 +278,10 @@ impl fmt::Display for ImportError {
             Self::MissingFormat => write!(f, "Arrow schema format is missing"),
             Self::UnexpectedFormat => write!(f, "Arrow schema format does not match"),
             Self::UnexpectedFlags { flags } => {
-                write!(f, "Arrow schema flags ({flags}) are not supported")
+                write!(
+                    f,
+                    "Arrow schema nullable flag in flags ({flags}) does not match"
+                )
             }
             Self::InvalidLength { length } => {
                 write!(f, "Arrow array length ({length}) is invalid")
@@ -281,7 +290,10 @@ impl fmt::Display for ImportError {
                 write!(f, "Arrow array offset ({offset}) is not supported")
             }
             Self::UnexpectedNullCount { null_count } => {
-                write!(f, "non-nullable Arrow array has null count {null_count}")
+                write!(
+                    f,
+                    "Arrow array null count ({null_count}) does not match the imported layout"
+                )
             }
             Self::UnexpectedBufferCount { count } => {
                 write!(f, "Arrow array buffer count ({count}) does not match")

@@ -61,9 +61,11 @@ mod tests {
         array::Array,
         buffer::{ArcBuffer, BufferRef, SliceBuffer},
         layout::fixed_size_primitive::FixedSizePrimitive,
+        length::Length,
     };
 
     use crate::{
+        ARROW_FLAG_NULLABLE,
         export::Export,
         import::{Import, ImportError},
     };
@@ -125,5 +127,85 @@ mod tests {
         };
 
         assert_eq!(error, ImportError::NonZeroOffset { offset: 1 });
+    }
+
+    #[test]
+    fn ignores_unknown_schema_flags() {
+        let source = [1_i32].into_iter().collect::<Array<i32>>();
+        let (array, mut schema) = source.export().expect("export array");
+        schema.flags = 8;
+
+        // SAFETY: The exported structures and value buffer remain valid; only
+        // an unknown schema flag is added to exercise validation.
+        let imported = unsafe {
+            <Array<i32, SliceBuffer<'_>> as Import>::import(&array, &schema)
+                .expect("unknown flags are ignored")
+        };
+        assert_eq!(imported.buffer_ref().len(), 1);
+    }
+
+    #[test]
+    fn rejects_nullable_schema_flag() {
+        let source = [1_i32].into_iter().collect::<Array<i32>>();
+        let (array, mut schema) = source.export().expect("export array");
+        schema.flags = ARROW_FLAG_NULLABLE;
+
+        // SAFETY: The exported structures and value buffer remain valid; only
+        // the schema nullable flag is changed to exercise validation.
+        let error = unsafe {
+            <Array<i32, SliceBuffer<'_>> as Import>::import(&array, &schema)
+                .expect_err("nullable flag does not match")
+        };
+        assert_eq!(
+            error,
+            ImportError::UnexpectedFlags {
+                flags: ARROW_FLAG_NULLABLE
+            }
+        );
+    }
+
+    #[test]
+    fn accepts_unknown_null_count() {
+        let source = [1_i32].into_iter().collect::<Array<i32>>();
+        let (mut array, schema) = source.export().expect("export array");
+        array.null_count = -1;
+
+        // SAFETY: The exported structures and value buffer remain valid; only
+        // the null count is marked unknown as permitted by Arrow.
+        let imported = unsafe {
+            <Array<i32, SliceBuffer<'_>> as Import>::import(&array, &schema)
+                .expect("unknown null count is supported")
+        };
+        assert_eq!(imported.buffer_ref().len(), 1);
+    }
+
+    #[test]
+    fn rejects_invalid_negative_null_count() {
+        let source = [1_i32].into_iter().collect::<Array<i32>>();
+        let (mut array, schema) = source.export().expect("export array");
+        array.null_count = -2;
+
+        // SAFETY: The exported structures and value buffer remain valid; only
+        // the null count is changed to exercise validation.
+        let error = unsafe {
+            <Array<i32, SliceBuffer<'_>> as Import>::import(&array, &schema)
+                .expect_err("invalid negative null count")
+        };
+        assert_eq!(error, ImportError::UnexpectedNullCount { null_count: -2 });
+    }
+
+    #[test]
+    fn rejects_known_nulls_for_non_nullable_layout() {
+        let source = [1_i32].into_iter().collect::<Array<i32>>();
+        let (mut array, schema) = source.export().expect("export array");
+        array.null_count = 1;
+
+        // SAFETY: The exported structures and value buffer remain valid; only
+        // the null count is changed to exercise validation.
+        let error = unsafe {
+            <Array<i32, SliceBuffer<'_>> as Import>::import(&array, &schema)
+                .expect_err("known null does not match")
+        };
+        assert_eq!(error, ImportError::UnexpectedNullCount { null_count: 1 });
     }
 }
