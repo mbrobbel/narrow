@@ -7,6 +7,177 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0](https://github.com/mbrobbel/narrow/compare/narrow-v0.16.0...narrow-v0.17.0) - 2026-07-24
+
+### Added
+
+- support optional validity bitmaps ([#618](https://github.com/mbrobbel/narrow/pull/618))
+- export primitive arrays through Arrow C data ([#558](https://github.com/mbrobbel/narrow/pull/558))
+- add Arrow C data ABI crate ([#557](https://github.com/mbrobbel/narrow/pull/557))
+- expose backing memory ([#556](https://github.com/mbrobbel/narrow/pull/556))
+- allocate variable layouts with handles ([#548](https://github.com/mbrobbel/narrow/pull/548))
+- add fallible collection mutation ([#547](https://github.com/mbrobbel/narrow/pull/547))
+- allocate fixed layouts with handles ([#546](https://github.com/mbrobbel/narrow/pull/546))
+- allocate bitmap and flatten with handles ([#545](https://github.com/mbrobbel/narrow/pull/545))
+- add allocator-aware construction ([#544](https://github.com/mbrobbel/narrow/pull/544))
+- add `Offsets::try_from_parts` and `into_parts` ([#532](https://github.com/mbrobbel/narrow/pull/532))
+- add `Flatten::try_from_parts` and `into_parts` ([#533](https://github.com/mbrobbel/narrow/pull/533))
+- add `Validity::try_from_parts` and `into_parts` ([#531](https://github.com/mbrobbel/narrow/pull/531))
+- add `Bitmap::try_from_parts` and `into_parts` ([#541](https://github.com/mbrobbel/narrow/pull/541))
+- add `CollectionRealloc::truncate` ([#539](https://github.com/mbrobbel/narrow/pull/539))
+- add `Array::from_buffer` and `into_buffer` ([#538](https://github.com/mbrobbel/narrow/pull/538))
+- add `VariableSizeList::from_buffer` and `into_buffer` ([#537](https://github.com/mbrobbel/narrow/pull/537))
+- add `FixedSizeList::from_buffer` and `into_buffer` ([#536](https://github.com/mbrobbel/narrow/pull/536))
+- add `Boolean::from_buffer` and `into_buffer` ([#535](https://github.com/mbrobbel/narrow/pull/535))
+- add `FixedSizePrimitive::from_buffer` and `into_buffer` ([#534](https://github.com/mbrobbel/narrow/pull/534))
+- add `Boolean` layout ([#524](https://github.com/mbrobbel/narrow/pull/524))
+- use rust 1.91 for strict ops, mark no_std ([#470](https://github.com/mbrobbel/narrow/pull/470))
+- add `Flatten` collection ([#459](https://github.com/mbrobbel/narrow/pull/459))
+- borrow nullable variable-size lists ([#629](https://github.com/mbrobbel/narrow/pull/629))
+- borrow nullable Boolean arrays ([#628](https://github.com/mbrobbel/narrow/pull/628))
+- borrow nullable fixed-size lists ([#627](https://github.com/mbrobbel/narrow/pull/627))
+- borrow nullable primitive arrays ([#626](https://github.com/mbrobbel/narrow/pull/626))
+- borrow VariableSizeList arrays from Arrow C data ([#616](https://github.com/mbrobbel/narrow/pull/616))
+- borrow FixedSizeList arrays from Arrow C data ([#615](https://github.com/mbrobbel/narrow/pull/615))
+- borrow Boolean arrays from Arrow C data ([#614](https://github.com/mbrobbel/narrow/pull/614))
+- borrow primitive arrays from Arrow C data ([#611](https://github.com/mbrobbel/narrow/pull/611))
+- export nullable VariableSizeList arrays ([#610](https://github.com/mbrobbel/narrow/pull/610))
+- export VariableSizeList arrays ([#609](https://github.com/mbrobbel/narrow/pull/609))
+- export nullable FixedSizeList arrays ([#607](https://github.com/mbrobbel/narrow/pull/607))
+- export FixedSizeList arrays ([#602](https://github.com/mbrobbel/narrow/pull/602))
+- export nullable Boolean arrays ([#580](https://github.com/mbrobbel/narrow/pull/580))
+- export nullable primitive arrays ([#579](https://github.com/mbrobbel/narrow/pull/579))
+- reject non-zero Arrow array offsets ([#578](https://github.com/mbrobbel/narrow/pull/578))
+- export `Boolean` arrays through Arrow C data ([#577](https://github.com/mbrobbel/narrow/pull/577))
+- `Collection` trait ([#386](https://github.com/mbrobbel/narrow/pull/386))
+- Implement `IntoIterator` for `VariableSizeListArray` ([#186](https://github.com/mbrobbel/narrow/pull/186))
+- implement `IntoIterator` for `UnionArray` ([#184](https://github.com/mbrobbel/narrow/pull/184))
+- [**breaking**] fix `union` array `arrow-rs` conversion ([#166](https://github.com/mbrobbel/narrow/pull/166))
+
+### Fixed
+
+- preserve transparent extension behavior ([#550](https://github.com/mbrobbel/narrow/pull/550))
+- round bitmap capacity without saturation ([#543](https://github.com/mbrobbel/narrow/pull/543))
+- keep `Validity` consistent across panicking extensions ([#526](https://github.com/mbrobbel/narrow/pull/526))
+- reconcile trailing data in `Offsets::extend` ([#540](https://github.com/mbrobbel/narrow/pull/540))
+- make `Bitmap::extend` panic-safe ([#525](https://github.com/mbrobbel/narrow/pull/525))
+- include buffered bits in `BitUnpacked::size_hint` ([#522](https://github.com/mbrobbel/narrow/pull/522))
+- follow Arrow C Data metadata semantics ([#625](https://github.com/mbrobbel/narrow/pull/625))
+- update msrv in `README` to `1.67.0`
+- update msrv in README to 1.66.0
+
+### Other
+
+- *(deps)* bump nixpkgs from `421eebf` to `7525d99` ([#623](https://github.com/mbrobbel/narrow/pull/623))
+- *(deps)* bump rust-overlay from `19a19f3` to `471286a` ([#624](https://github.com/mbrobbel/narrow/pull/624))
+- materialize validity by byte ([#621](https://github.com/mbrobbel/narrow/pull/621))
+- use popcount for validity null counts ([#620](https://github.com/mbrobbel/narrow/pull/620))
+- *(deps)* bump taiki-e/install-action from 2.84.1 to 2.85.0 ([#619](https://github.com/mbrobbel/narrow/pull/619))
+- *(deps)* bump nixpkgs from `a16c3fd` to `421eebf` ([#542](https://github.com/mbrobbel/narrow/pull/542))
+- use rust-overlay for Nix toolchains ([#617](https://github.com/mbrobbel/narrow/pull/617))
+- deploy workspace crate documentation ([#613](https://github.com/mbrobbel/narrow/pull/613))
+- *(deps)* bump taiki-e/install-action from 2.83.2 to 2.84.1 ([#612](https://github.com/mbrobbel/narrow/pull/612))
+- explain bitmap reference design ([#597](https://github.com/mbrobbel/narrow/pull/597))
+- explain physical child design ([#596](https://github.com/mbrobbel/narrow/pull/596))
+- explain variable-size layout design ([#595](https://github.com/mbrobbel/narrow/pull/595))
+- explain fixed-size layout design ([#594](https://github.com/mbrobbel/narrow/pull/594))
+- explain boolean layout design ([#593](https://github.com/mbrobbel/narrow/pull/593))
+- explain array design ([#592](https://github.com/mbrobbel/narrow/pull/592))
+- explain layout trait design ([#591](https://github.com/mbrobbel/narrow/pull/591))
+- explain offset design ([#590](https://github.com/mbrobbel/narrow/pull/590))
+- explain validity design ([#589](https://github.com/mbrobbel/narrow/pull/589))
+- explain nullability design ([#588](https://github.com/mbrobbel/narrow/pull/588))
+- explain bitmap design ([#587](https://github.com/mbrobbel/narrow/pull/587))
+- explain flattening design ([#586](https://github.com/mbrobbel/narrow/pull/586))
+- [**breaking**] remove obsolete crate features ([#608](https://github.com/mbrobbel/narrow/pull/608))
+- explain collection view design ([#585](https://github.com/mbrobbel/narrow/pull/585))
+- migrate coverage to cargo-llvm-cov ([#604](https://github.com/mbrobbel/narrow/pull/604))
+- explain collection design ([#584](https://github.com/mbrobbel/narrow/pull/584))
+- restore ARM runners for release jobs ([#605](https://github.com/mbrobbel/narrow/pull/605))
+- explain buffer design ([#583](https://github.com/mbrobbel/narrow/pull/583))
+- explain fixed-size design ([#582](https://github.com/mbrobbel/narrow/pull/582))
+- scope build caches to effective jobs ([#601](https://github.com/mbrobbel/narrow/pull/601))
+- explain length design ([#581](https://github.com/mbrobbel/narrow/pull/581))
+- add bitmap reference examples ([#575](https://github.com/mbrobbel/narrow/pull/575))
+- add child reference examples ([#574](https://github.com/mbrobbel/narrow/pull/574))
+- add variable-size layout examples ([#573](https://github.com/mbrobbel/narrow/pull/573))
+- add fixed-size layout examples ([#572](https://github.com/mbrobbel/narrow/pull/572))
+- add Boolean layout examples ([#571](https://github.com/mbrobbel/narrow/pull/571))
+- add array examples ([#570](https://github.com/mbrobbel/narrow/pull/570))
+- add layout trait examples ([#569](https://github.com/mbrobbel/narrow/pull/569))
+- add offset examples ([#568](https://github.com/mbrobbel/narrow/pull/568))
+- add validity examples ([#567](https://github.com/mbrobbel/narrow/pull/567))
+- add nullability examples ([#566](https://github.com/mbrobbel/narrow/pull/566))
+- add bitmap examples ([#565](https://github.com/mbrobbel/narrow/pull/565))
+- add flatten collection examples ([#564](https://github.com/mbrobbel/narrow/pull/564))
+- add view conversion examples ([#563](https://github.com/mbrobbel/narrow/pull/563))
+- add collection examples ([#562](https://github.com/mbrobbel/narrow/pull/562))
+- add buffer examples ([#561](https://github.com/mbrobbel/narrow/pull/561))
+- add fixed-size examples ([#560](https://github.com/mbrobbel/narrow/pull/560))
+- add length examples ([#559](https://github.com/mbrobbel/narrow/pull/559))
+- [**breaking**] split layout and array item ([#555](https://github.com/mbrobbel/narrow/pull/555))
+- allocate collections in a fixed arena ([#554](https://github.com/mbrobbel/narrow/pull/554))
+- harden workflow permissions ([#553](https://github.com/mbrobbel/narrow/pull/553))
+- make allocator-aware allocation the foundation ([#549](https://github.com/mbrobbel/narrow/pull/549))
+- *(deps)* bump nixpkgs from `472e442` to `a16c3fd` ([#528](https://github.com/mbrobbel/narrow/pull/528))
+- document offset types ([#529](https://github.com/mbrobbel/narrow/pull/529))
+- *(deps)* bump actions/checkout from 7.0.0 to 7.0.1 ([#527](https://github.com/mbrobbel/narrow/pull/527))
+- bound-minimal `Debug` impls for list layouts ([#523](https://github.com/mbrobbel/narrow/pull/523))
+- cache Miri sysroot ([#521](https://github.com/mbrobbel/narrow/pull/521))
+- use slim runners for release jobs ([#520](https://github.com/mbrobbel/narrow/pull/520))
+- use slim runner for Pages deploy ([#519](https://github.com/mbrobbel/narrow/pull/519))
+- cache cargo-docs-rs ([#518](https://github.com/mbrobbel/narrow/pull/518))
+- scope sccache environment to build jobs ([#517](https://github.com/mbrobbel/narrow/pull/517))
+- remove redundant stable check ([#516](https://github.com/mbrobbel/narrow/pull/516))
+- cancel superseded test and docs runs ([#515](https://github.com/mbrobbel/narrow/pull/515))
+- run coverage on main only ([#514](https://github.com/mbrobbel/narrow/pull/514))
+- *(deps)* bump mozilla-actions/sccache-action from 0.0.9 to 0.0.10 ([#513](https://github.com/mbrobbel/narrow/pull/513))
+- *(deps)* bump release-plz/action to v0.5.131 ([#512](https://github.com/mbrobbel/narrow/pull/512))
+- *(deps)* bump actions/deploy-pages from 4.0.5 to 5.0.0 ([#511](https://github.com/mbrobbel/narrow/pull/511))
+- add nix flake ([#510](https://github.com/mbrobbel/narrow/pull/510))
+- *(deps)* bump codecov/codecov-action from 5.0.0 to 7.0.0 ([#507](https://github.com/mbrobbel/narrow/pull/507))
+- *(deps)* bump actions/configure-pages from 5.0.0 to 6.0.0 ([#506](https://github.com/mbrobbel/narrow/pull/506))
+- *(deps)* bump actions/create-github-app-token from 2.2.2 to 3.2.0 ([#508](https://github.com/mbrobbel/narrow/pull/508))
+- *(deps)* bump actions/upload-pages-artifact from 4.0.0 to 5.0.0 ([#504](https://github.com/mbrobbel/narrow/pull/504))
+- *(deps)* bump actions/checkout from 6.0.3 to 7.0.0 ([#505](https://github.com/mbrobbel/narrow/pull/505))
+- use `ubuntu-26.04-arm` runners ([#509](https://github.com/mbrobbel/narrow/pull/509))
+- reduce push trigger to main branch ([#503](https://github.com/mbrobbel/narrow/pull/503))
+- remove gitattributes ([#502](https://github.com/mbrobbel/narrow/pull/502))
+- Merge remote-tracking branch 'origin/main' into nnarrow
+- remove more outdated sources
+- change `Collection` trait methods and bounds, change `Buffer` trait ([#452](https://github.com/mbrobbel/narrow/pull/452))
+- Merge branch 'main' into nnarrow
+- add Arrow export examples ([#598](https://github.com/mbrobbel/narrow/pull/598))
+- split export layouts into modules ([#606](https://github.com/mbrobbel/narrow/pull/606))
+- align narrow-ffi lints ([#603](https://github.com/mbrobbel/narrow/pull/603))
+- [**breaking**] rust edition 2024 and msrv 1.85.1 ([#337](https://github.com/mbrobbel/narrow/pull/337))
+- *(deps)* [**breaking**] bump `arrow` and `parquet` to `55` ([#383](https://github.com/mbrobbel/narrow/pull/383))
+- some small README improvements ([#296](https://github.com/mbrobbel/narrow/pull/296))
+- Simplified type signatures related to `ArrayType::Array` ([#269](https://github.com/mbrobbel/narrow/pull/269))
+- add why section to `README` ([#177](https://github.com/mbrobbel/narrow/pull/177))
+- Update MSRV in README.md
+- Make a bit smaller and move title up
+- Fix file permissions and add index page
+- Fix link to the deployed docs of main
+- Add bitmap buffer trait bound
+- Compile using stable Rust
+- Update README
+- Remove bitvec dependency
+- Migrate to 2021 edition
+- Add logo
+- Setup release workflow
+- Update README.md
+- Add NullArray and UnionArray
+- Add string array wrapper
+- Bump minimum supported Rust version to 1.53
+- Add more Array types
+- Add VariableSizeBinaryArray
+- Add FixedSizeArray and BooleanArray
+- Add Buffer, Bitmap, Nullable and Validity
+- Update path to rustdoc output
+- Add docs section to README
+- Initial commit
+
 ## [0.16.0](https://github.com/mbrobbel/narrow/compare/narrow-v0.15.2...narrow-v0.16.0) - 2026-07-17
 
 ### Other

@@ -13,4 +13,4 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-narrow = { path = "..", version = "0.16.0" }
+narrow = { path = "..", version = "0.17.0" }
