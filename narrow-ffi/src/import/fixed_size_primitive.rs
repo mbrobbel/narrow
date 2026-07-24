@@ -3,60 +3,19 @@
 use core::{ffi::CStr, mem, slice};
 
 use narrow::{
-    buffer::SliceBuffer,
-    fixed_size::FixedSize,
-    layout::fixed_size_primitive::FixedSizePrimitive,
-    nullability::{NonNullable, Nullable},
+    buffer::SliceBuffer, fixed_size::FixedSize, layout::fixed_size_primitive::FixedSizePrimitive,
 };
 
-use crate::{ARROW_FLAG_NULLABLE, ArrowArray, ArrowSchema, ArrowType};
+use crate::{ArrowArray, ArrowSchema, ArrowType};
 
-use super::{ImportError, ImportLayout};
+use super::{ImportError, ImportLayout, ImportNullability};
 
-impl<'array, T> ImportLayout<'array> for FixedSizePrimitive<T, NonNullable, SliceBuffer<'array>>
+impl<'array, T, Nulls> ImportLayout<'array> for FixedSizePrimitive<T, Nulls, SliceBuffer<'array>>
 where
     T: FixedSize + ArrowType,
+    Nulls: ImportNullability<'array>,
 {
-    const BUFFERS: i64 = 2;
-    const CHILDREN: i64 = 0;
-
-    fn matches_format(format: &CStr) -> bool {
-        format == T::FORMAT
-    }
-
-    unsafe fn import_validated(
-        array: &'array ArrowArray,
-        _schema: &ArrowSchema,
-        length: usize,
-    ) -> Result<Self, ImportError> {
-        // SAFETY: The caller guarantees a valid two-entry buffer pointer array.
-        let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
-        let values = if length == 0 {
-            &[]
-        } else {
-            let values = buffers[1].cast::<T>();
-            if values.is_null() {
-                return Err(ImportError::MissingValuesBuffer);
-            }
-            if !values.is_aligned() {
-                return Err(ImportError::MisalignedValuesBuffer {
-                    alignment: mem::align_of::<T>(),
-                });
-            }
-            // SAFETY: The caller guarantees the value buffer contains `length`
-            // properly aligned values that remain immutable for `'array`.
-            unsafe { slice::from_raw_parts(values, length) }
-        };
-
-        Ok(Self::from_buffer(values))
-    }
-}
-
-impl<'array, T> ImportLayout<'array> for FixedSizePrimitive<T, Nullable, SliceBuffer<'array>>
-where
-    T: FixedSize + ArrowType,
-{
-    const FLAGS: i64 = ARROW_FLAG_NULLABLE;
+    const FLAGS: i64 = Nulls::FLAGS;
     const BUFFERS: i64 = 2;
     const CHILDREN: i64 = 0;
 
@@ -90,8 +49,8 @@ where
 
         // SAFETY: Common validation and the caller guarantee a valid optional
         // validity buffer for the imported values.
-        let validity = unsafe { Self::import_validity(array, values) }?;
-        Ok(Self::from_buffer(validity))
+        let collection = unsafe { Nulls::wrap(array, values) }?;
+        Ok(Self::from_buffer(collection))
     }
 }
 

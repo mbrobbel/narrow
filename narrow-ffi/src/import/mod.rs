@@ -8,6 +8,7 @@ use narrow::{
     buffer::SliceBuffer,
     collection::Collection,
     layout::ArrayItem,
+    nullability::{NonNullable, Nullability, Nullable},
     offset::OffsetsError,
     validity::Validity,
 };
@@ -30,6 +31,88 @@ pub trait Import<'array>: Sized {
     /// and contain enough properly aligned elements for the declared array
     /// length. Scalar metadata is validated by the importer.
     unsafe fn import(array: &'array ArrowArray, schema: &ArrowSchema) -> Result<Self, ImportError>;
+}
+
+/// Arrow import behavior for a [`Nullability`] type constructor.
+trait ImportNullability<'array>: Nullability {
+    /// Arrow schema nullable flag for this nullability.
+    const FLAGS: i64;
+
+    /// Wraps an imported collection with this nullability.
+    ///
+    /// # Safety
+    ///
+    /// Common fields must be validated, and the caller must uphold the
+    /// requirements of [`Import::import`] for the validity buffer.
+    unsafe fn wrap<T>(
+        array: &'array ArrowArray,
+        collection: T,
+    ) -> Result<Self::Collection<T, SliceBuffer<'array>>, ImportError>
+    where
+        T: Collection;
+}
+
+impl<'array> ImportNullability<'array> for NonNullable {
+    const FLAGS: i64 = 0;
+
+    unsafe fn wrap<T>(
+        _array: &'array ArrowArray,
+        collection: T,
+    ) -> Result<Self::Collection<T, SliceBuffer<'array>>, ImportError>
+    where
+        T: Collection,
+    {
+        Ok(collection)
+    }
+}
+
+impl<'array> ImportNullability<'array> for Nullable {
+    const FLAGS: i64 = ARROW_FLAG_NULLABLE;
+
+    unsafe fn wrap<T>(
+        array: &'array ArrowArray,
+        collection: T,
+    ) -> Result<Self::Collection<T, SliceBuffer<'array>>, ImportError>
+    where
+        T: Collection,
+    {
+        // Common validation guarantees a non-null buffer pointer array.
+        let buffers = usize::try_from(array.n_buffers).expect("buffer count must fit in usize");
+        assert!(buffers != 0, "validity requires a buffer");
+
+        // SAFETY: Common validation and the caller guarantee a valid buffer
+        // pointer array with `buffers` entries.
+        let buffer_pointers = unsafe { slice::from_raw_parts(array.buffers, buffers) };
+        let validity_pointer = buffer_pointers[0].cast::<u8>();
+        let length = collection.len();
+        let validity = if validity_pointer.is_null() {
+            if array.null_count == 0 || length == 0 {
+                Validity::from_collection(collection)
+            } else {
+                return Err(ImportError::MissingValidityBuffer);
+            }
+        } else {
+            let byte_length = length.div_ceil(8);
+            // SAFETY: The caller guarantees the validity buffer contains
+            // `byte_length` bytes that remain immutable for `'array`.
+            let values = unsafe { slice::from_raw_parts(validity_pointer, byte_length) };
+            let bitmap = Bitmap::try_from_parts(values, length, 0)
+                .expect("imported validity buffer contains the declared number of bits");
+            Validity::try_from_parts(collection, bitmap).expect("validity lengths match")
+        };
+
+        if array.null_count >= 0 {
+            let actual = validity.null_count();
+            if usize::try_from(array.null_count) != Ok(actual) {
+                return Err(ImportError::NullCountMismatch {
+                    declared: array.null_count,
+                    actual,
+                });
+            }
+        }
+
+        Ok(validity)
+    }
 }
 
 /// A memory layout that can borrow an Arrow C Data array.
@@ -130,60 +213,6 @@ trait ImportLayout<'array>: Sized {
         // SAFETY: Common fields have been validated and the caller upholds the
         // Arrow C Data pointer and buffer requirements.
         unsafe { Self::import_validated(array, schema, length) }
-    }
-
-    /// Imports the validity of a nullable layout around `collection`.
-    ///
-    /// # Safety
-    ///
-    /// Common fields must be validated, and the caller must uphold the
-    /// requirements of [`Import::import`] for the validity buffer.
-    unsafe fn import_validity<T>(
-        array: &'array ArrowArray,
-        collection: T,
-    ) -> Result<Validity<T, SliceBuffer<'array>>, ImportError>
-    where
-        T: Collection,
-    {
-        assert!(
-            Self::FLAGS & ARROW_FLAG_NULLABLE != 0,
-            "validity requires a nullable layout"
-        );
-        let buffers = usize::try_from(Self::BUFFERS).expect("buffer count must fit in usize");
-        assert!(buffers != 0, "validity requires a buffer");
-
-        // SAFETY: Common validation and the caller guarantee a valid buffer
-        // pointer array with `buffers` entries.
-        let buffer_pointers = unsafe { slice::from_raw_parts(array.buffers, buffers) };
-        let validity_pointer = buffer_pointers[0].cast::<u8>();
-        let length = collection.len();
-        let validity = if validity_pointer.is_null() {
-            if array.null_count == 0 || length == 0 {
-                Validity::from_collection(collection)
-            } else {
-                return Err(ImportError::MissingValidityBuffer);
-            }
-        } else {
-            let byte_length = length.div_ceil(8);
-            // SAFETY: The caller guarantees the validity buffer contains
-            // `byte_length` bytes that remain immutable for `'array`.
-            let values = unsafe { slice::from_raw_parts(validity_pointer, byte_length) };
-            let bitmap = Bitmap::try_from_parts(values, length, 0)
-                .expect("imported validity buffer contains the declared number of bits");
-            Validity::try_from_parts(collection, bitmap).expect("validity lengths match")
-        };
-
-        if array.null_count >= 0 {
-            let actual = validity.null_count();
-            if usize::try_from(array.null_count) != Ok(actual) {
-                return Err(ImportError::NullCountMismatch {
-                    declared: array.null_count,
-                    actual,
-                });
-            }
-        }
-
-        Ok(validity)
     }
 
     /// Imports a child memory layout at `index`.
