@@ -316,6 +316,21 @@ where
 /// assert_eq!(values, [1, 2]);
 /// ```
 pub trait CollectionRealloc: CollectionAllocIn + Extend<Self::Owned> {
+    /// Returns the allocator used by this collection.
+    ///
+    /// Composite collections use the cloned handle when they need to create a
+    /// child buffer after construction.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::CollectionRealloc;
+    ///
+    /// let values = vec![1_u8];
+    /// assert_eq!(values.allocator(), ());
+    /// ```
+    fn allocator(&self) -> Self::Alloc;
+
     /// Tries to reserve capacity for at least `additional` more items.
     ///
     /// # Errors

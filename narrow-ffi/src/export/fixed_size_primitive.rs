@@ -3,7 +3,7 @@
 use core::{borrow::Borrow, ffi::c_void, ptr};
 
 use narrow::{
-    bitmap::{BitmapRef, ValidityBitmap},
+    bitmap::ValidityBitmap,
     buffer::{Buffer, BufferRef},
     collection::ChildRef,
     fixed_size::FixedSize,
@@ -51,14 +51,22 @@ where
     }
 
     fn offset(&self) -> usize {
-        self.buffer_ref().bitmap_ref().bit_offset()
+        self.buffer_ref()
+            .bitmap_ref()
+            .map_or(0, narrow::bitmap::Bitmap::bit_offset)
     }
 
     fn buffers(&self) -> Self::Buffers {
         let validity = self.buffer_ref();
-        let validity_values: &[u8] = validity.bitmap_ref().buffer_ref().borrow();
+        let validity_values = validity.bitmap_ref().map(|bitmap| {
+            let values: &[u8] = bitmap.buffer_ref().borrow();
+            values.as_ptr().cast()
+        });
         let values: &[T] = validity.child_ref().borrow();
-        [validity_values.as_ptr().cast(), values.as_ptr().cast()]
+        [
+            validity_values.unwrap_or(ptr::null()),
+            values.as_ptr().cast(),
+        ]
     }
 }
 
@@ -236,6 +244,31 @@ mod tests {
         drop(array);
         assert!(values_weak.upgrade().is_none());
         assert!(validity_weak.upgrade().is_none());
+        drop(schema);
+    }
+
+    #[test]
+    fn exports_nullable_primitive_without_validity_bitmap() {
+        let values = Arc::<[i32]>::from([1, 2, 3]);
+        let weak = Arc::downgrade(&values);
+        let values_data = values.as_ptr();
+        let validity = Validity::<_, ArcBuffer>::from_collection(values);
+        let narrow_array: Array<Option<i32>, ArcBuffer> =
+            Array::from_buffer(FixedSizePrimitive::from_buffer(validity));
+
+        let (array, schema) = narrow_array.export().expect("export array");
+
+        assert_eq!(array.length, 3);
+        assert_eq!(array.null_count, 0);
+        // SAFETY: The exported array owns a two-entry buffer pointer array.
+        let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
+        assert!(buffers[0].is_null());
+        assert_eq!(buffers[1], values_data.cast());
+        assert_eq!(schema.flags, ARROW_FLAG_NULLABLE);
+        assert!(weak.upgrade().is_some());
+
+        drop(array);
+        assert!(weak.upgrade().is_none());
         drop(schema);
     }
 

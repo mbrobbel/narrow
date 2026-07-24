@@ -6,7 +6,7 @@ use alloc::{boxed::Box, ffi::CString, format};
 use core::{borrow::Borrow, ffi::c_void, ptr};
 
 use narrow::{
-    bitmap::{BitmapRef, ValidityBitmap},
+    bitmap::ValidityBitmap,
     buffer::{Buffer, BufferRef},
     collection::ChildRef,
     layout::{ArrayItem, fixed_size_list::FixedSizeList},
@@ -58,12 +58,17 @@ where
     }
 
     fn offset(&self) -> usize {
-        self.buffer_ref().bitmap_ref().bit_offset()
+        self.buffer_ref()
+            .bitmap_ref()
+            .map_or(0, narrow::bitmap::Bitmap::bit_offset)
     }
 
     fn buffers(&self) -> Self::Buffers {
-        let validity_values: &[u8] = self.buffer_ref().bitmap_ref().buffer_ref().borrow();
-        [validity_values.as_ptr().cast()]
+        let validity = self.buffer_ref().bitmap_ref().map(|bitmap| {
+            let values: &[u8] = bitmap.buffer_ref().borrow();
+            values.as_ptr().cast()
+        });
+        [validity.unwrap_or(ptr::null())]
     }
 
     fn children(&self) -> Result<Self::Children, ExportError> {

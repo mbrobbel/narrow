@@ -1,9 +1,4 @@
-use narrow::{
-    array::Array,
-    bitmap::{BitmapRef, ValidityBitmap},
-    buffer::BufferRef,
-    collection::ChildRef,
-};
+use narrow::{array::Array, bitmap::ValidityBitmap, buffer::BufferRef, collection::ChildRef};
 
 #[test]
 fn borrows_nested_backing_memory() {
@@ -16,10 +11,20 @@ fn borrows_nested_backing_memory() {
     let list = array.buffer_ref();
     let list_validity = list.buffer_ref();
     assert_eq!(
-        list_validity.bitmap_ref().buffer_ref().as_slice(),
+        list_validity
+            .bitmap_ref()
+            .expect("explicit validity")
+            .buffer_ref()
+            .as_slice(),
         &[0b0000_0001]
     );
-    assert_eq!(list_validity.bitmap_ref().bit_offset(), 0);
+    assert_eq!(
+        list_validity
+            .bitmap_ref()
+            .expect("explicit validity")
+            .bit_offset(),
+        0
+    );
     assert_eq!(list_validity.null_count(), 0);
 
     let offsets = list_validity.child_ref();
@@ -28,7 +33,11 @@ fn borrows_nested_backing_memory() {
     let items = offsets.child_ref();
     let item_validity = items.buffer_ref();
     assert_eq!(
-        item_validity.bitmap_ref().buffer_ref().as_slice(),
+        item_validity
+            .bitmap_ref()
+            .expect("explicit validity")
+            .buffer_ref()
+            .as_slice(),
         &[0b0000_0001]
     );
     assert_eq!(item_validity.null_count(), 1);

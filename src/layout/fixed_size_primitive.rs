@@ -192,6 +192,10 @@ impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> CollectionRealloc
 where
     Nulls::Collection<Storage::For<T>, Storage>: CollectionRealloc,
 {
+    fn allocator(&self) -> Self::Alloc {
+        self.0.allocator()
+    }
+
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
         self.0.try_reserve(additional)
     }

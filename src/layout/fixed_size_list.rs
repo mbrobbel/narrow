@@ -225,6 +225,10 @@ impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer> Collecti
 where
     Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>: CollectionRealloc,
 {
+    fn allocator(&self) -> Self::Alloc {
+        self.0.allocator()
+    }
+
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
         self.0.try_reserve(additional)
     }

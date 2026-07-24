@@ -3,7 +3,7 @@
 use core::{borrow::Borrow, ffi::c_void, ptr};
 
 use narrow::{
-    bitmap::{BitmapRef, ValidityBitmap},
+    bitmap::ValidityBitmap,
     buffer::{Buffer, BufferRef},
     collection::ChildRef,
     layout::boolean::Boolean,
@@ -48,7 +48,9 @@ impl<Storage: Buffer> ArrowArrayLayout for Boolean<Nullable, Storage> {
     fn offset(&self) -> usize {
         let validity = self.buffer_ref();
         // Surface either bitmap offset so the exporter rejects unsupported offsets.
-        let validity_offset = validity.bitmap_ref().bit_offset();
+        let validity_offset = validity
+            .bitmap_ref()
+            .map_or(0, narrow::bitmap::Bitmap::bit_offset);
         if validity_offset != 0 {
             return validity_offset;
         }
@@ -57,9 +59,15 @@ impl<Storage: Buffer> ArrowArrayLayout for Boolean<Nullable, Storage> {
 
     fn buffers(&self) -> Self::Buffers {
         let validity = self.buffer_ref();
-        let validity_values: &[u8] = validity.bitmap_ref().buffer_ref().borrow();
+        let validity_values = validity.bitmap_ref().map(|bitmap| {
+            let values: &[u8] = bitmap.buffer_ref().borrow();
+            values.as_ptr().cast()
+        });
         let values: &[u8] = validity.child_ref().buffer_ref().borrow();
-        [validity_values.as_ptr().cast(), values.as_ptr().cast()]
+        [
+            validity_values.unwrap_or(ptr::null()),
+            values.as_ptr().cast(),
+        ]
     }
 }
 

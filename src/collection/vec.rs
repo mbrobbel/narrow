@@ -74,6 +74,8 @@ impl<T: for<'any> AsView<'any>> CollectionAllocIn for Vec<T> {
 }
 
 impl<T: for<'any> AsView<'any>> CollectionRealloc for Vec<T> {
+    fn allocator(&self) -> Self::Alloc {}
+
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
         Vec::try_reserve(self, additional).map_err(|_| AllocError)
     }

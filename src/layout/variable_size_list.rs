@@ -216,6 +216,10 @@ impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Coll
 where
     Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>: CollectionRealloc,
 {
+    fn allocator(&self) -> Self::Alloc {
+        self.0.allocator()
+    }
+
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
         self.0.try_reserve(additional)
     }

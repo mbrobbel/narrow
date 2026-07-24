@@ -113,37 +113,6 @@ pub struct Bitmap<Storage: Buffer = VecBuffer> {
     offset: usize,
 }
 
-/// Immutable access to a [`Bitmap`].
-///
-/// [`BufferRef`] exposes bitmap bytes, but bytes alone omit the logical bit
-/// length and offset. `BitmapRef` preserves those Arrow semantics for generic
-/// validity and interoperability code.
-///
-/// # Examples
-///
-/// ```
-/// use narrow::{bitmap::BitmapRef, length::Length, validity::Validity};
-///
-/// let values = [Some(1), None].into_iter().collect::<Validity<Vec<i32>>>();
-/// assert_eq!(values.bitmap_ref().len(), 2);
-/// ```
-pub trait BitmapRef {
-    /// Storage of the bitmap.
-    type Storage: Buffer;
-
-    /// Returns the bitmap.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use narrow::{bitmap::BitmapRef, length::Length, validity::Validity};
-    ///
-    /// let values = [Some(1), None].into_iter().collect::<Validity<Vec<i32>>>();
-    /// assert_eq!(values.bitmap_ref().len(), 2);
-    /// ```
-    fn bitmap_ref(&self) -> &Bitmap<Self::Storage>;
-}
-
 impl<Storage: Buffer> BufferRef for Bitmap<Storage> {
     type Buffer = Storage::For<u8>;
 
@@ -495,6 +464,10 @@ impl<Storage: Buffer<For<u8>: CollectionAllocIn>> CollectionAllocIn for Bitmap<S
 impl<Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> CollectionRealloc
     for Bitmap<Storage>
 {
+    fn allocator(&self) -> Self::Alloc {
+        self.buffer.allocator()
+    }
+
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
         if let Some(bits) = additional.checked_sub(self.trailing_bits()) {
             self.buffer.try_reserve(bytes_for_bits(bits))?;
