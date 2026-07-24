@@ -186,6 +186,42 @@ impl<Storage: Buffer> Bitmap<Storage> {
         self.offset
     }
 
+    /// Counts set bits, excluding padding outside this [`Bitmap`].
+    #[must_use]
+    fn count_ones(&self) -> usize {
+        if self.bits == 0 {
+            return 0;
+        }
+
+        let end = self.offset.strict_add(self.bits);
+        let start_byte = self.offset.strict_div(8);
+        let end_bit = end.rem_euclid(8);
+        let buffer = self.buffer.borrow();
+        let bytes = &buffer[start_byte..end.div_ceil(8)];
+        let last = bytes.len().strict_sub(1);
+        let leading_mask = u8::MAX << self.offset.rem_euclid(8);
+        let trailing_mask = if end_bit == 0 {
+            u8::MAX
+        } else {
+            (1_u8 << end_bit).strict_sub(1)
+        };
+
+        bytes
+            .iter()
+            .enumerate()
+            .fold(0_usize, |count, (index, byte)| {
+                let masked = byte
+                    & if index == 0 { leading_mask } else { u8::MAX }
+                    & if index == last {
+                        trailing_mask
+                    } else {
+                        u8::MAX
+                    };
+                let ones = usize::try_from(masked.count_ones()).expect("u8 popcount fits in usize");
+                count.strict_add(ones)
+            })
+    }
+
     /// Returns the raw parts of this [`Bitmap`]: its byte buffer, the number of
     /// bits it stores, and the bit offset into the buffer.
     ///
@@ -785,6 +821,18 @@ mod tests {
                 bytes: 1,
             }
         );
+    }
+
+    #[test]
+    fn count_ones_ignores_padding_bits() {
+        let bitmap =
+            Bitmap::<VecBuffer>::try_from_parts(alloc::vec![0b1111_0000, 0b1111_1111], 10, 2)
+                .expect("valid parts");
+        assert_eq!(bitmap.count_ones(), 8);
+
+        let within_one_byte = Bitmap::<VecBuffer>::try_from_parts(alloc::vec![0b1110_1101], 3, 2)
+            .expect("valid parts");
+        assert_eq!(within_one_byte.count_ones(), 2);
     }
 
     #[test]
