@@ -497,6 +497,41 @@ impl<Storage: Buffer<For<u8>: CollectionAllocIn>> CollectionAllocIn for Bitmap<S
     }
 }
 
+impl<Storage: Buffer<For<u8>: CollectionAllocIn>> Bitmap<Storage> {
+    /// Constructs a bitmap containing `bits` set bits using `alloc`.
+    pub(crate) fn all_set_in(
+        bits: usize,
+        alloc: <Storage::For<u8> as CollectionAllocIn>::Alloc,
+    ) -> Self {
+        Self {
+            buffer: Storage::For::<u8>::from_iter_in(Self::all_set_bytes(bits), alloc),
+            bits,
+            offset: 0,
+        }
+    }
+
+    /// Tries to construct a bitmap containing `bits` set bits using `alloc`.
+    pub(crate) fn try_all_set_in(
+        bits: usize,
+        alloc: <Storage::For<u8> as CollectionAllocIn>::Alloc,
+    ) -> Result<Self, AllocError> {
+        let buffer = Storage::For::<u8>::try_from_iter_in(Self::all_set_bytes(bits), alloc)?;
+        Ok(Self {
+            buffer,
+            bits,
+            offset: 0,
+        })
+    }
+
+    /// Returns full set bytes followed by a masked partial byte.
+    fn all_set_bytes(bits: usize) -> impl Iterator<Item = u8> {
+        let full_bytes = bits.strict_div(8);
+        let tail_bits = bits.rem_euclid(8);
+        let tail = (tail_bits != 0).then(|| (1_u8 << tail_bits).strict_sub(1));
+        iter::repeat_n(u8::MAX, full_bytes).chain(tail)
+    }
+}
+
 impl<Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> CollectionRealloc
     for Bitmap<Storage>
 {
@@ -833,6 +868,18 @@ mod tests {
         let within_one_byte = Bitmap::<VecBuffer>::try_from_parts(alloc::vec![0b1110_1101], 3, 2)
             .expect("valid parts");
         assert_eq!(within_one_byte.count_ones(), 2);
+    }
+
+    #[test]
+    fn all_set_in_masks_tail_bits() {
+        let bitmap = Bitmap::<VecBuffer>::all_set_in(10, ());
+        assert_eq!(
+            bitmap.into_parts(),
+            (alloc::vec![u8::MAX, 0b0000_0011], 10, 0)
+        );
+
+        let empty = Bitmap::<VecBuffer>::try_all_set_in(0, ()).expect("empty allocation succeeds");
+        assert_eq!(empty.into_parts(), (alloc::vec![], 0, 0));
     }
 
     #[test]
