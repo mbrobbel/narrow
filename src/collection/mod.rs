@@ -426,7 +426,7 @@ pub(crate) mod tests {
 
     pub(crate) fn round_trip<
         C: for<'any> CollectionAlloc<Owned = T, View<'any>: Debug>,
-        T: for<'this, 'other> AsView<'this, View: Debug> + Clone + Default + Debug + PartialEq,
+        T: for<'this> AsView<'this, View: Debug> + Clone + Default + Debug + PartialEq,
     >(
         items: impl IntoIterator<Item = T>,
     ) {
