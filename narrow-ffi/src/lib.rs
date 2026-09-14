@@ -71,7 +71,7 @@ use narrow::offset::Offset;
 mod export;
 pub use export::{ArrowType, Export, ExportError};
 mod import;
-pub use import::{Import, ImportError};
+pub use import::{Import, ImportError, Importer};
 
 /// An Arrow list offset with a C Data format string.
 trait ArrowListOffset: Offset {
