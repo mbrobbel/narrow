@@ -87,5 +87,23 @@ impl<T: FixedSize, const N: usize> FixedSize for FixedSizeArray<T, N> {}
 
 mod sealed {
     pub trait Sealed {}
-    impl<T: super::FixedSize> Sealed for T {}
+
+    impl Sealed for u8 {}
+    impl Sealed for u16 {}
+    impl Sealed for u32 {}
+    impl Sealed for u64 {}
+    impl Sealed for u128 {}
+    impl Sealed for usize {}
+
+    impl Sealed for i8 {}
+    impl Sealed for i16 {}
+    impl Sealed for i32 {}
+    impl Sealed for i64 {}
+    impl Sealed for i128 {}
+    impl Sealed for isize {}
+
+    impl Sealed for f32 {}
+    impl Sealed for f64 {}
+
+    impl<T: super::FixedSize, const N: usize> Sealed for super::FixedSizeArray<T, N> {}
 }
