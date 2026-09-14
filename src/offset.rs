@@ -77,7 +77,8 @@ pub trait Offset:
 
 mod sealed {
     pub trait Sealed {}
-    impl<T: super::Offset> Sealed for T {}
+    impl Sealed for i32 {}
+    impl Sealed for i64 {}
 }
 
 impl Offset for i32 {
