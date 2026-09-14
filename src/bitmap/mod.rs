@@ -4,13 +4,13 @@ mod packed;
 mod unpacked;
 mod validity;
 
+pub use unpacked::BitmapIter;
 pub use validity::ValidityBitmap;
 
 use core::{
     borrow::{Borrow, BorrowMut},
     fmt::{self, Debug},
     iter::{self, Skip, Take},
-    slice,
 };
 
 use packed::BitPackedExt;
@@ -206,20 +206,34 @@ impl<Storage: Buffer> Bitmap<Storage> {
             (1_u8 << end_bit).strict_sub(1)
         };
 
-        bytes
+        if last == 0 {
+            return usize::try_from((bytes[0] & leading_mask & trailing_mask).count_ones())
+                .expect("u8 popcount fits in usize");
+        }
+
+        let leading = usize::try_from((bytes[0] & leading_mask).count_ones())
+            .expect("u8 popcount fits in usize");
+        let trailing = usize::try_from((bytes[last] & trailing_mask).count_ones())
+            .expect("u8 popcount fits in usize");
+        let (words, remainder) = bytes[1..last].as_chunks::<8>();
+
+        // Each sum is bounded by the logical bit length. Ordinary sums allow
+        // the compiler to vectorize the unmasked interior.
+        let word_count: usize = words
             .iter()
-            .enumerate()
-            .fold(0_usize, |count, (index, byte)| {
-                let masked = byte
-                    & if index == 0 { leading_mask } else { u8::MAX }
-                    & if index == last {
-                        trailing_mask
-                    } else {
-                        u8::MAX
-                    };
-                let ones = usize::try_from(masked.count_ones()).expect("u8 popcount fits in usize");
-                count.strict_add(ones)
+            .map(|word| {
+                usize::try_from(u64::from_ne_bytes(*word).count_ones())
+                    .expect("u64 popcount fits in usize")
             })
+            .sum();
+        let remainder_count: usize = remainder
+            .iter()
+            .map(|byte| usize::try_from(byte.count_ones()).expect("u8 popcount fits in usize"))
+            .sum();
+        leading
+            .strict_add(word_count)
+            .strict_add(remainder_count)
+            .strict_add(trailing)
     }
 
     /// Returns the raw parts of this [`Bitmap`]: its byte buffer, the number of
@@ -324,15 +338,13 @@ impl<Storage: Buffer> IntoIterator for Bitmap<Storage> {
 
 impl<'bitmap, Storage: Buffer> IntoIterator for &'bitmap Bitmap<Storage> {
     type Item = bool;
-    type IntoIter = Take<Skip<BitUnpacked<slice::Iter<'bitmap, u8>, &'bitmap u8>>>;
+    type IntoIter = BitmapIter<'bitmap>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.buffer
-            .borrow()
-            .iter()
-            .bit_unpacked()
-            .skip(self.offset)
-            .take(self.bits)
+        BitmapIter::new(
+            self.buffer.borrow(),
+            self.offset..self.offset.strict_add(self.bits),
+        )
     }
 }
 
@@ -880,6 +892,23 @@ mod tests {
 
         let empty = Bitmap::<VecBuffer>::try_all_set_in(0, ()).expect("empty allocation succeeds");
         assert_eq!(empty.into_parts(), (alloc::vec![], 0, 0));
+    }
+
+    #[test]
+    fn count_ones_matches_bit_reference() {
+        for bytes in [[0; 24], [u8::MAX; 24], [0xa5; 24]] {
+            for offset in 0..24 {
+                for bits in 0..=145 {
+                    let buffer = &bytes[..bytes_for_bits(offset + bits)];
+                    let bitmap = Bitmap::<SliceBuffer>::try_from_parts(buffer, bits, offset)
+                        .expect("valid parts");
+                    let expected = (offset..offset + bits)
+                        .filter(|bit| bytes[bit / 8] & (1 << (bit % 8)) != 0)
+                        .count();
+                    assert_eq!(bitmap.count_ones(), expected);
+                }
+            }
+        }
     }
 
     #[test]
