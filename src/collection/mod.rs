@@ -196,7 +196,7 @@ pub trait CollectionAllocIn: Collection + Sized {
     /// ```
     /// use narrow::collection::CollectionAllocIn;
     ///
-    /// let values = Vec::<u8>::with_capacity_in(4, ());
+    /// let values = <Vec<u8> as CollectionAllocIn>::with_capacity_in(4, ());
     /// assert!(values.capacity() >= 4);
     /// ```
     #[must_use]
@@ -327,7 +327,7 @@ pub trait CollectionRealloc: CollectionAllocIn + Extend<Self::Owned> {
     /// use narrow::collection::CollectionRealloc;
     ///
     /// let values = vec![1_u8];
-    /// assert_eq!(values.allocator(), ());
+    /// assert_eq!(CollectionRealloc::allocator(&values), ());
     /// ```
     fn allocator(&self) -> Self::Alloc;
 
