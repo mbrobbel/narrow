@@ -1,6 +1,11 @@
 //! Nullable and non-nullable data.
 
-use crate::{buffer::Buffer, collection::Collection, validity::Validity};
+use crate::{
+    bitmap::ValidityBitmap,
+    buffer::Buffer,
+    collection::{ChildRef, Collection},
+    validity::Validity,
+};
 
 /// Nullability trait for nullable and non-nullable type constructors.
 ///
@@ -42,6 +47,31 @@ pub trait Nullability: sealed::Sealed {
     type Collection<T: Collection, Storage: Buffer>: Collection<
         Owned = Self::Item<<T as Collection>::Owned>,
     >;
+
+    /// Returns the underlying collection without applying validity.
+    fn collection_ref<T: Collection, Storage: Buffer>(
+        collection: &Self::Collection<T, Storage>,
+    ) -> &T;
+
+    /// Projects an in-bounds, valid row without reading other row values.
+    ///
+    /// The callback receives the raw collection and is called only for a valid
+    /// row. `None` means out of bounds (or a missing projected value). Nullable
+    /// collections return `Some(None)` for a null row without calling `f`.
+    ///
+    /// ```
+    /// use narrow::{buffer::VecBuffer, nullability::{Nullability, Nullable}, validity::Validity};
+    /// let rows = [None::<i32>].into_iter().collect::<Validity<Vec<i32>>>();
+    /// let projected = Nullable::project::<_, VecBuffer, i32, _>(&rows, 0, |_| panic!("null row"));
+    /// assert_eq!(projected, Some(None));
+    /// let missing = Nullable::project::<_, VecBuffer, i32, _>(&rows, 1, |_| panic!("out of bounds"));
+    /// assert_eq!(missing, None);
+    /// ```
+    fn project<'a, T: Collection + 'a, Storage: Buffer, U, F: FnOnce(&'a T) -> Option<U>>(
+        collection: &'a Self::Collection<T, Storage>,
+        index: usize,
+        f: F,
+    ) -> Option<Self::Item<U>>;
 
     /// Maps an item using the provided function.
     ///
@@ -123,6 +153,18 @@ impl Nullability for NonNullable {
     /// Non-nullable collections are just `T`.
     type Collection<T: Collection, Storage: Buffer> = T;
 
+    fn collection_ref<T: Collection, Storage: Buffer>(collection: &T) -> &T {
+        collection
+    }
+
+    fn project<'a, T: Collection + 'a, Storage: Buffer, U, F: FnOnce(&'a T) -> Option<U>>(
+        collection: &'a T,
+        index: usize,
+        f: F,
+    ) -> Option<U> {
+        (index < collection.len()).then(|| f(collection)).flatten()
+    }
+
     fn map<T, U, F: FnOnce(T) -> U>(item: Self::Item<T>, f: F) -> Self::Item<U> {
         f(item)
     }
@@ -160,6 +202,22 @@ impl Nullability for Nullable {
     /// Nullable collections are wrapped with optional validity bitmap
     /// storage.
     type Collection<T: Collection, Storage: Buffer> = Validity<T, Storage>;
+
+    fn collection_ref<T: Collection, Storage: Buffer>(collection: &Validity<T, Storage>) -> &T {
+        collection.child_ref()
+    }
+
+    fn project<'a, T: Collection + 'a, Storage: Buffer, U, F: FnOnce(&'a T) -> Option<U>>(
+        collection: &'a Validity<T, Storage>,
+        index: usize,
+        f: F,
+    ) -> Option<Option<U>> {
+        if collection.is_valid(index)? {
+            f(collection.child_ref()).map(Some)
+        } else {
+            Some(None)
+        }
+    }
 
     fn map<T, U, F: FnOnce(T) -> U>(item: Self::Item<T>, f: F) -> Self::Item<U> {
         item.map(f)

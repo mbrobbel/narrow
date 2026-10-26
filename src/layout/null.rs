@@ -19,8 +19,11 @@ use crate::{
 ///
 /// Implementations must represent one value, reproduced by `Default`. This
 /// includes `()` and fieldless structs. Implementing this trait alone does
-/// not select an array layout; an [`ArrayItem`] implementation selects
-/// `Nulls<Self>` explicitly. `IntoOwned<Self>` lets collection views return
+/// not select an array layout; an [`ArrayItem`] implementation can select
+/// `Nulls<Self>` explicitly. A [`crate::layout::Layout`] implementation can
+/// instead select [`crate::layout::r#struct::Struct`] over `Nulls<Self>` to
+/// represent an empty struct and enable nullable struct rows.
+/// `IntoOwned<Self>` lets collection views return
 /// the unit value directly. Nesting a custom unit in a variable-size list
 /// also requires an [`AsView`] implementation for the item type.
 ///
@@ -82,7 +85,7 @@ impl<'a> AsView<'a> for () {
 /// assert_eq!(values.len(), 10);
 /// ```
 ///
-/// `Option<()>` is unsupported because this layout cannot preserve the
+/// `Array<Option<()>>` is unsupported because the null layout cannot preserve the
 /// distinction between `Some(())` and `None`.
 ///
 /// ```compile_fail

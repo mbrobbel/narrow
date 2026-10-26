@@ -19,6 +19,7 @@ pub mod boolean;
 pub mod fixed_size_list;
 pub mod fixed_size_primitive;
 pub mod null;
+pub mod r#struct;
 pub mod variable_size_binary;
 pub mod variable_size_list;
 
