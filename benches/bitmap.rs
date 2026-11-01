@@ -88,6 +88,11 @@ fn main() {
             .map(|valid| valid.then_some(0_u8))
             .collect::<Validity<Vec<u8>>>()
     });
+    bench("validity extend", || {
+        let mut validity = Validity::<Vec<u8>>::default();
+        validity.extend(black_box(&bools).iter().map(|valid| valid.then_some(0_u8)));
+        validity
+    });
 
     // Counting and predicates.
     bench("validity null_count", || black_box(&validity).null_count());
