@@ -431,12 +431,16 @@ impl<
             .len();
         self.collection.truncate(bitmap_len);
 
+        // Reserve for the known minimum up front: growing both buffers chunk
+        // by chunk would reallocate and copy them repeatedly.
+        let mut items = iter.into_iter();
+        self.reserve(items.size_hint().0);
+
         // Buffer validity and flush it to the bitmap per chunk, instead of
         // extending the bitmap bit by bit: bulk bitmap extension uses the bit
         // packing fast path. The bitmap is extended after the items of a
         // chunk are committed to the collection, so a panicking iterator can
         // not add validity for items that never arrive.
-        let mut items = iter.into_iter();
         loop {
             let mut validity = [false; VALIDITY_CHUNK];
             let mut count: usize = 0;
@@ -543,7 +547,10 @@ impl<
         self.try_materialize_bitmap()?;
         self.collection.truncate(len);
 
+        // Reserve for the known minimum up front: growing both buffers chunk
+        // by chunk would reallocate and copy them repeatedly.
         let mut items = iter.into_iter();
+        self.try_reserve(items.size_hint().0)?;
         loop {
             let mut validity = [false; VALIDITY_CHUNK];
             let mut count: usize = 0;
