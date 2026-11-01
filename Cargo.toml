@@ -34,3 +34,7 @@ all-features = true
 [profile.bench]
 lto = true
 codegen-units = 1
+
+[[bench]]
+name = "bitmap"
+harness = false

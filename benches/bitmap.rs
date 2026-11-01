@@ -1,0 +1,84 @@
+//! Dependency-free benchmarks for bitmap counting and iteration.
+//!
+//! Run with `cargo bench --bench bitmap`.
+
+use std::{
+    hint::black_box,
+    time::{Duration, Instant},
+};
+
+use narrow::{
+    bitmap::{Bitmap, ValidityBitmap},
+    buffer::VecBuffer,
+    validity::Validity,
+};
+
+/// Number of logical bits in each benchmarked bitmap.
+const BITS: usize = 1 << 20;
+/// A bit offset that is not byte aligned.
+const OFFSET: usize = 3;
+/// Minimum measured time per sample.
+const SAMPLE_TIME: Duration = Duration::from_millis(200);
+/// Number of samples; the fastest one is reported.
+const SAMPLES: usize = 5;
+
+fn bench<T>(name: &str, mut f: impl FnMut() -> T) {
+    // Warm up and find an iteration count that fills a sample.
+    let mut iterations = 1_u32;
+    loop {
+        let start = Instant::now();
+        for _ in 0..iterations {
+            black_box(f());
+        }
+        if start.elapsed() >= SAMPLE_TIME / 4 {
+            break;
+        }
+        iterations = iterations.saturating_mul(2);
+    }
+    iterations = iterations.saturating_mul(4);
+
+    let best = (0..SAMPLES)
+        .map(|_| {
+            let start = Instant::now();
+            for _ in 0..iterations {
+                black_box(f());
+            }
+            start.elapsed() / iterations
+        })
+        .min()
+        .expect("at least one sample");
+    println!("{name:<40} {:>12.3} µs/iter", best.as_secs_f64() * 1e6);
+}
+
+/// Deterministic, irregular bit pattern with about two thirds of the bits set.
+fn pattern(index: usize) -> bool {
+    // The shift breaks up the multiplication's structure: without it, the
+    // result's remainder modulo 3 follows directly from `index`'s.
+    let hash = index.wrapping_mul(0x9e37_79b9);
+    !(hash >> 11).is_multiple_of(3)
+}
+
+fn main() {
+    let bytes: Vec<u8> = Bitmap::<VecBuffer>::from_iter((0..OFFSET + BITS).map(pattern))
+        .into_parts()
+        .0;
+    let bitmap = Bitmap::<VecBuffer>::try_from_parts(bytes, BITS, OFFSET).expect("valid parts");
+    let validity = (0..BITS)
+        .map(|index| pattern(index).then_some(0_u8))
+        .collect::<Validity<Vec<u8>>>();
+
+    bench("validity null_count", || black_box(&validity).null_count());
+    bench("borrowed iter count true", || {
+        black_box(&bitmap).into_iter().filter(|bit| *bit).count()
+    });
+    bench("borrowed iter collect Vec<bool>", || {
+        black_box(&bitmap).into_iter().collect::<Vec<_>>()
+    });
+    bench("borrowed iter nth(last)", || {
+        black_box(&bitmap).into_iter().nth(BITS - 1)
+    });
+    bench("owned clone + iter nth(last)", || {
+        black_box(&bitmap).clone().into_iter().nth(BITS - 1)
+    });
+    bench("owned clone (baseline)", || black_box(&bitmap).clone());
+}
