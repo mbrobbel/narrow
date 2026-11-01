@@ -84,26 +84,21 @@ impl<Bytes: Borrow<[u8]>> Iterator for BitmapIter<Bytes> {
             indices: Range { start, end },
         } = self;
         let bytes = buffer.borrow();
-        if start >= end {
-            return init;
-        }
 
         // Leading bits up to the first byte boundary.
         let head_end = start.next_multiple_of(BITS_PER_BYTE).min(end);
-        let mut acc = (start..head_end).fold(init, |acc, index| f(acc, bit(bytes, index)));
+        let head = (start..head_end).fold(init, |acc, index| f(acc, bit(bytes, index)));
 
         // Whole bytes. `head_end` is byte aligned whenever bits remain.
         let body_end = end.strict_div(BITS_PER_BYTE);
         let body_start = head_end.strict_div(BITS_PER_BYTE).min(body_end);
-        for &byte in &bytes[body_start..body_end] {
-            for shift in 0..u8::BITS {
-                acc = f(acc, byte & (1 << shift) != 0);
-            }
-        }
+        let body = bytes[body_start..body_end].iter().fold(head, |acc, &byte| {
+            (0..u8::BITS).fold(acc, |partial, shift| f(partial, byte & (1 << shift) != 0))
+        });
 
         // Trailing bits after the last byte boundary.
         let tail_start = body_end.strict_mul(BITS_PER_BYTE).max(head_end);
-        (tail_start..end).fold(acc, |partial, index| f(partial, bit(bytes, index)))
+        (tail_start..end).fold(body, |acc, index| f(acc, bit(bytes, index)))
     }
 
     /// Collects through `Map<Range<usize>, _>`, which implements the unstable
