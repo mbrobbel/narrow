@@ -10,11 +10,10 @@ pub use validity::ValidityBitmap;
 use core::{
     borrow::{Borrow, BorrowMut},
     fmt::{self, Debug},
-    iter::{self, Skip, Take},
+    iter,
 };
 
 use packed::BitPackedExt;
-use unpacked::{BitUnpacked, BitUnpackedExt};
 
 use crate::{
     buffer::{Buffer, BufferRef, VecBuffer},
@@ -325,20 +324,17 @@ impl<Storage: Buffer> Length for Bitmap<Storage> {
 impl<Storage: Buffer> IntoIterator for Bitmap<Storage> {
     type Item = bool;
 
-    type IntoIter = Take<Skip<BitUnpacked<<Storage::For<u8> as Collection>::IntoIter, u8>>>;
+    type IntoIter = BitmapIter<Storage::For<u8>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.buffer
-            .into_iter_owned()
-            .bit_unpacked()
-            .skip(self.offset)
-            .take(self.bits)
+        let indices = self.offset..self.offset.strict_add(self.bits);
+        BitmapIter::new(self.buffer, indices)
     }
 }
 
 impl<'bitmap, Storage: Buffer> IntoIterator for &'bitmap Bitmap<Storage> {
     type Item = bool;
-    type IntoIter = BitmapIter<'bitmap>;
+    type IntoIter = BitmapIter<&'bitmap [u8]>;
 
     fn into_iter(self) -> Self::IntoIter {
         BitmapIter::new(
