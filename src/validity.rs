@@ -241,6 +241,32 @@ where
         self.values.next().map(|value| valid.then_some(value))
     }
 
+    /// Drives the validity bits with their own (fast) `fold`, pulling one
+    /// value per bit, instead of calling `next` on both iterators per item.
+    fn fold<B, F: FnMut(B, Self::Item) -> B>(self, init: B, mut f: F) -> B {
+        let Self {
+            mut values,
+            bits: validity,
+        } = self;
+        match validity {
+            None => values.fold(init, |acc, value| f(acc, Some(value))),
+            Some(bits) => {
+                // Like `next`, stop at the first missing value, even if the
+                // values iterator is not fused.
+                let mut exhausted = false;
+                bits.fold(init, |acc, valid| {
+                    if !exhausted {
+                        if let Some(value) = values.next() {
+                            return f(acc, valid.then_some(value));
+                        }
+                        exhausted = true;
+                    }
+                    acc
+                })
+            }
+        }
+    }
+
     fn size_hint(&self) -> (usize, Option<usize>) {
         let values = self.values.size_hint();
         self.bits.as_ref().map_or(values, |bits_iter| {
@@ -580,6 +606,52 @@ mod tests {
 
     use super::*;
     use crate::fixed_size::FixedSize;
+
+    #[test]
+    fn iter_fold_matches_next() {
+        let bits = [
+            true, false, true, true, false, false, true, true, true, false,
+        ];
+        for values_len in 0..=12 {
+            for bits_len in 0..=bits.len() {
+                let explicit = Bitmap::<VecBuffer>::from_iter(&bits[..bits_len]);
+                for bitmap in [Some(&explicit), None] {
+                    let make = || ValidityIter {
+                        values: 0..values_len,
+                        bits: bitmap.map(IntoIterator::into_iter),
+                    };
+                    // A `for` loop drives the iterator with `next`.
+                    let mut expected = Vec::new();
+                    for item in make() {
+                        expected.push(item);
+                    }
+                    let folded = make().fold(Vec::new(), |mut acc, item| {
+                        acc.push(item);
+                        acc
+                    });
+                    assert_eq!(folded, expected);
+                    assert_eq!(make().flatten().count(), expected.iter().flatten().count());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn iter_fold_stops_at_first_missing_value() {
+        // A non-fused values iterator that yields again after `None`.
+        let mut source = [Some(1), None, Some(2)].into_iter();
+        let values = iter::from_fn(move || source.next().flatten());
+        let bitmap = Bitmap::<VecBuffer>::from_iter([true; 3]);
+        let folded = ValidityIter {
+            values,
+            bits: Some(bitmap.iter_views()),
+        }
+        .fold(Vec::new(), |mut acc, item| {
+            acc.push(item);
+            acc
+        });
+        assert_eq!(folded, [Some(1)]);
+    }
 
     /// Non-default allocator handle used to verify lazy bitmap allocation.
     #[derive(Clone, Debug, PartialEq, Eq)]
