@@ -31,10 +31,16 @@ impl<'a> BitmapIter<'a> {
     }
 }
 
+/// Number of bits packed in one byte.
+const BITS_PER_BYTE: usize = 8;
+
+/// Marker bit placed above a freshly fetched byte in [`BitUnpacked`].
+const SENTINEL: u16 = 1 << BITS_PER_BYTE;
+
 /// Returns the bit at `index` in `bytes`, using LSB-first numbering.
 #[inline]
 fn bit(bytes: &[u8], index: usize) -> bool {
-    bytes[index.strict_div(8)] & (1 << index.rem_euclid(8)) != 0
+    bytes[index.strict_div(BITS_PER_BYTE)] & (1 << index.rem_euclid(BITS_PER_BYTE)) != 0
 }
 
 impl Iterator for BitmapIter<'_> {
@@ -102,7 +108,11 @@ where
 {
     /// The iterator over the bytes storing packed bits.
     iter: I,
-    /// Remaining bits below a sentinel set bit; `1` means the byte is exhausted.
+    /// The unread bits of the current byte, below a sentinel set bit.
+    ///
+    /// The next bit to yield is the least-significant bit. `bits.ilog2()` is
+    /// the number of unread bits, so `1` (only the sentinel) means the current
+    /// byte is exhausted and the next byte must be fetched.
     bits: NonZeroU16,
 }
 
@@ -116,7 +126,7 @@ where
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let pending = if self.bits == NonZeroU16::MIN {
-            u16::from(*self.iter.next()?.borrow()) | 0x100
+            u16::from(*self.iter.next()?.borrow()) | SENTINEL
         } else {
             self.bits.get()
         };
@@ -148,8 +158,9 @@ where
         } else {
             let remaining = n.strict_sub(buffered);
             self.bits = NonZeroU16::MIN;
-            let byte = self.iter.nth(remaining.strict_div(8))?;
-            let pending = (u16::from(*byte.borrow()) | 0x100) >> remaining.rem_euclid(8);
+            let byte = self.iter.nth(remaining.strict_div(BITS_PER_BYTE))?;
+            let pending =
+                (u16::from(*byte.borrow()) | SENTINEL) >> remaining.rem_euclid(BITS_PER_BYTE);
             self.bits = NonZeroU16::new(pending).expect("sentinel remains set");
         }
         self.next()
