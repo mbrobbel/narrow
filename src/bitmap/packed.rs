@@ -30,18 +30,20 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        // Set the least significant bit based on the first boolean value, or
-        // return None if the inner iterator is finished.
-        let mut byte = u8::from(*self.iter.next()?.borrow());
-        for bit_position in 1..8 {
-            // Stop at the end of the inner iterator; the remaining bits of the
-            // final byte are padding.
-            let Some(next) = self.iter.next() else {
-                break;
-            };
-            byte |= u8::from(*next.borrow()) << bit_position;
-        }
-        Some(byte)
+        // Fold up to eight items with internal iteration, which inner adapters
+        // such as `Chain` and `Inspect` implement more efficiently than
+        // repeated calls to `next`.
+        let (byte, bits) =
+            self.iter
+                .by_ref()
+                .take(8)
+                .fold((0_u8, 0_u32), |(byte, bit_position), next| {
+                    (
+                        byte | (u8::from(*next.borrow()) << bit_position),
+                        bit_position.strict_add(1),
+                    )
+                });
+        (bits != 0).then_some(byte)
     }
 
     #[inline]
