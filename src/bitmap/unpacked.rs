@@ -17,8 +17,14 @@ impl<'a> BitmapIter<'a> {
 
     #[inline]
     fn bit(&self, index: usize) -> bool {
-        self.bytes[index.strict_div(8)] & (1 << index.rem_euclid(8)) != 0
+        bit(self.bytes, index)
     }
+}
+
+/// Returns the bit at `index` in `bytes`, using LSB-first numbering.
+#[inline]
+fn bit(bytes: &[u8], index: usize) -> bool {
+    bytes[index.strict_div(8)] & (1 << index.rem_euclid(8)) != 0
 }
 
 impl Iterator for BitmapIter<'_> {
@@ -41,19 +47,18 @@ impl Iterator for BitmapIter<'_> {
 
     #[inline]
     fn fold<B, F: FnMut(B, Self::Item) -> B>(self, init: B, mut f: F) -> B {
-        self.indices.fold(init, |acc, index| {
-            f(
-                acc,
-                self.bytes[index.strict_div(8)] & (1 << index.rem_euclid(8)) != 0,
-            )
-        })
+        let Self { bytes, indices } = self;
+        indices.fold(init, |acc, index| f(acc, bit(bytes, index)))
     }
 
+    /// Collects through `Map<Range<usize>, _>`, which implements the unstable
+    /// `TrustedLen` trait, so collections such as `Vec` can allocate once and
+    /// write without per-item capacity checks. `BitmapIter` itself cannot
+    /// implement `TrustedLen` on stable Rust.
     #[inline]
     fn collect<B: FromIterator<Self::Item>>(self) -> B {
-        self.indices
-            .map(|index| self.bytes[index.strict_div(8)] & (1 << index.rem_euclid(8)) != 0)
-            .collect()
+        let Self { bytes, indices } = self;
+        indices.map(|index| bit(bytes, index)).collect()
     }
 }
 
