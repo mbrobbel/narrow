@@ -3,7 +3,8 @@
 use core::{borrow::Borrow, iter::FusedIterator, num::NonZeroU16, ops::Range};
 
 /// An iterator over a borrowed bitmap's logical bits in LSB-first order.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct BitmapIter<'a> {
     bytes: &'a [u8],
     indices: Range<usize>,
@@ -53,6 +54,18 @@ impl Iterator for BitmapIter<'_> {
         self.indices
             .map(|index| self.bytes[index.strict_div(8)] & (1 << index.rem_euclid(8)) != 0)
             .collect()
+    }
+}
+
+impl DoubleEndedIterator for BitmapIter<'_> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.indices.next_back().map(|index| self.bit(index))
+    }
+
+    #[inline]
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        self.indices.nth_back(n).map(|index| self.bit(index))
     }
 }
 
@@ -236,6 +249,12 @@ mod tests {
     }
 
     #[test]
+    fn default_bitmap_iter_is_empty() {
+        assert_eq!(BitmapIter::default().next(), None);
+        assert_eq!(BitmapIter::default().len(), 0);
+    }
+
+    #[test]
     fn borrowed_iteration_and_skipping() {
         let bytes = [0x00, 0xff, 0xa5, 0x3c, 0x81, 0x7e];
         for start in 0..=48 {
@@ -259,6 +278,23 @@ mod tests {
                 assert_eq!(iter.size_hint(), (0, Some(0)));
                 assert_eq!(iter.next(), None);
                 assert_eq!(iter.next(), None);
+
+                assert_eq!(
+                    BitmapIter::new(&bytes, start..end)
+                        .rev()
+                        .collect::<Vec<_>>(),
+                    expected.iter().rev().copied().collect::<Vec<_>>()
+                );
+                let mut back = BitmapIter::new(&bytes, start..end);
+                assert_eq!(
+                    back.nth_back(7),
+                    expected.len().checked_sub(8).map(|index| expected[index])
+                );
+                assert_eq!(back.len(), expected.len().saturating_sub(8));
+                assert_eq!(
+                    back.next(),
+                    expected.first().copied().filter(|_| expected.len() > 8)
+                );
 
                 let mut skipped = BitmapIter::new(&bytes, start..end);
                 assert_eq!(skipped.nth(7), expected.get(7).copied());
