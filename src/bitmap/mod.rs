@@ -647,6 +647,15 @@ mod tests {
     }
 
     #[test]
+    fn from_iter_stops_at_first_none() {
+        let input = [Some(true), None, Some(true), Some(true)];
+        let mut source = input.into_iter();
+        let bitmap = Bitmap::<VecBuffer>::from_iter(iter::from_fn(move || source.next().flatten()));
+        assert_eq!(bitmap.len(), 1);
+        assert_eq!(bitmap.iter_views().collect::<Vec<_>>(), [true]);
+    }
+
+    #[test]
     fn extend() {
         let mut bitmap = Bitmap::<VecBuffer>::from_iter([true]);
         assert_eq!(bitmap.buffer, &[0b0000_0001]);
