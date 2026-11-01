@@ -6,7 +6,7 @@ use core::{
 };
 
 use crate::{
-    bitmap::{Bitmap, BitmapBuilder, ValidityBitmap, bytes_for_bits},
+    bitmap::{Bitmap, BitmapBuilder, ValidityBitmap},
     buffer::{Buffer, VecBuffer},
     collection::{
         AllocError, ChildRef, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
@@ -398,9 +398,10 @@ impl<
     fn from_iter<I: IntoIterator<Item = Option<U>>>(iter: I) -> Self {
         let items = iter.into_iter();
         let (lower_bound, upper_bound) = items.size_hint();
-        let mut validity = BitmapBuilder::<Storage>::new(Storage::For::<u8>::with_capacity(
-            bytes_for_bits(upper_bound.unwrap_or(lower_bound)),
-        ));
+        let mut validity = BitmapBuilder::<Storage>::with_capacity_in(
+            upper_bound.unwrap_or(lower_bound),
+            Default::default(),
+        );
         let collection = items
             .inspect(|opt| validity.push(opt.is_some()))
             .map(Option::unwrap_or_default)
@@ -484,10 +485,10 @@ impl<
     fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self {
         let items = iter.into_iter();
         let (lower_bound, upper_bound) = items.size_hint();
-        let mut validity = BitmapBuilder::<Storage>::new(Storage::For::<u8>::with_capacity_in(
-            bytes_for_bits(upper_bound.unwrap_or(lower_bound)),
+        let mut validity = BitmapBuilder::<Storage>::with_capacity_in(
+            upper_bound.unwrap_or(lower_bound),
             alloc.clone(),
-        ));
+        );
         let collection = T::from_iter_in(
             items
                 .inspect(|item| validity.push(item.is_some()))

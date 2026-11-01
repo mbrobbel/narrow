@@ -427,11 +427,18 @@ pub(crate) struct BitmapBuilder<Storage: Buffer> {
 }
 
 impl<Storage: Buffer<For<u8>: CollectionRealloc>> BitmapBuilder<Storage> {
-    /// Starts building into `buffer`, which must be empty.
-    pub(crate) fn new(buffer: Storage::For<u8>) -> Self {
-        debug_assert!(buffer.borrow().is_empty(), "bitmap builder buffer is empty");
+    /// Starts an empty builder with room for at least `bits` bits, allocated
+    /// with `alloc`.
+    ///
+    /// The builder allocates its own buffer: [`BitmapBuilder::finish`] derives
+    /// the bitmap's length from the buffer's length, so the buffer must only
+    /// hold bytes written by the builder.
+    pub(crate) fn with_capacity_in(
+        bits: usize,
+        alloc: <Storage::For<u8> as CollectionAllocIn>::Alloc,
+    ) -> Self {
         Self {
-            buffer,
+            buffer: Storage::For::<u8>::with_capacity_in(bytes_for_bits(bits), alloc),
             word: 0,
             pending: 0,
         }
@@ -1083,7 +1090,7 @@ mod tests {
     fn builder_matches_from_iter() {
         for len in 0..200 {
             let bools = (0..len).map(|index| index % 3 == 1).collect::<Vec<_>>();
-            let mut builder = BitmapBuilder::<VecBuffer>::new(Vec::new());
+            let mut builder = BitmapBuilder::<VecBuffer>::with_capacity_in(len, ());
             for &bit in &bools {
                 builder.push(bit);
             }
