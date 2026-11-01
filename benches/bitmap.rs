@@ -10,6 +10,7 @@ use std::{
 use narrow::{
     bitmap::{Bitmap, ValidityBitmap},
     buffer::VecBuffer,
+    collection::Collection,
     validity::Validity,
 };
 
@@ -67,7 +68,38 @@ fn main() {
         .map(|index| pattern(index).then_some(0_u8))
         .collect::<Validity<Vec<u8>>>();
 
+    let bools: Vec<bool> = (0..BITS).map(pattern).collect();
+    let all_valid = (0..BITS).map(|_| Some(0_u8)).collect::<Validity<Vec<u8>>>();
+
+    // Construction.
+    bench("bitmap from_iter", || {
+        Bitmap::<VecBuffer>::from_iter(black_box(&bools))
+    });
+    bench("bitmap extend (unaligned)", || {
+        let mut bitmap = Bitmap::<VecBuffer>::from_iter([true; 3]);
+        bitmap.extend(black_box(&bools));
+        bitmap
+    });
+    bench("validity from_iter", || {
+        black_box(&bools)
+            .iter()
+            .map(|valid| valid.then_some(0_u8))
+            .collect::<Validity<Vec<u8>>>()
+    });
+
+    // Counting and predicates.
     bench("validity null_count", || black_box(&validity).null_count());
+    bench("validity any_null (all valid)", || {
+        black_box(&all_valid).any_null()
+    });
+    bench("validity all_valid (all valid)", || {
+        black_box(&all_valid).all_valid()
+    });
+    bench("validity all_null (mixed)", || {
+        black_box(&validity).all_null()
+    });
+
+    // Iteration.
     bench("borrowed iter count true", || {
         black_box(&bitmap).into_iter().filter(|bit| *bit).count()
     });
@@ -77,8 +109,18 @@ fn main() {
     bench("borrowed iter nth(last)", || {
         black_box(&bitmap).into_iter().nth(BITS - 1)
     });
+    bench("owned clone (baseline)", || black_box(&bitmap).clone());
+    bench("owned clone + iter count true", || {
+        black_box(&bitmap)
+            .clone()
+            .into_iter()
+            .filter(|bit| *bit)
+            .count()
+    });
     bench("owned clone + iter nth(last)", || {
         black_box(&bitmap).clone().into_iter().nth(BITS - 1)
     });
-    bench("owned clone (baseline)", || black_box(&bitmap).clone());
+    bench("validity iter count valid", || {
+        black_box(&validity).iter_views().flatten().count()
+    });
 }
