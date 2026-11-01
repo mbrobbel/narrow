@@ -1,6 +1,6 @@
 //! An iterator that packs boolean values.
 
-use core::borrow::Borrow;
+use core::{borrow::Borrow, iter::Fuse};
 
 use super::bytes_for_bits;
 
@@ -15,7 +15,10 @@ where
     T: Borrow<bool>,
 {
     /// The inner iterator with boolean values.
-    iter: I,
+    ///
+    /// Fused: once the inner iterator returns `None`, items it might yield
+    /// afterwards must not be packed at positions following the gap.
+    iter: Fuse<I>,
 }
 
 impl<I, T> Iterator for BitPacked<I, T>
@@ -27,22 +30,20 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        // Get the next item from the inner iterator or return None if the inner
-        // iterator is finished.
-        self.iter.next().map(|next| {
-            // Set the least significant bit based on the first boolean value.
-            let mut byte = u8::from(*next.borrow());
-            for bit_position in 1..8 {
-                // If the inner iterator has more boolean values and they are set
-                // (`true`), set the corresponding bit in the output byte.
-                if let Some(x) = self.iter.next()
-                    && *x.borrow()
-                {
-                    byte |= 1 << bit_position;
-                }
-            }
-            byte
-        })
+        // Fold up to eight items with internal iteration, which inner adapters
+        // such as `Chain` and `Inspect` implement more efficiently than
+        // repeated calls to `next`.
+        let (byte, bits) =
+            self.iter
+                .by_ref()
+                .take(8)
+                .fold((0_u8, 0_u32), |(byte, bit_position), next| {
+                    (
+                        byte | (u8::from(*next.borrow()) << bit_position),
+                        bit_position.strict_add(1),
+                    )
+                });
+        (bits != 0).then_some(byte)
     }
 
     #[inline]
@@ -76,7 +77,7 @@ where
     where
         Self: Sized,
     {
-        BitPacked { iter: self }
+        BitPacked { iter: self.fuse() }
     }
 }
 
@@ -107,6 +108,17 @@ mod tests {
         assert!(iter_byte.next().is_none());
         let iter_two = [true; 16].iter().bit_packed();
         assert_eq!(iter_two.collect::<Vec<u8>>(), [0xff, 0xff]);
+    }
+
+    #[test]
+    fn stops_at_first_none() {
+        // A non-fused iterator that yields items again after `None`.
+        let input = [Some(true), None, Some(true), Some(true)];
+        let mut source = input.into_iter();
+        let mut iter = core::iter::from_fn(move || source.next().flatten()).bit_packed();
+        assert_eq!(iter.next(), Some(0b0000_0001));
+        assert_eq!(iter.next(), None);
+        assert_eq!(iter.next(), None);
     }
 
     #[test]

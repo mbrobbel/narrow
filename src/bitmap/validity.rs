@@ -102,8 +102,7 @@ pub trait ValidityBitmap: Length {
     /// assert!(values.any_null());
     /// ```
     fn any_null(&self) -> bool {
-        self.bitmap_ref()
-            .is_some_and(|bitmap| bitmap.iter_views().any(|valid| !valid))
+        self.bitmap_ref().is_some_and(Bitmap::any_unset)
     }
 
     /// Returns whether all elements in the collection are null.
@@ -117,7 +116,8 @@ pub trait ValidityBitmap: Length {
     /// assert!(values.all_null());
     /// ```
     fn all_null(&self) -> bool {
-        self.null_count() == self.len()
+        self.bitmap_ref()
+            .map_or(self.is_empty(), |bitmap| !bitmap.any_set())
     }
 
     /// Returns whether the collection contains at least one valid element.
@@ -131,7 +131,7 @@ pub trait ValidityBitmap: Length {
     /// assert!(values.any_valid());
     /// ```
     fn any_valid(&self) -> bool {
-        self.valid_count() != 0
+        self.bitmap_ref().map_or(!self.is_empty(), Bitmap::any_set)
     }
 
     /// Returns whether all elements in the collection are valid.
@@ -145,6 +145,6 @@ pub trait ValidityBitmap: Length {
     /// assert!(values.all_valid());
     /// ```
     fn all_valid(&self) -> bool {
-        self.null_count() == 0
+        self.bitmap_ref().is_none_or(|bitmap| !bitmap.any_unset())
     }
 }

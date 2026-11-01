@@ -3,11 +3,10 @@
 use core::{
     borrow::BorrowMut,
     fmt::{self, Debug},
-    iter,
 };
 
 use crate::{
-    bitmap::{Bitmap, ValidityBitmap},
+    bitmap::{Bitmap, BitmapBuilder, ValidityBitmap},
     buffer::{Buffer, VecBuffer},
     collection::{
         AllocError, ChildRef, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
@@ -242,6 +241,30 @@ where
         self.values.next().map(|value| valid.then_some(value))
     }
 
+    /// Drives the validity bits with their own (fast) `fold`, pulling one
+    /// value per bit, instead of calling `next` on both iterators per item.
+    fn fold<B, F: FnMut(B, Self::Item) -> B>(self, init: B, mut f: F) -> B {
+        let Self {
+            mut values,
+            bits: validity,
+        } = self;
+        match validity {
+            None => values.fold(init, |acc, value| f(acc, Some(value))),
+            Some(bits) => {
+                // Like `next`, stop at the first missing value, even if the
+                // values iterator is not fused: once exhausted, stay exhausted.
+                bits.fold((init, false), |(acc, exhausted), valid| match (!exhausted)
+                    .then(|| values.next())
+                    .flatten()
+                {
+                    Some(value) => (f(acc, valid.then_some(value)), false),
+                    None => (acc, true),
+                })
+                .0
+            }
+        }
+    }
+
     fn size_hint(&self) -> (usize, Option<usize>) {
         let values = self.values.size_hint();
         self.bits.as_ref().map_or(values, |bits_iter| {
@@ -310,14 +333,11 @@ impl<T: Collection, Storage: Buffer> Collection for Validity<T, Storage> {
     type Owned = Option<<T as Collection>::Owned>;
 
     fn view(&self, index: usize) -> Option<Self::View<'_>> {
-        (index < self.len()).then(|| {
-            let value = self
-                .collection
-                .view(index)
-                .expect("collection contains committed validity item");
-            self.bitmap_ref()
-                .is_none_or(|bitmap| bitmap.view(index).expect("validity lengths match"))
-                .then_some(value)
+        // The bitmap bounds the length when present: a panicking extension may
+        // leave uncommitted values in the collection beyond it.
+        let value = self.collection.view(index)?;
+        self.bitmap_ref().map_or(Some(Some(value)), |bitmap| {
+            bitmap.view(index).map(|valid| valid.then_some(value))
         })
     }
 
@@ -342,27 +362,33 @@ impl<
     Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc<Alloc = T::Alloc>>,
 > Validity<T, Storage>
 {
-    /// Materializes an explicit all-valid bitmap with the collection's
-    /// allocator.
-    fn materialize_bitmap(&mut self) {
-        if self.bitmap.is_none() {
-            let bitmap =
-                Bitmap::<Storage>::all_set_in(self.collection.len(), self.collection.allocator());
-            self.bitmap = Some(bitmap);
-        }
+    /// Returns the collection and its bitmap, first materializing an
+    /// explicit all-valid bitmap with the collection's allocator if there is
+    /// none.
+    fn materialized_mut(&mut self) -> (&mut T, &mut Bitmap<Storage>) {
+        let &mut Self {
+            ref mut collection,
+            ref mut bitmap,
+        } = self;
+        let materialized = bitmap.get_or_insert_with(|| {
+            Bitmap::<Storage>::all_set_in(collection.len(), collection.allocator())
+        });
+        (collection, materialized)
     }
 
-    /// Tries to materialize an explicit all-valid bitmap with the collection's
-    /// allocator.
-    fn try_materialize_bitmap(&mut self) -> Result<(), AllocError> {
-        if self.bitmap.is_none() {
-            let bitmap = Bitmap::<Storage>::try_all_set_in(
-                self.collection.len(),
-                self.collection.allocator(),
-            )?;
-            self.bitmap = Some(bitmap);
-        }
-        Ok(())
+    /// Returns the collection and its bitmap, first trying to materialize an
+    /// explicit all-valid bitmap with the collection's allocator if there is
+    /// none.
+    fn try_materialized_mut(&mut self) -> Result<(&mut T, &mut Bitmap<Storage>), AllocError> {
+        let &mut Self {
+            ref mut collection,
+            ref mut bitmap,
+        } = self;
+        let materialized = bitmap.take().map_or_else(
+            || Bitmap::<Storage>::try_all_set_in(collection.len(), collection.allocator()),
+            Ok,
+        )?;
+        Ok((collection, bitmap.insert(materialized)))
     }
 }
 
@@ -375,14 +401,17 @@ impl<
     fn from_iter<I: IntoIterator<Item = Option<U>>>(iter: I) -> Self {
         let items = iter.into_iter();
         let (lower_bound, upper_bound) = items.size_hint();
-        let mut bitmap = Bitmap::with_capacity(upper_bound.unwrap_or(lower_bound));
+        let mut validity = BitmapBuilder::<Storage>::with_capacity_in(
+            upper_bound.unwrap_or(lower_bound),
+            Default::default(),
+        );
         let collection = items
-            .inspect(|opt| bitmap.extend(iter::once(opt.is_some())))
+            .inspect(|opt| validity.push(opt.is_some()))
             .map(Option::unwrap_or_default)
             .collect();
         Self {
             collection,
-            bitmap: Some(bitmap),
+            bitmap: Some(validity.finish()),
         }
     }
 }
@@ -398,24 +427,25 @@ impl<
 > Extend<Option<U>> for Validity<T, Storage>
 {
     fn extend<I: IntoIterator<Item = Option<U>>>(&mut self, iter: I) {
-        self.materialize_bitmap();
-        let bitmap_len = self
-            .bitmap
-            .as_ref()
-            .expect("validity bitmap is materialized")
-            .len();
-        self.collection.truncate(bitmap_len);
+        let mut items = iter.into_iter();
+        let (collection, bitmap) = self.materialized_mut();
+        collection.truncate(bitmap.len());
+
+        // Reserve for the known minimum up front: growing both buffers chunk
+        // by chunk would reallocate and copy them repeatedly.
+        let additional = items.size_hint().0;
+        bitmap.reserve(additional);
+        collection.reserve(additional);
 
         // Buffer validity and flush it to the bitmap per chunk, instead of
         // extending the bitmap bit by bit: bulk bitmap extension uses the bit
         // packing fast path. The bitmap is extended after the items of a
         // chunk are committed to the collection, so a panicking iterator can
         // not add validity for items that never arrive.
-        let mut items = iter.into_iter();
         loop {
             let mut validity = [false; VALIDITY_CHUNK];
             let mut count: usize = 0;
-            self.collection.extend(
+            collection.extend(
                 items
                     .by_ref()
                     .take(VALIDITY_CHUNK)
@@ -425,10 +455,7 @@ impl<
                     })
                     .map(Option::unwrap_or_default),
             );
-            self.bitmap
-                .as_mut()
-                .expect("validity bitmap is materialized")
-                .extend(validity.iter().take(count));
+            bitmap.extend(validity.iter().take(count));
             if count < VALIDITY_CHUNK {
                 break;
             }
@@ -455,17 +482,19 @@ impl<
     fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self {
         let items = iter.into_iter();
         let (lower_bound, upper_bound) = items.size_hint();
-        let mut bitmap =
-            Bitmap::<Storage>::with_capacity_in(upper_bound.unwrap_or(lower_bound), alloc.clone());
+        let mut validity = BitmapBuilder::<Storage>::with_capacity_in(
+            upper_bound.unwrap_or(lower_bound),
+            alloc.clone(),
+        );
         let collection = T::from_iter_in(
             items
-                .inspect(|item| bitmap.extend(iter::once(item.is_some())))
+                .inspect(|item| validity.push(item.is_some()))
                 .map(Option::unwrap_or_default),
             alloc,
         );
         Self {
             collection,
-            bitmap: Some(bitmap),
+            bitmap: Some(validity.finish()),
         }
     }
 
@@ -500,12 +529,9 @@ impl<
     }
 
     fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
-        self.try_materialize_bitmap()?;
-        self.collection.try_reserve(additional)?;
-        self.bitmap
-            .as_mut()
-            .expect("validity bitmap is materialized")
-            .try_reserve(additional)
+        let (collection, bitmap) = self.try_materialized_mut()?;
+        collection.try_reserve(additional)?;
+        bitmap.try_reserve(additional)
     }
 
     fn try_extend<I: IntoIterator<Item = Self::Owned>>(
@@ -513,10 +539,15 @@ impl<
         iter: I,
     ) -> Result<(), AllocError> {
         let len = self.len();
-        self.try_materialize_bitmap()?;
-        self.collection.truncate(len);
-
         let mut items = iter.into_iter();
+        let (collection, bitmap) = self.try_materialized_mut()?;
+        collection.truncate(len);
+
+        // Reserve for the known minimum up front: growing both buffers chunk
+        // by chunk would reallocate and copy them repeatedly.
+        let additional = items.size_hint().0;
+        collection.try_reserve(additional)?;
+        bitmap.try_reserve(additional)?;
         loop {
             let mut validity = [false; VALIDITY_CHUNK];
             let mut count: usize = 0;
@@ -528,17 +559,12 @@ impl<
                     count = count.strict_add(1);
                 })
                 .map(Option::unwrap_or_default);
-            if let Err(error) = self.collection.try_extend(values) {
-                self.truncate(len);
-                return Err(error);
-            }
-            if let Err(error) = self
-                .bitmap
-                .as_mut()
-                .expect("validity bitmap is materialized")
-                .try_extend(validity.into_iter().take(count))
-            {
-                self.truncate(len);
+            let extended = collection
+                .try_extend(values)
+                .and_then(|()| bitmap.try_extend(validity.into_iter().take(count)));
+            if let Err(error) = extended {
+                bitmap.truncate(len);
+                collection.truncate(len);
                 return Err(error);
             }
             if count < VALIDITY_CHUNK {
@@ -549,12 +575,9 @@ impl<
     }
 
     fn reserve(&mut self, additional: usize) {
-        self.materialize_bitmap();
-        self.bitmap
-            .as_mut()
-            .expect("validity bitmap is materialized")
-            .reserve(additional);
-        self.collection.reserve(additional);
+        let (collection, bitmap) = self.materialized_mut();
+        bitmap.reserve(additional);
+        collection.reserve(additional);
     }
 
     fn truncate(&mut self, len: usize) {
@@ -572,11 +595,57 @@ mod tests {
     use alloc::vec::Vec;
     use core::{
         borrow::{Borrow, BorrowMut},
-        slice,
+        iter, slice,
     };
 
     use super::*;
     use crate::fixed_size::FixedSize;
+
+    #[test]
+    fn iter_fold_matches_next() {
+        let bits = [
+            true, false, true, true, false, false, true, true, true, false,
+        ];
+        for values_len in 0..=12 {
+            for bits_len in 0..=bits.len() {
+                let explicit = Bitmap::<VecBuffer>::from_iter(&bits[..bits_len]);
+                for bitmap in [Some(&explicit), None] {
+                    let make = || ValidityIter {
+                        values: 0..values_len,
+                        bits: bitmap.map(IntoIterator::into_iter),
+                    };
+                    // A `for` loop drives the iterator with `next`.
+                    let mut expected = Vec::new();
+                    for item in make() {
+                        expected.push(item);
+                    }
+                    let folded = make().fold(Vec::new(), |mut acc, item| {
+                        acc.push(item);
+                        acc
+                    });
+                    assert_eq!(folded, expected);
+                    assert_eq!(make().flatten().count(), expected.iter().flatten().count());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn iter_fold_stops_at_first_missing_value() {
+        // A non-fused values iterator that yields again after `None`.
+        let mut source = [Some(1), None, Some(2)].into_iter();
+        let values = iter::from_fn(move || source.next().flatten());
+        let bitmap = Bitmap::<VecBuffer>::from_iter([true; 3]);
+        let folded = ValidityIter {
+            values,
+            bits: Some(bitmap.iter_views()),
+        }
+        .fold(Vec::new(), |mut acc, item| {
+            acc.push(item);
+            acc
+        });
+        assert_eq!(folded, [Some(1)]);
+    }
 
     /// Non-default allocator handle used to verify lazy bitmap allocation.
     #[derive(Clone, Debug, PartialEq, Eq)]
