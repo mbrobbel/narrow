@@ -252,17 +252,15 @@ where
             None => values.fold(init, |acc, value| f(acc, Some(value))),
             Some(bits) => {
                 // Like `next`, stop at the first missing value, even if the
-                // values iterator is not fused.
-                let mut exhausted = false;
-                bits.fold(init, |acc, valid| {
-                    if !exhausted {
-                        if let Some(value) = values.next() {
-                            return f(acc, valid.then_some(value));
-                        }
-                        exhausted = true;
-                    }
-                    acc
+                // values iterator is not fused: once exhausted, stay exhausted.
+                bits.fold((init, false), |(acc, exhausted), valid| match (!exhausted)
+                    .then(|| values.next())
+                    .flatten()
+                {
+                    Some(value) => (f(acc, valid.then_some(value)), false),
+                    None => (acc, true),
                 })
+                .0
             }
         }
     }
