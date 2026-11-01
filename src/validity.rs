@@ -333,14 +333,11 @@ impl<T: Collection, Storage: Buffer> Collection for Validity<T, Storage> {
     type Owned = Option<<T as Collection>::Owned>;
 
     fn view(&self, index: usize) -> Option<Self::View<'_>> {
-        (index < self.len()).then(|| {
-            let value = self
-                .collection
-                .view(index)
-                .expect("collection contains committed validity item");
-            self.bitmap_ref()
-                .is_none_or(|bitmap| bitmap.view(index).expect("validity lengths match"))
-                .then_some(value)
+        // The bitmap bounds the length when present: a panicking extension may
+        // leave uncommitted values in the collection beyond it.
+        let value = self.collection.view(index)?;
+        self.bitmap_ref().map_or(Some(Some(value)), |bitmap| {
+            bitmap.view(index).map(|valid| valid.then_some(value))
         })
     }
 
