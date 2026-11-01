@@ -896,7 +896,15 @@ mod tests {
 
     #[test]
     fn count_ones_matches_bit_reference() {
-        for bytes in [[0; 24], [u8::MAX; 24], [0xa5; 24]] {
+        // Every byte of the last pattern differs, so counting the wrong byte
+        // (or a byte twice) changes the result.
+        let distinct: [u8; 24] = core::array::from_fn(|index| {
+            u8::try_from(index)
+                .expect("index fits in u8")
+                .wrapping_mul(0x9d)
+                ^ 0x5a
+        });
+        for bytes in [[0; 24], [u8::MAX; 24], [0xa5; 24], distinct] {
             for offset in 0..24 {
                 for bits in 0..=145 {
                     let buffer = &bytes[..bytes_for_bits(offset + bits)];
