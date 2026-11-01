@@ -412,6 +412,66 @@ impl<'bitmap, Storage: Buffer> IntoIterator for &'bitmap Bitmap<Storage> {
     }
 }
 
+/// Builds a [`Bitmap`] from bits that arrive one at a time.
+///
+/// Bits are packed into a 64-bit word that the compiler can keep in a
+/// register, and the buffer is only touched once per word. This is much
+/// cheaper than extending a bitmap bit by bit from within another loop.
+pub(crate) struct BitmapBuilder<Storage: Buffer> {
+    /// The packed bytes of all complete words.
+    buffer: Storage::For<u8>,
+    /// The pending bits, LSB first.
+    word: u64,
+    /// The number of pending bits in `word`.
+    pending: u32,
+}
+
+impl<Storage: Buffer<For<u8>: CollectionRealloc>> BitmapBuilder<Storage> {
+    /// Starts building into `buffer`, which must be empty.
+    pub(crate) fn new(buffer: Storage::For<u8>) -> Self {
+        debug_assert!(buffer.borrow().is_empty(), "bitmap builder buffer is empty");
+        Self {
+            buffer,
+            word: 0,
+            pending: 0,
+        }
+    }
+
+    /// Appends one bit.
+    #[inline]
+    pub(crate) fn push(&mut self, value: bool) {
+        self.word |= u64::from(value) << self.pending;
+        self.pending = self.pending.strict_add(1);
+        if self.pending == u64::BITS {
+            self.buffer.extend(self.word.to_le_bytes());
+            self.word = 0;
+            self.pending = 0;
+        }
+    }
+
+    /// Flushes the pending bits and returns the bitmap.
+    pub(crate) fn finish(mut self) -> Bitmap<Storage> {
+        let pending = usize::try_from(self.pending).expect("bit count fits in usize");
+        self.buffer.extend(
+            self.word
+                .to_le_bytes()
+                .into_iter()
+                .take(bytes_for_bits(pending)),
+        );
+        let full_bits = self
+            .buffer
+            .borrow()
+            .len()
+            .strict_sub(bytes_for_bits(pending))
+            .strict_mul(8);
+        Bitmap {
+            buffer: self.buffer,
+            bits: full_bits.strict_add(pending),
+            offset: 0,
+        }
+    }
+}
+
 impl<T: Borrow<bool>, Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> Extend<T>
     for Bitmap<Storage>
 {
@@ -1020,6 +1080,21 @@ mod tests {
                     );
                 }
             }
+        }
+    }
+
+    #[test]
+    fn builder_matches_from_iter() {
+        for len in 0..200 {
+            let bools = (0..len).map(|index| index % 3 == 1).collect::<Vec<_>>();
+            let mut builder = BitmapBuilder::<VecBuffer>::new(Vec::new());
+            for &bit in &bools {
+                builder.push(bit);
+            }
+            let bitmap = builder.finish();
+            assert_eq!(bitmap.len(), len);
+            assert_eq!(bitmap.buffer.len(), bytes_for_bits(len));
+            assert_eq!(bitmap.iter_views().collect::<Vec<_>>(), bools);
         }
     }
 
