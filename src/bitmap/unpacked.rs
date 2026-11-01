@@ -11,7 +11,17 @@ pub struct BitmapIter<'a> {
 }
 
 impl<'a> BitmapIter<'a> {
+    /// Creates an iterator over the bits at `indices` in `bytes`.
+    ///
+    /// Callers must ensure every index in `indices` addresses a bit within
+    /// `bytes`; [`Bitmap`](super::Bitmap) guarantees this for its offset and
+    /// length. Out-of-range indices panic when yielded.
     pub(super) fn new(bytes: &'a [u8], indices: Range<usize>) -> Self {
+        debug_assert!(
+            indices.is_empty() || indices.end.div_ceil(8) <= bytes.len(),
+            "bit range {indices:?} exceeds {} bytes",
+            bytes.len()
+        );
         Self { bytes, indices }
     }
 
