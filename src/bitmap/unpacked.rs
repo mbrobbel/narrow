@@ -62,9 +62,42 @@ impl Iterator for BitmapIter<'_> {
     }
 
     #[inline]
+    fn count(self) -> usize {
+        self.indices.len()
+    }
+
+    #[inline]
+    fn last(mut self) -> Option<Self::Item> {
+        self.next_back()
+    }
+
+    /// Folds byte by byte: the bits of each whole byte are extracted with
+    /// constant shifts instead of a division, bounds check and variable shift
+    /// per bit, which lets adapters such as `filter(..).count()` vectorize.
+    #[inline]
     fn fold<B, F: FnMut(B, Self::Item) -> B>(self, init: B, mut f: F) -> B {
         let Self { bytes, indices } = self;
-        indices.fold(init, |acc, index| f(acc, bit(bytes, index)))
+        let Range { start, end } = indices;
+        if start >= end {
+            return init;
+        }
+
+        // Leading bits up to the first byte boundary.
+        let head_end = start.next_multiple_of(BITS_PER_BYTE).min(end);
+        let mut acc = (start..head_end).fold(init, |acc, index| f(acc, bit(bytes, index)));
+
+        // Whole bytes. `head_end` is byte aligned whenever bits remain.
+        let body_end = end.strict_div(BITS_PER_BYTE);
+        let body_start = head_end.strict_div(BITS_PER_BYTE).min(body_end);
+        for &byte in &bytes[body_start..body_end] {
+            for shift in 0..u8::BITS {
+                acc = f(acc, byte & (1 << shift) != 0);
+            }
+        }
+
+        // Trailing bits after the last byte boundary.
+        let tail_start = body_end.strict_mul(BITS_PER_BYTE).max(head_end);
+        (tail_start..end).fold(acc, |partial, index| f(partial, bit(bytes, index)))
     }
 
     /// Collects through `Map<Range<usize>, _>`, which implements the unstable
@@ -290,6 +323,12 @@ mod tests {
                     .collect();
                 let mut iter = BitmapIter::new(&bytes, start..end);
                 assert_eq!(iter.clone().collect::<Vec<_>>(), expected);
+                assert_eq!(iter.clone().count(), expected.len());
+                assert_eq!(iter.clone().last(), expected.last().copied());
+                assert_eq!(
+                    iter.clone().filter(|bit| *bit).count(),
+                    expected.iter().filter(|bit| **bit).count()
+                );
                 assert_eq!(
                     iter.clone().fold(Vec::new(), |mut output, bit| {
                         output.push(bit);
