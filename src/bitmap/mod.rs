@@ -488,14 +488,14 @@ impl<T: Borrow<bool>, Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionReall
         if bit_index != 0 {
             let byte_index = self.byte_index(self.bits);
             if let Some(byte) = self.buffer.borrow_mut().get_mut(byte_index) {
-                for index in bit_index..8 {
-                    if let Some(next) = items.next() {
+                (bit_index..8)
+                    .zip(items.by_ref())
+                    .for_each(|(index, next)| {
                         // Clear the bit before setting it: bits beyond the
                         // logical end of the bitmap are unspecified.
                         *byte = (*byte & !(1 << index)) | (u8::from(*next.borrow()) << index);
                         self.bits = self.bits.strict_add(1);
-                    }
-                }
+                    });
             }
         }
 
@@ -510,16 +510,14 @@ impl<T: Borrow<bool>, Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionReall
                 .bit_packed();
 
             // Overwrite bytes beyond the logical end before appending.
-            let mut byte_index = self.byte_index(self.bits);
-            while let Some(byte) = self.buffer.borrow_mut().get_mut(byte_index) {
-                match packed.next() {
-                    Some(packed_byte) => {
-                        *byte = packed_byte;
-                        byte_index = byte_index.strict_add(1);
-                    }
-                    None => break,
-                }
-            }
+            let byte_index = self.byte_index(self.bits);
+            self.buffer
+                .borrow_mut()
+                .get_mut(byte_index..)
+                .unwrap_or_default()
+                .iter_mut()
+                .zip(packed.by_ref())
+                .for_each(|(byte, packed_byte)| *byte = packed_byte);
 
             self.buffer.extend(packed);
             self.bits = self.bits.strict_add(consumed);
@@ -693,12 +691,12 @@ impl<Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> CollectionRe
         if bit_index != 0 {
             let byte_index = self.byte_index(self.bits);
             if let Some(byte) = self.buffer.borrow_mut().get_mut(byte_index) {
-                for index in bit_index..8 {
-                    if let Some(next) = items.next() {
+                (bit_index..8)
+                    .zip(items.by_ref())
+                    .for_each(|(index, next)| {
                         *byte = (*byte & !(1 << index)) | (u8::from(next) << index);
                         self.bits = self.bits.strict_add(1);
-                    }
-                }
+                    });
             }
         }
 
@@ -709,16 +707,14 @@ impl<Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> CollectionRe
                 .inspect(|_| consumed = consumed.strict_add(1))
                 .bit_packed();
 
-            let mut byte_index = self.byte_index(self.bits);
-            while let Some(byte) = self.buffer.borrow_mut().get_mut(byte_index) {
-                match packed.next() {
-                    Some(packed_byte) => {
-                        *byte = packed_byte;
-                        byte_index = byte_index.strict_add(1);
-                    }
-                    None => break,
-                }
-            }
+            let byte_index = self.byte_index(self.bits);
+            self.buffer
+                .borrow_mut()
+                .get_mut(byte_index..)
+                .unwrap_or_default()
+                .iter_mut()
+                .zip(packed.by_ref())
+                .for_each(|(byte, packed_byte)| *byte = packed_byte);
 
             if let Err(error) = self.buffer.try_extend(packed) {
                 self.bits = original_bits;
