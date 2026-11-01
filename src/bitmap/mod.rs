@@ -27,6 +27,29 @@ pub(crate) const fn bytes_for_bits(bits: usize) -> usize {
     bits.div_ceil(8)
 }
 
+/// Number of bytes [`Bitmap::any_bit`] combines before testing them.
+const ANY_BIT_BLOCK: usize = 64;
+
+/// The bytes holding a non-empty bitmap's logical bits.
+struct ByteSpan<'a> {
+    /// The first byte with a mask selecting its logical bits. For a bitmap
+    /// within a single byte the mask covers both ends.
+    head: (u8, u8),
+    /// The bytes between the first and the last, all of whose bits are
+    /// logical.
+    body: &'a [u8],
+    /// The last byte with a mask selecting its logical bits, if it is not the
+    /// first byte.
+    tail: Option<(u8, u8)>,
+}
+
+impl ByteSpan<'_> {
+    /// Returns the masked first and last bytes.
+    fn ends(&self) -> impl Iterator<Item = (u8, u8)> {
+        iter::once(self.head).chain(self.tail)
+    }
+}
+
 /// Error returned by [`Bitmap::try_from_parts`].
 ///
 /// Raw byte buffers carry no logical length or offset themselves. Validating
@@ -185,19 +208,17 @@ impl<Storage: Buffer> Bitmap<Storage> {
         self.offset
     }
 
-    /// Counts set bits, excluding padding outside this [`Bitmap`].
-    #[must_use]
-    fn count_ones(&self) -> usize {
+    /// Returns the bytes holding this bitmap's logical bits, or [`None`] when
+    /// it is empty.
+    fn byte_span(&self) -> Option<ByteSpan<'_>> {
         if self.bits == 0 {
-            return 0;
+            return None;
         }
 
         let end = self.offset.strict_add(self.bits);
-        let start_byte = self.offset.strict_div(8);
         let end_bit = end.rem_euclid(8);
         let buffer = self.buffer.borrow();
-        let bytes = &buffer[start_byte..end.div_ceil(8)];
-        let last = bytes.len().strict_sub(1);
+        let bytes = &buffer[self.offset.strict_div(8)..end.div_ceil(8)];
         let leading_mask = u8::MAX << self.offset.rem_euclid(8);
         let trailing_mask = if end_bit == 0 {
             u8::MAX
@@ -205,34 +226,81 @@ impl<Storage: Buffer> Bitmap<Storage> {
             (1_u8 << end_bit).strict_sub(1)
         };
 
-        if last == 0 {
-            return usize::try_from((bytes[0] & leading_mask & trailing_mask).count_ones())
-                .expect("u8 popcount fits in usize");
-        }
+        Some(match *bytes {
+            [byte] => ByteSpan {
+                head: (byte, leading_mask & trailing_mask),
+                body: &[],
+                tail: None,
+            },
+            [first, ref body @ .., last] => ByteSpan {
+                head: (first, leading_mask),
+                body,
+                tail: Some((last, trailing_mask)),
+            },
+            [] => unreachable!("a non-empty bitmap spans at least one byte"),
+        })
+    }
 
-        let leading = usize::try_from((bytes[0] & leading_mask).count_ones())
-            .expect("u8 popcount fits in usize");
-        let trailing = usize::try_from((bytes[last] & trailing_mask).count_ones())
-            .expect("u8 popcount fits in usize");
-        let (words, remainder) = bytes[1..last].as_chunks::<8>();
+    /// Counts set bits, excluding padding outside this [`Bitmap`].
+    #[must_use]
+    fn count_ones(&self) -> usize {
+        self.byte_span().map_or(0, |span| {
+            let ends = span
+                .ends()
+                .map(|(byte, mask)| {
+                    usize::try_from((byte & mask).count_ones()).expect("u8 popcount fits in usize")
+                })
+                .sum::<usize>();
+            let (words, remainder) = span.body.as_chunks::<8>();
 
-        // Each sum is bounded by the logical bit length. Ordinary sums allow
-        // the compiler to vectorize the unmasked interior.
-        let word_count: usize = words
-            .iter()
-            .map(|word| {
-                usize::try_from(u64::from_ne_bytes(*word).count_ones())
-                    .expect("u64 popcount fits in usize")
-            })
-            .sum();
-        let remainder_count: usize = remainder
-            .iter()
-            .map(|byte| usize::try_from(byte.count_ones()).expect("u8 popcount fits in usize"))
-            .sum();
-        leading
-            .strict_add(word_count)
-            .strict_add(remainder_count)
-            .strict_add(trailing)
+            // Each sum is bounded by the logical bit length. Ordinary sums allow
+            // the compiler to vectorize the unmasked interior.
+            let word_count: usize = words
+                .iter()
+                .map(|word| {
+                    usize::try_from(u64::from_ne_bytes(*word).count_ones())
+                        .expect("u64 popcount fits in usize")
+                })
+                .sum();
+            let remainder_count: usize = remainder
+                .iter()
+                .map(|byte| usize::try_from(byte.count_ones()).expect("u8 popcount fits in usize"))
+                .sum();
+            ends.strict_add(word_count).strict_add(remainder_count)
+        })
+    }
+
+    /// Returns whether any logical bit equals `value`, stopping at the first
+    /// block of bytes that contains one.
+    fn any_bit(&self, value: bool) -> bool {
+        // Flipping all bits turns a search for unset bits into one for set bits.
+        let flip = if value { 0 } else { u8::MAX };
+        self.byte_span().is_some_and(|span| {
+            span.ends().any(|(byte, mask)| (byte ^ flip) & mask != 0) || {
+                let flip_word = u64::from_ne_bytes([flip; 8]);
+                let (blocks, remainder) = span.body.as_chunks::<ANY_BIT_BLOCK>();
+                // Combine a block branch-free so it vectorizes, then branch once
+                // per block.
+                blocks.iter().any(|block| {
+                    block
+                        .as_chunks::<8>()
+                        .0
+                        .iter()
+                        .fold(0, |any, word| any | (u64::from_ne_bytes(*word) ^ flip_word))
+                        != 0
+                }) || remainder.iter().any(|byte| byte ^ flip != 0)
+            }
+        })
+    }
+
+    /// Returns whether any logical bit is set.
+    pub(crate) fn any_set(&self) -> bool {
+        self.any_bit(true)
+    }
+
+    /// Returns whether any logical bit is unset.
+    pub(crate) fn any_unset(&self) -> bool {
+        self.any_bit(false)
     }
 
     /// Returns the raw parts of this [`Bitmap`]: its byte buffer, the number of
@@ -919,6 +987,37 @@ mod tests {
                         .filter(|bit| bytes[bit / 8] & (1 << (bit % 8)) != 0)
                         .count();
                     assert_eq!(bitmap.count_ones(), expected);
+                    assert_eq!(bitmap.any_set(), expected > 0);
+                    assert_eq!(bitmap.any_unset(), expected < bits);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn any_bit_finds_single_differing_bit() {
+        // Large enough to span several blocks of `ANY_BIT_BLOCK` bytes.
+        const BYTES: usize = 3 * ANY_BIT_BLOCK + 5;
+        for background in [0, u8::MAX] {
+            for position in (0..BYTES * 8).step_by(13) {
+                let mut bytes = [background; BYTES];
+                bytes[position / 8] ^= 1 << (position % 8);
+                for (offset, bits) in [(0, BYTES * 8), (5, BYTES * 8 - 9), (position, 1)] {
+                    let bitmap =
+                        Bitmap::<SliceBuffer>::try_from_parts(bytes.as_slice(), bits, offset)
+                            .expect("valid parts");
+                    let differs = (offset..offset + bits).contains(&position);
+                    let (set, unset) = if background == 0 {
+                        (differs, bits > usize::from(differs))
+                    } else {
+                        (bits > usize::from(differs), differs)
+                    };
+                    assert_eq!(bitmap.any_set(), set, "{background} {position} {offset}");
+                    assert_eq!(
+                        bitmap.any_unset(),
+                        unset,
+                        "{background} {position} {offset}"
+                    );
                 }
             }
         }
