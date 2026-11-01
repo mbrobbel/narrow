@@ -389,29 +389,6 @@ impl<Storage: Buffer> Length for Bitmap<Storage> {
     }
 }
 
-impl<Storage: Buffer> IntoIterator for Bitmap<Storage> {
-    type Item = bool;
-
-    type IntoIter = BitmapIter<Storage::For<u8>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let indices = self.offset..self.offset.strict_add(self.bits);
-        BitmapIter::new(self.buffer, indices)
-    }
-}
-
-impl<'bitmap, Storage: Buffer> IntoIterator for &'bitmap Bitmap<Storage> {
-    type Item = bool;
-    type IntoIter = BitmapIter<&'bitmap [u8]>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        BitmapIter::new(
-            self.buffer.borrow(),
-            self.offset..self.offset.strict_add(self.bits),
-        )
-    }
-}
-
 /// Builds a [`Bitmap`] from bits that arrive one at a time.
 ///
 /// Bits are packed into a 64-bit word that the compiler can keep in a

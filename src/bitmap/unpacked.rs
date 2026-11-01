@@ -2,11 +2,17 @@
 
 use core::{borrow::Borrow, iter::FusedIterator, ops::Range};
 
+use super::Bitmap;
+use crate::buffer::Buffer;
+
 /// An iterator over a bitmap's logical bits in LSB-first order.
 ///
 /// `Bytes` is the byte buffer: a borrowed slice when iterating over a
 /// `&Bitmap`, or the bitmap's own buffer when iterating over a `Bitmap` by
 /// value.
+///
+/// It can only be created from a [`Bitmap`] (or empty, with [`Default`]), so
+/// its indices always address bits within its bytes.
 #[derive(Clone, Debug, Default)]
 #[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct BitmapIter<Bytes> {
@@ -16,21 +22,31 @@ pub struct BitmapIter<Bytes> {
     indices: Range<usize>,
 }
 
-impl<Bytes: Borrow<[u8]>> BitmapIter<Bytes> {
-    /// Creates an iterator over the bits at `indices` in `bytes`.
-    ///
-    /// Callers must ensure every index in `indices` addresses a bit within
-    /// `bytes`; [`Bitmap`](super::Bitmap) guarantees this for its offset and
-    /// length. Out-of-range indices panic when yielded.
-    pub(super) fn new(bytes: Bytes, indices: Range<usize>) -> Self {
-        debug_assert!(
-            indices.is_empty() || indices.end.div_ceil(8) <= bytes.borrow().len(),
-            "bit range {indices:?} exceeds {} bytes",
-            bytes.borrow().len()
-        );
-        Self { bytes, indices }
-    }
+impl<Storage: Buffer> IntoIterator for Bitmap<Storage> {
+    type Item = bool;
+    type IntoIter = BitmapIter<Storage::For<u8>>;
 
+    fn into_iter(self) -> Self::IntoIter {
+        BitmapIter {
+            indices: self.offset..self.offset.strict_add(self.bits),
+            bytes: self.buffer,
+        }
+    }
+}
+
+impl<'bitmap, Storage: Buffer> IntoIterator for &'bitmap Bitmap<Storage> {
+    type Item = bool;
+    type IntoIter = BitmapIter<&'bitmap [u8]>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BitmapIter {
+            bytes: self.buffer.borrow(),
+            indices: self.offset..self.offset.strict_add(self.bits),
+        }
+    }
+}
+
+impl<Bytes: Borrow<[u8]>> BitmapIter<Bytes> {
     #[inline]
     fn bit(&self, index: usize) -> bool {
         bit(self.bytes.borrow(), index)
@@ -134,6 +150,16 @@ mod tests {
     use alloc::vec::Vec;
 
     use super::*;
+    use crate::buffer::VecBuffer;
+
+    /// Returns a bitmap over the bits at `indices` in `bytes`.
+    fn bitmap(bytes: &[u8], indices: Range<usize>) -> Bitmap<VecBuffer> {
+        Bitmap {
+            buffer: bytes.to_vec(),
+            bits: indices.len(),
+            offset: indices.start,
+        }
+    }
 
     #[test]
     fn default_bitmap_iter_is_empty() {
@@ -149,14 +175,15 @@ mod tests {
                 let expected: Vec<_> = (start..end)
                     .map(|bit| bytes[bit / 8] & (1 << (bit % 8)) != 0)
                     .collect();
-                let owned = BitmapIter::new(bytes.to_vec(), start..end);
+                let bitmap = bitmap(&bytes, start..end);
+                let owned = bitmap.clone().into_iter();
                 assert_eq!(owned.clone().collect::<Vec<_>>(), expected);
                 assert_eq!(
                     owned.filter(|bit| *bit).count(),
                     expected.iter().filter(|bit| **bit).count()
                 );
 
-                let mut iter = BitmapIter::new(bytes.as_slice(), start..end);
+                let mut iter = (&bitmap).into_iter();
                 assert_eq!(iter.clone().collect::<Vec<_>>(), expected);
                 assert_eq!(iter.clone().count(), expected.len());
                 assert_eq!(iter.clone().last(), expected.last().copied());
@@ -180,12 +207,10 @@ mod tests {
                 assert_eq!(iter.next(), None);
 
                 assert_eq!(
-                    BitmapIter::new(bytes.as_slice(), start..end)
-                        .rev()
-                        .collect::<Vec<_>>(),
+                    (&bitmap).into_iter().rev().collect::<Vec<_>>(),
                     expected.iter().rev().copied().collect::<Vec<_>>()
                 );
-                let mut back = BitmapIter::new(bytes.as_slice(), start..end);
+                let mut back = (&bitmap).into_iter();
                 assert_eq!(
                     back.nth_back(7),
                     expected.len().checked_sub(8).map(|index| expected[index])
@@ -196,7 +221,7 @@ mod tests {
                     expected.first().copied().filter(|_| expected.len() > 8)
                 );
 
-                let mut skipped = BitmapIter::new(bytes.as_slice(), start..end);
+                let mut skipped = (&bitmap).into_iter();
                 assert_eq!(skipped.nth(7), expected.get(7).copied());
                 assert_eq!(skipped.len(), expected.len().saturating_sub(8));
                 assert_eq!(skipped.nth(usize::MAX), None);
