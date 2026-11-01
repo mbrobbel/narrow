@@ -10,7 +10,7 @@ use std::{
 use narrow::{
     bitmap::{Bitmap, ValidityBitmap},
     buffer::VecBuffer,
-    collection::Collection,
+    collection::{Collection, CollectionRealloc},
     validity::Validity,
 };
 
@@ -77,6 +77,12 @@ fn main() {
     });
     bench("bitmap extend (unaligned)", || {
         let mut bitmap = Bitmap::<VecBuffer>::from_iter([true; 3]);
+        bitmap.extend(black_box(&bools));
+        bitmap
+    });
+    bench("bitmap extend (overwrite after truncate)", || {
+        let mut bitmap = black_box(&bitmap).clone();
+        bitmap.truncate(3);
         bitmap.extend(black_box(&bools));
         bitmap
     });
