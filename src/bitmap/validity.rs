@@ -71,10 +71,12 @@ pub trait ValidityBitmap: Length {
     /// assert_eq!(values.is_valid(0), Some(true));
     /// ```
     fn is_valid(&self, index: usize) -> Option<bool> {
-        (index < self.len()).then(|| {
-            self.bitmap_ref()
-                .is_none_or(|bitmap| bitmap.view(index).expect("validity lengths match"))
-        })
+        (index < self.len())
+            .then(|| {
+                self.bitmap_ref()
+                    .map_or(Some(true), |bitmap| bitmap.view(index))
+            })
+            .flatten()
     }
 
     /// Returns the number of valid elements.
