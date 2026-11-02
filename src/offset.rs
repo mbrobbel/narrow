@@ -550,11 +550,12 @@ where
     }
 
     fn truncate(&mut self, len: usize) {
-        if len < self.len() {
-            // Keep `len` lists: `len + 1` offsets and the data they reference.
-            let data_len = self.offsets.owned(len).expect("offset in range").as_usize();
+        // Keep `len` lists: `len + 1` offsets and the data they reference.
+        if len < self.len()
+            && let Some(end) = self.offsets.owned(len)
+        {
             self.offsets.truncate(len.strict_add(1));
-            self.data.truncate(data_len);
+            self.data.truncate(end.as_usize());
         }
     }
 }
