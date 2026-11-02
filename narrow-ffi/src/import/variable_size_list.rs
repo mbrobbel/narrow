@@ -28,9 +28,14 @@ where
         format == OffsetItem::FORMAT
     }
 
+    unsafe fn validate_child_schemas(schema: &ArrowSchema) -> Result<(), ImportError> {
+        // SAFETY: The caller upholds the child schema requirements of
+        // `ImportLayout::validate_child_schemas`.
+        unsafe { Self::validate_child_schema::<T::Memory<SliceBuffer<'array>>>(schema, 0) }
+    }
+
     unsafe fn import_validated(
         array: &'array ArrowArray,
-        schema: &ArrowSchema,
         length: usize,
     ) -> Result<Self, ImportError> {
         let offsets_length = length.checked_add(1).ok_or(ImportError::InvalidLength {
@@ -53,8 +58,7 @@ where
 
         // SAFETY: Common parent fields are validated and the caller upholds
         // the Arrow C Data requirements for the retained child structures.
-        let child =
-            unsafe { Self::import_child::<T::Memory<SliceBuffer<'array>>>(array, schema, 0) }?;
+        let child = unsafe { Self::import_child::<T::Memory<SliceBuffer<'array>>>(array, 0) }?;
         let offsets = Offsets::try_from_parts(child, offset_values)
             .map_err(|error| ImportError::InvalidOffsets { error })?;
 
