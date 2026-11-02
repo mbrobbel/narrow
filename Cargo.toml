@@ -38,3 +38,7 @@ codegen-units = 1
 [[bench]]
 name = "bitmap"
 harness = false
+
+[[bench]]
+name = "offsets"
+harness = false
