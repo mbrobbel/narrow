@@ -4,7 +4,7 @@ use core::{ffi::CStr, slice};
 
 use narrow::{bitmap::Bitmap, buffer::SliceBuffer, layout::boolean::Boolean};
 
-use crate::{ArrowArray, ArrowSchema, ArrowType};
+use crate::{ArrowArray, ArrowType};
 
 use super::{ImportError, ImportLayout, ImportNullability};
 
@@ -22,7 +22,6 @@ where
 
     unsafe fn import_validated(
         array: &'array ArrowArray,
-        _schema: &ArrowSchema,
         length: usize,
     ) -> Result<Self, ImportError> {
         // SAFETY: The caller guarantees a valid two-entry buffer pointer array.
