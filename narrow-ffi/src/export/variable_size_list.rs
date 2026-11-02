@@ -88,14 +88,19 @@ where
 impl ArrowSchema {
     /// Builds a variable-size-list schema and retains its child schema.
     fn variable_size_list<OffsetItem: ArrowListOffset, Nulls: Nullability>(child: Self) -> Self {
-        let mut private = Box::new(VariableSizeListSchemaData {
+        // Leak the box before deriving pointers into it: moving it afterwards
+        // would invalidate them.
+        let private = Box::into_raw(Box::new(VariableSizeListSchemaData {
             children: [child],
             child_pointers: [ptr::null_mut()],
-        });
-        private.child_pointers[0] = ptr::from_mut(&mut private.children[0]);
+        }));
+        // SAFETY: `private` comes from `Box::into_raw` and nothing else
+        // references it until `release_schema` reclaims it.
+        let data = unsafe { &mut *private };
+        data.child_pointers[0] = ptr::from_mut(&mut data.children[0]);
 
-        let children = private.child_pointers.as_mut_ptr();
-        let private_data = Box::into_raw(private).cast();
+        let children = data.child_pointers.as_mut_ptr();
+        let private_data = private.cast();
         Self {
             format: OffsetItem::FORMAT.as_ptr(),
             name: c"".as_ptr(),
