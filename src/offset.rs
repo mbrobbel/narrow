@@ -7,11 +7,12 @@ use alloc::vec::Vec;
 use core::{
     borrow::Borrow,
     fmt::{self, Debug},
-    iter::{self, Map, RepeatN, Zip},
+    iter::{self, FusedIterator, Map, RepeatN, Zip},
     marker::PhantomData,
     mem,
     num::TryFromIntError,
     ops::Range,
+    slice,
 };
 
 use crate::{
@@ -465,18 +466,16 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
     }
 
     type Iter<'collection>
-        = Map<
-        Zip<Range<usize>, RepeatN<&'collection Self>>,
-        fn((usize, &'collection Self)) -> Self::View<'collection>,
-    >
+        = OffsetIter<'collection, T, OffsetItem, Storage, U>
     where
         Self: 'collection;
 
     fn iter_views(&self) -> Self::Iter<'_> {
-        let len = self.len();
-        (0..len)
-            .zip(iter::repeat_n(self, len))
-            .map(|(index, offsets)| offsets.view(index).expect("index in range"))
+        let offsets = self.offsets.borrow();
+        OffsetIter {
+            collection: self,
+            bounds: offsets.iter().zip(offsets.get(1..).unwrap_or_default()),
+        }
     }
 
     type IntoIter = OffsetIntoIter<T, OffsetItem, Storage, U>;
@@ -570,6 +569,109 @@ where
             self.data.truncate(end.as_usize());
         }
     }
+}
+
+/// A borrowing iterator over the items in an [`Offsets`] collection.
+///
+/// Each item's bounds are a pair of adjacent offsets, read directly from the
+/// offsets buffer.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{buffer::VecBuffer, collection::{Collection, owned::IntoOwned}, offset::{OffsetIter, Offsets}};
+///
+/// let values = [vec![1, 2], vec![3]].into_iter().collect::<Offsets<Vec<i32>>>();
+/// let mut iter: OffsetIter<'_, Vec<i32>, i32, VecBuffer, Vec<i32>> = values.iter_views();
+/// assert_eq!(iter.len(), 2);
+/// assert_eq!(iter.next_back().map(IntoOwned::into_owned), Some(vec![3]));
+/// ```
+pub struct OffsetIter<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U> {
+    collection: &'collection Offsets<T, OffsetItem, Storage, U>,
+    /// The start and end offset of each remaining item.
+    bounds: Zip<slice::Iter<'collection, OffsetItem>, slice::Iter<'collection, OffsetItem>>,
+}
+
+impl<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U>
+    OffsetIter<'collection, T, OffsetItem, Storage, U>
+{
+    /// Returns the view of the item between `start` and `end`.
+    fn item(
+        &self,
+        (&start, &end): (&OffsetItem, &OffsetItem),
+    ) -> OffsetView<'collection, T, OffsetItem, Storage, U> {
+        OffsetView {
+            collection: self.collection,
+            start: start.as_usize(),
+            end: end.as_usize(),
+        }
+    }
+}
+
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Clone
+    for OffsetIter<'_, T, OffsetItem, Storage, U>
+{
+    fn clone(&self) -> Self {
+        Self {
+            collection: self.collection,
+            bounds: self.bounds.clone(),
+        }
+    }
+}
+
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Debug
+    for OffsetIter<'_, T, OffsetItem, Storage, U>
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("OffsetIter")
+            .field("remaining", &self.bounds.len())
+            .finish_non_exhaustive()
+    }
+}
+
+impl<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U> Iterator
+    for OffsetIter<'collection, T, OffsetItem, Storage, U>
+{
+    type Item = OffsetView<'collection, T, OffsetItem, Storage, U>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.bounds.next().map(|bounds| self.item(bounds))
+    }
+
+    #[inline]
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        self.bounds.nth(n).map(|bounds| self.item(bounds))
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.bounds.size_hint()
+    }
+}
+
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> DoubleEndedIterator
+    for OffsetIter<'_, T, OffsetItem, Storage, U>
+{
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.bounds.next_back().map(|bounds| self.item(bounds))
+    }
+
+    #[inline]
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        self.bounds.nth_back(n).map(|bounds| self.item(bounds))
+    }
+}
+
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> ExactSizeIterator
+    for OffsetIter<'_, T, OffsetItem, Storage, U>
+{
+}
+
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> FusedIterator
+    for OffsetIter<'_, T, OffsetItem, Storage, U>
+{
 }
 
 #[expect(missing_debug_implementations)]
@@ -882,6 +984,46 @@ mod tests {
             cloned.into_iter_owned().collect::<Vec<_>>(),
             offsets.into_iter_owned().collect::<Vec<_>>()
         );
+    }
+
+    #[test]
+    fn iter_views_matches_view() {
+        let lists = [vec![1, 2], vec![], vec![3, 4, 5], vec![6], vec![]];
+        for len in 0..=lists.len() {
+            let offsets = lists[..len].iter().cloned().collect::<Offsets<Vec<i32>>>();
+            let expected = (0..len)
+                .map(|index| offsets.view(index).map(IntoOwned::into_owned))
+                .collect::<Option<Vec<Vec<i32>>>>()
+                .expect("in bounds");
+            assert_eq!(expected, &lists[..len]);
+
+            let iter = offsets.iter_views();
+            assert_eq!(iter.len(), len);
+            assert_eq!(
+                iter.clone().map(IntoOwned::into_owned).collect::<Vec<_>>(),
+                expected
+            );
+            assert_eq!(
+                iter.clone()
+                    .rev()
+                    .map(IntoOwned::into_owned)
+                    .collect::<Vec<_>>(),
+                expected.iter().rev().cloned().collect::<Vec<_>>()
+            );
+            for index in 0..=len {
+                assert_eq!(
+                    offsets.iter_views().nth(index).map(IntoOwned::into_owned),
+                    expected.get(index).cloned()
+                );
+                assert_eq!(
+                    offsets
+                        .iter_views()
+                        .nth_back(index)
+                        .map(IntoOwned::into_owned),
+                    expected.iter().rev().nth(index).cloned()
+                );
+            }
+        }
     }
 
     #[test]
