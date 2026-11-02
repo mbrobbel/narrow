@@ -193,6 +193,18 @@ where
     }
 }
 
+impl<T: Collection + Clone, Storage: Buffer> Clone for Validity<T, Storage>
+where
+    Bitmap<Storage>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            collection: self.collection.clone(),
+            bitmap: self.bitmap.clone(),
+        }
+    }
+}
+
 impl<T: Default + Collection, Storage: Buffer> Default for Validity<T, Storage> {
     fn default() -> Self {
         Self {
@@ -818,6 +830,18 @@ mod tests {
         let validity = IntoIterator::into_iter(input).collect::<Validity<Vec<_>>>();
         assert_eq!(validity.len(), 4);
         assert_eq!(Collection::iter_views(&validity).collect::<Vec<_>>(), input);
+    }
+
+    #[test]
+    fn clone() {
+        let validity = [Some(1), None, Some(3)]
+            .into_iter()
+            .collect::<Validity<Vec<i32>>>();
+        let cloned = validity.clone();
+        assert_eq!(
+            cloned.iter_views().collect::<Vec<_>>(),
+            validity.iter_views().collect::<Vec<_>>()
+        );
     }
 
     #[test]
