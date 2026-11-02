@@ -824,20 +824,22 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Collection
         }
     }
 
-    type Iter<'collection>
-        = Map<
-        Zip<Range<usize>, RepeatN<&'collection Self>>,
-        fn((usize, &'collection Self)) -> Self::View<'collection>,
-    >
+    type Iter<'view>
+        = OffsetViewIter<'view, T>
     where
-        Self: 'collection;
+        Self: 'view;
 
     fn iter_views(&self) -> Self::Iter<'_> {
-        (0..self.len())
-            .zip(iter::repeat_n(self, self.len()))
-            .map(|(index, collection)| collection.view(index).expect("index in range"))
+        OffsetViewIter {
+            data: &self.collection.data,
+            indices: self.start..self.end,
+        }
     }
 
+    /// Collecting through `Map<Zip<Range<usize>, _>, _>` keeps `Vec`'s fast
+    /// path for iterators of known length (the unstable `TrustedLen`), which
+    /// [`OffsetViewIter`] can not implement on stable Rust. Collecting owned
+    /// items through it is about three times slower.
     type IntoIter = Map<Zip<Range<usize>, RepeatN<Self>>, fn((usize, Self)) -> Self::Owned>;
 
     fn into_iter_owned(self) -> Self::IntoIter {
@@ -846,6 +848,84 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Collection
             .map(|(index, collection)| collection.view(index).expect("index in range").into_owned())
     }
 }
+
+/// An iterator over the values of one item in an [`Offsets`] collection,
+/// returned by iterating an [`OffsetView`].
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{collection::Collection, offset::{OffsetViewIter, Offsets}};
+///
+/// let values = [vec![1, 2, 3]].into_iter().collect::<Offsets<Vec<i32>>>();
+/// let item = values.view(0).unwrap();
+/// let iter: OffsetViewIter<'_, Vec<i32>> = item.iter_views();
+/// assert_eq!(iter.rev().collect::<Vec<_>>(), [3, 2, 1]);
+/// ```
+pub struct OffsetViewIter<'collection, T: Collection> {
+    data: &'collection T,
+    /// The indices in `data` of the values that remain to be yielded.
+    indices: Range<usize>,
+}
+
+impl<T: Collection> Clone for OffsetViewIter<'_, T> {
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data,
+            indices: self.indices.clone(),
+        }
+    }
+}
+
+impl<T: Collection> Debug for OffsetViewIter<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("OffsetViewIter")
+            .field("indices", &self.indices)
+            .finish_non_exhaustive()
+    }
+}
+
+/// [`Offsets`] guarantees that its offsets are within its data, so every index
+/// in `indices` has a view. Should one be missing, the iterator ends early
+/// instead of panicking.
+impl<'collection, T: Collection> Iterator for OffsetViewIter<'collection, T> {
+    type Item = T::View<'collection>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.indices.next().and_then(|index| self.data.view(index))
+    }
+
+    #[inline]
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        self.indices.nth(n).and_then(|index| self.data.view(index))
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.indices.size_hint()
+    }
+}
+
+impl<T: Collection> DoubleEndedIterator for OffsetViewIter<'_, T> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.indices
+            .next_back()
+            .and_then(|index| self.data.view(index))
+    }
+
+    #[inline]
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        self.indices
+            .nth_back(n)
+            .and_then(|index| self.data.view(index))
+    }
+}
+
+impl<T: Collection> ExactSizeIterator for OffsetViewIter<'_, T> {}
+
+impl<T: Collection> FusedIterator for OffsetViewIter<'_, T> {}
 
 #[cfg(test)]
 mod tests {
