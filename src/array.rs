@@ -214,11 +214,30 @@ where
 mod tests {
     extern crate alloc;
 
-    use alloc::vec;
+    use alloc::{vec, vec::Vec};
 
     use crate::{collection::tests::round_trip, fixed_size::FixedSizeArray};
 
     use super::*;
+
+    #[test]
+    fn clone() {
+        fn clones<T: ArrayItem<Memory<VecBuffer>: Clone> + Clone + Debug + PartialEq>(items: &[T])
+        where
+            Array<T>: FromIterator<T> + Collection<Owned = T>,
+        {
+            let array = items.iter().cloned().collect::<Array<T>>();
+            assert_eq!(array.clone().into_iter_owned().collect::<Vec<_>>(), *items);
+        }
+        clones(&[1, 2, 3]);
+        clones(&[Some(1), None, Some(3)]);
+        clones(&[true, false]);
+        clones(&[Some(true), None]);
+        clones(&[[1, 2], [3, 4]]);
+        clones(&[Some([1, 2]), None]);
+        clones(&[vec![1, 2], vec![], vec![3]]);
+        clones(&[Some(vec![1, 2]), None]);
+    }
 
     #[test]
     fn from_buffer() {
