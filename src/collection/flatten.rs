@@ -154,11 +154,15 @@ impl<C: Collection, const N: usize> Collection for Flatten<C, N> {
     type Owned = [C::Owned; N];
 
     fn view(&self, index: usize) -> Option<Self::View<'_>> {
-        Some(FlattenView(array::from_fn(|idx| {
-            self.0
-                .view(index.strict_mul(N).strict_add(idx))
-                .expect("out of bounds")
-        })))
+        // `len` is the child's length divided by `N`, so every child index of
+        // an in-bounds chunk is in bounds.
+        (index < self.len()).then(|| {
+            FlattenView(array::from_fn(|idx| {
+                self.0
+                    .view(index.strict_mul(N).strict_add(idx))
+                    .expect("chunk is within the child")
+            }))
+        })
     }
 
     type Iter<'collection>
@@ -352,6 +356,14 @@ mod tests {
                 .map(|items| items.map(|item| *item)),
             Some([[5, 6], [7, 8]])
         );
+    }
+
+    #[test]
+    fn view_out_of_bounds() {
+        let flatten = [[1, 2], [3, 4]].into_iter().collect::<Flatten<Vec<_>, 2>>();
+        assert!(flatten.view(1).is_some());
+        assert!(flatten.view(2).is_none());
+        assert!(flatten.view(usize::MAX).is_none());
     }
 
     #[test]
