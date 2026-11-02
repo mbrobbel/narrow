@@ -172,12 +172,11 @@ trait ArrowArrayLayout: Length + Sized {
         let length = i64::try_from(self.len()).expect("array length exceeds i64");
         let null_count = self.null_count();
         let dictionary = self.dictionary();
-        let mut private = Box::new(ArrayData::<(), Self>::new(
+        let private = Box::new(ArrayData::<(), Self>::new(
             (),
             self.buffers(),
             self.children()?,
         ));
-        private.set_child_pointers();
 
         Ok(private.into_array(length, null_count, dictionary))
     }
@@ -192,22 +191,43 @@ trait ArrowArrayLayout: Length + Sized {
             return Err(ExportError::NonZeroOffset { offset });
         }
 
-        // Pin the layout before asking it for pointers into its storage.
-        let mut private = Box::new(ArrayData::<Self, Self> {
-            buffers: Self::Buffers::default(),
-            children: Self::Children::default(),
-            child_pointers: Vec::new(),
-            owner: self,
-        });
-        private.buffers = private.owner.buffers();
-        private.children = private.owner.children()?;
-        private.set_child_pointers();
+        // Pin the layout before asking it for pointers into its storage. The
+        // box is leaked first because moving it, or borrowing all of it
+        // mutably, would invalidate pointers derived from the owner.
+        let private = Box::into_raw(Box::new(ArrayData::<Self, Self>::new(
+            self,
+            Self::Buffers::default(),
+            Self::Children::default(),
+        )));
+        // SAFETY: `private` comes from `Box::into_raw` and is valid. This
+        // borrows only the owner, which is never written to again, so the
+        // writes to other fields below keep pointers derived from it valid.
+        let owner = unsafe { &(*private).owner };
+        let children = match owner.children() {
+            Ok(children) => children,
+            Err(error) => {
+                // SAFETY: Reclaims the box leaked above, which nothing else
+                // references.
+                drop(unsafe { Box::from_raw(private) });
+                return Err(error);
+            }
+        };
+        let buffers = owner.buffers();
 
         // Convert platform-sized layout metadata into the Arrow C ABI fields.
-        let length = i64::try_from(private.owner.len()).expect("array length exceeds i64");
-        let null_count = private.owner.null_count();
-        let dictionary = private.owner.dictionary();
-        let array = private.into_array(length, null_count, dictionary);
+        let length = i64::try_from(owner.len()).expect("array length exceeds i64");
+        let null_count = owner.null_count();
+        let dictionary = owner.dictionary();
+
+        // SAFETY: `private` is valid and these fields are disjoint from the
+        // borrowed owner.
+        unsafe { (*private).buffers = buffers };
+        // SAFETY: As above.
+        unsafe { (*private).children = children };
+        // SAFETY: `private` comes from `Box::into_raw` and its owner is only
+        // borrowed shared.
+        let array =
+            unsafe { ArrayData::leaked_into_array(private, length, null_count, dictionary) };
 
         Ok((array, Self::schema()))
     }
@@ -236,39 +256,55 @@ impl<Owner: 'static, Layout: ArrowArrayLayout + 'static> ArrayData<Owner, Layout
         }
     }
 
-    /// Updates child pointers after the child arrays are pinned.
-    fn set_child_pointers(&mut self) {
-        self.child_pointers = self
-            .children
-            .as_mut()
-            .iter_mut()
-            .map(ptr::from_mut)
-            .collect();
-    }
-
     /// Builds an [`ArrowArray`] backed by this private data.
     fn into_array(
-        mut self: Box<Self>,
+        self: Box<Self>,
         length: i64,
         null_count: i64,
         dictionary: *mut ArrowArray,
     ) -> ArrowArray {
-        let n_buffers =
-            i64::try_from(self.buffers.as_ref().len()).expect("buffer count exceeds i64");
-        let n_children = i64::try_from(self.child_pointers.len()).expect("child count exceeds i64");
+        // SAFETY: The pointer comes from `Box::into_raw` and nothing else
+        // references it.
+        unsafe { Self::leaked_into_array(Box::into_raw(self), length, null_count, dictionary) }
+    }
 
-        let buffers = self.buffers.as_mut();
+    /// Builds an [`ArrowArray`] backed by leaked private data, taking
+    /// ownership of it.
+    ///
+    /// Pointers into the private data are derived only after it is leaked:
+    /// moving the box, or borrowing all of it mutably, would invalidate them.
+    ///
+    /// # Safety
+    ///
+    /// `private` must come from [`Box::into_raw`], and no reference to its
+    /// fields other than shared references to the owner may be live.
+    unsafe fn leaked_into_array(
+        private: *mut Self,
+        length: i64,
+        null_count: i64,
+        dictionary: *mut ArrowArray,
+    ) -> ArrowArray {
+        // SAFETY: The caller guarantees `private` is valid and that only the
+        // owner may be borrowed, so these field borrows are unique.
+        let buffers = unsafe { (*private).buffers.as_mut() };
+        // SAFETY: As above.
+        let children = unsafe { (*private).children.as_mut() };
+        // SAFETY: As above.
+        let child_pointers = unsafe { &mut (*private).child_pointers };
+        *child_pointers = children.iter_mut().map(ptr::from_mut).collect();
+
+        let n_buffers = i64::try_from(buffers.len()).expect("buffer count exceeds i64");
+        let n_children = i64::try_from(child_pointers.len()).expect("child count exceeds i64");
         let buffer_pointers = if buffers.is_empty() {
             ptr::null_mut()
         } else {
             buffers.as_mut_ptr()
         };
-        let children = if self.child_pointers.is_empty() {
+        let children_pointer = if child_pointers.is_empty() {
             ptr::null_mut()
         } else {
-            self.child_pointers.as_mut_ptr()
+            child_pointers.as_mut_ptr()
         };
-        let private_data = Box::into_raw(self).cast();
 
         ArrowArray {
             length,
@@ -277,10 +313,10 @@ impl<Owner: 'static, Layout: ArrowArrayLayout + 'static> ArrayData<Owner, Layout
             n_buffers,
             n_children,
             buffers: buffer_pointers,
-            children,
+            children: children_pointer,
             dictionary,
             release: Some(release_array::<Self>),
-            private_data,
+            private_data: private.cast(),
         }
     }
 }
