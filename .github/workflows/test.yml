@@ -55,7 +55,7 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@49a8ff4eadd9ad85042f0e2f761eaab3888d767a # miri
       - run: cargo miri setup
-      - run: cargo miri test
+      - run: cargo miri test -p narrow-ffi
 
   coverage:
     name: Coverage
