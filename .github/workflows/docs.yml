@@ -16,7 +16,7 @@ permissions:
 jobs:
   rustdoc:
     name: Rustdoc
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-slim
     permissions:
       actions: write
       contents: read
