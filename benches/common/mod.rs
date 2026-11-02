@@ -13,6 +13,13 @@ const SAMPLES: usize = 5;
 
 /// Measures `f` and prints its fastest time per call under `name`.
 pub fn bench<T>(name: &str, mut f: impl FnMut() -> T) {
+    // `cargo bench` passes `--bench`; under `cargo test` only smoke-test once.
+    if !std::env::args().any(|arg| arg == "--bench") {
+        black_box(f());
+        println!("{name:<40} ok");
+        return;
+    }
+
     // Runs `f` the given number of times and returns the elapsed time.
     let mut time = |iterations: u32| {
         let start = Instant::now();
