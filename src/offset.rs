@@ -293,6 +293,18 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> ChildRef
     }
 }
 
+impl<T: Collection + Clone, OffsetItem: Offset, Storage: Buffer<For<OffsetItem>: Clone>, U> Clone
+    for Offsets<T, OffsetItem, Storage, U>
+{
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data.clone(),
+            offsets: self.offsets.clone(),
+            _collection: PhantomData,
+        }
+    }
+}
+
 impl<T: Collection + Debug, OffsetItem: Offset, Storage: Buffer<For<OffsetItem>: Debug>, U> Debug
     for Offsets<T, OffsetItem, Storage, U>
 {
@@ -858,6 +870,18 @@ mod tests {
         offsets.extend([vec![3]]);
         assert_eq!(offsets.len(), 2);
         assert_eq!(offsets.owned(1), Some(vec![3]));
+    }
+
+    #[test]
+    fn clone() {
+        let offsets = [vec![1, 2], vec![], vec![3]]
+            .into_iter()
+            .collect::<Offsets<Vec<i32>>>();
+        let cloned = offsets.clone();
+        assert_eq!(
+            cloned.into_iter_owned().collect::<Vec<_>>(),
+            offsets.into_iter_owned().collect::<Vec<_>>()
+        );
     }
 
     #[test]

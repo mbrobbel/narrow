@@ -90,6 +90,15 @@ where
     }
 }
 
+impl<Nulls: Nullability, Storage: Buffer> Clone for Boolean<Nulls, Storage>
+where
+    Nulls::Collection<Bitmap<Storage>, Storage>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 impl<Nulls: Nullability, Storage: Buffer> Default for Boolean<Nulls, Storage>
 where
     Nulls::Collection<Bitmap<Storage>, Storage>: Default,

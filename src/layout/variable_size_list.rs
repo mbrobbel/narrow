@@ -102,6 +102,16 @@ where
     }
 }
 
+impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Clone
+    for VariableSizeList<T, Nulls, OffsetItem, Storage>
+where
+    Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Default
     for VariableSizeList<T, Nulls, OffsetItem, Storage>
 where
