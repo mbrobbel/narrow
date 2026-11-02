@@ -90,7 +90,8 @@ mod sealed {
     pub trait Sealed {}
 
     /// Prevent downstream implementations of [`super::Nullability`].
-    impl<T> Sealed for T where T: super::Nullability {}
+    impl Sealed for super::NonNullable {}
+    impl Sealed for super::Nullable {}
 }
 
 /// Non-nullable types.

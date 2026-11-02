@@ -4,17 +4,16 @@ mod packed;
 mod unpacked;
 mod validity;
 
+pub use unpacked::BitmapIter;
 pub use validity::ValidityBitmap;
 
 use core::{
     borrow::{Borrow, BorrowMut},
     fmt::{self, Debug},
-    iter::{self, Skip, Take},
-    slice,
+    iter,
 };
 
 use packed::BitPackedExt;
-use unpacked::{BitUnpacked, BitUnpackedExt};
 
 use crate::{
     buffer::{Buffer, BufferRef, VecBuffer},
@@ -26,6 +25,29 @@ use crate::{
 #[inline]
 pub(crate) const fn bytes_for_bits(bits: usize) -> usize {
     bits.div_ceil(8)
+}
+
+/// Number of bytes [`Bitmap::any_bit`] combines before testing them.
+const ANY_BIT_BLOCK: usize = 64;
+
+/// The bytes holding a non-empty bitmap's logical bits.
+struct ByteSpan<'a> {
+    /// The first byte with a mask selecting its logical bits. For a bitmap
+    /// within a single byte the mask covers both ends.
+    head: (u8, u8),
+    /// The bytes between the first and the last, all of whose bits are
+    /// logical.
+    body: &'a [u8],
+    /// The last byte with a mask selecting its logical bits, if it is not the
+    /// first byte.
+    tail: Option<(u8, u8)>,
+}
+
+impl ByteSpan<'_> {
+    /// Returns the masked first and last bytes.
+    fn ends(&self) -> impl Iterator<Item = (u8, u8)> {
+        iter::once(self.head).chain(self.tail)
+    }
 }
 
 /// Error returned by [`Bitmap::try_from_parts`].
@@ -186,19 +208,17 @@ impl<Storage: Buffer> Bitmap<Storage> {
         self.offset
     }
 
-    /// Counts set bits, excluding padding outside this [`Bitmap`].
-    #[must_use]
-    fn count_ones(&self) -> usize {
+    /// Returns the bytes holding this bitmap's logical bits, or [`None`] when
+    /// it is empty.
+    fn byte_span(&self) -> Option<ByteSpan<'_>> {
         if self.bits == 0 {
-            return 0;
+            return None;
         }
 
         let end = self.offset.strict_add(self.bits);
-        let start_byte = self.offset.strict_div(8);
         let end_bit = end.rem_euclid(8);
         let buffer = self.buffer.borrow();
-        let bytes = &buffer[start_byte..end.div_ceil(8)];
-        let last = bytes.len().strict_sub(1);
+        let bytes = &buffer[self.offset.strict_div(8)..end.div_ceil(8)];
         let leading_mask = u8::MAX << self.offset.rem_euclid(8);
         let trailing_mask = if end_bit == 0 {
             u8::MAX
@@ -206,20 +226,81 @@ impl<Storage: Buffer> Bitmap<Storage> {
             (1_u8 << end_bit).strict_sub(1)
         };
 
-        bytes
-            .iter()
-            .enumerate()
-            .fold(0_usize, |count, (index, byte)| {
-                let masked = byte
-                    & if index == 0 { leading_mask } else { u8::MAX }
-                    & if index == last {
-                        trailing_mask
-                    } else {
-                        u8::MAX
-                    };
-                let ones = usize::try_from(masked.count_ones()).expect("u8 popcount fits in usize");
-                count.strict_add(ones)
-            })
+        Some(match *bytes {
+            [byte] => ByteSpan {
+                head: (byte, leading_mask & trailing_mask),
+                body: &[],
+                tail: None,
+            },
+            [first, ref body @ .., last] => ByteSpan {
+                head: (first, leading_mask),
+                body,
+                tail: Some((last, trailing_mask)),
+            },
+            [] => unreachable!("a non-empty bitmap spans at least one byte"),
+        })
+    }
+
+    /// Counts set bits, excluding padding outside this [`Bitmap`].
+    #[must_use]
+    fn count_ones(&self) -> usize {
+        self.byte_span().map_or(0, |span| {
+            let ends = span
+                .ends()
+                .map(|(byte, mask)| {
+                    usize::try_from((byte & mask).count_ones()).expect("u8 popcount fits in usize")
+                })
+                .sum::<usize>();
+            let (words, remainder) = span.body.as_chunks::<8>();
+
+            // Each sum is bounded by the logical bit length. Ordinary sums allow
+            // the compiler to vectorize the unmasked interior.
+            let word_count: usize = words
+                .iter()
+                .map(|word| {
+                    usize::try_from(u64::from_ne_bytes(*word).count_ones())
+                        .expect("u64 popcount fits in usize")
+                })
+                .sum();
+            let remainder_count: usize = remainder
+                .iter()
+                .map(|byte| usize::try_from(byte.count_ones()).expect("u8 popcount fits in usize"))
+                .sum();
+            ends.strict_add(word_count).strict_add(remainder_count)
+        })
+    }
+
+    /// Returns whether any logical bit equals `value`, stopping at the first
+    /// block of bytes that contains one.
+    fn any_bit(&self, value: bool) -> bool {
+        // Flipping all bits turns a search for unset bits into one for set bits.
+        let flip = if value { 0 } else { u8::MAX };
+        self.byte_span().is_some_and(|span| {
+            span.ends().any(|(byte, mask)| (byte ^ flip) & mask != 0) || {
+                let flip_word = u64::from_ne_bytes([flip; 8]);
+                let (blocks, remainder) = span.body.as_chunks::<ANY_BIT_BLOCK>();
+                // Combine a block branch-free so it vectorizes, then branch once
+                // per block.
+                blocks.iter().any(|block| {
+                    block
+                        .as_chunks::<8>()
+                        .0
+                        .iter()
+                        .fold(0, |any, word| any | (u64::from_ne_bytes(*word) ^ flip_word))
+                        != 0
+                }) || remainder.iter().any(|byte| byte ^ flip != 0)
+            }
+        })
+    }
+
+    /// Returns whether any logical bit is set.
+    pub(crate) fn any_set(&self) -> bool {
+        self.any_bit(true)
+    }
+
+    /// Returns whether any logical bit is unset.
+    pub(crate) fn any_unset(&self) -> bool {
+        self.any_bit(false)
     }
 
     /// Returns the raw parts of this [`Bitmap`]: its byte buffer, the number of
@@ -308,31 +389,70 @@ impl<Storage: Buffer> Length for Bitmap<Storage> {
     }
 }
 
-impl<Storage: Buffer> IntoIterator for Bitmap<Storage> {
-    type Item = bool;
-
-    type IntoIter = Take<Skip<BitUnpacked<<Storage::For<u8> as Collection>::IntoIter, u8>>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.buffer
-            .into_iter_owned()
-            .bit_unpacked()
-            .skip(self.offset)
-            .take(self.bits)
-    }
+/// Builds a [`Bitmap`] from bits that arrive one at a time.
+///
+/// Bits are packed into a 64-bit word that the compiler can keep in a
+/// register, and the buffer is only touched once per word. This is much
+/// cheaper than extending a bitmap bit by bit from within another loop.
+pub(crate) struct BitmapBuilder<Storage: Buffer> {
+    /// The packed bytes of all complete words.
+    buffer: Storage::For<u8>,
+    /// The pending bits, LSB first.
+    word: u64,
+    /// The number of pending bits in `word`.
+    pending: u32,
 }
 
-impl<'bitmap, Storage: Buffer> IntoIterator for &'bitmap Bitmap<Storage> {
-    type Item = bool;
-    type IntoIter = Take<Skip<BitUnpacked<slice::Iter<'bitmap, u8>, &'bitmap u8>>>;
+impl<Storage: Buffer<For<u8>: CollectionRealloc>> BitmapBuilder<Storage> {
+    /// Starts an empty builder with room for at least `bits` bits, allocated
+    /// with `alloc`.
+    ///
+    /// The builder allocates its own buffer: [`BitmapBuilder::finish`] derives
+    /// the bitmap's length from the buffer's length, so the buffer must only
+    /// hold bytes written by the builder.
+    pub(crate) fn with_capacity_in(
+        bits: usize,
+        alloc: <Storage::For<u8> as CollectionAllocIn>::Alloc,
+    ) -> Self {
+        Self {
+            buffer: Storage::For::<u8>::with_capacity_in(bytes_for_bits(bits), alloc),
+            word: 0,
+            pending: 0,
+        }
+    }
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.buffer
+    /// Appends one bit.
+    #[inline]
+    pub(crate) fn push(&mut self, value: bool) {
+        self.word |= u64::from(value) << self.pending;
+        self.pending = self.pending.strict_add(1);
+        if self.pending == u64::BITS {
+            self.buffer.extend(self.word.to_le_bytes());
+            self.word = 0;
+            self.pending = 0;
+        }
+    }
+
+    /// Flushes the pending bits and returns the bitmap.
+    pub(crate) fn finish(mut self) -> Bitmap<Storage> {
+        let pending = usize::try_from(self.pending).expect("bit count fits in usize");
+        self.buffer.extend(
+            self.word
+                .to_le_bytes()
+                .into_iter()
+                .take(bytes_for_bits(pending)),
+        );
+        let full_bits = self
+            .buffer
             .borrow()
-            .iter()
-            .bit_unpacked()
-            .skip(self.offset)
-            .take(self.bits)
+            .len()
+            .strict_sub(bytes_for_bits(pending))
+            .strict_mul(8);
+        Bitmap {
+            buffer: self.buffer,
+            bits: full_bits.strict_add(pending),
+            offset: 0,
+        }
     }
 }
 
@@ -352,14 +472,14 @@ impl<T: Borrow<bool>, Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionReall
         if bit_index != 0 {
             let byte_index = self.byte_index(self.bits);
             if let Some(byte) = self.buffer.borrow_mut().get_mut(byte_index) {
-                for index in bit_index..8 {
-                    if let Some(next) = items.next() {
+                (bit_index..8)
+                    .zip(items.by_ref())
+                    .for_each(|(index, next)| {
                         // Clear the bit before setting it: bits beyond the
                         // logical end of the bitmap are unspecified.
                         *byte = (*byte & !(1 << index)) | (u8::from(*next.borrow()) << index);
                         self.bits = self.bits.strict_add(1);
-                    }
-                }
+                    });
             }
         }
 
@@ -374,16 +494,14 @@ impl<T: Borrow<bool>, Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionReall
                 .bit_packed();
 
             // Overwrite bytes beyond the logical end before appending.
-            let mut byte_index = self.byte_index(self.bits);
-            while let Some(byte) = self.buffer.borrow_mut().get_mut(byte_index) {
-                match packed.next() {
-                    Some(packed_byte) => {
-                        *byte = packed_byte;
-                        byte_index = byte_index.strict_add(1);
-                    }
-                    None => break,
-                }
-            }
+            let byte_index = self.byte_index(self.bits);
+            self.buffer
+                .borrow_mut()
+                .get_mut(byte_index..)
+                .unwrap_or_default()
+                .iter_mut()
+                .zip(packed.by_ref())
+                .for_each(|(byte, packed_byte)| *byte = packed_byte);
 
             self.buffer.extend(packed);
             self.bits = self.bits.strict_add(consumed);
@@ -557,12 +675,12 @@ impl<Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> CollectionRe
         if bit_index != 0 {
             let byte_index = self.byte_index(self.bits);
             if let Some(byte) = self.buffer.borrow_mut().get_mut(byte_index) {
-                for index in bit_index..8 {
-                    if let Some(next) = items.next() {
+                (bit_index..8)
+                    .zip(items.by_ref())
+                    .for_each(|(index, next)| {
                         *byte = (*byte & !(1 << index)) | (u8::from(next) << index);
                         self.bits = self.bits.strict_add(1);
-                    }
-                }
+                    });
             }
         }
 
@@ -573,16 +691,14 @@ impl<Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> CollectionRe
                 .inspect(|_| consumed = consumed.strict_add(1))
                 .bit_packed();
 
-            let mut byte_index = self.byte_index(self.bits);
-            while let Some(byte) = self.buffer.borrow_mut().get_mut(byte_index) {
-                match packed.next() {
-                    Some(packed_byte) => {
-                        *byte = packed_byte;
-                        byte_index = byte_index.strict_add(1);
-                    }
-                    None => break,
-                }
-            }
+            let byte_index = self.byte_index(self.bits);
+            self.buffer
+                .borrow_mut()
+                .get_mut(byte_index..)
+                .unwrap_or_default()
+                .iter_mut()
+                .zip(packed.by_ref())
+                .for_each(|(byte, packed_byte)| *byte = packed_byte);
 
             if let Err(error) = self.buffer.try_extend(packed) {
                 self.bits = original_bits;
@@ -632,6 +748,15 @@ mod tests {
                 .collect::<Vec<_>>()
                 .as_slice()
         );
+    }
+
+    #[test]
+    fn from_iter_stops_at_first_none() {
+        let input = [Some(true), None, Some(true), Some(true)];
+        let mut source = input.into_iter();
+        let bitmap = Bitmap::<VecBuffer>::from_iter(iter::from_fn(move || source.next().flatten()));
+        assert_eq!(bitmap.len(), 1);
+        assert_eq!(bitmap.iter_views().collect::<Vec<_>>(), [true]);
     }
 
     #[test]
@@ -880,6 +1005,77 @@ mod tests {
 
         let empty = Bitmap::<VecBuffer>::try_all_set_in(0, ()).expect("empty allocation succeeds");
         assert_eq!(empty.into_parts(), (alloc::vec![], 0, 0));
+    }
+
+    #[test]
+    fn count_ones_matches_bit_reference() {
+        // Every byte of the last pattern differs, so counting the wrong byte
+        // (or a byte twice) changes the result.
+        let distinct: [u8; 24] = core::array::from_fn(|index| {
+            u8::try_from(index)
+                .expect("index fits in u8")
+                .wrapping_mul(0x9d)
+                ^ 0x5a
+        });
+        for bytes in [[0; 24], [u8::MAX; 24], [0xa5; 24], distinct] {
+            for offset in 0..24 {
+                for bits in 0..=145 {
+                    let buffer = &bytes[..bytes_for_bits(offset + bits)];
+                    let bitmap = Bitmap::<SliceBuffer>::try_from_parts(buffer, bits, offset)
+                        .expect("valid parts");
+                    let expected = (offset..offset + bits)
+                        .filter(|bit| bytes[bit / 8] & (1 << (bit % 8)) != 0)
+                        .count();
+                    assert_eq!(bitmap.count_ones(), expected);
+                    assert_eq!(bitmap.any_set(), expected > 0);
+                    assert_eq!(bitmap.any_unset(), expected < bits);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn any_bit_finds_single_differing_bit() {
+        // Large enough to span several blocks of `ANY_BIT_BLOCK` bytes.
+        const BYTES: usize = 3 * ANY_BIT_BLOCK + 5;
+        for background in [0, u8::MAX] {
+            for position in (0..BYTES * 8).step_by(13) {
+                let mut bytes = [background; BYTES];
+                bytes[position / 8] ^= 1 << (position % 8);
+                for (offset, bits) in [(0, BYTES * 8), (5, BYTES * 8 - 9), (position, 1)] {
+                    let bitmap =
+                        Bitmap::<SliceBuffer>::try_from_parts(bytes.as_slice(), bits, offset)
+                            .expect("valid parts");
+                    let differs = (offset..offset + bits).contains(&position);
+                    let (set, unset) = if background == 0 {
+                        (differs, bits > usize::from(differs))
+                    } else {
+                        (bits > usize::from(differs), differs)
+                    };
+                    assert_eq!(bitmap.any_set(), set, "{background} {position} {offset}");
+                    assert_eq!(
+                        bitmap.any_unset(),
+                        unset,
+                        "{background} {position} {offset}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn builder_matches_from_iter() {
+        for len in 0..200 {
+            let bools = (0..len).map(|index| index % 3 == 1).collect::<Vec<_>>();
+            let mut builder = BitmapBuilder::<VecBuffer>::with_capacity_in(len, ());
+            for &bit in &bools {
+                builder.push(bit);
+            }
+            let bitmap = builder.finish();
+            assert_eq!(bitmap.len(), len);
+            assert_eq!(bitmap.buffer.len(), bytes_for_bits(len));
+            assert_eq!(bitmap.iter_views().collect::<Vec<_>>(), bools);
+        }
     }
 
     #[test]

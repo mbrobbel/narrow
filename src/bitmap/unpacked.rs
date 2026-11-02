@@ -1,153 +1,232 @@
 //! An iterator that unpacks boolean values.
 
-use core::borrow::Borrow;
+use core::{borrow::Borrow, iter::FusedIterator, ops::Range};
 
-/// An iterator that unpacks boolean values from an iterator (`I`) over items
-/// (`T`) that can be borrowed as bytes, by interpreting the bits of these bytes
-/// with least-significant bit (LSB) numbering as boolean values i.e. `1` maps
-/// to `true` and `0` maps to `false`.
+use super::Bitmap;
+use crate::buffer::Buffer;
+
+/// An iterator over a bitmap's logical bits in LSB-first order.
 ///
-// note: add to docs that users should combine this with std::iter::skip and
-// std::iter::take if needed for padding
-#[derive(Debug)]
-pub struct BitUnpacked<I, T>
-where
-    I: Iterator<Item = T>,
-    T: Borrow<u8>,
-{
-    /// The iterator over the bytes storing packed bits.
-    iter: I,
-    /// The popped byte yielding bits.
-    byte: Option<u8>,
-    /// The mask selecting bits from the popped byte.
-    mask: u8,
+/// `Bytes` is the byte buffer: a borrowed slice when iterating over a
+/// `&Bitmap`, or the bitmap's own buffer when iterating over a `Bitmap` by
+/// value.
+///
+/// It can only be created from a [`Bitmap`] (or empty, with [`Default`]), so
+/// its indices always address bits within its bytes.
+#[derive(Clone, Debug, Default)]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
+pub struct BitmapIter<Bytes> {
+    /// The packed bits.
+    bytes: Bytes,
+    /// The indices of the bits that remain to be yielded.
+    indices: Range<usize>,
 }
 
-impl<I, T> Iterator for BitUnpacked<I, T>
-where
-    I: Iterator<Item = T>,
-    T: Borrow<u8>,
-{
+impl<Storage: Buffer> IntoIterator for Bitmap<Storage> {
+    type Item = bool;
+    type IntoIter = BitmapIter<Storage::For<u8>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BitmapIter {
+            indices: self.offset..self.offset.strict_add(self.bits),
+            bytes: self.buffer,
+        }
+    }
+}
+
+impl<'bitmap, Storage: Buffer> IntoIterator for &'bitmap Bitmap<Storage> {
+    type Item = bool;
+    type IntoIter = BitmapIter<&'bitmap [u8]>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BitmapIter {
+            bytes: self.buffer.borrow(),
+            indices: self.offset..self.offset.strict_add(self.bits),
+        }
+    }
+}
+
+impl<Bytes: Borrow<[u8]>> BitmapIter<Bytes> {
+    #[inline]
+    fn bit(&self, index: usize) -> bool {
+        bit(self.bytes.borrow(), index)
+    }
+}
+
+/// Number of bits packed in one byte.
+const BITS_PER_BYTE: usize = 8;
+
+/// Returns the bit at `index` in `bytes`, using LSB-first numbering.
+#[inline]
+fn bit(bytes: &[u8], index: usize) -> bool {
+    bytes[index.strict_div(BITS_PER_BYTE)] & (1 << index.rem_euclid(BITS_PER_BYTE)) != 0
+}
+
+impl<Bytes: Borrow<[u8]>> Iterator for BitmapIter<Bytes> {
     type Item = bool;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        // Check if we need to fetch the next byte from the inner iterator.
-        if self.mask == 0x01 {
-            self.byte = self.iter.next().map(|item| *item.borrow());
-        }
+        self.indices.next().map(|index| self.bit(index))
+    }
 
-        // If we have a byte there are still boolean values to yield.
-        self.byte.map(|byte| {
-            let next = (byte & self.mask) != 0;
-            self.mask = self.mask.rotate_left(1);
-            next
-        })
+    #[inline]
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        self.indices.nth(n).map(|index| self.bit(index))
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let (lower, upper) = self.iter.size_hint();
-
-        // Bits not yet yielded from the currently buffered byte. The mask
-        // rotates back to the least-significant bit when a byte is exhausted,
-        // so a rotated mask indicates bits remaining in the buffered byte.
-        let buffered = if self.mask == 0x01 {
-            0
-        } else {
-            8_usize.strict_sub(
-                self.mask
-                    .trailing_zeros()
-                    .try_into()
-                    .expect("bit count fits in usize"),
-            )
-        };
-
-        // 8 items are returned per one item in the inner iterator, plus the
-        // bits buffered from a partially yielded byte.
-        (
-            lower.saturating_mul(8).saturating_add(buffered),
-            upper
-                .and_then(|bound| bound.checked_mul(8))
-                .and_then(|bound| bound.checked_add(buffered)),
-        )
+        self.indices.size_hint()
     }
 
-    // todo(mb): advance_by, nth
-}
+    #[inline]
+    fn count(self) -> usize {
+        self.indices.len()
+    }
 
-// If the inner iterator is ExactSizeIterator, the bounds reported by
-// the size hint of this iterator are exact.
-impl<I, T> ExactSizeIterator for BitUnpacked<I, T>
-where
-    I: ExactSizeIterator<Item = T>,
-    T: Borrow<u8>,
-{
-}
+    #[inline]
+    fn last(mut self) -> Option<Self::Item> {
+        self.next_back()
+    }
 
-/// An [`Iterator`] extension trait for [`BitUnpacked`].
-pub trait BitUnpackedExt<T>: IntoIterator<Item = T>
-where
-    T: Borrow<u8>,
-{
-    /// Returns an iterator that unpacks bits from the bytes in the iterator.
-    fn bit_unpacked(self) -> BitUnpacked<Self::IntoIter, T>
-    where
-        Self: Sized,
-    {
-        BitUnpacked {
-            iter: self.into_iter(),
-            byte: None,
-            mask: 0x01,
-        }
+    /// Folds byte by byte: the bits of each whole byte are extracted with
+    /// constant shifts instead of a division, bounds check and variable shift
+    /// per bit, which lets adapters such as `filter(..).count()` vectorize.
+    #[inline]
+    fn fold<B, F: FnMut(B, Self::Item) -> B>(self, init: B, mut f: F) -> B {
+        let Self {
+            bytes: buffer,
+            indices: Range { start, end },
+        } = self;
+        let bytes = buffer.borrow();
+
+        // Leading bits up to the first byte boundary.
+        let head_end = start.next_multiple_of(BITS_PER_BYTE).min(end);
+        let head = (start..head_end).fold(init, |acc, index| f(acc, bit(bytes, index)));
+
+        // Whole bytes. `head_end` is byte aligned whenever bits remain.
+        let body_end = end.strict_div(BITS_PER_BYTE);
+        let body_start = head_end.strict_div(BITS_PER_BYTE).min(body_end);
+        let body = bytes[body_start..body_end].iter().fold(head, |acc, &byte| {
+            (0..u8::BITS).fold(acc, |partial, shift| f(partial, byte & (1 << shift) != 0))
+        });
+
+        // Trailing bits after the last byte boundary.
+        let tail_start = body_end.strict_mul(BITS_PER_BYTE).max(head_end);
+        (tail_start..end).fold(body, |acc, index| f(acc, bit(bytes, index)))
+    }
+
+    /// Collects through `Map<Range<usize>, _>`, which implements the unstable
+    /// `TrustedLen` trait, so collections such as `Vec` can allocate once and
+    /// write without per-item capacity checks. `BitmapIter` itself cannot
+    /// implement `TrustedLen` on stable Rust.
+    #[inline]
+    fn collect<B: FromIterator<Self::Item>>(self) -> B {
+        let Self { bytes, indices } = self;
+        indices.map(|index| bit(bytes.borrow(), index)).collect()
     }
 }
 
-impl<I, T> BitUnpackedExt<T> for I
-where
-    I: IntoIterator<Item = T>,
-    T: Borrow<u8>,
-{
+impl<Bytes: Borrow<[u8]>> DoubleEndedIterator for BitmapIter<Bytes> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.indices.next_back().map(|index| self.bit(index))
+    }
+
+    #[inline]
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        self.indices.nth_back(n).map(|index| self.bit(index))
+    }
 }
+
+impl<Bytes: Borrow<[u8]>> ExactSizeIterator for BitmapIter<Bytes> {}
+impl<Bytes: Borrow<[u8]>> FusedIterator for BitmapIter<Bytes> {}
 
 #[cfg(test)]
 mod tests {
     extern crate alloc;
 
-    use alloc::{vec, vec::Vec};
+    use alloc::vec::Vec;
 
     use super::*;
+    use crate::buffer::VecBuffer;
 
-    #[test]
-    fn iter() {
-        let iter = [u8::MAX, 1].iter().bit_unpacked();
-        assert_eq!(
-            iter.collect::<Vec<_>>(),
-            vec![
-                true, true, true, true, true, true, true, true, true, false, false, false, false,
-                false, false, false
-            ]
-        );
-    }
-
-    #[test]
-    fn size_hint() {
-        let input = [u8::MAX, 1, 2, 3];
-        assert_eq!(
-            input.iter().bit_unpacked().size_hint(),
-            (input.len() * 8, Some(input.len() * 8))
-        );
-    }
-
-    #[test]
-    fn size_hint_partially_yielded_byte() {
-        let mut iter = [u8::MAX, 1].iter().bit_unpacked();
-        let mut remaining = 16;
-        assert_eq!(iter.size_hint(), (remaining, Some(remaining)));
-        while iter.next().is_some() {
-            remaining -= 1;
-            assert_eq!(iter.size_hint(), (remaining, Some(remaining)));
+    /// Returns a bitmap over the bits at `indices` in `bytes`.
+    fn bitmap(bytes: &[u8], indices: Range<usize>) -> Bitmap<VecBuffer> {
+        Bitmap {
+            buffer: bytes.to_vec(),
+            bits: indices.len(),
+            offset: indices.start,
         }
-        assert_eq!(iter.size_hint(), (0, Some(0)));
+    }
+
+    #[test]
+    fn default_bitmap_iter_is_empty() {
+        assert_eq!(BitmapIter::<&[u8]>::default().next(), None);
+        assert_eq!(BitmapIter::<Vec<u8>>::default().len(), 0);
+    }
+
+    #[test]
+    fn borrowed_iteration_and_skipping() {
+        let bytes = [0x00, 0xff, 0xa5, 0x3c, 0x81, 0x7e];
+        for start in 0..=48 {
+            for end in start..=48 {
+                let expected: Vec<_> = (start..end)
+                    .map(|bit| bytes[bit / 8] & (1 << (bit % 8)) != 0)
+                    .collect();
+                let bitmap = bitmap(&bytes, start..end);
+                let owned = bitmap.clone().into_iter();
+                assert_eq!(owned.clone().collect::<Vec<_>>(), expected);
+                assert_eq!(
+                    owned.filter(|bit| *bit).count(),
+                    expected.iter().filter(|bit| **bit).count()
+                );
+
+                let mut iter = (&bitmap).into_iter();
+                assert_eq!(iter.clone().collect::<Vec<_>>(), expected);
+                assert_eq!(iter.clone().count(), expected.len());
+                assert_eq!(iter.clone().last(), expected.last().copied());
+                assert_eq!(
+                    iter.clone().filter(|bit| *bit).count(),
+                    expected.iter().filter(|bit| **bit).count()
+                );
+                assert_eq!(
+                    iter.clone().fold(Vec::new(), |mut output, bit| {
+                        output.push(bit);
+                        output
+                    }),
+                    expected
+                );
+                for (index, &bit) in expected.iter().enumerate() {
+                    assert_eq!(iter.len(), expected.len() - index);
+                    assert_eq!(iter.next(), Some(bit));
+                }
+                assert_eq!(iter.size_hint(), (0, Some(0)));
+                assert_eq!(iter.next(), None);
+                assert_eq!(iter.next(), None);
+
+                assert_eq!(
+                    (&bitmap).into_iter().rev().collect::<Vec<_>>(),
+                    expected.iter().rev().copied().collect::<Vec<_>>()
+                );
+                let mut back = (&bitmap).into_iter();
+                assert_eq!(
+                    back.nth_back(7),
+                    expected.len().checked_sub(8).map(|index| expected[index])
+                );
+                assert_eq!(back.len(), expected.len().saturating_sub(8));
+                assert_eq!(
+                    back.next(),
+                    expected.first().copied().filter(|_| expected.len() > 8)
+                );
+
+                let mut skipped = (&bitmap).into_iter();
+                assert_eq!(skipped.nth(7), expected.get(7).copied());
+                assert_eq!(skipped.len(), expected.len().saturating_sub(8));
+                assert_eq!(skipped.nth(usize::MAX), None);
+                assert_eq!(skipped.len(), 0);
+            }
+        }
     }
 }

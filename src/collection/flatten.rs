@@ -29,14 +29,40 @@ use crate::{
 /// let values = [[1, 2], [3, 4]].into_iter().collect::<Flatten<Vec<_>, 2>>();
 /// assert_eq!(values.owned(1), Some([3, 4]));
 /// ```
-#[derive(Clone, Copy, Debug, Default)]
+///
+/// The chunk size `N` must be non-zero. Constructing a `Flatten` with `N = 0`
+/// is a compile-time error:
+///
+/// ```compile_fail
+/// use narrow::collection::flatten::Flatten;
+///
+/// let values = Flatten::<Vec<i32>, 0>::default();
+/// ```
+#[derive(Clone, Copy, Debug)]
 pub struct Flatten<C: Collection, const N: usize>(C);
+
+impl<C: Collection, const N: usize> Flatten<C, N> {
+    /// Wraps `child`, rejecting `N = 0` at compile time.
+    ///
+    /// Every constructor goes through this function, so no `Flatten` with a
+    /// zero chunk size exists and dividing by `N` can not panic.
+    const fn new(child: C) -> Self {
+        const { assert!(N > 0, "the chunk size N of Flatten must be non-zero") };
+        Self(child)
+    }
+}
+
+impl<C: Collection + Default, const N: usize> Default for Flatten<C, N> {
+    fn default() -> Self {
+        Self::new(C::default())
+    }
+}
 
 /// Error returned by [`Flatten::try_from_parts`].
 ///
 /// Validation happens when raw parts enter the safe representation. This lets
-/// later indexing assume that `N` is non-zero and every logical item has a
-/// complete group of child values.
+/// later indexing assume that every logical item has a complete group of
+/// child values. A zero chunk size `N` is rejected at compile time.
 ///
 /// # Examples
 ///
@@ -45,13 +71,9 @@ pub struct Flatten<C: Collection, const N: usize>(C);
 ///
 /// let error = Flatten::<Vec<_>, 2>::try_from_parts(vec![1]).unwrap_err();
 /// assert_eq!(error, FlattenError::NotMultiple { len: 1, n: 2 });
-/// let error = Flatten::<Vec<i32>, 0>::try_from_parts(vec![]).unwrap_err();
-/// assert_eq!(error, FlattenError::ZeroChunkSize);
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FlattenError {
-    /// The chunk size `N` is zero.
-    ZeroChunkSize,
     /// The child collection length is not a multiple of `N`.
     NotMultiple {
         /// The length of the child collection.
@@ -64,7 +86,6 @@ pub enum FlattenError {
 impl fmt::Display for FlattenError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            Self::ZeroChunkSize => write!(f, "chunk size N must be non-zero"),
             Self::NotMultiple { len, n } => {
                 write!(f, "child length ({len}) is not a multiple of N ({n})")
             }
@@ -79,8 +100,8 @@ impl<C: Collection, const N: usize> Flatten<C, N> {
     ///
     /// # Errors
     ///
-    /// Returns a [`FlattenError`] when `N` is zero or when the length of the
-    /// child collection is not a multiple of `N`.
+    /// Returns a [`FlattenError`] when the length of the child collection is
+    /// not a multiple of `N`.
     ///
     /// # Examples
     ///
@@ -91,13 +112,11 @@ impl<C: Collection, const N: usize> Flatten<C, N> {
     /// assert_eq!(values.owned(0), Some([1, 2]));
     /// ```
     pub fn try_from_parts(child: C) -> Result<Self, FlattenError> {
-        match child.len().checked_rem(N) {
-            None => Err(FlattenError::ZeroChunkSize),
-            Some(0) => Ok(Self(child)),
-            Some(_) => Err(FlattenError::NotMultiple {
-                len: child.len(),
-                n: N,
-            }),
+        let len = child.len();
+        if len.is_multiple_of(N) {
+            Ok(Self::new(child))
+        } else {
+            Err(FlattenError::NotMultiple { len, n: N })
         }
     }
 
@@ -141,7 +160,7 @@ impl<C: CollectionRealloc, const N: usize> Extend<[C::Owned; N]> for Flatten<C, 
 
 impl<C: CollectionAlloc, const N: usize> FromIterator<[C::Owned; N]> for Flatten<C, N> {
     fn from_iter<T: IntoIterator<Item = [C::Owned; N]>>(iter: T) -> Self {
-        Self(iter.into_iter().flatten().collect())
+        Self::new(iter.into_iter().flatten().collect())
     }
 }
 
@@ -154,11 +173,15 @@ impl<C: Collection, const N: usize> Collection for Flatten<C, N> {
     type Owned = [C::Owned; N];
 
     fn view(&self, index: usize) -> Option<Self::View<'_>> {
-        Some(FlattenView(array::from_fn(|idx| {
-            self.0
-                .view(index.strict_mul(N).strict_add(idx))
-                .expect("out of bounds")
-        })))
+        // `len` is the child's length divided by `N`, so every child index of
+        // an in-bounds chunk is in bounds.
+        (index < self.len()).then(|| {
+            FlattenView(array::from_fn(|idx| {
+                self.0
+                    .view(index.strict_mul(N).strict_add(idx))
+                    .expect("chunk is within the child")
+            }))
+        })
     }
 
     type Iter<'collection>
@@ -186,23 +209,23 @@ impl<C: CollectionAllocIn, const N: usize> CollectionAllocIn for Flatten<C, N> {
     type Alloc = C::Alloc;
 
     fn with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Self {
-        Self(C::with_capacity_in(capacity.strict_mul(N), alloc))
+        Self::new(C::with_capacity_in(capacity.strict_mul(N), alloc))
     }
 
     fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self {
-        Self(C::from_iter_in(iter.into_iter().flatten(), alloc))
+        Self::new(C::from_iter_in(iter.into_iter().flatten(), alloc))
     }
 
     fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError> {
         let child_capacity = capacity.checked_mul(N).ok_or(AllocError)?;
-        C::try_with_capacity_in(child_capacity, alloc).map(Self)
+        C::try_with_capacity_in(child_capacity, alloc).map(Self::new)
     }
 
     fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
         iter: I,
         alloc: Self::Alloc,
     ) -> Result<Self, AllocError> {
-        C::try_from_iter_in(iter.into_iter().flatten(), alloc).map(Self)
+        C::try_from_iter_in(iter.into_iter().flatten(), alloc).map(Self::new)
     }
 }
 
@@ -355,6 +378,14 @@ mod tests {
     }
 
     #[test]
+    fn view_out_of_bounds() {
+        let flatten = [[1, 2], [3, 4]].into_iter().collect::<Flatten<Vec<_>, 2>>();
+        assert!(flatten.view(1).is_some());
+        assert!(flatten.view(2).is_none());
+        assert!(flatten.view(usize::MAX).is_none());
+    }
+
+    #[test]
     fn try_from_parts() {
         let flatten =
             Flatten::<Vec<i32>, 2>::try_from_parts(alloc::vec![1, 2, 3, 4]).expect("valid parts");
@@ -367,13 +398,6 @@ mod tests {
         let error = Flatten::<Vec<i32>, 2>::try_from_parts(alloc::vec![1, 2, 3])
             .expect_err("not a multiple");
         assert_eq!(error, FlattenError::NotMultiple { len: 3, n: 2 });
-    }
-
-    #[test]
-    fn try_from_parts_zero_chunk() {
-        let error = Flatten::<Vec<i32>, 0>::try_from_parts(alloc::vec![1, 2, 3])
-            .expect_err("zero chunk size");
-        assert_eq!(error, FlattenError::ZeroChunkSize);
     }
 
     #[test]
