@@ -805,13 +805,13 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Length
     }
 }
 
-impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Collection
-    for OffsetView<'_, T, OffsetItem, Storage, U>
+impl<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U> Collection
+    for OffsetView<'collection, T, OffsetItem, Storage, U>
 {
-    type View<'collection>
-        = <T as Collection>::View<'collection>
+    type View<'view>
+        = <T as Collection>::View<'view>
     where
-        Self: 'collection;
+        Self: 'view;
 
     type Owned = T::Owned;
 
@@ -840,12 +840,13 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Collection
     /// path for iterators of known length (the unstable `TrustedLen`), which
     /// [`OffsetViewIter`] can not implement on stable Rust. Collecting owned
     /// items through it is about three times slower.
-    type IntoIter = Map<Zip<Range<usize>, RepeatN<Self>>, fn((usize, Self)) -> Self::Owned>;
+    type IntoIter =
+        Map<Zip<Range<usize>, RepeatN<&'collection T>>, fn((usize, &'collection T)) -> Self::Owned>;
 
     fn into_iter_owned(self) -> Self::IntoIter {
-        (0..self.len())
-            .zip(iter::repeat_n(self, self.len()))
-            .map(|(index, collection)| collection.view(index).expect("index in range").into_owned())
+        (self.start..self.end)
+            .zip(iter::repeat_n(&self.collection.data, self.len()))
+            .map(|(index, data)| data.view(index).expect("index in range").into_owned())
     }
 }
 
