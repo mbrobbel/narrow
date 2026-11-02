@@ -80,16 +80,21 @@ impl ArrowSchema {
     /// Builds a fixed-size-list schema and retains its child schema.
     fn fixed_size_list<const N: usize, Nulls: Nullability>(child: Self) -> Self {
         let format_string = CString::new(format!("+w:{N}")).expect("valid fixed-size list format");
-        let mut private = Box::new(FixedSizeListSchemaData {
+        // Leak the box before deriving pointers into it: moving it afterwards
+        // would invalidate them.
+        let private = Box::into_raw(Box::new(FixedSizeListSchemaData {
             format: format_string,
             children: [child],
             child_pointers: [ptr::null_mut()],
-        });
-        private.child_pointers[0] = ptr::from_mut(&mut private.children[0]);
+        }));
+        // SAFETY: `private` comes from `Box::into_raw` and nothing else
+        // references it until `release_schema` reclaims it.
+        let data = unsafe { &mut *private };
+        data.child_pointers[0] = ptr::from_mut(&mut data.children[0]);
 
-        let format_pointer = private.format.as_ptr();
-        let children = private.child_pointers.as_mut_ptr();
-        let private_data = Box::into_raw(private).cast();
+        let format_pointer = data.format.as_ptr();
+        let children = data.child_pointers.as_mut_ptr();
+        let private_data = private.cast();
         Self {
             format: format_pointer,
             name: c"".as_ptr(),

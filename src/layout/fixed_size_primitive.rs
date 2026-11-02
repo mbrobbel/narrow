@@ -92,6 +92,16 @@ where
     }
 }
 
+impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> Clone
+    for FixedSizePrimitive<T, Nulls, Storage>
+where
+    Nulls::Collection<Storage::For<T>, Storage>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> Default
     for FixedSizePrimitive<T, Nulls, Storage>
 where
