@@ -248,7 +248,7 @@ impl<Owner: 'static, Layout: ArrowArrayLayout + 'static> ArrayData<Owner, Layout
 
     /// Builds an [`ArrowArray`] backed by this private data.
     fn into_array(
-        mut self: Box<Self>,
+        self: Box<Self>,
         length: i64,
         null_count: i64,
         dictionary: *mut ArrowArray,
@@ -257,18 +257,25 @@ impl<Owner: 'static, Layout: ArrowArrayLayout + 'static> ArrayData<Owner, Layout
             i64::try_from(self.buffers.as_ref().len()).expect("buffer count exceeds i64");
         let n_children = i64::try_from(self.child_pointers.len()).expect("child count exceeds i64");
 
-        let buffers = self.buffers.as_mut();
+        // Leak the box before deriving pointers into it: `buffers` lives inside
+        // the boxed allocation, and moving the box invalidates earlier borrows.
+        let raw = Box::into_raw(self);
+        // SAFETY: `raw` comes from `Box::into_raw`, so it is valid and
+        // nothing else references it until `release_array` reclaims it.
+        let this = unsafe { &mut *raw };
+
+        let buffers = this.buffers.as_mut();
         let buffer_pointers = if buffers.is_empty() {
             ptr::null_mut()
         } else {
             buffers.as_mut_ptr()
         };
-        let children = if self.child_pointers.is_empty() {
+        let children = if this.child_pointers.is_empty() {
             ptr::null_mut()
         } else {
-            self.child_pointers.as_mut_ptr()
+            this.child_pointers.as_mut_ptr()
         };
-        let private_data = Box::into_raw(self).cast();
+        let private_data = raw.cast();
 
         ArrowArray {
             length,
