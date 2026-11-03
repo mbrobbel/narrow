@@ -7,7 +7,7 @@ use core::{
 
 use crate::{
     bitmap::{Bitmap, BitmapBuilder, ValidityBitmap},
-    buffer::{Buffer, VecBuffer},
+    buffer::{Buffer, RawBuffer, VecBuffer},
     collection::{
         AllocError, ChildRef, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
         view::AsView,
@@ -42,7 +42,7 @@ use crate::{
 /// assert_eq!(values.owned(0), Some(Some(1)));
 /// assert_eq!(values.owned(1), Some(None));
 /// ```
-pub struct Validity<T: Collection, Storage: Buffer = VecBuffer> {
+pub struct Validity<T: Length, Storage: RawBuffer = VecBuffer> {
     /// Collection that may contain null elements.
     collection: T,
 
@@ -88,7 +88,13 @@ impl fmt::Display for ValidityError {
 
 impl core::error::Error for ValidityError {}
 
-impl<T: Collection, Storage: Buffer> Validity<T, Storage> {
+impl<T: Length, Storage: RawBuffer> Validity<T, Storage> {
+    /// Borrows the values and the optional validity bitmap.
+    #[must_use]
+    pub fn as_parts(&self) -> (&T, Option<&Bitmap<Storage>>) {
+        (&self.collection, self.bitmap.as_ref())
+    }
+
     /// Constructs a [`Validity`] from a `collection` and its validity `bitmap`.
     ///
     /// # Errors
@@ -213,7 +219,7 @@ impl<T: Collection, Storage: Buffer> ValidityBitmap for Validity<T, Storage> {
     }
 }
 
-impl<T: Collection + Debug, Storage: Buffer> Debug for Validity<T, Storage>
+impl<T: Length + Debug, Storage: RawBuffer> Debug for Validity<T, Storage>
 where
     Bitmap<Storage>: Debug,
 {
@@ -225,7 +231,7 @@ where
     }
 }
 
-impl<T: Collection + Clone, Storage: Buffer> Clone for Validity<T, Storage>
+impl<T: Length + Clone, Storage: RawBuffer> Clone for Validity<T, Storage>
 where
     Bitmap<Storage>: Clone,
 {
@@ -237,7 +243,7 @@ where
     }
 }
 
-impl<T: Default + Collection, Storage: Buffer> Default for Validity<T, Storage> {
+impl<T: Default + Length, Storage: RawBuffer> Default for Validity<T, Storage> {
     fn default() -> Self {
         Self {
             collection: Default::default(),
@@ -253,7 +259,7 @@ impl<'collection, T: AsView<'collection>> AsView<'collection> for Option<T> {
     }
 }
 
-impl<T: Collection, Storage: Buffer> Length for Validity<T, Storage> {
+impl<T: Length, Storage: RawBuffer> Length for Validity<T, Storage> {
     fn len(&self) -> usize {
         self.bitmap
             .as_ref()

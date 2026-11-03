@@ -16,7 +16,7 @@ use core::{
 use packed::BitPackedExt;
 
 use crate::{
-    buffer::{Buffer, BufferRef, VecBuffer},
+    buffer::{Buffer, BufferRef, RawBuffer, VecBuffer},
     collection::{AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc},
     length::Length,
 };
@@ -119,7 +119,7 @@ impl core::error::Error for BitmapError {}
 /// let bitmap = [true, false, true].into_iter().collect::<Bitmap>();
 /// assert_eq!(bitmap.into_iter().collect::<Vec<_>>(), [true, false, true]);
 /// ```
-pub struct Bitmap<Storage: Buffer = VecBuffer> {
+pub struct Bitmap<Storage: RawBuffer = VecBuffer> {
     /// The bits of the bitmap are stored in this buffer of bytes.
     ///
     /// Invariant: the buffer stores at least `bytes_for_bits(offset + bits)`
@@ -143,7 +143,7 @@ impl<Storage: Buffer> BufferRef for Bitmap<Storage> {
     }
 }
 
-impl<Storage: Buffer<For<u8>: Debug>> Debug for Bitmap<Storage> {
+impl<Storage: RawBuffer<For<u8>: Debug>> Debug for Bitmap<Storage> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Bitmap")
             .field("buffer", &self.buffer)
@@ -153,7 +153,7 @@ impl<Storage: Buffer<For<u8>: Debug>> Debug for Bitmap<Storage> {
     }
 }
 
-impl<Storage: Buffer> Bitmap<Storage> {
+impl<Storage: RawBuffer> Bitmap<Storage> {
     /// Constructs a [`Bitmap`] from its raw parts: a byte `buffer`, the number
     /// of `bits` it stores, and a bit `offset` into the buffer.
     ///
@@ -177,7 +177,7 @@ impl<Storage: Buffer> Bitmap<Storage> {
         bits: usize,
         offset: usize,
     ) -> Result<Self, BitmapError> {
-        let bytes = buffer.borrow().len();
+        let bytes = buffer.len();
         let capacity = bytes.saturating_mul(8);
         match offset.checked_add(bits) {
             Some(required) if required <= capacity => Ok(Self {
@@ -215,7 +215,7 @@ impl<Storage: Buffer> Bitmap<Storage> {
     /// ```
     #[must_use]
     pub fn from_parts(buffer: Storage::For<u8>, bits: usize, offset: usize) -> Self {
-        let capacity = buffer.borrow().len().saturating_mul(8);
+        let capacity = buffer.len().saturating_mul(8);
         assert!(
             offset
                 .checked_add(bits)
@@ -244,6 +244,14 @@ impl<Storage: Buffer> Bitmap<Storage> {
         self.offset
     }
 
+    /// Borrows the raw parts: byte buffer, number of bits and bit offset.
+    #[must_use]
+    pub fn as_parts(&self) -> (&Storage::For<u8>, usize, usize) {
+        (&self.buffer, self.bits, self.offset)
+    }
+}
+
+impl<Storage: Buffer> Bitmap<Storage> {
     /// Returns the bytes holding this bitmap's logical bits, or [`None`] when
     /// it is empty.
     fn byte_span(&self) -> Option<ByteSpan<'_>> {
@@ -338,7 +346,9 @@ impl<Storage: Buffer> Bitmap<Storage> {
     pub(crate) fn any_unset(&self) -> bool {
         self.any_bit(false)
     }
+}
 
+impl<Storage: RawBuffer> Bitmap<Storage> {
     /// Returns the raw parts of this [`Bitmap`]: its byte buffer, the number of
     /// bits it stores, and the bit offset into the buffer.
     ///
@@ -399,7 +409,7 @@ impl<Storage: Buffer> Bitmap<Storage> {
     }
 }
 
-impl<Storage: Buffer<For<u8>: Clone>> Clone for Bitmap<Storage> {
+impl<Storage: RawBuffer<For<u8>: Clone>> Clone for Bitmap<Storage> {
     fn clone(&self) -> Self {
         Self {
             buffer: self.buffer.clone(),
@@ -409,7 +419,7 @@ impl<Storage: Buffer<For<u8>: Clone>> Clone for Bitmap<Storage> {
     }
 }
 
-impl<Storage: Buffer<For<u8>: Default>> Default for Bitmap<Storage> {
+impl<Storage: RawBuffer<For<u8>: Default>> Default for Bitmap<Storage> {
     fn default() -> Self {
         Self {
             buffer: Default::default(),
@@ -419,7 +429,7 @@ impl<Storage: Buffer<For<u8>: Default>> Default for Bitmap<Storage> {
     }
 }
 
-impl<Storage: Buffer> Length for Bitmap<Storage> {
+impl<Storage: RawBuffer> Length for Bitmap<Storage> {
     fn len(&self) -> usize {
         self.bits
     }

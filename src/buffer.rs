@@ -5,7 +5,7 @@ extern crate alloc;
 use alloc::{boxed::Box, rc::Rc, sync::Arc, vec::Vec};
 use core::{borrow::Borrow, marker::PhantomData};
 
-use crate::{collection::Collection, fixed_size::FixedSize};
+use crate::{collection::Collection, fixed_size::FixedSize, length::Length};
 
 /// Constructor for contiguous [`Collection`]s of [`FixedSize`] items.
 ///
@@ -25,6 +25,62 @@ pub trait Buffer: Default {
     /// The [`Collection`] with [`FixedSize`] items.
     /// Can be borrowed as a contiguous slice of `T`.
     type For<T: FixedSize>: Borrow<[T]> + Collection<Owned = T>;
+}
+
+/// Where the elements of a buffer live, as Arrow C Device Data Interface
+/// `device_type` / `device_id` codes. narrow never dereferences non-CPU memory.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct MemorySpace {
+    /// `ARROW_DEVICE_*` code (1 = CPU, 2 = CUDA, 3 = `CUDA_HOST`, 13 = `CUDA_MANAGED`).
+    pub device_type: i32,
+    /// Device ordinal, or -1 when the device type has no ordinal.
+    pub device_id: i64,
+}
+
+impl MemorySpace {
+    /// Memory the executing code can dereference directly.
+    pub const CPU: Self = Self {
+        device_type: 1,
+        device_id: -1,
+    };
+    /// CUDA device memory on device `ordinal`.
+    #[must_use]
+    pub const fn cuda(ordinal: i64) -> Self {
+        Self {
+            device_type: 2,
+            device_id: ordinal,
+        }
+    }
+}
+
+/// A contiguous run of `T` known only by address, length and memory space.
+pub trait RawSlice<T>: Length {
+    /// Memory space of the elements.
+    fn memory_space(&self) -> MemorySpace;
+    /// Address of the first element as an integer. Never dereferenced by narrow.
+    fn address(&self) -> usize;
+}
+
+impl<T, B: Borrow<[T]> + Length> RawSlice<T> for B {
+    fn memory_space(&self) -> MemorySpace {
+        MemorySpace::CPU
+    }
+    fn address(&self) -> usize {
+        self.borrow().as_ptr().addr()
+    }
+}
+
+/// Constructor for raw [`FixedSize`] buffers that may not be host-readable.
+///
+/// Every [`Buffer`] is a `RawBuffer`. Implement this directly (and not
+/// [`Buffer`]) for storage the executing code cannot read, such as device memory.
+pub trait RawBuffer {
+    /// The raw buffer with [`FixedSize`] items.
+    type For<T: FixedSize>: RawSlice<T>;
+}
+
+impl<B: Buffer> RawBuffer for B {
+    type For<T: FixedSize> = <B as Buffer>::For<T>;
 }
 
 /// Immutable access to a backing buffer or collection.
