@@ -18,6 +18,7 @@ use crate::{
 pub mod boolean;
 pub mod fixed_size_list;
 pub mod fixed_size_primitive;
+pub mod null;
 pub mod variable_size_binary;
 pub mod variable_size_list;
 
@@ -67,7 +68,7 @@ pub trait Layout: Sized {
 ///
 /// This is a compile-time proof used to gate `Option<T>`. It prevents a
 /// nullable array item from selecting a layout that cannot carry Arrow
-/// validity information.
+/// validity information. The unit type `()` cannot carry such a bitmap.
 ///
 /// # Examples
 ///
@@ -89,6 +90,9 @@ pub trait NullableLayout: Layout {}
 /// T         -> Layout::Memory<NonNullable, Storage>
 /// Option<T> -> Layout::Memory<Nullable, Storage>
 /// ```
+///
+/// The unit type `()` selects [`null::Nulls`] directly, without a
+/// nullable variant or storage buffers.
 ///
 /// # Examples
 ///
@@ -154,6 +158,7 @@ mod tests {
 
     #[test]
     fn array_item_selects_nullability() {
+        assert_memory::<(), super::null::Nulls>();
         assert_memory::<bool, Boolean<NonNullable, VecBuffer>>();
         assert_memory::<Option<bool>, Boolean<Nullable, VecBuffer>>();
         assert_memory::<i32, FixedSizePrimitive<i32, NonNullable, VecBuffer>>();
