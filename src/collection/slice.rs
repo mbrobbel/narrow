@@ -1,4 +1,4 @@
-use core::{borrow::Borrow, iter::Map, marker::PhantomData, slice};
+use core::{borrow::Borrow, iter::FusedIterator, marker::PhantomData, slice};
 
 use crate::collection::{Collection, owned::IntoOwned, view::AsView};
 
@@ -15,12 +15,12 @@ impl<T: for<'any> AsView<'any>> Collection for &[T] {
     }
 
     type Iter<'collection>
-        = Map<slice::Iter<'collection, T>, fn(&'collection T) -> <T as AsView<'collection>>::View>
+        = SliceViews<'collection, T>
     where
         Self: 'collection;
 
     fn iter_views(&self) -> Self::Iter<'_> {
-        <Self as IntoIterator>::into_iter(self).map(AsView::as_view)
+        SliceViews::new(self)
     }
 
     type IntoIter = SliceIntoIter<Self, T>;
@@ -29,6 +29,60 @@ impl<T: for<'any> AsView<'any>> Collection for &[T] {
         self.into()
     }
 }
+
+/// An iterator over the views of a slice's items.
+///
+/// A named iterator rather than `Map<slice::Iter<'_, T>, fn(&T) -> View>`:
+/// calling through the function pointer in that type is an indirect call,
+/// while this iterator calls [`AsView::as_view`] statically.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::collection::slice::SliceViews;
+///
+/// let values = [1, 2];
+/// assert_eq!(SliceViews::new(&values).collect::<Vec<_>>(), [1, 2]);
+/// ```
+#[derive(Clone, Debug)]
+pub struct SliceViews<'collection, T> {
+    /// The underlying slice iterator.
+    iter: slice::Iter<'collection, T>,
+}
+
+impl<'collection, T> SliceViews<'collection, T> {
+    /// Returns an iterator over the views of `slice`'s items.
+    #[must_use]
+    pub fn new(slice: &'collection [T]) -> Self {
+        Self { iter: slice.iter() }
+    }
+}
+
+impl<'collection, T: AsView<'collection>> Iterator for SliceViews<'collection, T> {
+    type Item = T::View;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(AsView::as_view)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        self.iter.nth(n).map(AsView::as_view)
+    }
+}
+
+impl<'collection, T: AsView<'collection>> DoubleEndedIterator for SliceViews<'collection, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.iter.next_back().map(AsView::as_view)
+    }
+}
+
+impl<'collection, T: AsView<'collection>> ExactSizeIterator for SliceViews<'collection, T> {}
+
+impl<'collection, T: AsView<'collection>> FusedIterator for SliceViews<'collection, T> {}
 
 /// An iterator over a slice that turns views into owned instances.
 ///
