@@ -120,6 +120,38 @@ impl<T: Collection, Storage: Buffer> Validity<T, Storage> {
         }
     }
 
+    /// Constructs a [`Validity`] from a `collection` and its validity
+    /// `bitmap`, panicking instead of returning a [`ValidityError`].
+    ///
+    /// This is [`Validity::try_from_parts`] without the `Result`, for callers
+    /// that know their parts are valid.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the length of the collection does not match the length of
+    /// the bitmap.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{bitmap::Bitmap, collection::Collection, validity::Validity};
+    ///
+    /// let bitmap = [true, false].into_iter().collect::<Bitmap>();
+    /// let values = Validity::from_parts(vec![1, 0], bitmap);
+    /// assert_eq!(values.owned(1), Some(None));
+    /// ```
+    #[must_use]
+    pub fn from_parts(collection: T, bitmap: Bitmap<Storage>) -> Self {
+        assert!(
+            collection.len() == bitmap.len(),
+            "validity bitmap length does not match the collection"
+        );
+        Self {
+            collection,
+            bitmap: Some(bitmap),
+        }
+    }
+
     /// Returns the collection and optional validity bitmap of this
     /// [`Validity`].
     ///
@@ -905,6 +937,13 @@ mod tests {
                 bitmap: 2,
             }
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "validity bitmap length does not match the collection")]
+    fn from_parts_length_mismatch() {
+        let bitmap = Bitmap::<VecBuffer>::from_iter([true, false]);
+        let _ = Validity::<Vec<i32>>::from_parts(alloc::vec![1, 2, 3], bitmap);
     }
 
     #[test]

@@ -193,6 +193,42 @@ impl<Storage: Buffer> Bitmap<Storage> {
         }
     }
 
+    /// Constructs a [`Bitmap`] from its raw parts, panicking instead of
+    /// returning a [`BitmapError`].
+    ///
+    /// This is [`Bitmap::try_from_parts`] without the `Result`, for callers
+    /// that know their parts are valid.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `offset + bits` exceeds the number of bits available in the
+    /// buffer (`8 * buffer.len()`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{bitmap::Bitmap, buffer::SliceBuffer};
+    ///
+    /// let bytes = [0b0000_0110];
+    /// let bitmap = Bitmap::<SliceBuffer>::from_parts(&bytes, 2, 1);
+    /// assert_eq!(bitmap.into_iter().collect::<Vec<_>>(), [true, true]);
+    /// ```
+    #[must_use]
+    pub fn from_parts(buffer: Storage::For<u8>, bits: usize, offset: usize) -> Self {
+        let capacity = buffer.borrow().len().saturating_mul(8);
+        assert!(
+            offset
+                .checked_add(bits)
+                .is_some_and(|required| required <= capacity),
+            "bitmap bits out of bounds"
+        );
+        Self {
+            buffer,
+            bits,
+            offset,
+        }
+    }
+
     /// Returns the bit offset into the backing byte buffer.
     ///
     /// # Examples
@@ -981,6 +1017,12 @@ mod tests {
                 bytes: 1,
             }
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "bitmap bits out of bounds")]
+    fn from_parts_out_of_bounds() {
+        let _ = Bitmap::<VecBuffer>::from_parts(alloc::vec![0_u8], 5, 4);
     }
 
     #[test]

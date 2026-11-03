@@ -225,6 +225,59 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Offsets<T, OffsetIte
         data: T,
         offsets: Storage::For<OffsetItem>,
     ) -> Result<Self, OffsetsError> {
+        Self::validate(&data, &offsets)?;
+        Ok(Self {
+            data,
+            offsets,
+            _collection: PhantomData,
+        })
+    }
+
+    /// Constructs [`Offsets`] from a `data` collection and its `offsets`
+    /// buffer, panicking instead of returning an [`OffsetsError`].
+    ///
+    /// This is [`Offsets::try_from_parts`] without the `Result`, for callers
+    /// that know their parts are valid.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the offsets buffer is empty, its first offset is not zero,
+    /// it contains a negative offset, it is not monotonically increasing, or
+    /// when its last offset exceeds the length of the data.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::{collection::Collection, offset::Offsets};
+    ///
+    /// let values = Offsets::<Vec<i32>>::from_parts(vec![1, 2, 3], vec![0, 2, 3]);
+    /// assert_eq!(values.owned(0), Some(vec![1, 2]));
+    /// ```
+    #[must_use]
+    pub fn from_parts(data: T, offsets: Storage::For<OffsetItem>) -> Self {
+        if let Err(error) = Self::validate(&data, &offsets) {
+            match error {
+                OffsetsError::Empty => panic!("offsets buffer is empty"),
+                OffsetsError::NonZeroFirst { .. } => panic!("first offset is not zero"),
+                OffsetsError::Negative { .. } => panic!("offset is negative"),
+                OffsetsError::NonMonotonic { .. } => {
+                    panic!("offsets are not monotonically increasing")
+                }
+                OffsetsError::OutOfBounds { .. } => {
+                    panic!("last offset exceeds the length of the data")
+                }
+            }
+        }
+        Self {
+            data,
+            offsets,
+            _collection: PhantomData,
+        }
+    }
+
+    /// Checks the invariants shared by [`Offsets::try_from_parts`] and
+    /// [`Offsets::from_parts`].
+    fn validate(data: &T, offsets: &Storage::For<OffsetItem>) -> Result<(), OffsetsError> {
         let mut iter = offsets.borrow().iter().enumerate();
         let (_, first) = iter.next().ok_or(OffsetsError::Empty)?;
         let mut previous: usize = (*first)
@@ -249,11 +302,7 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Offsets<T, OffsetIte
                 data: data_len,
             });
         }
-        Ok(Self {
-            data,
-            offsets,
-            _collection: PhantomData,
-        })
+        Ok(())
     }
 
     /// Returns the data collection and offsets buffer of these [`Offsets`].
@@ -1023,6 +1072,25 @@ mod tests {
         let error =
             Offsets::<Vec<i32>>::try_from_parts(vec![1, 2], vec![0, 5]).expect_err("out of bounds");
         assert_eq!(error, OffsetsError::OutOfBounds { last: 5, data: 2 });
+    }
+
+    #[test]
+    fn from_parts() {
+        let offsets = Offsets::<Vec<i32>>::from_parts(vec![1, 2, 3], vec![0, 2, 3]);
+        assert_eq!(offsets.owned(0), Some(vec![1, 2]));
+        assert_eq!(offsets.owned(1), Some(vec![3]));
+    }
+
+    #[test]
+    #[should_panic(expected = "last offset exceeds the length of the data")]
+    fn from_parts_out_of_bounds() {
+        let _ = Offsets::<Vec<i32>>::from_parts(vec![1, 2], vec![0, 5]);
+    }
+
+    #[test]
+    #[should_panic(expected = "offsets are not monotonically increasing")]
+    fn from_parts_non_monotonic() {
+        let _ = Offsets::<Vec<i32>>::from_parts(vec![1, 2, 3], vec![0, 2, 1]);
     }
 
     #[test]
