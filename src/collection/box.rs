@@ -1,7 +1,7 @@
 extern crate alloc;
 
+use crate::collection::slice::SliceViews;
 use alloc::{boxed::Box, vec::Vec};
-use core::{iter::Map, slice};
 
 use crate::collection::{AllocError, Collection, CollectionAllocIn, view::AsView};
 
@@ -18,12 +18,12 @@ impl<T: for<'any> AsView<'any>> Collection for Box<[T]> {
     }
 
     type Iter<'collection>
-        = Map<slice::Iter<'collection, T>, fn(&'collection T) -> <T as AsView<'collection>>::View>
+        = SliceViews<'collection, T>
     where
         Self: 'collection;
 
     fn iter_views(&self) -> Self::Iter<'_> {
-        <&Self as IntoIterator>::into_iter(self).map(AsView::as_view)
+        SliceViews::new(self)
     }
 
     type IntoIter = <Box<[T]> as IntoIterator>::IntoIter;

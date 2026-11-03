@@ -120,6 +120,34 @@ impl<C: Collection, const N: usize> Flatten<C, N> {
         }
     }
 
+    /// Constructs a [`Flatten`] from a `child` collection, panicking instead
+    /// of returning a [`FlattenError`].
+    ///
+    /// This is [`Flatten::try_from_parts`] without the `Result`, for callers
+    /// that know their parts are valid.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the length of the child collection is not a multiple of
+    /// `N`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::{Collection, flatten::Flatten};
+    ///
+    /// let values = Flatten::<Vec<_>, 2>::from_parts(vec![1, 2]);
+    /// assert_eq!(values.owned(0), Some([1, 2]));
+    /// ```
+    #[must_use]
+    pub fn from_parts(child: C) -> Self {
+        assert!(
+            child.len().is_multiple_of(N),
+            "child length is not a multiple of N"
+        );
+        Self::new(child)
+    }
+
     /// Returns the child collection of this [`Flatten`].
     ///
     /// This is the inverse of [`Flatten::try_from_parts`].
@@ -398,6 +426,18 @@ mod tests {
         let error = Flatten::<Vec<i32>, 2>::try_from_parts(alloc::vec![1, 2, 3])
             .expect_err("not a multiple");
         assert_eq!(error, FlattenError::NotMultiple { len: 3, n: 2 });
+    }
+
+    #[test]
+    fn from_parts() {
+        let values = Flatten::<Vec<i32>, 2>::from_parts(alloc::vec![1, 2, 3, 4]);
+        assert_eq!(values.owned(1), Some([3, 4]));
+    }
+
+    #[test]
+    #[should_panic(expected = "child length is not a multiple of N")]
+    fn from_parts_not_multiple() {
+        let _ = Flatten::<Vec<i32>, 2>::from_parts(alloc::vec![1, 2, 3]);
     }
 
     #[test]
