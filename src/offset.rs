@@ -408,8 +408,8 @@ where
 
     fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self {
         let items = iter.into_iter();
-        let (lower_bound, upper_bound) = items.size_hint();
-        let mut offsets = Self::with_capacity_in(upper_bound.unwrap_or(lower_bound), alloc);
+        let (capacity, _) = items.size_hint();
+        let mut offsets = Self::with_capacity_in(capacity, alloc);
         offsets.extend(items);
         offsets
     }
@@ -431,8 +431,8 @@ where
         alloc: Self::Alloc,
     ) -> Result<Self, AllocError> {
         let items = iter.into_iter();
-        let (lower_bound, upper_bound) = items.size_hint();
-        let mut offsets = Self::try_with_capacity_in(upper_bound.unwrap_or(lower_bound), alloc)?;
+        let (capacity, _) = items.size_hint();
+        let mut offsets = Self::try_with_capacity_in(capacity, alloc)?;
         offsets.try_extend(items)?;
         Ok(offsets)
     }
