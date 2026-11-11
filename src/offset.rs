@@ -46,6 +46,8 @@ use crate::{
 pub trait Offset:
     Default
     + FixedSize
+    + Ord
+    + Into<i64>
     + TryFrom<usize, Error = TryFromIntError>
     + TryInto<usize, Error = TryFromIntError>
     + sealed::Sealed
@@ -162,7 +164,7 @@ pub enum OffsetsError {
     /// representation).
     NonZeroFirst {
         /// The value of the first offset.
-        first: usize,
+        first: i64,
     },
     /// The offset at `index` is negative.
     Negative {
@@ -177,7 +179,7 @@ pub enum OffsetsError {
     /// The last offset exceeds the length of the data.
     OutOfBounds {
         /// The value of the last offset.
-        last: usize,
+        last: i64,
         /// The length of the data.
         data: usize,
     },
@@ -278,31 +280,39 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Offsets<T, OffsetIte
     /// Checks the invariants shared by [`Offsets::try_from_parts`] and
     /// [`Offsets::from_parts`].
     fn validate(data: &T, offsets: &Storage::For<OffsetItem>) -> Result<(), OffsetsError> {
-        let mut iter = offsets.borrow().iter().enumerate();
+        let zero = OffsetItem::default();
+        let mut iter = offsets.borrow().iter().copied().enumerate();
         let (_, first) = iter.next().ok_or(OffsetsError::Empty)?;
-        let mut previous: usize = (*first)
-            .try_into()
-            .map_err(|_| OffsetsError::Negative { index: 0 })?;
-        if previous != 0 {
-            return Err(OffsetsError::NonZeroFirst { first: previous });
+        if first < zero {
+            return Err(OffsetsError::Negative { index: 0 });
         }
-        for (index, offset) in iter {
-            let current: usize = (*offset)
-                .try_into()
-                .map_err(|_| OffsetsError::Negative { index })?;
-            if current < previous {
-                return Err(OffsetsError::NonMonotonic { index });
-            }
-            previous = current;
-        }
-        let data_len = data.len();
-        if previous > data_len {
-            return Err(OffsetsError::OutOfBounds {
-                last: previous,
-                data: data_len,
+        if first != zero {
+            return Err(OffsetsError::NonZeroFirst {
+                first: first.into(),
             });
         }
-        Ok(())
+        // Offsets start at zero and never decrease, so only an offset smaller
+        // than its predecessor can be negative.
+        let last = iter.try_fold(first, |previous, (index, current)| {
+            if current < previous {
+                Err(if current < zero {
+                    OffsetsError::Negative { index }
+                } else {
+                    OffsetsError::NonMonotonic { index }
+                })
+            } else {
+                Ok(current)
+            }
+        })?;
+        let data_len = data.len();
+        if last.try_into().is_ok_and(|end: usize| end <= data_len) {
+            Ok(())
+        } else {
+            Err(OffsetsError::OutOfBounds {
+                last: last.into(),
+                data: data_len,
+            })
+        }
     }
 
     /// Returns the data collection and offsets buffer of these [`Offsets`].
@@ -1072,6 +1082,48 @@ mod tests {
         let error =
             Offsets::<Vec<i32>>::try_from_parts(vec![1, 2], vec![0, 5]).expect_err("out of bounds");
         assert_eq!(error, OffsetsError::OutOfBounds { last: 5, data: 2 });
+    }
+
+    #[test]
+    fn try_from_parts_large_offsets() {
+        const LARGE: i64 = 1 << 40;
+        let error = |offsets: Vec<i64>| {
+            Offsets::<Vec<u8>, i64>::try_from_parts(vec![], offsets).expect_err("invalid offsets")
+        };
+        assert_eq!(error(vec![]), OffsetsError::Empty);
+        assert_eq!(
+            error(vec![LARGE]),
+            OffsetsError::NonZeroFirst { first: LARGE }
+        );
+        assert_eq!(error(vec![-LARGE]), OffsetsError::Negative { index: 0 });
+        assert_eq!(
+            error(vec![0, LARGE, -1]),
+            OffsetsError::Negative { index: 2 }
+        );
+        assert_eq!(
+            error(vec![0, LARGE, 1]),
+            OffsetsError::NonMonotonic { index: 2 }
+        );
+        assert_eq!(
+            error(vec![0, LARGE]),
+            OffsetsError::OutOfBounds {
+                last: LARGE,
+                data: 0
+            }
+        );
+        assert_eq!(
+            error(vec![0, i64::MAX]),
+            OffsetsError::OutOfBounds {
+                last: i64::MAX,
+                data: 0
+            }
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "last offset exceeds the length of the data")]
+    fn from_parts_large_offset_out_of_bounds() {
+        let _ = Offsets::<Vec<u8>, i64>::from_parts(vec![], vec![0, 1 << 40]);
     }
 
     #[test]
