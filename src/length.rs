@@ -2,7 +2,9 @@
 
 extern crate alloc;
 
-use alloc::{boxed::Box, collections::VecDeque, rc::Rc, sync::Arc, vec::Vec};
+#[cfg(target_has_atomic = "ptr")]
+use alloc::sync::Arc;
+use alloc::{boxed::Box, collections::VecDeque, rc::Rc, vec::Vec};
 
 /// The length (or number of units) of an item.
 ///
@@ -86,6 +88,7 @@ impl<T> Length for Rc<[T]> {
     }
 }
 
+#[cfg(target_has_atomic = "ptr")]
 impl<T> Length for Arc<[T]> {
     fn len(&self) -> usize {
         self.as_ref().len()
