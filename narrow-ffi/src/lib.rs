@@ -97,6 +97,9 @@ pub const ARROW_FLAG_NULLABLE: i64 = 2;
 pub const ARROW_FLAG_MAP_KEYS_SORTED: i64 = 4;
 
 /// The Arrow C Data Interface schema structure.
+///
+/// A schema may be moved to and released on any thread, so code that lets a
+/// foreign producer fill one must ensure its release callback supports that.
 #[repr(C)]
 #[derive(Debug)]
 pub struct ArrowSchema {
@@ -144,6 +147,13 @@ impl Default for ArrowSchema {
     }
 }
 
+// SAFETY: The C Data Interface does not tie a structure to a thread, so its
+// consumer may move it and release it on any thread. Foreign producers must
+// support this, as documented above. Exported schemas only reference static
+// strings and private data that owns their format strings and child schemas,
+// none of which are thread-local.
+unsafe impl Send for ArrowSchema {}
+
 impl Drop for ArrowSchema {
     fn drop(&mut self) {
         if let Some(release) = self.release {
@@ -155,6 +165,10 @@ impl Drop for ArrowSchema {
 }
 
 /// The Arrow C Data Interface array structure.
+///
+/// An array may be moved to and released on any thread, so code that lets a
+/// foreign producer fill one must ensure its release callbacks, including
+/// those of its children, support that.
 #[repr(C)]
 #[derive(Debug)]
 pub struct ArrowArray {
@@ -204,6 +218,14 @@ impl Default for ArrowArray {
         }
     }
 }
+
+// SAFETY: The C Data Interface does not tie a structure to a thread, so its
+// consumer may move it and release it on any thread. Foreign producers must
+// support this, as documented above. Exported arrays keep their storage in
+// private data that requires it to be `Send`, so it may be dropped on another
+// thread, and `Sync`, because the consumer may read the exported buffers,
+// including those of child arrays, from other threads.
+unsafe impl Send for ArrowArray {}
 
 impl Drop for ArrowArray {
     fn drop(&mut self) {
