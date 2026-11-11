@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-use alloc::{boxed::Box, vec::Vec};
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use core::{
     ffi::{CStr, c_void},
     fmt, ptr,
@@ -92,9 +92,10 @@ impl core::error::Error for ExportError {}
 /// Only arrays with an offset of zero are currently supported.
 ///
 /// Export consumes the array because the returned C handles must retain its
-/// storage after Rust leaves this call. That storage and the exposed pointer
-/// tables live in `private_data` until the foreign consumer invokes the Arrow
-/// release callback.
+/// storage after Rust leaves this call. The exported array and each of its
+/// descendants share ownership of that storage through their `private_data`,
+/// so a consumer may move a child array out and release its parent: the
+/// storage is dropped once the last of them is released.
 ///
 /// # Examples
 ///
@@ -149,8 +150,8 @@ trait ArrowArrayLayout: Length + Sized {
     /// Returns the array's buffer pointers.
     fn buffers(&self) -> Self::Buffers;
 
-    /// Returns the array's child pointers.
-    fn children(&self) -> Result<Self::Children, ExportError> {
+    /// Returns the array's child arrays, each sharing ownership of `root`.
+    fn children<Root: 'static>(&self, _root: &Arc<Root>) -> Result<Self::Children, ExportError> {
         Ok(Self::Children::default())
     }
 
@@ -159,8 +160,11 @@ trait ArrowArrayLayout: Length + Sized {
         ptr::null_mut()
     }
 
-    /// Builds a child [`ArrowArray`] borrowing storage retained by its parent.
-    fn child_array(&self) -> Result<ArrowArray, ExportError>
+    /// Builds an [`ArrowArray`] for this layout, which is part of `root`.
+    ///
+    /// The array shares ownership of `root`, so it remains valid when a
+    /// consumer moves it out of its parent and releases the parent.
+    fn array<Root: 'static>(&self, root: &Arc<Root>) -> Result<ArrowArray, ExportError>
     where
         Self: 'static,
     {
@@ -172,10 +176,10 @@ trait ArrowArrayLayout: Length + Sized {
         let length = i64::try_from(self.len()).expect("array length exceeds i64");
         let null_count = self.null_count();
         let dictionary = self.dictionary();
-        let private = Box::new(ArrayData::<(), Self>::new(
-            (),
+        let private = Box::new(ArrayData::<Arc<Root>, Self>::new(
+            Arc::clone(root),
             self.buffers(),
-            self.children()?,
+            self.children(root)?,
         ));
 
         Ok(private.into_array(length, null_count, dictionary))
@@ -186,50 +190,11 @@ trait ArrowArrayLayout: Length + Sized {
     where
         Self: 'static,
     {
-        let offset = self.offset();
-        if offset != 0 {
-            return Err(ExportError::NonZeroOffset { offset });
-        }
-
-        // Pin the layout before asking it for pointers into its storage. The
-        // box is leaked first because moving it, or borrowing all of it
-        // mutably, would invalidate pointers derived from the owner.
-        let private = Box::into_raw(Box::new(ArrayData::<Self, Self>::new(
-            self,
-            Self::Buffers::default(),
-            Self::Children::default(),
-        )));
-        // SAFETY: `private` comes from `Box::into_raw` and is valid. This
-        // borrows only the owner, which is never written to again, so the
-        // writes to other fields below keep pointers derived from it valid.
-        let owner = unsafe { &(*private).owner };
-        let children = match owner.children() {
-            Ok(children) => children,
-            Err(error) => {
-                // SAFETY: Reclaims the box leaked above, which nothing else
-                // references.
-                drop(unsafe { Box::from_raw(private) });
-                return Err(error);
-            }
-        };
-        let buffers = owner.buffers();
-
-        // Convert platform-sized layout metadata into the Arrow C ABI fields.
-        let length = i64::try_from(owner.len()).expect("array length exceeds i64");
-        let null_count = owner.null_count();
-        let dictionary = owner.dictionary();
-
-        // SAFETY: `private` is valid and these fields are disjoint from the
-        // borrowed owner.
-        unsafe { (*private).buffers = buffers };
-        // SAFETY: As above.
-        unsafe { (*private).children = children };
-        // SAFETY: `private` comes from `Box::into_raw` and its owner is only
-        // borrowed shared.
-        let array =
-            unsafe { ArrayData::leaked_into_array(private, length, null_count, dictionary) };
-
-        Ok((array, Self::schema()))
+        // Move the layout to its shared allocation before deriving pointers
+        // into its storage. The exported array and all its descendants retain
+        // it, so it is dropped once the last of them is released.
+        let root = Arc::new(self);
+        Ok((root.array(&root)?, Self::schema()))
     }
 }
 
@@ -242,7 +207,7 @@ struct ArrayData<Owner, Layout: ArrowArrayLayout> {
     /// Arrow C Data child pointers.
     child_pointers: Vec<*mut ArrowArray>,
     /// Owner retained until the array is released.
-    owner: Owner,
+    _owner: Owner,
 }
 
 impl<Owner: 'static, Layout: ArrowArrayLayout + 'static> ArrayData<Owner, Layout> {
@@ -252,40 +217,23 @@ impl<Owner: 'static, Layout: ArrowArrayLayout + 'static> ArrayData<Owner, Layout
             buffers,
             children,
             child_pointers: Vec::new(),
-            owner,
+            _owner: owner,
         }
     }
 
     /// Builds an [`ArrowArray`] backed by this private data.
+    ///
+    /// Pointers into the private data are derived only after it is leaked:
+    /// moving the box, or borrowing all of it mutably, would invalidate them.
     fn into_array(
         self: Box<Self>,
         length: i64,
         null_count: i64,
         dictionary: *mut ArrowArray,
     ) -> ArrowArray {
-        // SAFETY: The pointer comes from `Box::into_raw` and nothing else
-        // references it.
-        unsafe { Self::leaked_into_array(Box::into_raw(self), length, null_count, dictionary) }
-    }
-
-    /// Builds an [`ArrowArray`] backed by leaked private data, taking
-    /// ownership of it.
-    ///
-    /// Pointers into the private data are derived only after it is leaked:
-    /// moving the box, or borrowing all of it mutably, would invalidate them.
-    ///
-    /// # Safety
-    ///
-    /// `private` must come from [`Box::into_raw`], and no reference to its
-    /// fields other than shared references to the owner may be live.
-    unsafe fn leaked_into_array(
-        private: *mut Self,
-        length: i64,
-        null_count: i64,
-        dictionary: *mut ArrowArray,
-    ) -> ArrowArray {
-        // SAFETY: The caller guarantees `private` is valid and that only the
-        // owner may be borrowed, so these field borrows are unique.
+        let private = Box::into_raw(self);
+        // SAFETY: `private` comes from `Box::into_raw` and nothing else
+        // references it, so these field borrows are unique.
         let buffers = unsafe { (*private).buffers.as_mut() };
         // SAFETY: As above.
         let children = unsafe { (*private).children.as_mut() };
@@ -387,4 +335,15 @@ unsafe extern "C" fn release_schema<PrivateData>(schema: *mut ArrowSchema) {
     // SAFETY: `private_data` was created with `Box::into_raw` for this exact
     // `PrivateData` type and is released only once.
     unsafe { drop(Box::from_raw(private_data.cast::<PrivateData>())) };
+}
+
+/// Moves the first child out of `parent` as the C Data Interface allows: the
+/// child is copied and the original is marked released.
+#[cfg(test)]
+fn move_first_child(parent: &ArrowArray) -> ArrowArray {
+    assert!(parent.n_children > 0, "array has no children");
+    // SAFETY: A live exported array with children has a valid child pointer array.
+    let child = unsafe { *parent.children };
+    // SAFETY: The child pointer refers to a live array owned by the parent.
+    unsafe { ptr::replace(child, ArrowArray::default()) }
 }

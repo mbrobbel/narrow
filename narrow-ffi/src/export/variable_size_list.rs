@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-use alloc::boxed::Box;
+use alloc::{boxed::Box, sync::Arc};
 use core::{borrow::Borrow, ffi::c_void, ptr};
 
 use narrow::{
@@ -37,8 +37,8 @@ where
         [ptr::null(), offsets.as_ptr().cast()]
     }
 
-    fn children(&self) -> Result<Self::Children, ExportError> {
-        Ok([self.buffer_ref().child_ref().child_array()?])
+    fn children<Root: 'static>(&self, root: &Arc<Root>) -> Result<Self::Children, ExportError> {
+        Ok([self.buffer_ref().child_ref().array(root)?])
     }
 }
 
@@ -80,8 +80,8 @@ where
         ]
     }
 
-    fn children(&self) -> Result<Self::Children, ExportError> {
-        Ok([self.buffer_ref().child_ref().child_ref().child_array()?])
+    fn children<Root: 'static>(&self, root: &Arc<Root>) -> Result<Self::Children, ExportError> {
+        Ok([self.buffer_ref().child_ref().child_ref().array(root)?])
     }
 }
 
@@ -145,7 +145,7 @@ mod tests {
 
     use crate::{ARROW_FLAG_NULLABLE, ArrowListOffset};
 
-    use super::super::{Export, ExportError};
+    use super::super::{Export, ExportError, move_first_child};
 
     #[test]
     fn list_format_strings_match_arrow() {
@@ -268,6 +268,87 @@ mod tests {
         assert!(offsets_weak.upgrade().is_none());
         assert!(validity_weak.upgrade().is_none());
         drop(schema);
+    }
+
+    #[test]
+    fn moved_child_outlives_parent() {
+        let value_storage = Arc::<[i32]>::from([1, 2, 3]);
+        let values_weak = Arc::downgrade(&value_storage);
+        let values_layout = FixedSizePrimitive::from_buffer(value_storage);
+        let offsets = Offsets::try_from_parts(values_layout, Arc::<[i32]>::from([0, 2, 3]))
+            .expect("valid offsets");
+        let narrow_array: Array<Vec<i32>, ArcBuffer> =
+            Array::from_buffer(VariableSizeList::from_buffer(offsets));
+        let (array, _schema) = narrow_array.export().expect("export array");
+
+        let child = move_first_child(&array);
+        drop(array);
+
+        assert!(values_weak.upgrade().is_some());
+        // SAFETY: The child owns a two-entry buffer pointer array.
+        let child_buffers = unsafe { slice::from_raw_parts(child.buffers, 2) };
+        assert_eq!(
+            // SAFETY: The value buffer points to three values retained by the child.
+            unsafe { slice::from_raw_parts(child_buffers[1].cast::<i32>(), 3) },
+            [1, 2, 3]
+        );
+        drop(child);
+        assert!(values_weak.upgrade().is_none());
+    }
+
+    #[test]
+    fn moved_child_with_inline_storage_outlives_parent() {
+        // The values live inline in the exported layout, so reading them
+        // after it is freed is only detected by Miri.
+        let values_layout = FixedSizePrimitive::from_buffer([1, 2, 3]);
+        let offsets = Offsets::try_from_parts(values_layout, [0, 2, 3]).expect("valid offsets");
+        let narrow_array: Array<Vec<i32>, ArrayBuffer<3>> =
+            Array::from_buffer(VariableSizeList::from_buffer(offsets));
+        let (array, _schema) = narrow_array.export().expect("export array");
+
+        let child = move_first_child(&array);
+        drop(array);
+
+        // SAFETY: The child owns a two-entry buffer pointer array.
+        let child_buffers = unsafe { slice::from_raw_parts(child.buffers, 2) };
+        assert_eq!(
+            // SAFETY: The value buffer points to three values retained by the child.
+            unsafe { slice::from_raw_parts(child_buffers[1].cast::<i32>(), 3) },
+            [1, 2, 3]
+        );
+    }
+
+    #[test]
+    fn moved_grandchild_outlives_ancestors() {
+        let value_storage = Arc::<[i32]>::from([1, 2, 3]);
+        let values_weak = Arc::downgrade(&value_storage);
+        let values_layout = FixedSizePrimitive::from_buffer(value_storage);
+        let inner = Offsets::try_from_parts(values_layout, Arc::<[i32]>::from([0, 2, 3]))
+            .expect("valid offsets");
+        let outer = Offsets::try_from_parts(
+            VariableSizeList::from_buffer(inner),
+            Arc::<[i32]>::from([0, 1, 2]),
+        )
+        .expect("valid offsets");
+        let narrow_array: Array<Vec<Vec<i32>>, ArcBuffer> =
+            Array::from_buffer(VariableSizeList::from_buffer(outer));
+        let (array, _schema) = narrow_array.export().expect("export array");
+
+        let child = move_first_child(&array);
+        drop(array);
+        let grandchild = move_first_child(&child);
+        drop(child);
+
+        assert!(values_weak.upgrade().is_some());
+        // SAFETY: The grandchild owns a two-entry buffer pointer array.
+        let grandchild_buffers = unsafe { slice::from_raw_parts(grandchild.buffers, 2) };
+        assert_eq!(
+            // SAFETY: The value buffer points to three values retained by the grandchild.
+            unsafe { slice::from_raw_parts(grandchild_buffers[1].cast::<i32>(), 3) },
+            [1, 2, 3]
+        );
+        drop(grandchild);
+        assert!(values_weak.upgrade().is_none());
     }
 
     #[test]
