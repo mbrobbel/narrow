@@ -506,7 +506,7 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
 
     fn view(&self, index: usize) -> Option<Self::View<'_>> {
         let start = self.offsets.owned(index);
-        let end = self.offsets.owned(index.strict_add(1));
+        let end = self.offsets.owned(index.checked_add(1)?);
         start.zip(end).map(|(s, e)| OffsetView {
             collection: self,
             start: s.as_usize(),
@@ -865,7 +865,7 @@ impl<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U> Collect
     type Owned = T::Owned;
 
     fn view(&self, index: usize) -> Option<Self::View<'_>> {
-        let idx = self.start.strict_add(index);
+        let idx = self.start.checked_add(index)?;
         if idx < self.end {
             self.collection.data.view(idx)
         } else {
@@ -1191,6 +1191,19 @@ mod tests {
         assert_eq!(slice.view(0), Some(1));
         assert_eq!(slice.view(1), Some(2));
         assert_eq!(slice.view(2), None);
+        assert_eq!(slice.view(usize::MAX), None);
+        assert_eq!(slice.owned(usize::MAX), None);
+
+        let inner = offsets.view(1).expect("a value");
+        assert_eq!(inner.start, 2);
+        assert_eq!(inner.view(0), Some(3));
+        assert_eq!(inner.view(1), None);
+        assert_eq!(inner.view(usize::MAX), None);
+        assert_eq!(inner.owned(usize::MAX), None);
+
+        assert!(offsets.view(4).is_none());
+        assert!(offsets.view(usize::MAX).is_none());
+        assert_eq!(offsets.owned(usize::MAX), None);
 
         let views = offsets.iter_views().collect::<Vec<_>>();
         assert_eq!(views[0].into_owned(), vec![1, 2]);
