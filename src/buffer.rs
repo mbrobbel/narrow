@@ -211,6 +211,7 @@ pub struct ArcBuffer;
 impl Buffer for ArcBuffer {
     type For<T: FixedSize> = Arc<[T]>;
 }
+#[cfg(target_has_atomic = "ptr")]
 impl EmptyBuffer for ArcBuffer {}
 
 /// Borrowed slice storage.
