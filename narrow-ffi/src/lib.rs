@@ -69,7 +69,7 @@ use core::{
 use narrow::offset::Offset;
 
 mod export;
-pub use export::{ArrowType, Export, ExportError};
+pub use export::{ArrowType, Export, ExportError, TrustedBuffer};
 mod import;
 pub use import::{Import, ImportError, Importer};
 

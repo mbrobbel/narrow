@@ -8,7 +8,12 @@ use core::{
     fmt, ptr,
 };
 
-use narrow::{array::Array, buffer::Buffer, layout::ArrayItem, length::Length};
+use narrow::{
+    array::Array,
+    buffer::{ArcBuffer, ArrayBuffer, BoxBuffer, Buffer, RcBuffer, SliceBuffer, VecBuffer},
+    layout::ArrayItem,
+    length::Length,
+};
 
 use crate::{ARROW_FLAG_NULLABLE, ArrowArray, ArrowSchema};
 
@@ -89,7 +94,8 @@ impl core::error::Error for ExportError {}
 
 /// Export an [`Array`] through the Arrow C Data Interface.
 ///
-/// Only arrays with an offset of zero are currently supported.
+/// Only arrays with an offset of zero are currently supported, and their
+/// storage must implement [`TrustedBuffer`].
 ///
 /// Export consumes the array because the returned C handles must retain its
 /// storage after Rust leaves this call. That storage and the exposed pointer
@@ -125,6 +131,144 @@ pub trait Export {
     /// ```
     fn export(self) -> Result<(ArrowArray, ArrowSchema), ExportError>;
 }
+
+/// [`Buffer`] storage whose collections can be exported without copying.
+///
+/// An exported [`ArrowArray`] pairs pointers into its buffers with lengths that
+/// narrow records when it builds or validates a layout. Foreign consumers read
+/// memory based on both, so the buffers must hold exactly the items narrow
+/// recorded, which a safe [`Buffer`] implementation cannot promise. [`Export`]
+/// is therefore implemented only for arrays whose storage implements this
+/// trait. All storages provided by [`narrow::buffer`] implement it.
+///
+/// # Safety
+///
+/// For every `T: FixedSize`, `Self::For<T>` must behave exactly like the
+/// sequence of `T` in the slice it borrows as:
+///
+/// - [`Length::len`] and the [`Collection`] items must describe the slice
+///   returned by [`Borrow::<[T]>::borrow`](core::borrow::Borrow::borrow), and
+///   [`BorrowMut::<[T]>::borrow_mut`](core::borrow::BorrowMut::borrow_mut), if
+///   implemented, must return that same slice.
+/// - The memory of a borrowed slice must stay valid until the value is moved,
+///   accessed through `&mut` or dropped.
+/// - The length and items of the slice may only change through operations on
+///   the value through `&mut`, and only as those operations describe. Moving
+///   the value may change the address of the slice, but not its length or
+///   items.
+/// - Implementations that create, copy or extend values, such as [`Default`],
+///   [`Clone`], [`FromIterator`], [`Extend`] and those of [`CollectionAllocIn`]
+///   and [`CollectionRealloc`], must produce exactly the items they describe:
+///   the same items for `Clone`, the given items, in order, when collecting or
+///   extending, and no items for `with_capacity_in`, `try_with_capacity_in`
+///   or, if `Self::For<T>` implements `CollectionRealloc`, `Default`.
+///
+/// [`Collection`]: narrow::collection::Collection
+/// [`CollectionAllocIn`]: narrow::collection::CollectionAllocIn
+/// [`CollectionRealloc`]: narrow::collection::CollectionRealloc
+///
+/// # Examples
+///
+/// Storage backed by [`Vec`] can be exported once it implements this trait:
+///
+/// ```
+/// use narrow::{array::Array, buffer::Buffer, fixed_size::FixedSize};
+/// use narrow_ffi::{Export, TrustedBuffer};
+///
+/// #[derive(Default)]
+/// struct MyBuffer;
+///
+/// impl Buffer for MyBuffer {
+///     type For<T: FixedSize> = Vec<T>;
+/// }
+///
+/// // SAFETY: A `Vec` behaves exactly like the slice it borrows as.
+/// unsafe impl TrustedBuffer for MyBuffer {}
+///
+/// let array = [1, 2].into_iter().collect::<Array<i32, MyBuffer>>();
+/// assert!(array.export().is_ok());
+/// ```
+///
+/// Storage that does not implement this trait cannot be exported, so a safe
+/// collection that reports more items than its slice holds is rejected:
+///
+/// ```compile_fail,E0599
+/// use std::borrow::Borrow;
+///
+/// use narrow::{
+///     array::Array, buffer::Buffer, collection::Collection, fixed_size::FixedSize,
+///     layout::fixed_size_primitive::FixedSizePrimitive, length::Length,
+/// };
+/// use narrow_ffi::Export;
+///
+/// struct Overreported<T>(Vec<T>);
+///
+/// impl<T> Length for Overreported<T> {
+///     fn len(&self) -> usize {
+///         self.0.len() + 1
+///     }
+/// }
+///
+/// impl<T> Borrow<[T]> for Overreported<T> {
+///     fn borrow(&self) -> &[T] {
+///         &self.0
+///     }
+/// }
+///
+/// # impl<T: FixedSize> Collection for Overreported<T> {
+/// #     type View<'collection> = T where Self: 'collection;
+/// #     type Owned = T;
+/// #     fn view(&self, index: usize) -> Option<T> {
+/// #         self.0.get(index).copied()
+/// #     }
+/// #     type Iter<'collection> = std::iter::Copied<std::slice::Iter<'collection, T>>
+/// #     where
+/// #         Self: 'collection;
+/// #     fn iter_views(&self) -> Self::Iter<'_> {
+/// #         self.0.iter().copied()
+/// #     }
+/// #     type IntoIter = std::vec::IntoIter<T>;
+/// #     fn into_iter_owned(self) -> Self::IntoIter {
+/// #         self.0.into_iter()
+/// #     }
+/// # }
+/// #
+/// #[derive(Default)]
+/// struct Overreporting;
+///
+/// impl Buffer for Overreporting {
+///     type For<T: FixedSize> = Overreported<T>;
+/// }
+///
+/// let array: Array<i32, Overreporting> =
+///     Array::from_buffer(FixedSizePrimitive::from_buffer(Overreported(vec![1, 2, 3])));
+/// let _ = array.export();
+/// ```
+pub unsafe trait TrustedBuffer: Buffer {}
+
+// SAFETY: A `Vec` behaves exactly like the slice of initialized items it
+// borrows as, and its heap allocation only changes through `&mut`.
+unsafe impl TrustedBuffer for VecBuffer {}
+
+// SAFETY: A boxed slice behaves exactly like the slice it borrows as, and its
+// heap allocation only changes through `&mut`.
+unsafe impl TrustedBuffer for BoxBuffer {}
+
+// SAFETY: A shared slice behaves exactly like the slice it borrows as, and its
+// heap allocation only changes through `&mut`, as `Rc::get_mut` requires.
+unsafe impl TrustedBuffer for RcBuffer {}
+
+// SAFETY: As for `RcBuffer`, with `Arc::get_mut`.
+unsafe impl TrustedBuffer for ArcBuffer {}
+
+// SAFETY: An array behaves exactly like the slice it borrows as and does not
+// implement `CollectionRealloc`, so its `Default` may hold items. Its inline
+// items only change through `&mut`; moving it only changes their address.
+unsafe impl<const N: usize> TrustedBuffer for ArrayBuffer<N> {}
+
+// SAFETY: A slice reference is the slice it borrows as, and the memory it
+// refers to is immutable for its lifetime.
+unsafe impl TrustedBuffer for SliceBuffer<'_> {}
 
 /// A layout that describes its [`ArrowArray`] fields.
 trait ArrowArrayLayout: Length + Sized {
@@ -324,7 +468,7 @@ impl<Owner: 'static, Layout: ArrowArrayLayout + 'static> ArrayData<Owner, Layout
 impl<T, Storage> Export for Array<T, Storage>
 where
     T: ArrayItem,
-    Storage: Buffer,
+    Storage: TrustedBuffer,
     T::Memory<Storage>: ArrowArrayLayout + 'static,
 {
     fn export(self) -> Result<(ArrowArray, ArrowSchema), ExportError> {
