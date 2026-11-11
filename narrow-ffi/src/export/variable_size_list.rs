@@ -37,7 +37,10 @@ where
         [ptr::null(), offsets.as_ptr().cast()]
     }
 
-    fn children<Root: 'static>(&self, root: &Arc<Root>) -> Result<Self::Children, ExportError> {
+    fn children<Root: Send + Sync + 'static>(
+        &self,
+        root: &Arc<Root>,
+    ) -> Result<Self::Children, ExportError> {
         Ok([self.buffer_ref().child_ref().array(root)?])
     }
 }
@@ -80,7 +83,10 @@ where
         ]
     }
 
-    fn children<Root: 'static>(&self, root: &Arc<Root>) -> Result<Self::Children, ExportError> {
+    fn children<Root: Send + Sync + 'static>(
+        &self,
+        root: &Arc<Root>,
+    ) -> Result<Self::Children, ExportError> {
         Ok([self.buffer_ref().child_ref().child_ref().array(root)?])
     }
 }

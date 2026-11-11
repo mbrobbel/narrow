@@ -3,7 +3,7 @@
 use core::fmt::Debug;
 
 use crate::{
-    buffer::{Buffer, BufferRef, VecBuffer},
+    buffer::{Buffer, BufferRef, EmptyBuffer, VecBuffer},
     collection::{AllocError, Collection, CollectionAllocIn, CollectionRealloc},
     layout::ArrayItem,
     length::Length,
@@ -95,7 +95,7 @@ where
     }
 }
 
-impl<T: ArrayItem, Storage: Buffer> Default for Array<T, Storage>
+impl<T: ArrayItem, Storage: EmptyBuffer> Default for Array<T, Storage>
 where
     T::Memory<Storage>: Default,
 {
@@ -216,7 +216,11 @@ mod tests {
 
     use alloc::{vec, vec::Vec};
 
-    use crate::{collection::tests::round_trip, fixed_size::FixedSizeArray};
+    use crate::{
+        buffer::{ArcBuffer, BoxBuffer, RcBuffer, SliceBuffer},
+        collection::tests::round_trip,
+        fixed_size::FixedSizeArray,
+    };
 
     use super::*;
 
@@ -269,6 +273,31 @@ mod tests {
     }
 
     #[test]
+    fn from_iter_with_loose_size_hint() {
+        fn from_iter<T: ArrayItem + Clone + Debug + PartialEq>(items: &[T])
+        where
+            Array<T>: FromIterator<T> + CollectionAllocIn<Alloc = ()> + Collection<Owned = T>,
+        {
+            // Reports a size hint of `(0, Some(usize::MAX))`.
+            let iter = || (0..usize::MAX).map_while(|index| items.get(index).cloned());
+            assert_eq!(iter().size_hint(), (0, Some(usize::MAX)));
+
+            let collected = iter().collect::<Array<T>>();
+            assert_eq!(collected.into_iter_owned().collect::<Vec<_>>(), items);
+
+            let infallible = Array::<T>::from_iter_in(iter(), ());
+            assert_eq!(infallible.into_iter_owned().collect::<Vec<_>>(), items);
+
+            let fallible = Array::<T>::try_from_iter_in(iter(), ()).expect("allocation succeeds");
+            assert_eq!(fallible.into_iter_owned().collect::<Vec<_>>(), items);
+        }
+        from_iter(&[Some(1), None, Some(3)]);
+        from_iter(&[Some(true), None, Some(false)]);
+        from_iter(&[vec![1, 2], vec![], vec![3]]);
+        from_iter(&[Some(vec![1, 2]), None, Some(vec![3])]);
+    }
+
+    #[test]
     fn extend_forwards_backing_input_type() {
         fn extend<T: ArrayItem, U, Storage: Buffer, I: IntoIterator<Item = U>>(
             array: &mut Array<T, Storage>,
@@ -285,6 +314,43 @@ mod tests {
             array.into_iter_owned().collect::<alloc::vec::Vec<_>>(),
             [1, 2, 3, 4]
         );
+    }
+
+    #[test]
+    fn default_is_empty() {
+        fn empty<T: ArrayItem, Storage: Buffer>()
+        where
+            Array<T, Storage>: Default,
+        {
+            let array = Array::<T, Storage>::default();
+            assert!(array.is_empty());
+            assert_eq!(array.into_iter_owned().count(), 0);
+        }
+        fn storage<Storage: EmptyBuffer>()
+        where
+            Array<(), Storage>: Default,
+            Array<bool, Storage>: Default,
+            Array<Option<bool>, Storage>: Default,
+            Array<i32, Storage>: Default,
+            Array<Option<i32>, Storage>: Default,
+            Array<[i32; 2], Storage>: Default,
+            Array<Option<[i32; 2]>, Storage>: Default,
+        {
+            empty::<(), Storage>();
+            empty::<bool, Storage>();
+            empty::<Option<bool>, Storage>();
+            empty::<i32, Storage>();
+            empty::<Option<i32>, Storage>();
+            empty::<[i32; 2], Storage>();
+            empty::<Option<[i32; 2]>, Storage>();
+        }
+        storage::<VecBuffer>();
+        storage::<BoxBuffer>();
+        storage::<RcBuffer>();
+        storage::<ArcBuffer>();
+        storage::<SliceBuffer<'_>>();
+        empty::<Vec<i32>, VecBuffer>();
+        empty::<Option<Vec<i32>>, VecBuffer>();
     }
 
     #[test]

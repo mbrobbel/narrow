@@ -97,6 +97,9 @@ impl core::error::Error for ExportError {}
 /// so a consumer may move a child array out and release its parent: the
 /// storage is dropped once the last of them is released.
 ///
+/// The consumer may read the exported buffers and release the array on any
+/// thread, so the array's storage must be [`Send`] and [`Sync`].
+///
 /// # Examples
 ///
 /// ```
@@ -106,6 +109,17 @@ impl core::error::Error for ExportError {}
 /// let values = [1, 2].into_iter().collect::<Array<i32>>();
 /// let (array, schema) = values.export().unwrap();
 /// assert!(!array.is_released() && !schema.is_released());
+/// ```
+///
+/// Storage that is not thread-safe, such as
+/// [`RcBuffer`](narrow::buffer::RcBuffer), cannot be exported:
+///
+/// ```compile_fail,E0599
+/// use narrow::{array::Array, buffer::RcBuffer};
+/// use narrow_ffi::Export;
+///
+/// let values = [1, 2].into_iter().collect::<Array<i32, RcBuffer>>();
+/// let _ = values.export();
 /// ```
 pub trait Export {
     /// Consumes `self` and returns an [`ArrowArray`] and [`ArrowSchema`].
@@ -151,7 +165,10 @@ trait ArrowArrayLayout: Length + Sized {
     fn buffers(&self) -> Self::Buffers;
 
     /// Returns the array's child arrays, each sharing ownership of `root`.
-    fn children<Root: 'static>(&self, _root: &Arc<Root>) -> Result<Self::Children, ExportError> {
+    fn children<Root: Send + Sync + 'static>(
+        &self,
+        _root: &Arc<Root>,
+    ) -> Result<Self::Children, ExportError> {
         Ok(Self::Children::default())
     }
 
@@ -164,7 +181,10 @@ trait ArrowArrayLayout: Length + Sized {
     ///
     /// The array shares ownership of `root`, so it remains valid when a
     /// consumer moves it out of its parent and releases the parent.
-    fn array<Root: 'static>(&self, root: &Arc<Root>) -> Result<ArrowArray, ExportError>
+    fn array<Root: Send + Sync + 'static>(
+        &self,
+        root: &Arc<Root>,
+    ) -> Result<ArrowArray, ExportError>
     where
         Self: 'static,
     {
@@ -188,7 +208,7 @@ trait ArrowArrayLayout: Length + Sized {
     /// Builds an [`ArrowArray`] and [`ArrowSchema`] from this layout.
     fn export(self) -> Result<(ArrowArray, ArrowSchema), ExportError>
     where
-        Self: 'static,
+        Self: Send + Sync + 'static,
     {
         // Move the layout to its shared allocation before deriving pointers
         // into its storage. The exported array and all its descendants retain
@@ -210,7 +230,7 @@ struct ArrayData<Owner, Layout: ArrowArrayLayout> {
     _owner: Owner,
 }
 
-impl<Owner: 'static, Layout: ArrowArrayLayout + 'static> ArrayData<Owner, Layout> {
+impl<Owner: Send + Sync + 'static, Layout: ArrowArrayLayout + 'static> ArrayData<Owner, Layout> {
     /// Creates private data for an exported array.
     fn new(owner: Owner, buffers: Layout::Buffers, children: Layout::Children) -> Self {
         Self {
@@ -273,7 +293,7 @@ impl<T, Storage> Export for Array<T, Storage>
 where
     T: ArrayItem,
     Storage: Buffer,
-    T::Memory<Storage>: ArrowArrayLayout + 'static,
+    T::Memory<Storage>: ArrowArrayLayout + Send + Sync + 'static,
 {
     fn export(self) -> Result<(ArrowArray, ArrowSchema), ExportError> {
         self.into_buffer().export()
@@ -346,4 +366,56 @@ fn move_first_child(parent: &ArrowArray) -> ArrowArray {
     let child = unsafe { *parent.children };
     // SAFETY: The child pointer refers to a live array owned by the parent.
     unsafe { ptr::replace(child, ArrowArray::default()) }
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate alloc;
+    extern crate std;
+
+    use alloc::{sync::Arc, vec::Vec};
+    use core::slice;
+    use std::thread;
+
+    use narrow::{
+        array::Array,
+        buffer::ArcBuffer,
+        layout::{fixed_size_primitive::FixedSizePrimitive, variable_size_list::VariableSizeList},
+        offset::Offsets,
+    };
+
+    use super::Export;
+
+    #[test]
+    fn releases_exported_array_on_another_thread() {
+        let value_storage = Arc::<[i32]>::from([1, 2, 3]);
+        let retained = Arc::clone(&value_storage);
+        let values_layout = FixedSizePrimitive::from_buffer(value_storage);
+        let offsets =
+            Offsets::try_from_parts(values_layout, Arc::from([0, 2, 3])).expect("valid offsets");
+        let narrow_array: Array<Vec<i32>, ArcBuffer> =
+            Array::from_buffer(VariableSizeList::from_buffer(offsets));
+
+        let (array, schema) = narrow_array.export().expect("export array");
+        let worker = thread::spawn(move || {
+            // SAFETY: The exported array owns a one-entry child pointer array.
+            let children = unsafe { slice::from_raw_parts(array.children, 1) };
+            // SAFETY: The child pointer refers to an array retained by the parent.
+            let child = unsafe { &*children[0] };
+            // SAFETY: The child owns a two-entry buffer pointer array.
+            let buffers = unsafe { slice::from_raw_parts(child.buffers, 2) };
+            assert_eq!(
+                // SAFETY: The value buffer points to three values retained by the parent.
+                unsafe { slice::from_raw_parts(buffers[1].cast::<i32>(), 3) },
+                [1, 2, 3]
+            );
+            drop((array, schema));
+        });
+        for _ in 0..100 {
+            drop(Arc::clone(&retained));
+        }
+        worker.join().expect("release on worker thread");
+
+        assert_eq!(Arc::strong_count(&retained), 1);
+    }
 }

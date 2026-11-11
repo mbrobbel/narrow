@@ -16,7 +16,7 @@ use core::{
 use packed::BitPackedExt;
 
 use crate::{
-    buffer::{Buffer, BufferRef, VecBuffer},
+    buffer::{Buffer, BufferRef, EmptyBuffer, VecBuffer},
     collection::{AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc},
     length::Length,
 };
@@ -409,7 +409,7 @@ impl<Storage: Buffer<For<u8>: Clone>> Clone for Bitmap<Storage> {
     }
 }
 
-impl<Storage: Buffer<For<u8>: Default>> Default for Bitmap<Storage> {
+impl<Storage: EmptyBuffer<For<u8>: Default>> Default for Bitmap<Storage> {
     fn default() -> Self {
         Self {
             buffer: Default::default(),
