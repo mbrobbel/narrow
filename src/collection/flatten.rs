@@ -182,6 +182,9 @@ impl<C: Collection, const N: usize> Length for Flatten<C, N> {
 
 impl<C: CollectionRealloc, const N: usize> Extend<[C::Owned; N]> for Flatten<C, N> {
     fn extend<I: IntoIterator<Item = [C::Owned; N]>>(&mut self, iter: I) {
+        // Drop a partial trailing group left behind by an interrupted
+        // extension, so appended items start on a group boundary.
+        self.0.truncate(self.len().strict_mul(N));
         self.0.extend(iter.into_iter().flatten());
     }
 }
@@ -271,6 +274,7 @@ impl<C: CollectionRealloc, const N: usize> CollectionRealloc for Flatten<C, N> {
         &mut self,
         iter: I,
     ) -> Result<(), AllocError> {
+        self.0.truncate(self.len().strict_mul(N));
         self.0.try_extend(iter.into_iter().flatten())
     }
 
@@ -279,9 +283,7 @@ impl<C: CollectionRealloc, const N: usize> CollectionRealloc for Flatten<C, N> {
     }
 
     fn truncate(&mut self, len: usize) {
-        if len < self.len() {
-            self.0.truncate(len.strict_mul(N));
-        }
+        self.0.truncate(len.min(self.len()).strict_mul(N));
     }
 }
 
@@ -378,10 +380,18 @@ impl<const N: usize, I: ExactSizeIterator> ExactSizeIterator for ArrayChunks<N, 
 mod tests {
     extern crate alloc;
 
-    use crate::collection::tests::round_trip;
-    use alloc::vec::Vec;
+    use crate::{
+        bitmap::Bitmap, buffer::VecBuffer, collection::tests::round_trip, offset::Offsets,
+        validity::Validity,
+    };
+    use alloc::{vec, vec::Vec};
 
     use super::*;
+
+    /// Yields `items` and then panics.
+    fn then_panic<T>(items: impl IntoIterator<Item = T>) -> impl Iterator<Item = T> {
+        items.into_iter().chain(iter::once_with(|| panic!("boom")))
+    }
 
     #[test]
     fn flattens() {
@@ -460,6 +470,127 @@ mod tests {
         flatten.truncate(usize::MAX);
         assert_eq!(flatten.len(), 2);
         assert_eq!(flatten.owned(1), Some([3, 4]));
+    }
+
+    #[test]
+    fn extend_panic_bitmap_child() {
+        extern crate std;
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        // Starts at a bit offset that is not byte aligned, so the bitmap
+        // commits some of the interrupted items one bit at a time.
+        let mut flatten = [[true, false, true]]
+            .into_iter()
+            .collect::<Flatten<Bitmap<VecBuffer>, 3>>();
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| {
+                flatten.extend(then_panic([[true, true, true], [false, false, false]]));
+            }))
+            .is_err()
+        );
+        let len = flatten.len();
+        // The interrupted extension left a partial trailing group.
+        assert_ne!(flatten.child_ref().len() % 3, 0);
+
+        flatten.extend([[false, true, false]]);
+        assert_eq!(flatten.len(), len + 1);
+        assert_eq!(flatten.child_ref().len(), flatten.len() * 3);
+        assert_eq!(flatten.owned(len), Some([false, true, false]));
+        assert_eq!(flatten.into_iter_owned().last(), Some([false, true, false]));
+    }
+
+    #[test]
+    fn extend_panic_validity_child() {
+        extern crate std;
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        // Validity commits its items in chunks of 1024, which is not a
+        // multiple of 3.
+        let mut flatten = [[Some(0), None, Some(1)]]
+            .into_iter()
+            .collect::<Flatten<Validity<Vec<u32>>, 3>>();
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| {
+                flatten.extend(then_panic((0..400).map(|i| [Some(i), None, Some(i)])));
+            }))
+            .is_err()
+        );
+        let len = flatten.len();
+        // The interrupted extension left a partial trailing group.
+        assert_ne!(flatten.child_ref().len() % 3, 0);
+
+        flatten.truncate(len);
+        assert_eq!(flatten.child_ref().len(), len * 3);
+
+        flatten.extend([[None, Some(2), Some(3)]]);
+        assert_eq!(flatten.len(), len + 1);
+        assert_eq!(flatten.child_ref().len(), flatten.len() * 3);
+        assert_eq!(flatten.owned(len), Some([None, Some(2), Some(3)]));
+        assert_eq!(
+            flatten.into_iter_owned().last(),
+            Some([None, Some(2), Some(3)])
+        );
+    }
+
+    #[test]
+    fn try_extend_panic_validity_child() {
+        extern crate std;
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        let mut flatten = [[Some(0), None, Some(1)]]
+            .into_iter()
+            .collect::<Flatten<Validity<Vec<u32>>, 3>>();
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| {
+                let _ = flatten.try_extend(then_panic((0..400).map(|i| [Some(i), None, Some(i)])));
+            }))
+            .is_err()
+        );
+        let len = flatten.len();
+        // The interrupted extension left a partial trailing group.
+        assert_ne!(flatten.child_ref().len() % 3, 0);
+
+        assert_eq!(flatten.try_extend([[None, Some(2), Some(3)]]), Ok(()));
+        assert_eq!(flatten.len(), len + 1);
+        assert_eq!(flatten.child_ref().len(), flatten.len() * 3);
+        assert_eq!(flatten.owned(len), Some([None, Some(2), Some(3)]));
+        assert_eq!(
+            flatten.into_iter_owned().last(),
+            Some([None, Some(2), Some(3)])
+        );
+    }
+
+    #[test]
+    fn extend_panic_offsets_child() {
+        extern crate std;
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        let mut flatten = [[Some(vec![0]), None, Some(vec![])]]
+            .into_iter()
+            .collect::<Flatten<Validity<Offsets<Vec<u32>>>, 3>>();
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| {
+                flatten.extend(then_panic(
+                    (0..400).map(|i| [Some(vec![i]), None, Some(vec![i, i])]),
+                ));
+            }))
+            .is_err()
+        );
+        let len = flatten.len();
+        // The interrupted extension left a partial trailing group.
+        assert_ne!(flatten.child_ref().len() % 3, 0);
+
+        flatten.extend([[None, Some(vec![2]), Some(vec![3, 4])]]);
+        assert_eq!(flatten.len(), len + 1);
+        assert_eq!(flatten.child_ref().len(), flatten.len() * 3);
+        assert_eq!(
+            flatten.owned(len),
+            Some([None, Some(vec![2]), Some(vec![3, 4])])
+        );
+        assert_eq!(
+            flatten.into_iter_owned().last(),
+            Some([None, Some(vec![2]), Some(vec![3, 4])])
+        );
     }
 
     #[test]
