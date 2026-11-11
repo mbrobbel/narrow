@@ -448,7 +448,7 @@ where
     Storage::For<OffsetItem>: CollectionRealloc<Owned = OffsetItem>,
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
-        let mut position = self
+        let position = self
             .offsets
             .borrow()
             .last()
@@ -460,11 +460,12 @@ where
         self.data.truncate(position.as_usize());
 
         iter.into_iter().for_each(|collection| {
-            let next_position = position.strict_add(collection.len().try_into().expect("overflow"));
             self.data.reserve(collection.len());
             self.data.extend(collection.into_iter_owned());
+            // Derive the offset from the data appended, not from the item's
+            // reported length.
+            let next_position = OffsetItem::try_from(self.data.len()).expect("overflow");
             self.offsets.extend(iter::once(next_position));
-            position = next_position;
         });
     }
 }
@@ -568,37 +569,26 @@ where
         iter: I,
     ) -> Result<(), AllocError> {
         let rows = self.len();
-        let mut position = self
+        let data_len = self
             .offsets
             .borrow()
             .last()
             .copied()
-            .expect("at least one value in the offsets buffer");
-        let data_len = position.as_usize();
+            .expect("at least one value in the offsets buffer")
+            .as_usize();
         self.data.truncate(data_len);
 
         for collection in iter {
-            let next_result = position
-                .as_usize()
-                .checked_add(collection.len())
-                .and_then(|value| OffsetItem::try_from(value).ok())
-                .ok_or(AllocError);
-            let Ok(next_position) = next_result else {
-                self.offsets.truncate(rows.strict_add(1));
-                self.data.truncate(data_len);
-                return Err(AllocError);
-            };
-            if let Err(error) = self.data.try_extend(collection.into_iter_owned()) {
+            let appended = self
+                .data
+                .try_extend(collection.into_iter_owned())
+                .and_then(|()| OffsetItem::try_from(self.data.len()).map_err(|_| AllocError))
+                .and_then(|next_position| self.offsets.try_extend(iter::once(next_position)));
+            if let Err(error) = appended {
                 self.offsets.truncate(rows.strict_add(1));
                 self.data.truncate(data_len);
                 return Err(error);
             }
-            if let Err(error) = self.offsets.try_extend(iter::once(next_position)) {
-                self.offsets.truncate(rows.strict_add(1));
-                self.data.truncate(data_len);
-                return Err(error);
-            }
-            position = next_position;
         }
         Ok(())
     }
@@ -1121,6 +1111,120 @@ mod tests {
         offsets.extend([vec![3]]);
         assert_eq!(offsets.len(), 2);
         assert_eq!(offsets.owned(1), Some(vec![3]));
+    }
+
+    /// A list whose [`Length::len`] reports `len` instead of the number of
+    /// values it yields.
+    #[derive(Debug, Default)]
+    struct MisreportedLen {
+        values: Vec<i32>,
+        len: usize,
+    }
+
+    impl Length for MisreportedLen {
+        fn len(&self) -> usize {
+            self.len
+        }
+    }
+
+    impl Collection for MisreportedLen {
+        type View<'collection> = i32;
+        type Owned = i32;
+
+        fn view(&self, index: usize) -> Option<Self::View<'_>> {
+            self.values.get(index).copied()
+        }
+
+        type Iter<'collection> = iter::Copied<slice::Iter<'collection, i32>>;
+
+        fn iter_views(&self) -> Self::Iter<'_> {
+            self.values.iter().copied()
+        }
+
+        type IntoIter = alloc::vec::IntoIter<i32>;
+
+        fn into_iter_owned(self) -> Self::IntoIter {
+            self.values.into_iter()
+        }
+    }
+
+    impl FromIterator<i32> for MisreportedLen {
+        fn from_iter<I: IntoIterator<Item = i32>>(iter: I) -> Self {
+            let values = iter.into_iter().collect::<Vec<_>>();
+            let len = values.len();
+            Self { values, len }
+        }
+    }
+
+    impl CollectionAllocIn for MisreportedLen {
+        type Alloc = ();
+
+        fn with_capacity_in(capacity: usize, (): Self::Alloc) -> Self {
+            Self {
+                values: Vec::with_capacity(capacity),
+                len: 0,
+            }
+        }
+
+        fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, (): Self::Alloc) -> Self {
+            iter.into_iter().collect()
+        }
+
+        fn try_with_capacity_in(capacity: usize, (): Self::Alloc) -> Result<Self, AllocError> {
+            Ok(Self::with_capacity_in(capacity, ()))
+        }
+
+        fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
+            iter: I,
+            (): Self::Alloc,
+        ) -> Result<Self, AllocError> {
+            Ok(iter.into_iter().collect())
+        }
+    }
+
+    #[test]
+    fn extend_ignores_misreported_len() {
+        type Lists = Offsets<Vec<i32>, i32, VecBuffer, MisreportedLen>;
+        let lists = || {
+            [
+                MisreportedLen {
+                    values: vec![1],
+                    len: 1000,
+                },
+                MisreportedLen {
+                    values: vec![2, 3, 4],
+                    len: 1,
+                },
+                MisreportedLen {
+                    values: vec![5],
+                    len: 0,
+                },
+            ]
+        };
+        let check = |built: Lists| {
+            let (data, offsets) = built.into_parts();
+            let validated = Lists::try_from_parts(data, offsets).expect("valid offsets");
+            assert_eq!(validated.view(1).map(|view| view.len()), Some(3));
+            assert_eq!(
+                validated
+                    .into_iter_owned()
+                    .map(|list| list.values)
+                    .collect::<Vec<_>>(),
+                [vec![1], vec![2, 3, 4], vec![5]]
+            );
+        };
+
+        check(lists().into_iter().collect());
+
+        let mut extended = Lists::default();
+        extended.extend(lists());
+        check(extended);
+
+        let mut try_extended = Lists::default();
+        try_extended
+            .try_extend(lists())
+            .expect("no allocation failure");
+        check(try_extended);
     }
 
     #[test]
