@@ -3,14 +3,11 @@
 extern crate alloc;
 
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
-use core::{
-    ffi::{CStr, c_void},
-    fmt, ptr,
-};
+use core::{ffi::c_void, fmt, ptr};
 
 use narrow::{array::Array, buffer::Buffer, layout::ArrayItem, length::Length};
 
-use crate::{ARROW_FLAG_NULLABLE, ArrowArray, ArrowSchema};
+use crate::{ArrowArray, ArrowSchema, ArrowType};
 
 /// Export support for [`narrow::layout::boolean::Boolean`].
 mod boolean;
@@ -20,34 +17,6 @@ mod fixed_size_list;
 mod fixed_size_primitive;
 /// Export support for [`narrow::layout::variable_size_list::VariableSizeList`].
 mod variable_size_list;
-
-/// A type with an [Arrow C Data format string].
-///
-/// [Arrow C Data format string]: https://arrow.apache.org/docs/format/CDataInterface.html#data-type-description-format-strings
-///
-/// The Rust item type already determines its Arrow layout. These associated
-/// constants carry the corresponding C schema description at the type level,
-/// including the nullable flag added by `Option<T>`.
-///
-/// # Examples
-///
-/// ```
-/// use narrow_ffi::{ARROW_FLAG_NULLABLE, ArrowType};
-///
-/// assert_eq!(i32::FORMAT, c"i");
-/// assert_eq!(<Option<i32>>::FLAGS, ARROW_FLAG_NULLABLE);
-/// ```
-pub trait ArrowType {
-    /// Arrow C Data type format.
-    const FORMAT: &'static CStr;
-    /// Arrow C Data schema flags.
-    const FLAGS: i64 = 0;
-}
-
-impl<T: ArrowType> ArrowType for Option<T> {
-    const FORMAT: &'static CStr = T::FORMAT;
-    const FLAGS: i64 = T::FLAGS | ARROW_FLAG_NULLABLE;
-}
 
 /// Error returned when an [`Array`] cannot be exported.
 ///
@@ -98,7 +67,8 @@ impl core::error::Error for ExportError {}
 /// storage is dropped once the last of them is released.
 ///
 /// The consumer may read the exported buffers and release the array on any
-/// thread, so the array's storage must be [`Send`] and [`Sync`].
+/// thread, so the array's storage must be [`Send`] and [`Sync`]. Export is only
+/// available on targets with atomic pointers (`target_has_atomic = "ptr"`).
 ///
 /// # Examples
 ///

@@ -5,6 +5,7 @@
 //! [The Arrow C data interface]: https://arrow.apache.org/docs/format/CDataInterface.html
 
 #![no_std]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 // The goal of the list of lints here is to help reduce complexity and improve consistency
 #![deny(
     // Rustc
@@ -68,8 +69,12 @@ use core::{
 
 use narrow::offset::Offset;
 
+mod arrow_type;
+pub use arrow_type::ArrowType;
+#[cfg(target_has_atomic = "ptr")]
 mod export;
-pub use export::{ArrowType, Export, ExportError};
+#[cfg(target_has_atomic = "ptr")]
+pub use export::{Export, ExportError};
 mod import;
 pub use import::{Import, ImportError, Importer};
 
