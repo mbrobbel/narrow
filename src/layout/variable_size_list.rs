@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 use core::fmt::Debug;
 
 use crate::{
-    buffer::{Buffer, BufferRef, VecBuffer},
+    buffer::{Buffer, BufferRef, EmptyBuffer, VecBuffer},
     collection::{AllocError, Collection, CollectionAllocIn, CollectionRealloc},
     layout::{ArrayItem, MemoryLayout},
     length::Length,
@@ -112,7 +112,7 @@ where
     }
 }
 
-impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Default
+impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: EmptyBuffer> Default
     for VariableSizeList<T, Nulls, OffsetItem, Storage>
 where
     Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage>: Default,

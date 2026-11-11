@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 
 use crate::{
-    buffer::{Buffer, BufferRef, VecBuffer},
+    buffer::{Buffer, BufferRef, EmptyBuffer, VecBuffer},
     collection::{AllocError, Collection, CollectionAllocIn, CollectionRealloc},
     fixed_size::FixedSize,
     layout::MemoryLayout,
@@ -102,7 +102,7 @@ where
     }
 }
 
-impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> Default
+impl<T: FixedSize, Nulls: Nullability, Storage: EmptyBuffer> Default
     for FixedSizePrimitive<T, Nulls, Storage>
 where
     Nulls::Collection<Storage::For<T>, Storage>: Default,
