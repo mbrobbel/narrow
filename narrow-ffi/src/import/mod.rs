@@ -41,8 +41,9 @@ pub trait Import<'array>: Sized {
     ///
     /// Every non-null pointer read from `array` must be valid for the required
     /// reads. Referenced buffers must remain immutable for `'array` and contain
-    /// enough properly aligned elements for the declared array length. The
-    /// array must conform to the schema validated for this array type.
+    /// enough properly aligned elements for the declared array length, which
+    /// is `length + 1` for the offsets buffer of a non-empty array. The array
+    /// must conform to the schema validated for this array type.
     unsafe fn import_array(array: &'array ArrowArray) -> Result<Self, ImportError>;
 
     /// Imports an [`ArrowArray`] and [`ArrowSchema`] without copying buffers.
@@ -57,7 +58,8 @@ pub trait Import<'array>: Sized {
     /// Every non-null pointer read by the importer must be valid for the
     /// required reads. Referenced buffers must remain immutable for `'array`
     /// and contain enough properly aligned elements for the declared array
-    /// length. Scalar metadata is validated by the importer.
+    /// length, which is `length + 1` for the offsets buffer of a non-empty
+    /// array. Scalar metadata is validated by the importer.
     unsafe fn import(array: &'array ArrowArray, schema: &ArrowSchema) -> Result<Self, ImportError> {
         // SAFETY: The caller upholds the schema requirements of this method.
         unsafe { Self::validate_schema(schema) }?;
@@ -138,8 +140,9 @@ where
     ///
     /// Every non-null pointer read from `array` must be valid for the required
     /// reads. Referenced buffers must remain immutable for `'array` and contain
-    /// enough properly aligned elements for the declared array length. The
-    /// array must conform to the schema used to construct this importer.
+    /// enough properly aligned elements for the declared array length, which
+    /// is `length + 1` for the offsets buffer of a non-empty array. The array
+    /// must conform to the schema used to construct this importer.
     pub unsafe fn import<'array>(
         &self,
         array: &'array ArrowArray,

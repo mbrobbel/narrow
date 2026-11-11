@@ -43,18 +43,22 @@ where
         })?;
         // SAFETY: Common validation guarantees a two-entry buffer pointer array.
         let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
-        let offsets_pointer = buffers[1].cast::<OffsetItem>();
-        if offsets_pointer.is_null() {
-            return Err(ImportError::MissingOffsetsBuffer);
-        }
-        if !offsets_pointer.is_aligned() {
-            return Err(ImportError::MisalignedOffsetsBuffer {
-                alignment: mem::align_of::<OffsetItem>(),
-            });
-        }
-        // SAFETY: The caller guarantees the offsets buffer contains
-        // `offsets_length` aligned values that remain immutable for `'array`.
-        let offset_values = unsafe { slice::from_raw_parts(offsets_pointer, offsets_length) };
+        let offset_values = if length == 0 {
+            OffsetItem::EMPTY
+        } else {
+            let offsets_pointer = buffers[1].cast::<OffsetItem>();
+            if offsets_pointer.is_null() {
+                return Err(ImportError::MissingOffsetsBuffer);
+            }
+            if !offsets_pointer.is_aligned() {
+                return Err(ImportError::MisalignedOffsetsBuffer {
+                    alignment: mem::align_of::<OffsetItem>(),
+                });
+            }
+            // SAFETY: The caller guarantees the offsets buffer contains
+            // `offsets_length` aligned values that remain immutable for `'array`.
+            unsafe { slice::from_raw_parts(offsets_pointer, offsets_length) }
+        };
 
         // SAFETY: Common parent fields are validated and the caller upholds
         // the Arrow C Data requirements for the retained child structures.
@@ -74,7 +78,7 @@ mod tests {
     extern crate alloc;
 
     use alloc::{sync::Arc, vec, vec::Vec};
-    use core::borrow::Borrow;
+    use core::{borrow::Borrow, ffi::c_void, iter, ptr};
 
     use narrow::{
         array::Array,
@@ -82,13 +86,16 @@ mod tests {
         buffer::{ArcBuffer, BufferRef, SliceBuffer},
         collection::{ChildRef, Collection},
         layout::{fixed_size_primitive::FixedSizePrimitive, variable_size_list::VariableSizeList},
+        length::Length,
+        nullability::NonNullable,
         offset::{Offsets, OffsetsError},
         validity::Validity,
     };
 
     use crate::{
+        ArrowListOffset,
         export::Export,
-        import::{Import, ImportError},
+        import::{Import, ImportError, ImportLayout},
     };
 
     #[test]
@@ -186,6 +193,45 @@ mod tests {
         assert!(imported_validity.bitmap_ref().is_none());
         assert_eq!(imported.owned(0), Some(Some(vec![1, 2])));
         assert_eq!(imported.owned(1), Some(Some(vec![3])));
+    }
+
+    /// Imports an empty list array with `OffsetItem` offsets whose offsets
+    /// buffer pointer is replaced with `offsets`.
+    fn import_empty_variable_size_list_with_offsets<OffsetItem: ArrowListOffset>(
+        offsets: *const c_void,
+    ) {
+        let source = iter::empty::<Vec<i32>>().collect::<Array<Vec<i32>>>();
+        let (array, _schema) = source.export().expect("export array");
+        // SAFETY: The exported array owns a writable two-entry pointer array;
+        // the second entry is the offsets buffer.
+        let offsets_slot = unsafe { array.buffers.add(1) };
+        // SAFETY: The slot is live and writable.
+        unsafe { *offsets_slot = offsets };
+
+        // SAFETY: The offsets buffer of an empty array is not read, and every
+        // other referenced pointer remains valid. Apart from the replaced
+        // offsets pointer, an empty list does not depend on its offset width.
+        let imported: VariableSizeList<i32, NonNullable, OffsetItem, SliceBuffer<'_>> =
+            unsafe { ImportLayout::import_array(&array) }.expect("import array");
+
+        let offset_values: &[OffsetItem] = imported.buffer_ref().buffer_ref().borrow();
+        assert!(matches!(offset_values, [first] if first.as_usize() == 0));
+        assert!(imported.is_empty());
+    }
+
+    #[test]
+    fn imports_empty_variable_size_list_with_null_offsets() {
+        import_empty_variable_size_list_with_offsets::<i32>(ptr::null());
+    }
+
+    #[test]
+    fn imports_empty_variable_size_list_with_dangling_offsets() {
+        import_empty_variable_size_list_with_offsets::<i32>(ptr::dangling::<i32>().cast());
+    }
+
+    #[test]
+    fn imports_empty_large_variable_size_list_with_dangling_offsets() {
+        import_empty_variable_size_list_with_offsets::<i64>(ptr::dangling::<i64>().cast());
     }
 
     #[test]
