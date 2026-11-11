@@ -62,6 +62,15 @@ fn bit(bytes: &[u8], index: usize) -> bool {
     bytes[index.strict_div(BITS_PER_BYTE)] & (1 << index.rem_euclid(BITS_PER_BYTE)) != 0
 }
 
+/// Returns the end of the bits in `start..end` before the first byte boundary
+/// at or after `start`, or `end` when no such boundary fits in a `usize`.
+#[inline]
+fn head_end(start: usize, end: usize) -> usize {
+    start
+        .checked_next_multiple_of(BITS_PER_BYTE)
+        .map_or(end, |boundary| boundary.min(end))
+}
+
 impl<Bytes: Borrow<[u8]>> Iterator for BitmapIter<Bytes> {
     type Item = bool;
 
@@ -102,7 +111,7 @@ impl<Bytes: Borrow<[u8]>> Iterator for BitmapIter<Bytes> {
         let bytes = buffer.borrow();
 
         // Leading bits up to the first byte boundary.
-        let head_end = start.next_multiple_of(BITS_PER_BYTE).min(end);
+        let head_end = head_end(start, end);
         let head = (start..head_end).fold(init, |acc, index| f(acc, bit(bytes, index)));
 
         // Whole bytes. `head_end` is byte aligned whenever bits remain.
@@ -159,6 +168,35 @@ mod tests {
             bits: indices.len(),
             offset: indices.start,
         }
+    }
+
+    #[test]
+    fn head_end_near_usize_max() {
+        assert_eq!(head_end(3, 20), 8);
+        assert_eq!(head_end(3, 5), 5);
+        assert_eq!(head_end(16, 20), 16);
+        assert_eq!(head_end(usize::MAX - 3, usize::MAX), usize::MAX);
+        assert_eq!(head_end(usize::MAX, usize::MAX), usize::MAX);
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    #[test]
+    fn fold_near_usize_max() {
+        use crate::buffer::SliceBuffer;
+
+        // The smallest buffer whose bit capacity saturates at `usize::MAX`.
+        let mut bytes = alloc::vec![0_u8; usize::MAX / 8 + 1];
+        bytes[usize::MAX / 8] = 0b1010_0000;
+        let bitmap = Bitmap::<SliceBuffer>::from_parts(&bytes, 3, usize::MAX - 3);
+        let expected = [false, true, false];
+        assert_eq!((&bitmap).into_iter().collect::<Vec<_>>(), expected);
+        assert_eq!(
+            (&bitmap).into_iter().fold(Vec::new(), |mut output, bit| {
+                output.push(bit);
+                output
+            }),
+            expected
+        );
     }
 
     #[test]

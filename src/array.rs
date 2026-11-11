@@ -273,6 +273,31 @@ mod tests {
     }
 
     #[test]
+    fn from_iter_with_loose_size_hint() {
+        fn from_iter<T: ArrayItem + Clone + Debug + PartialEq>(items: &[T])
+        where
+            Array<T>: FromIterator<T> + CollectionAllocIn<Alloc = ()> + Collection<Owned = T>,
+        {
+            // Reports a size hint of `(0, Some(usize::MAX))`.
+            let iter = || (0..usize::MAX).map_while(|index| items.get(index).cloned());
+            assert_eq!(iter().size_hint(), (0, Some(usize::MAX)));
+
+            let collected = iter().collect::<Array<T>>();
+            assert_eq!(collected.into_iter_owned().collect::<Vec<_>>(), items);
+
+            let infallible = Array::<T>::from_iter_in(iter(), ());
+            assert_eq!(infallible.into_iter_owned().collect::<Vec<_>>(), items);
+
+            let fallible = Array::<T>::try_from_iter_in(iter(), ()).expect("allocation succeeds");
+            assert_eq!(fallible.into_iter_owned().collect::<Vec<_>>(), items);
+        }
+        from_iter(&[Some(1), None, Some(3)]);
+        from_iter(&[Some(true), None, Some(false)]);
+        from_iter(&[vec![1, 2], vec![], vec![3]]);
+        from_iter(&[Some(vec![1, 2]), None, Some(vec![3])]);
+    }
+
+    #[test]
     fn extend_forwards_backing_input_type() {
         fn extend<T: ArrayItem, U, Storage: Buffer, I: IntoIterator<Item = U>>(
             array: &mut Array<T, Storage>,

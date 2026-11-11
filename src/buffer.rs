@@ -2,7 +2,9 @@
 
 extern crate alloc;
 
-use alloc::{boxed::Box, rc::Rc, sync::Arc, vec::Vec};
+#[cfg(target_has_atomic = "ptr")]
+use alloc::sync::Arc;
+use alloc::{boxed::Box, rc::Rc, vec::Vec};
 use core::{borrow::Borrow, marker::PhantomData};
 
 use crate::{collection::Collection, fixed_size::FixedSize};
@@ -190,6 +192,9 @@ impl EmptyBuffer for RcBuffer {}
 /// Allows immutable Arrow buffers to be shared across threads without copying
 /// their values.
 ///
+/// Like [`Arc`], this is only available on targets with atomic pointer
+/// support (`target_has_atomic = "ptr"`).
+///
 /// # Examples
 ///
 /// ```
@@ -199,8 +204,10 @@ impl EmptyBuffer for RcBuffer {}
 /// let values: <ArcBuffer as Buffer>::For<u16> = Arc::from([1, 2]);
 /// assert_eq!(&*values, &[1, 2]);
 /// ```
+#[cfg(target_has_atomic = "ptr")]
 #[derive(Clone, Copy, Default, Debug)]
 pub struct ArcBuffer;
+#[cfg(target_has_atomic = "ptr")]
 impl Buffer for ArcBuffer {
     type For<T: FixedSize> = Arc<[T]>;
 }
