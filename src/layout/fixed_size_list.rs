@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 
 use crate::{
-    buffer::{Buffer, BufferRef, VecBuffer},
+    buffer::{Buffer, BufferRef, EmptyBuffer, VecBuffer},
     collection::{AllocError, Collection, CollectionAllocIn, CollectionRealloc, flatten::Flatten},
     layout::{ArrayItem, MemoryLayout},
     length::Length,
@@ -109,7 +109,7 @@ where
     }
 }
 
-impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: Buffer> Default
+impl<T: ArrayItem, const N: usize, Nulls: Nullability, Storage: EmptyBuffer> Default
     for FixedSizeList<T, N, Nulls, Storage>
 where
     Nulls::Collection<Flatten<T::Memory<Storage>, N>, Storage>: Default,

@@ -53,8 +53,15 @@ impl<C: Collection, const N: usize> Flatten<C, N> {
 }
 
 impl<C: Collection + Default, const N: usize> Default for Flatten<C, N> {
+    /// Wraps the default child collection.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the length of the default child collection is not a
+    /// multiple of `N`, like [`Flatten::from_parts`]. This is only possible
+    /// for children that are not empty by default, such as `[T; M]`.
     fn default() -> Self {
-        Self::new(C::default())
+        Self::from_parts(C::default())
     }
 }
 
@@ -438,6 +445,20 @@ mod tests {
     #[should_panic(expected = "child length is not a multiple of N")]
     fn from_parts_not_multiple() {
         let _ = Flatten::<Vec<i32>, 2>::from_parts(alloc::vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn default() {
+        assert!(Flatten::<Vec<i32>, 2>::default().is_empty());
+        let values = Flatten::<[i32; 4], 2>::default();
+        assert_eq!(values.len(), 2);
+        assert_eq!(values.into_iter_owned().collect::<Vec<_>>(), [[0, 0]; 2]);
+    }
+
+    #[test]
+    #[should_panic(expected = "child length is not a multiple of N")]
+    fn default_not_multiple() {
+        let _ = Flatten::<[i32; 3], 2>::default();
     }
 
     #[test]

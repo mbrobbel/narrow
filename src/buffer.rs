@@ -27,6 +27,26 @@ pub trait Buffer: Default {
     type For<T: FixedSize>: Borrow<[T]> + Collection<Owned = T>;
 }
 
+/// A [`Buffer`] whose collections are empty by default.
+///
+/// Layouts and [`Array`](crate::array::Array)s implement [`Default`] only for
+/// this storage, so their default value never has items. Implementations
+/// must make [`Default`] of every [`Buffer::For`] collection return an empty
+/// collection.
+///
+/// [`ArrayBuffer`] does not implement this trait, because its collections
+/// always hold `N` values.
+///
+/// # Examples
+///
+/// ```
+/// use narrow::{array::Array, buffer::ArcBuffer, length::Length};
+///
+/// let values = Array::<i32, ArcBuffer>::default();
+/// assert!(values.is_empty());
+/// ```
+pub trait EmptyBuffer: Buffer {}
+
 /// Immutable access to a backing buffer or collection.
 ///
 /// Layout wrappers intentionally hide their representation during ordinary
@@ -71,6 +91,33 @@ pub trait BufferRef {
 /// let values: <ArrayBuffer<2> as Buffer>::For<u16> = [1, 2];
 /// assert_eq!(values.len(), 2);
 /// ```
+///
+/// Its collections always hold exactly `N` values, so it is not an
+/// [`EmptyBuffer`] and arrays using it have no [`Default`]:
+///
+/// ```compile_fail,E0599
+/// use narrow::{array::Array, buffer::ArrayBuffer};
+///
+/// let values = Array::<i32, ArrayBuffer<4>>::default();
+/// ```
+///
+/// ```compile_fail,E0599
+/// use narrow::{array::Array, buffer::ArrayBuffer};
+///
+/// let values = Array::<Option<bool>, ArrayBuffer<1>>::default();
+/// ```
+///
+/// ```compile_fail,E0599
+/// use narrow::{array::Array, buffer::ArrayBuffer};
+///
+/// let values = Array::<[i32; 2], ArrayBuffer<3>>::default();
+/// ```
+///
+/// ```compile_fail,E0599
+/// use narrow::{array::Array, buffer::ArrayBuffer};
+///
+/// let values = Array::<(), ArrayBuffer<3>>::default();
+/// ```
 #[derive(Clone, Copy, Default, Debug)]
 pub struct ArrayBuffer<const N: usize>;
 impl<const N: usize> Buffer for ArrayBuffer<N> {
@@ -95,6 +142,7 @@ pub struct VecBuffer;
 impl Buffer for VecBuffer {
     type For<T: FixedSize> = Vec<T>;
 }
+impl EmptyBuffer for VecBuffer {}
 
 /// Owned boxed-slice storage.
 ///
@@ -114,6 +162,7 @@ pub struct BoxBuffer;
 impl Buffer for BoxBuffer {
     type For<T: FixedSize> = Box<[T]>;
 }
+impl EmptyBuffer for BoxBuffer {}
 
 /// Reference-counted storage.
 ///
@@ -134,6 +183,7 @@ pub struct RcBuffer;
 impl Buffer for RcBuffer {
     type For<T: FixedSize> = Rc<[T]>;
 }
+impl EmptyBuffer for RcBuffer {}
 
 /// Atomically reference-counted storage.
 ///
@@ -154,6 +204,7 @@ pub struct ArcBuffer;
 impl Buffer for ArcBuffer {
     type For<T: FixedSize> = Arc<[T]>;
 }
+impl EmptyBuffer for ArcBuffer {}
 
 /// Borrowed slice storage.
 ///
@@ -174,3 +225,4 @@ pub struct SliceBuffer<'slice>(PhantomData<&'slice ()>);
 impl<'slice> Buffer for SliceBuffer<'slice> {
     type For<T: FixedSize> = &'slice [T];
 }
+impl EmptyBuffer for SliceBuffer<'_> {}
