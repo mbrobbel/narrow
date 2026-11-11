@@ -444,11 +444,8 @@ impl<
 {
     fn from_iter<I: IntoIterator<Item = Option<U>>>(iter: I) -> Self {
         let items = iter.into_iter();
-        let (lower_bound, upper_bound) = items.size_hint();
-        let mut validity = BitmapBuilder::<Storage>::with_capacity_in(
-            upper_bound.unwrap_or(lower_bound),
-            Default::default(),
-        );
+        let (capacity, _) = items.size_hint();
+        let mut validity = BitmapBuilder::<Storage>::with_capacity_in(capacity, Default::default());
         let collection = items
             .inspect(|opt| validity.push(opt.is_some()))
             .map(Option::unwrap_or_default)
@@ -525,11 +522,8 @@ impl<
 
     fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self {
         let items = iter.into_iter();
-        let (lower_bound, upper_bound) = items.size_hint();
-        let mut validity = BitmapBuilder::<Storage>::with_capacity_in(
-            upper_bound.unwrap_or(lower_bound),
-            alloc.clone(),
-        );
+        let (capacity, _) = items.size_hint();
+        let mut validity = BitmapBuilder::<Storage>::with_capacity_in(capacity, alloc.clone());
         let collection = T::from_iter_in(
             items
                 .inspect(|item| validity.push(item.is_some()))
@@ -556,8 +550,8 @@ impl<
         alloc: Self::Alloc,
     ) -> Result<Self, AllocError> {
         let items = iter.into_iter();
-        let (lower_bound, upper_bound) = items.size_hint();
-        let mut validity = Self::try_with_capacity_in(upper_bound.unwrap_or(lower_bound), alloc)?;
+        let (capacity, _) = items.size_hint();
+        let mut validity = Self::try_with_capacity_in(capacity, alloc)?;
         validity.try_extend(items)?;
         Ok(validity)
     }
