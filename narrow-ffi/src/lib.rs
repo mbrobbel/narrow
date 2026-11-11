@@ -77,14 +77,18 @@ pub use import::{Import, ImportError, Importer};
 trait ArrowListOffset: Offset {
     /// Arrow C Data format for a list using this offset width.
     const FORMAT: &'static CStr;
+    /// Offsets of an empty list array.
+    const EMPTY: &'static [Self];
 }
 
 impl ArrowListOffset for i32 {
     const FORMAT: &'static CStr = c"+l";
+    const EMPTY: &'static [Self] = &[0];
 }
 
 impl ArrowListOffset for i64 {
     const FORMAT: &'static CStr = c"+L";
+    const EMPTY: &'static [Self] = &[0];
 }
 
 /// Dictionary values are ordered.
