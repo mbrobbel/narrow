@@ -418,8 +418,8 @@ where
 
     fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self {
         let items = iter.into_iter();
-        let (lower_bound, upper_bound) = items.size_hint();
-        let mut offsets = Self::with_capacity_in(upper_bound.unwrap_or(lower_bound), alloc);
+        let (capacity, _) = items.size_hint();
+        let mut offsets = Self::with_capacity_in(capacity, alloc);
         offsets.extend(items);
         offsets
     }
@@ -441,8 +441,8 @@ where
         alloc: Self::Alloc,
     ) -> Result<Self, AllocError> {
         let items = iter.into_iter();
-        let (lower_bound, upper_bound) = items.size_hint();
-        let mut offsets = Self::try_with_capacity_in(upper_bound.unwrap_or(lower_bound), alloc)?;
+        let (capacity, _) = items.size_hint();
+        let mut offsets = Self::try_with_capacity_in(capacity, alloc)?;
         offsets.try_extend(items)?;
         Ok(offsets)
     }
@@ -458,7 +458,7 @@ where
     Storage::For<OffsetItem>: CollectionRealloc<Owned = OffsetItem>,
 {
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
-        let mut position = self
+        let position = self
             .offsets
             .borrow()
             .last()
@@ -470,11 +470,12 @@ where
         self.data.truncate(position.as_usize());
 
         iter.into_iter().for_each(|collection| {
-            let next_position = position.strict_add(collection.len().try_into().expect("overflow"));
             self.data.reserve(collection.len());
             self.data.extend(collection.into_iter_owned());
+            // Derive the offset from the data appended, not from the item's
+            // reported length.
+            let next_position = OffsetItem::try_from(self.data.len()).expect("overflow");
             self.offsets.extend(iter::once(next_position));
-            position = next_position;
         });
     }
 }
@@ -516,7 +517,7 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
 
     fn view(&self, index: usize) -> Option<Self::View<'_>> {
         let start = self.offsets.owned(index);
-        let end = self.offsets.owned(index.strict_add(1));
+        let end = self.offsets.owned(index.checked_add(1)?);
         start.zip(end).map(|(s, e)| OffsetView {
             collection: self,
             start: s.as_usize(),
@@ -578,37 +579,26 @@ where
         iter: I,
     ) -> Result<(), AllocError> {
         let rows = self.len();
-        let mut position = self
+        let data_len = self
             .offsets
             .borrow()
             .last()
             .copied()
-            .expect("at least one value in the offsets buffer");
-        let data_len = position.as_usize();
+            .expect("at least one value in the offsets buffer")
+            .as_usize();
         self.data.truncate(data_len);
 
         for collection in iter {
-            let next_result = position
-                .as_usize()
-                .checked_add(collection.len())
-                .and_then(|value| OffsetItem::try_from(value).ok())
-                .ok_or(AllocError);
-            let Ok(next_position) = next_result else {
-                self.offsets.truncate(rows.strict_add(1));
-                self.data.truncate(data_len);
-                return Err(AllocError);
-            };
-            if let Err(error) = self.data.try_extend(collection.into_iter_owned()) {
+            let appended = self
+                .data
+                .try_extend(collection.into_iter_owned())
+                .and_then(|()| OffsetItem::try_from(self.data.len()).map_err(|_| AllocError))
+                .and_then(|next_position| self.offsets.try_extend(iter::once(next_position)));
+            if let Err(error) = appended {
                 self.offsets.truncate(rows.strict_add(1));
                 self.data.truncate(data_len);
                 return Err(error);
             }
-            if let Err(error) = self.offsets.try_extend(iter::once(next_position)) {
-                self.offsets.truncate(rows.strict_add(1));
-                self.data.truncate(data_len);
-                return Err(error);
-            }
-            position = next_position;
         }
         Ok(())
     }
@@ -875,7 +865,7 @@ impl<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U> Collect
     type Owned = T::Owned;
 
     fn view(&self, index: usize) -> Option<Self::View<'_>> {
-        let idx = self.start.strict_add(index);
+        let idx = self.start.checked_add(index)?;
         if idx < self.end {
             self.collection.data.view(idx)
         } else {
@@ -1175,6 +1165,120 @@ mod tests {
         assert_eq!(offsets.owned(1), Some(vec![3]));
     }
 
+    /// A list whose [`Length::len`] reports `len` instead of the number of
+    /// values it yields.
+    #[derive(Debug, Default)]
+    struct MisreportedLen {
+        values: Vec<i32>,
+        len: usize,
+    }
+
+    impl Length for MisreportedLen {
+        fn len(&self) -> usize {
+            self.len
+        }
+    }
+
+    impl Collection for MisreportedLen {
+        type View<'collection> = i32;
+        type Owned = i32;
+
+        fn view(&self, index: usize) -> Option<Self::View<'_>> {
+            self.values.get(index).copied()
+        }
+
+        type Iter<'collection> = iter::Copied<slice::Iter<'collection, i32>>;
+
+        fn iter_views(&self) -> Self::Iter<'_> {
+            self.values.iter().copied()
+        }
+
+        type IntoIter = alloc::vec::IntoIter<i32>;
+
+        fn into_iter_owned(self) -> Self::IntoIter {
+            self.values.into_iter()
+        }
+    }
+
+    impl FromIterator<i32> for MisreportedLen {
+        fn from_iter<I: IntoIterator<Item = i32>>(iter: I) -> Self {
+            let values = iter.into_iter().collect::<Vec<_>>();
+            let len = values.len();
+            Self { values, len }
+        }
+    }
+
+    impl CollectionAllocIn for MisreportedLen {
+        type Alloc = ();
+
+        fn with_capacity_in(capacity: usize, (): Self::Alloc) -> Self {
+            Self {
+                values: Vec::with_capacity(capacity),
+                len: 0,
+            }
+        }
+
+        fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, (): Self::Alloc) -> Self {
+            iter.into_iter().collect()
+        }
+
+        fn try_with_capacity_in(capacity: usize, (): Self::Alloc) -> Result<Self, AllocError> {
+            Ok(Self::with_capacity_in(capacity, ()))
+        }
+
+        fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
+            iter: I,
+            (): Self::Alloc,
+        ) -> Result<Self, AllocError> {
+            Ok(iter.into_iter().collect())
+        }
+    }
+
+    #[test]
+    fn extend_ignores_misreported_len() {
+        type Lists = Offsets<Vec<i32>, i32, VecBuffer, MisreportedLen>;
+        let lists = || {
+            [
+                MisreportedLen {
+                    values: vec![1],
+                    len: 1000,
+                },
+                MisreportedLen {
+                    values: vec![2, 3, 4],
+                    len: 1,
+                },
+                MisreportedLen {
+                    values: vec![5],
+                    len: 0,
+                },
+            ]
+        };
+        let check = |built: Lists| {
+            let (data, offsets) = built.into_parts();
+            let validated = Lists::try_from_parts(data, offsets).expect("valid offsets");
+            assert_eq!(validated.view(1).map(|view| view.len()), Some(3));
+            assert_eq!(
+                validated
+                    .into_iter_owned()
+                    .map(|list| list.values)
+                    .collect::<Vec<_>>(),
+                [vec![1], vec![2, 3, 4], vec![5]]
+            );
+        };
+
+        check(lists().into_iter().collect());
+
+        let mut extended = Lists::default();
+        extended.extend(lists());
+        check(extended);
+
+        let mut try_extended = Lists::default();
+        try_extended
+            .try_extend(lists())
+            .expect("no allocation failure");
+        check(try_extended);
+    }
+
     #[test]
     fn clone() {
         let offsets = [vec![1, 2], vec![], vec![3]]
@@ -1243,6 +1347,19 @@ mod tests {
         assert_eq!(slice.view(0), Some(1));
         assert_eq!(slice.view(1), Some(2));
         assert_eq!(slice.view(2), None);
+        assert_eq!(slice.view(usize::MAX), None);
+        assert_eq!(slice.owned(usize::MAX), None);
+
+        let inner = offsets.view(1).expect("a value");
+        assert_eq!(inner.start, 2);
+        assert_eq!(inner.view(0), Some(3));
+        assert_eq!(inner.view(1), None);
+        assert_eq!(inner.view(usize::MAX), None);
+        assert_eq!(inner.owned(usize::MAX), None);
+
+        assert!(offsets.view(4).is_none());
+        assert!(offsets.view(usize::MAX).is_none());
+        assert_eq!(offsets.owned(usize::MAX), None);
 
         let views = offsets.iter_views().collect::<Vec<_>>();
         assert_eq!(views[0].into_owned(), vec![1, 2]);

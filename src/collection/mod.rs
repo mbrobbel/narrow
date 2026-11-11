@@ -3,6 +3,7 @@
 pub mod owned;
 pub mod view;
 
+#[cfg(target_has_atomic = "ptr")]
 pub mod arc;
 pub mod array;
 pub mod r#box;
