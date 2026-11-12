@@ -39,11 +39,17 @@ use super::{ArrayData, ArrowArrayLayout, BufferKind, ExportError};
 /// Pointer to a buffer whose slice holds the items the exported array
 /// requires.
 #[repr(transparent)]
-pub(super) struct BufferPointer(*const c_void);
+pub(super) struct BufferPointer(
+    /// Pointer to the first item of the checked slice.
+    *const c_void,
+);
 
 /// An [`ArrowArray`] whose buffers were checked by [`array`].
 #[repr(transparent)]
-pub(super) struct Exported(ArrowArray);
+pub(super) struct Exported(
+    /// The exported array.
+    ArrowArray,
+);
 
 impl Exported {
     /// Returns the exported array.
