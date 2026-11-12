@@ -12,7 +12,7 @@ use narrow::{
 
 use crate::{ArrowArray, ArrowSchema};
 
-use super::{ArrowArrayLayout, ArrowType};
+use super::ArrowArrayLayout;
 
 impl<Storage: Buffer> ArrowArrayLayout for Boolean<NonNullable, Storage> {
     type Buffers = [*const c_void; 2];
@@ -71,10 +71,6 @@ impl<Storage: Buffer> ArrowArrayLayout for Boolean<Nullable, Storage> {
     }
 }
 
-impl ArrowType for bool {
-    const FORMAT: &'static core::ffi::CStr = c"b";
-}
-
 #[cfg(test)]
 mod tests {
     extern crate alloc;
@@ -92,12 +88,7 @@ mod tests {
 
     use crate::{ARROW_FLAG_NULLABLE, export::ExportError};
 
-    use super::{super::Export, ArrowType};
-
-    #[test]
-    fn type_format_string_matches_arrow() {
-        assert_eq!(bool::FORMAT, c"b");
-    }
+    use super::super::Export;
 
     #[test]
     fn exports_boolean_bitmap_without_copying_values() {

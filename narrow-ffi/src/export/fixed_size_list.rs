@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-use alloc::{boxed::Box, ffi::CString, format};
+use alloc::{boxed::Box, ffi::CString, format, sync::Arc};
 use core::{borrow::Borrow, ffi::c_void, ptr};
 
 use narrow::{
@@ -34,8 +34,11 @@ where
         [ptr::null()]
     }
 
-    fn children(&self) -> Result<Self::Children, ExportError> {
-        Ok([self.buffer_ref().child_ref().child_array()?])
+    fn children<Root: Send + Sync + 'static>(
+        &self,
+        root: &Arc<Root>,
+    ) -> Result<Self::Children, ExportError> {
+        Ok([self.buffer_ref().child_ref().array(root)?])
     }
 }
 
@@ -71,8 +74,11 @@ where
         [validity.unwrap_or(ptr::null())]
     }
 
-    fn children(&self) -> Result<Self::Children, ExportError> {
-        Ok([self.buffer_ref().child_ref().child_ref().child_array()?])
+    fn children<Root: Send + Sync + 'static>(
+        &self,
+        root: &Arc<Root>,
+    ) -> Result<Self::Children, ExportError> {
+        Ok([self.buffer_ref().child_ref().child_ref().array(root)?])
     }
 }
 
@@ -141,7 +147,7 @@ mod tests {
 
     use crate::ARROW_FLAG_NULLABLE;
 
-    use super::super::{Export, ExportError};
+    use super::super::{Export, ExportError, move_first_child};
 
     #[test]
     fn exports_fixed_size_list_child_without_copying_values() {
@@ -249,6 +255,31 @@ mod tests {
         assert!(values_weak.upgrade().is_none());
         assert!(validity_weak.upgrade().is_none());
         drop(schema);
+    }
+
+    #[test]
+    fn moved_child_outlives_parent() {
+        let value_storage = Arc::<[i32]>::from([1, 2, 3, 4]);
+        let weak = Arc::downgrade(&value_storage);
+        let values_layout = FixedSizePrimitive::from_buffer(value_storage);
+        let flattened = Flatten::try_from_parts(values_layout).expect("valid fixed-size list");
+        let narrow_array: Array<[i32; 2], ArcBuffer> =
+            Array::from_buffer(FixedSizeList::from_buffer(flattened));
+        let (array, _schema) = narrow_array.export().expect("export array");
+
+        let child = move_first_child(&array);
+        drop(array);
+
+        assert!(weak.upgrade().is_some());
+        // SAFETY: The child owns a two-entry buffer pointer array.
+        let child_buffers = unsafe { slice::from_raw_parts(child.buffers, 2) };
+        assert_eq!(
+            // SAFETY: The value buffer points to four values retained by the child.
+            unsafe { slice::from_raw_parts(child_buffers[1].cast::<i32>(), 4) },
+            [1, 2, 3, 4]
+        );
+        drop(child);
+        assert!(weak.upgrade().is_none());
     }
 
     #[test]

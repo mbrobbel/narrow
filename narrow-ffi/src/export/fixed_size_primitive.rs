@@ -11,9 +11,9 @@ use narrow::{
     nullability::{NonNullable, Nullable},
 };
 
-use crate::{ArrowArray, ArrowSchema};
+use crate::{ArrowArray, ArrowSchema, ArrowType};
 
-use super::{ArrowArrayLayout, ArrowType};
+use super::ArrowArrayLayout;
 
 impl<T, Storage> ArrowArrayLayout for FixedSizePrimitive<T, NonNullable, Storage>
 where
@@ -70,46 +70,6 @@ where
     }
 }
 
-impl ArrowType for i8 {
-    const FORMAT: &'static core::ffi::CStr = c"c";
-}
-
-impl ArrowType for u8 {
-    const FORMAT: &'static core::ffi::CStr = c"C";
-}
-
-impl ArrowType for i16 {
-    const FORMAT: &'static core::ffi::CStr = c"s";
-}
-
-impl ArrowType for u16 {
-    const FORMAT: &'static core::ffi::CStr = c"S";
-}
-
-impl ArrowType for i32 {
-    const FORMAT: &'static core::ffi::CStr = c"i";
-}
-
-impl ArrowType for u32 {
-    const FORMAT: &'static core::ffi::CStr = c"I";
-}
-
-impl ArrowType for i64 {
-    const FORMAT: &'static core::ffi::CStr = c"l";
-}
-
-impl ArrowType for u64 {
-    const FORMAT: &'static core::ffi::CStr = c"L";
-}
-
-impl ArrowType for f32 {
-    const FORMAT: &'static core::ffi::CStr = c"f";
-}
-
-impl ArrowType for f64 {
-    const FORMAT: &'static core::ffi::CStr = c"g";
-}
-
 #[cfg(test)]
 mod tests {
     extern crate alloc;
@@ -127,23 +87,7 @@ mod tests {
 
     use crate::{ARROW_FLAG_NULLABLE, export::ExportError};
 
-    use super::{super::Export, ArrowType};
-
-    #[test]
-    fn type_format_strings_match_arrow() {
-        assert_eq!(i8::FORMAT, c"c");
-        assert_eq!(u8::FORMAT, c"C");
-        assert_eq!(i16::FORMAT, c"s");
-        assert_eq!(u16::FORMAT, c"S");
-        assert_eq!(i32::FORMAT, c"i");
-        assert_eq!(u32::FORMAT, c"I");
-        assert_eq!(i64::FORMAT, c"l");
-        assert_eq!(u64::FORMAT, c"L");
-        assert_eq!(f32::FORMAT, c"f");
-        assert_eq!(f64::FORMAT, c"g");
-        assert_eq!(<Option<i32>>::FORMAT, c"i");
-        assert_eq!(<Option<i32>>::FLAGS, ARROW_FLAG_NULLABLE);
-    }
+    use super::super::Export;
 
     #[test]
     fn exports_primitive_array_without_copying_values() {
