@@ -3,26 +3,35 @@
 extern crate alloc;
 
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
-use core::{ffi::c_void, fmt, ptr};
+use core::{fmt, ptr};
 
 use narrow::{array::Array, buffer::Buffer, layout::ArrayItem, length::Length};
 
 use crate::{ArrowArray, ArrowSchema, ArrowType};
 
+use self::checked::{BufferPointer, Checker, Exported};
+
 /// Export support for [`narrow::layout::boolean::Boolean`].
 mod boolean;
+/// Buffer pointers checked against the array that exports them.
+mod checked;
 /// Export support for [`narrow::layout::fixed_size_list::FixedSizeList`].
 mod fixed_size_list;
 /// Export support for [`narrow::layout::fixed_size_primitive::FixedSizePrimitive`].
 mod fixed_size_primitive;
+#[cfg(test)]
+mod untrusted_buffer;
 /// Export support for [`narrow::layout::variable_size_list::VariableSizeList`].
 mod variable_size_list;
 
 /// Error returned when an [`Array`] cannot be exported.
 ///
 /// Export rejects representation details it cannot preserve faithfully instead
-/// of silently changing their meaning. The enum is non-exhaustive so further
-/// unsupported Arrow conditions can be reported explicitly.
+/// of silently changing their meaning, and checks every exported buffer
+/// against the array, because a safe [`Buffer`] implementation may borrow as
+/// a different slice than the one narrow validated. The enum is
+/// non-exhaustive so further unsupported Arrow conditions can be reported
+/// explicitly.
 ///
 /// # Examples
 ///
@@ -42,6 +51,32 @@ pub enum ExportError {
         /// Unsupported array offset.
         offset: usize,
     },
+    /// A buffer holds fewer items than the array requires.
+    BufferTooShort {
+        /// The buffer that is too short.
+        buffer: BufferKind,
+        /// Number of items the array requires: bits for bitmaps, offsets for
+        /// offset buffers and values otherwise.
+        required: usize,
+        /// Number of items the buffer holds.
+        actual: usize,
+    },
+    /// The child array of a list holds fewer items than its offsets or its
+    /// fixed size require.
+    ChildTooShort {
+        /// Number of items the list requires, saturated at [`usize::MAX`].
+        required: usize,
+        /// Number of items the child array holds.
+        actual: usize,
+    },
+    /// The offsets of a list array are negative or decrease.
+    ///
+    /// The first offset may be greater than zero.
+    InvalidOffsets {
+        /// Index of the first offset that is negative or smaller than the
+        /// offset before it.
+        index: usize,
+    },
 }
 
 impl fmt::Display for ExportError {
@@ -50,11 +85,48 @@ impl fmt::Display for ExportError {
             Self::NonZeroOffset { offset } => {
                 write!(f, "array offset ({offset}) is not supported")
             }
+            Self::BufferTooShort {
+                buffer,
+                required,
+                actual,
+            } => write!(
+                f,
+                "{buffer} holds {actual} items, but the array requires {required}"
+            ),
+            Self::ChildTooShort { required, actual } => write!(
+                f,
+                "child array holds {actual} items, but the list requires {required}"
+            ),
+            Self::InvalidOffsets { index } => {
+                write!(f, "list offset at index {index} is negative or decreasing")
+            }
         }
     }
 }
 
 impl core::error::Error for ExportError {}
+
+/// Buffer of an exported array, reported by [`ExportError::BufferTooShort`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum BufferKind {
+    /// The validity bitmap.
+    Validity,
+    /// The values, or the bits of a boolean array.
+    Values,
+    /// The offsets of a list array.
+    Offsets,
+}
+
+impl fmt::Display for BufferKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match *self {
+            Self::Validity => "validity bitmap",
+            Self::Values => "values buffer",
+            Self::Offsets => "offsets buffer",
+        })
+    }
+}
 
 /// Export an [`Array`] through the Arrow C Data Interface.
 ///
@@ -65,6 +137,11 @@ impl core::error::Error for ExportError {}
 /// descendants share ownership of that storage through their `private_data`,
 /// so a consumer may move a child array out and release its parent: the
 /// storage is dropped once the last of them is released.
+///
+/// Export borrows each buffer once and checks the borrowed slice against the
+/// array, so it is sound for any [`Buffer`], including one whose collections
+/// report a length that differs from the slice they borrow as. Buffers may be
+/// longer than the array requires. Checking list offsets reads each of them.
 ///
 /// The consumer may read the exported buffers and release the array on any
 /// thread, so the array's storage must be [`Send`] and [`Sync`]. Export is only
@@ -97,7 +174,17 @@ pub trait Export {
     /// # Errors
     ///
     /// Returns [`ExportError::NonZeroOffset`] when the array has a non-zero
-    /// offset.
+    /// offset, [`ExportError::BufferTooShort`] or
+    /// [`ExportError::ChildTooShort`] when a buffer or child array holds fewer
+    /// items than the array requires, and [`ExportError::InvalidOffsets`] when
+    /// the offsets of a list array are negative or decrease.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the length of a layout cannot be computed, such as for a
+    /// fixed-size list of size zero, or for a [`Buffer`] whose offsets
+    /// collection reports no offsets, and when a length or null count exceeds
+    /// [`i64::MAX`].
     ///
     /// # Examples
     ///
@@ -114,33 +201,22 @@ pub trait Export {
 /// A layout that describes its [`ArrowArray`] fields.
 trait ArrowArrayLayout: Length + Sized {
     /// Buffer pointers exposed by the exported array.
-    type Buffers: AsRef<[*const c_void]> + AsMut<[*const c_void]> + Default + 'static;
+    type Buffers: AsRef<[BufferPointer]> + AsMut<[BufferPointer]> + 'static;
     /// Child arrays exposed by the exported array.
-    type Children: AsRef<[ArrowArray]> + AsMut<[ArrowArray]> + Default + 'static;
+    type Children: AsRef<[Exported]> + AsMut<[Exported]> + 'static;
 
     /// Builds the Arrow schema for this layout.
     fn schema() -> ArrowSchema;
 
-    /// Returns the number of null elements, or `-1` when unknown.
-    fn null_count(&self) -> i64 {
-        0
-    }
-
-    /// Returns the item offset into the buffers.
-    fn offset(&self) -> usize {
-        0
-    }
-
-    /// Returns the array's buffer pointers.
-    fn buffers(&self) -> Self::Buffers;
+    /// Returns the array's buffer pointers, each taken from a slice that
+    /// `checker` checked against the array's length and exported children.
+    fn buffers(&self, checker: &mut Checker<'_>) -> Result<Self::Buffers, ExportError>;
 
     /// Returns the array's child arrays, each sharing ownership of `root`.
     fn children<Root: Send + Sync + 'static>(
         &self,
-        _root: &Arc<Root>,
-    ) -> Result<Self::Children, ExportError> {
-        Ok(Self::Children::default())
-    }
+        root: &Arc<Root>,
+    ) -> Result<Self::Children, ExportError>;
 
     /// Returns the dictionary array pointer.
     fn dictionary(&self) -> *mut ArrowArray {
@@ -151,28 +227,11 @@ trait ArrowArrayLayout: Length + Sized {
     ///
     /// The array shares ownership of `root`, so it remains valid when a
     /// consumer moves it out of its parent and releases the parent.
-    fn array<Root: Send + Sync + 'static>(
-        &self,
-        root: &Arc<Root>,
-    ) -> Result<ArrowArray, ExportError>
+    fn array<Root: Send + Sync + 'static>(&self, root: &Arc<Root>) -> Result<Exported, ExportError>
     where
         Self: 'static,
     {
-        let offset = self.offset();
-        if offset != 0 {
-            return Err(ExportError::NonZeroOffset { offset });
-        }
-
-        let length = i64::try_from(self.len()).expect("array length exceeds i64");
-        let null_count = self.null_count();
-        let dictionary = self.dictionary();
-        let private = Box::new(ArrayData::<Arc<Root>, Self>::new(
-            Arc::clone(root),
-            self.buffers(),
-            self.children(root)?,
-        ));
-
-        Ok(private.into_array(length, null_count, dictionary))
+        checked::array(self, root)
     }
 
     /// Builds an [`ArrowArray`] and [`ArrowSchema`] from this layout.
@@ -184,7 +243,7 @@ trait ArrowArrayLayout: Length + Sized {
         // into its storage. The exported array and all its descendants retain
         // it, so it is dropped once the last of them is released.
         let root = Arc::new(self);
-        Ok((root.array(&root)?, Self::schema()))
+        Ok((root.array(&root)?.into_inner(), Self::schema()))
     }
 }
 
@@ -229,14 +288,15 @@ impl<Owner: Send + Sync + 'static, Layout: ArrowArrayLayout + 'static> ArrayData
         let children = unsafe { (*private).children.as_mut() };
         // SAFETY: As above.
         let child_pointers = unsafe { &mut (*private).child_pointers };
-        *child_pointers = children.iter_mut().map(ptr::from_mut).collect();
+        *child_pointers = children.iter_mut().map(Exported::as_mut_ptr).collect();
 
         let n_buffers = i64::try_from(buffers.len()).expect("buffer count exceeds i64");
         let n_children = i64::try_from(child_pointers.len()).expect("child count exceeds i64");
         let buffer_pointers = if buffers.is_empty() {
             ptr::null_mut()
         } else {
-            buffers.as_mut_ptr()
+            // `BufferPointer` is a transparent `*const c_void`.
+            buffers.as_mut_ptr().cast()
         };
         let children_pointer = if child_pointers.is_empty() {
             ptr::null_mut()
@@ -338,6 +398,36 @@ fn move_first_child(parent: &ArrowArray) -> ArrowArray {
     unsafe { ptr::replace(child, ArrowArray::default()) }
 }
 
+/// Reads a `list<int32>` array as a consumer that follows the Arrow C Data
+/// Interface does.
+#[cfg(test)]
+fn read_list_i32(array: &ArrowArray) -> Vec<Vec<i32>> {
+    use core::slice;
+
+    let length = usize::try_from(array.length).expect("non-negative length");
+    // SAFETY: An exported list array has two buffers.
+    let buffers = unsafe { slice::from_raw_parts(array.buffers, 2) };
+    // SAFETY: The offsets buffer holds `length + 1` offsets.
+    let offsets = unsafe { slice::from_raw_parts(buffers[1].cast::<i32>(), length.strict_add(1)) };
+    // SAFETY: An exported list array has one child.
+    let child_pointer = unsafe { *array.children };
+    // SAFETY: The child pointer refers to a live array owned by the parent.
+    let child = unsafe { &*child_pointer };
+    let child_length = usize::try_from(child.length).expect("non-negative length");
+    // SAFETY: An exported primitive array has two buffers.
+    let child_buffers = unsafe { slice::from_raw_parts(child.buffers, 2) };
+    // SAFETY: The values buffer of the child holds `child_length` values.
+    let values = unsafe { slice::from_raw_parts(child_buffers[1].cast::<i32>(), child_length) };
+    offsets
+        .windows(2)
+        .map(|pair| {
+            let start = usize::try_from(pair[0]).expect("non-negative offset");
+            let end = usize::try_from(pair[1]).expect("non-negative offset");
+            values[start..end].to_vec()
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     extern crate alloc;
@@ -345,16 +435,93 @@ mod tests {
 
     use alloc::{sync::Arc, vec::Vec};
     use core::slice;
-    use std::thread;
+    use std::{
+        panic::{AssertUnwindSafe, catch_unwind},
+        thread,
+    };
 
     use narrow::{
         array::Array,
         buffer::ArcBuffer,
-        layout::{fixed_size_primitive::FixedSizePrimitive, variable_size_list::VariableSizeList},
+        collection::{Collection, owned::IntoOwned},
+        layout::{
+            ArrayItem, fixed_size_primitive::FixedSizePrimitive,
+            variable_size_list::VariableSizeList,
+        },
         offset::Offsets,
     };
 
     use super::Export;
+
+    /// Exports `array` after an `extend` that panicked part way, which leaves
+    /// its buffers longer than the array, and returns its length and null
+    /// count.
+    fn export_after_interrupted_extend<T>(mut array: Array<Option<T>>, item: T) -> (i64, i64)
+    where
+        T: Clone,
+        Option<T>: ArrayItem,
+        Array<Option<T>>: Extend<Option<T>> + Export,
+    {
+        let interrupted = catch_unwind(AssertUnwindSafe(|| {
+            array.extend((0..4).map(|index| {
+                assert!(index < 3, "interrupt extend");
+                Some(item.clone())
+            }));
+        }));
+        assert!(interrupted.is_err());
+        let (exported, _schema) = array.export().expect("export array");
+        (exported.length, exported.null_count)
+    }
+
+    /// Extends `array` with three copies of `item` and then panics, which
+    /// leaves the buffers of nullable arrays longer than the array.
+    fn interrupt_extend<T: Clone>(array: &mut impl Extend<T>, item: &T) {
+        let interrupted = catch_unwind(AssertUnwindSafe(|| {
+            array.extend((0..4).map(|index| {
+                assert!(index < 3, "interrupt extend");
+                item.clone()
+            }));
+        }));
+        assert!(interrupted.is_err());
+    }
+
+    #[test]
+    fn exports_non_nullable_after_interrupted_extend() {
+        let mut primitive = [1].into_iter().collect::<Array<i32>>();
+        interrupt_extend(&mut primitive, &2);
+        let (primitive_array, _primitive_schema) = primitive.export().expect("export array");
+        assert_eq!(primitive_array.length, 4);
+
+        let mut list = [Vec::from([1])].into_iter().collect::<Array<Vec<i32>>>();
+        interrupt_extend(&mut list, &Vec::from([2]));
+        let expected: Vec<Vec<i32>> = list.iter_views().map(IntoOwned::into_owned).collect();
+        let (list_array, _list_schema) = list.export().expect("export array");
+        assert_eq!(super::read_list_i32(&list_array), expected);
+
+        let mut fixed_size_list = [[1, 2]].into_iter().collect::<Array<[i32; 2]>>();
+        interrupt_extend(&mut fixed_size_list, &[3, 4]);
+        let (fixed_size_list_array, _fixed_size_list_schema) =
+            fixed_size_list.export().expect("export array");
+        assert_eq!(fixed_size_list_array.length, 4);
+    }
+
+    #[test]
+    fn exports_after_interrupted_extend() {
+        let primitive = [Some(1), None].into_iter().collect();
+        assert_eq!(export_after_interrupted_extend(primitive, 2), (2, 1));
+
+        let list = [Some(Vec::from([1])), None].into_iter().collect();
+        assert_eq!(
+            export_after_interrupted_extend(list, Vec::from([2])),
+            (2, 1)
+        );
+
+        let fixed_size_list = [Some([1, 2]), None].into_iter().collect();
+        assert_eq!(
+            export_after_interrupted_extend(fixed_size_list, [3, 4]),
+            (2, 1)
+        );
+    }
 
     #[test]
     fn releases_exported_array_on_another_thread() {

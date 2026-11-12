@@ -1,6 +1,8 @@
 //! Export support for [`Boolean`].
 
-use core::{borrow::Borrow, ffi::c_void, ptr};
+extern crate alloc;
+
+use alloc::sync::Arc;
 
 use narrow::{
     bitmap::ValidityBitmap,
@@ -10,64 +12,48 @@ use narrow::{
     nullability::{NonNullable, Nullable},
 };
 
-use crate::{ArrowArray, ArrowSchema};
+use crate::ArrowSchema;
 
-use super::ArrowArrayLayout;
+use super::{ArrowArrayLayout, BufferPointer, Checker, ExportError, Exported};
 
 impl<Storage: Buffer> ArrowArrayLayout for Boolean<NonNullable, Storage> {
-    type Buffers = [*const c_void; 2];
-    type Children = [ArrowArray; 0];
+    type Buffers = [BufferPointer; 2];
+    type Children = [Exported; 0];
 
     fn schema() -> ArrowSchema {
         ArrowSchema::flat::<bool>()
     }
 
-    fn offset(&self) -> usize {
-        self.buffer_ref().bit_offset()
+    fn children<Root: Send + Sync + 'static>(
+        &self,
+        _root: &Arc<Root>,
+    ) -> Result<Self::Children, ExportError> {
+        Ok([])
     }
 
-    fn buffers(&self) -> Self::Buffers {
-        let values: &[u8] = self.buffer_ref().buffer_ref().borrow();
-        [ptr::null(), values.as_ptr().cast()]
+    fn buffers(&self, checker: &mut Checker<'_>) -> Result<Self::Buffers, ExportError> {
+        Ok([checker.all_valid(), checker.bits(self.buffer_ref())?])
     }
 }
 
 impl<Storage: Buffer> ArrowArrayLayout for Boolean<Nullable, Storage> {
-    type Buffers = [*const c_void; 2];
-    type Children = [ArrowArray; 0];
+    type Buffers = [BufferPointer; 2];
+    type Children = [Exported; 0];
 
     fn schema() -> ArrowSchema {
         ArrowSchema::flat::<Option<bool>>()
     }
 
-    fn null_count(&self) -> i64 {
-        i64::try_from(ValidityBitmap::null_count(self.buffer_ref()))
-            .expect("null count exceeds i64")
+    fn children<Root: Send + Sync + 'static>(
+        &self,
+        _root: &Arc<Root>,
+    ) -> Result<Self::Children, ExportError> {
+        Ok([])
     }
 
-    fn offset(&self) -> usize {
-        let validity = self.buffer_ref();
-        // Surface either bitmap offset so the exporter rejects unsupported offsets.
-        let validity_offset = validity
-            .bitmap_ref()
-            .map_or(0, narrow::bitmap::Bitmap::bit_offset);
-        if validity_offset != 0 {
-            return validity_offset;
-        }
-        validity.child_ref().bit_offset()
-    }
-
-    fn buffers(&self) -> Self::Buffers {
-        let validity = self.buffer_ref();
-        let validity_values = validity.bitmap_ref().map(|bitmap| {
-            let values: &[u8] = bitmap.buffer_ref().borrow();
-            values.as_ptr().cast()
-        });
-        let values: &[u8] = validity.child_ref().buffer_ref().borrow();
-        [
-            validity_values.unwrap_or(ptr::null()),
-            values.as_ptr().cast(),
-        ]
+    fn buffers(&self, checker: &mut Checker<'_>) -> Result<Self::Buffers, ExportError> {
+        let validity = checker.validity(self.buffer_ref().bitmap_ref())?;
+        Ok([validity, checker.bits(self.buffer_ref().child_ref())?])
     }
 }
 

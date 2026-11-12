@@ -3,7 +3,7 @@
 extern crate alloc;
 
 use alloc::{boxed::Box, ffi::CString, format, sync::Arc};
-use core::{borrow::Borrow, ffi::c_void, ptr};
+use core::ptr;
 
 use narrow::{
     bitmap::ValidityBitmap,
@@ -13,9 +13,9 @@ use narrow::{
     nullability::{NonNullable, Nullability, Nullable},
 };
 
-use crate::{ARROW_FLAG_NULLABLE, ArrowArray, ArrowSchema};
+use crate::{ARROW_FLAG_NULLABLE, ArrowSchema};
 
-use super::{ArrowArrayLayout, ExportError, release_schema};
+use super::{ArrowArrayLayout, BufferPointer, Checker, ExportError, Exported, release_schema};
 
 impl<T, const N: usize, Storage> ArrowArrayLayout for FixedSizeList<T, N, NonNullable, Storage>
 where
@@ -23,15 +23,16 @@ where
     Storage: Buffer,
     T::Memory<Storage>: ArrowArrayLayout + 'static,
 {
-    type Buffers = [*const c_void; 1];
-    type Children = [ArrowArray; 1];
+    type Buffers = [BufferPointer; 1];
+    type Children = [Exported; 1];
 
     fn schema() -> ArrowSchema {
         ArrowSchema::fixed_size_list::<N, NonNullable>(<T::Memory<Storage>>::schema())
     }
 
-    fn buffers(&self) -> Self::Buffers {
-        [ptr::null()]
+    fn buffers(&self, checker: &mut Checker<'_>) -> Result<Self::Buffers, ExportError> {
+        checker.fixed_size_child::<N>()?;
+        Ok([checker.all_valid()])
     }
 
     fn children<Root: Send + Sync + 'static>(
@@ -48,30 +49,16 @@ where
     Storage: Buffer,
     T::Memory<Storage>: ArrowArrayLayout + 'static,
 {
-    type Buffers = [*const c_void; 1];
-    type Children = [ArrowArray; 1];
+    type Buffers = [BufferPointer; 1];
+    type Children = [Exported; 1];
 
     fn schema() -> ArrowSchema {
         ArrowSchema::fixed_size_list::<N, Nullable>(<T::Memory<Storage>>::schema())
     }
 
-    fn null_count(&self) -> i64 {
-        i64::try_from(ValidityBitmap::null_count(self.buffer_ref()))
-            .expect("null count exceeds i64")
-    }
-
-    fn offset(&self) -> usize {
-        self.buffer_ref()
-            .bitmap_ref()
-            .map_or(0, narrow::bitmap::Bitmap::bit_offset)
-    }
-
-    fn buffers(&self) -> Self::Buffers {
-        let validity = self.buffer_ref().bitmap_ref().map(|bitmap| {
-            let values: &[u8] = bitmap.buffer_ref().borrow();
-            values.as_ptr().cast()
-        });
-        [validity.unwrap_or(ptr::null())]
+    fn buffers(&self, checker: &mut Checker<'_>) -> Result<Self::Buffers, ExportError> {
+        checker.fixed_size_child::<N>()?;
+        Ok([checker.validity(self.buffer_ref().bitmap_ref())?])
     }
 
     fn children<Root: Send + Sync + 'static>(
