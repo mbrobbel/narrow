@@ -7,7 +7,7 @@ use core::ptr;
 
 use narrow::{
     bitmap::ValidityBitmap,
-    buffer::{Buffer, BufferRef},
+    buffer::BufferRef,
     collection::ChildRef,
     layout::{ArrayItem, variable_size_list::VariableSizeList},
     nullability::{NonNullable, Nullability, Nullable},
@@ -15,14 +15,16 @@ use narrow::{
 
 use crate::{ARROW_FLAG_NULLABLE, ArrowListOffset, ArrowSchema};
 
-use super::{ArrowArrayLayout, BufferPointer, Checker, ExportError, Exported, release_schema};
+use super::{
+    ArrowArrayLayout, BufferPointer, Checker, ExportBuffer, ExportError, Exported, release_schema,
+};
 
 impl<T, OffsetItem, Storage> ArrowArrayLayout
     for VariableSizeList<T, NonNullable, OffsetItem, Storage>
 where
     T: ArrayItem,
     OffsetItem: ArrowListOffset,
-    Storage: Buffer,
+    Storage: ExportBuffer,
     T::Memory<Storage>: ArrowArrayLayout + 'static,
 {
     type Buffers = [BufferPointer; 2];
@@ -35,7 +37,7 @@ where
     fn buffers(&self, checker: &mut Checker<'_>) -> Result<Self::Buffers, ExportError> {
         Ok([
             checker.all_valid(),
-            checker.offsets(self.buffer_ref().buffer_ref())?,
+            checker.offsets::<Storage, _>(self.buffer_ref().buffer_ref())?,
         ])
     }
 
@@ -51,7 +53,7 @@ impl<T, OffsetItem, Storage> ArrowArrayLayout for VariableSizeList<T, Nullable, 
 where
     T: ArrayItem,
     OffsetItem: ArrowListOffset,
-    Storage: Buffer,
+    Storage: ExportBuffer,
     T::Memory<Storage>: ArrowArrayLayout + 'static,
 {
     type Buffers = [BufferPointer; 2];
@@ -65,7 +67,7 @@ where
         let validity = checker.validity(self.buffer_ref().bitmap_ref())?;
         Ok([
             validity,
-            checker.offsets(self.buffer_ref().child_ref().buffer_ref())?,
+            checker.offsets::<Storage, _>(self.buffer_ref().child_ref().buffer_ref())?,
         ])
     }
 

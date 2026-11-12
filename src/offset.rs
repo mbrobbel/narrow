@@ -114,6 +114,13 @@ impl Offset for i64 {
 /// `U` controls the owned item reconstructed from a range; it does not change
 /// these physical buffers.
 ///
+/// Every constructor validates the offsets, and changes only append running
+/// sums of the data's length or truncate. As long as the data reports its
+/// length faithfully, as narrow's layouts do, safe code therefore cannot make
+/// the offsets decrease or exceed the data. `narrow-ffi` relies on this to
+/// export offsets of the storages in [`buffer`](crate::buffer) without
+/// scanning them.
+///
 /// # Examples
 ///
 /// ```

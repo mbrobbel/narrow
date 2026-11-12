@@ -33,7 +33,7 @@ use narrow::{
     validity::Validity,
 };
 
-use super::{ArrowArrayLayout, BufferKind, Export, ExportError, read_list_i32};
+use super::{ArrowArrayLayout, BufferKind, Export, ExportBuffer, ExportError, read_list_i32};
 
 /// Storage whose collections lend `swapped` instead of `items`, and may
 /// report a different length, once their [`State`] is armed.
@@ -43,6 +43,8 @@ struct Swapping;
 impl Buffer for Swapping {
     type For<T: FixedSize> = Swap<T>;
 }
+
+impl ExportBuffer for Swapping {}
 
 /// State shared by the collections of an array.
 #[derive(Default)]
