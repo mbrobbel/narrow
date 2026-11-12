@@ -29,7 +29,10 @@ use narrow::buffer::{ArcBuffer, ArrayBuffer, BoxBuffer, Buffer, RcBuffer, SliceB
 ///     const TRUSTED: Option<Trusted<Self>> = VecBuffer::TRUSTED;
 /// }
 /// ```
-pub struct Trusted<Storage: ?Sized>(PhantomData<fn() -> Storage>);
+pub struct Trusted<Storage: ?Sized>(
+    /// Ties the token to `Storage` without owning one.
+    PhantomData<fn() -> Storage>,
+);
 
 impl<Storage: ?Sized> Trusted<Storage> {
     /// Creates a token for `Storage`.
