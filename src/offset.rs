@@ -114,6 +114,19 @@ impl Offset for i64 {
 /// `U` controls the owned item reconstructed from a range; it does not change
 /// these physical buffers.
 ///
+/// # Guarantees
+///
+/// When `Storage` is one of narrow's storages ([`VecBuffer`],
+/// [`BoxBuffer`](crate::buffer::BoxBuffer), [`RcBuffer`](crate::buffer::RcBuffer),
+/// [`ArcBuffer`](crate::buffer::ArcBuffer),
+/// [`ArrayBuffer`](crate::buffer::ArrayBuffer) or
+/// [`SliceBuffer`](crate::buffer::SliceBuffer)), the offsets buffer holds at
+/// least one offset, starts at zero, and each offset is at least the one before
+/// it. This holds after every safe operation, including one that panics or
+/// returns an error, whatever length the data `T` reports. Unsafe code may rely
+/// on it, and weakening it is a breaking change. That the last offset is within
+/// the data depends on `T` reporting its length correctly.
+///
 /// # Examples
 ///
 /// ```
@@ -457,6 +470,10 @@ impl<
 where
     Storage::For<OffsetItem>: CollectionRealloc<Owned = OffsetItem>,
 {
+    /// # Panics
+    ///
+    /// Panics when an offset does not fit `OffsetItem`, or when the data
+    /// reports a length below the last offset after appending to it.
     fn extend<I: IntoIterator<Item = U>>(&mut self, iter: I) {
         let position = self
             .offsets
@@ -469,12 +486,15 @@ where
         // so appended items are addressed correctly.
         self.data.truncate(position.as_usize());
 
+        let mut previous = position;
         iter.into_iter().for_each(|collection| {
             self.data.reserve(collection.len());
             self.data.extend(collection.into_iter_owned());
             // Derive the offset from the data appended, not from the item's
             // reported length.
             let next_position = OffsetItem::try_from(self.data.len()).expect("overflow");
+            assert!(next_position >= previous, "data length decreased");
+            previous = next_position;
             self.offsets.extend(iter::once(next_position));
         });
     }
@@ -574,18 +594,22 @@ where
         self.offsets.try_reserve(additional)
     }
 
+    /// # Panics
+    ///
+    /// Panics when the data reports a length below the last offset after
+    /// appending to it.
     fn try_extend<I: IntoIterator<Item = Self::Owned>>(
         &mut self,
         iter: I,
     ) -> Result<(), AllocError> {
         let rows = self.len();
-        let data_len = self
+        let mut previous = self
             .offsets
             .borrow()
             .last()
             .copied()
-            .expect("at least one value in the offsets buffer")
-            .as_usize();
+            .expect("at least one value in the offsets buffer");
+        let data_len = previous.as_usize();
         self.data.truncate(data_len);
 
         for collection in iter {
@@ -593,7 +617,11 @@ where
                 .data
                 .try_extend(collection.into_iter_owned())
                 .and_then(|()| OffsetItem::try_from(self.data.len()).map_err(|_| AllocError))
-                .and_then(|next_position| self.offsets.try_extend(iter::once(next_position)));
+                .and_then(|next_position| {
+                    assert!(next_position >= previous, "data length decreased");
+                    previous = next_position;
+                    self.offsets.try_extend(iter::once(next_position))
+                });
             if let Err(error) = appended {
                 self.offsets.truncate(rows.strict_add(1));
                 self.data.truncate(data_len);
@@ -1277,6 +1305,177 @@ mod tests {
             .try_extend(lists())
             .expect("no allocation failure");
         check(try_extended);
+    }
+
+    /// Data that reports half the values it holds as its length when
+    /// `HALVE` is set, so its length can decrease while values are appended,
+    /// and whose `try_extend` fails once it holds more than `LIMIT` values.
+    #[derive(Debug, Default)]
+    struct Misbehaving<const HALVE: bool, const LIMIT: usize>(Vec<i32>);
+
+    /// Data whose length decreases when it is truncated and appended to.
+    type HalfLen = Misbehaving<true, { usize::MAX }>;
+
+    impl<const HALVE: bool, const LIMIT: usize> Length for Misbehaving<HALVE, LIMIT> {
+        fn len(&self) -> usize {
+            if HALVE {
+                self.0.len() / 2
+            } else {
+                self.0.len()
+            }
+        }
+    }
+
+    impl<const HALVE: bool, const LIMIT: usize> Collection for Misbehaving<HALVE, LIMIT> {
+        type View<'collection> = i32;
+        type Owned = i32;
+
+        fn view(&self, index: usize) -> Option<Self::View<'_>> {
+            self.0.get(index).copied()
+        }
+
+        type Iter<'collection> = iter::Copied<slice::Iter<'collection, i32>>;
+
+        fn iter_views(&self) -> Self::Iter<'_> {
+            self.0.iter().copied()
+        }
+
+        type IntoIter = alloc::vec::IntoIter<i32>;
+
+        fn into_iter_owned(self) -> Self::IntoIter {
+            self.0.into_iter()
+        }
+    }
+
+    impl<const HALVE: bool, const LIMIT: usize> Extend<i32> for Misbehaving<HALVE, LIMIT> {
+        fn extend<I: IntoIterator<Item = i32>>(&mut self, iter: I) {
+            self.0.extend(iter);
+        }
+    }
+
+    impl<const HALVE: bool, const LIMIT: usize> CollectionAllocIn for Misbehaving<HALVE, LIMIT> {
+        type Alloc = ();
+
+        fn with_capacity_in(capacity: usize, (): Self::Alloc) -> Self {
+            Self(Vec::with_capacity(capacity))
+        }
+
+        fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, (): Self::Alloc) -> Self {
+            Self(iter.into_iter().collect())
+        }
+
+        fn try_with_capacity_in(capacity: usize, (): Self::Alloc) -> Result<Self, AllocError> {
+            Ok(Self::with_capacity_in(capacity, ()))
+        }
+
+        fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
+            iter: I,
+            (): Self::Alloc,
+        ) -> Result<Self, AllocError> {
+            Ok(Self::from_iter_in(iter, ()))
+        }
+    }
+
+    impl<const HALVE: bool, const LIMIT: usize> CollectionRealloc for Misbehaving<HALVE, LIMIT> {
+        fn allocator(&self) -> Self::Alloc {}
+
+        fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+            self.0.try_reserve(additional).map_err(|_| AllocError)
+        }
+
+        fn try_extend<I: IntoIterator<Item = Self::Owned>>(
+            &mut self,
+            iter: I,
+        ) -> Result<(), AllocError> {
+            self.0.extend(iter);
+            if self.0.len() > LIMIT {
+                Err(AllocError)
+            } else {
+                Ok(())
+            }
+        }
+
+        fn reserve(&mut self, additional: usize) {
+            self.0.reserve(additional);
+        }
+
+        fn truncate(&mut self, len: usize) {
+            self.0.truncate(len);
+        }
+    }
+
+    #[test]
+    fn appending_panics_when_data_length_decreases() {
+        extern crate std;
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        for fallible in [false, true] {
+            // The offsets end at 2 while the data holds 4 values, so
+            // appending truncates the data to 2 values, which report a
+            // length of 1.
+            let mut offsets = Offsets::<HalfLen>::default();
+            offsets.extend([vec![1, 2, 3, 4]]);
+            assert_eq!(offsets.offsets, [0, 2]);
+
+            let panic = catch_unwind(AssertUnwindSafe(|| {
+                if fallible {
+                    let _result = offsets.try_extend([vec![]]);
+                } else {
+                    offsets.extend([vec![]]);
+                }
+            }))
+            .expect_err("appending panics");
+            assert_eq!(panic.downcast_ref::<&str>(), Some(&"data length decreased"));
+            assert_eq!(offsets.offsets, [0, 2]);
+        }
+    }
+
+    #[test]
+    fn try_extend_rolls_back_on_failure() {
+        let mut offsets = Offsets::<Misbehaving<false, 3>>::default();
+        offsets.extend([vec![1]]);
+        assert_eq!(offsets.try_extend([vec![2], vec![3, 4]]), Err(AllocError));
+        assert_eq!(offsets.offsets, [0, 1]);
+        assert_eq!(offsets.data.0, [1]);
+    }
+
+    #[test]
+    fn offsets_stay_sorted() {
+        extern crate std;
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        let mut offsets = Offsets::<Vec<i32>>::default();
+        let mut state = 0x2545_f491_u32;
+        for step in 0..if cfg!(miri) { 12 } else { 200 } {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            let count = usize::try_from((state >> 8) % 5).expect("small count");
+            let list = |index: usize| vec![1; index];
+            match state % 4 {
+                0 => offsets.extend((0..count).map(list)),
+                1 => offsets
+                    .try_extend((0..count).map(list))
+                    .expect("no allocation failure"),
+                2 => offsets.truncate(offsets.len().saturating_sub(count)),
+                _ => {
+                    let lists = (0..=count).map(|index| {
+                        assert!(index < count, "interrupt extend");
+                        list(index)
+                    });
+                    let interrupted = catch_unwind(AssertUnwindSafe(|| {
+                        if step % 2 == 0 {
+                            offsets.extend(lists);
+                        } else {
+                            offsets.try_extend(lists).expect("no allocation failure");
+                        }
+                    }));
+                    assert!(interrupted.is_err(), "step {step} was not interrupted");
+                }
+            }
+            assert_eq!(offsets.offsets.first(), Some(&0), "step {step}");
+            assert!(offsets.offsets.is_sorted(), "step {step}");
+        }
     }
 
     #[test]
