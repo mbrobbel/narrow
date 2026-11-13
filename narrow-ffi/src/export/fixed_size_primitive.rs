@@ -1,6 +1,8 @@
 //! Export support for [`FixedSizePrimitive`].
 
-use core::{borrow::Borrow, ffi::c_void, ptr};
+extern crate alloc;
+
+use alloc::sync::Arc;
 
 use narrow::{
     bitmap::ValidityBitmap,
@@ -11,25 +13,31 @@ use narrow::{
     nullability::{NonNullable, Nullable},
 };
 
-use crate::{ArrowArray, ArrowSchema, ArrowType};
+use crate::{ArrowSchema, ArrowType};
 
-use super::ArrowArrayLayout;
+use super::{ArrowArrayLayout, BufferPointer, Checker, ExportError, Exported};
 
 impl<T, Storage> ArrowArrayLayout for FixedSizePrimitive<T, NonNullable, Storage>
 where
     T: FixedSize + ArrowType,
     Storage: Buffer,
 {
-    type Buffers = [*const c_void; 2];
-    type Children = [ArrowArray; 0];
+    type Buffers = [BufferPointer; 2];
+    type Children = [Exported; 0];
 
     fn schema() -> ArrowSchema {
         ArrowSchema::flat::<T>()
     }
 
-    fn buffers(&self) -> Self::Buffers {
-        let values: &[T] = self.buffer_ref().borrow();
-        [ptr::null(), values.as_ptr().cast()]
+    fn children<Root: Send + Sync + 'static>(
+        &self,
+        _root: &Arc<Root>,
+    ) -> Result<Self::Children, ExportError> {
+        Ok([])
+    }
+
+    fn buffers(&self, checker: &mut Checker<'_>) -> Result<Self::Buffers, ExportError> {
+        Ok([checker.all_valid(), checker.values(self.buffer_ref())?])
     }
 }
 
@@ -38,35 +46,23 @@ where
     T: FixedSize + ArrowType,
     Storage: Buffer,
 {
-    type Buffers = [*const c_void; 2];
-    type Children = [ArrowArray; 0];
+    type Buffers = [BufferPointer; 2];
+    type Children = [Exported; 0];
 
     fn schema() -> ArrowSchema {
         ArrowSchema::flat::<Option<T>>()
     }
 
-    fn null_count(&self) -> i64 {
-        i64::try_from(ValidityBitmap::null_count(self.buffer_ref()))
-            .expect("null count exceeds i64")
+    fn children<Root: Send + Sync + 'static>(
+        &self,
+        _root: &Arc<Root>,
+    ) -> Result<Self::Children, ExportError> {
+        Ok([])
     }
 
-    fn offset(&self) -> usize {
-        self.buffer_ref()
-            .bitmap_ref()
-            .map_or(0, narrow::bitmap::Bitmap::bit_offset)
-    }
-
-    fn buffers(&self) -> Self::Buffers {
-        let validity = self.buffer_ref();
-        let validity_values = validity.bitmap_ref().map(|bitmap| {
-            let values: &[u8] = bitmap.buffer_ref().borrow();
-            values.as_ptr().cast()
-        });
-        let values: &[T] = validity.child_ref().borrow();
-        [
-            validity_values.unwrap_or(ptr::null()),
-            values.as_ptr().cast(),
-        ]
+    fn buffers(&self, checker: &mut Checker<'_>) -> Result<Self::Buffers, ExportError> {
+        let validity = checker.validity(self.buffer_ref().bitmap_ref())?;
+        Ok([validity, checker.values(self.buffer_ref().child_ref())?])
     }
 }
 

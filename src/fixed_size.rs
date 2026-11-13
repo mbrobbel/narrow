@@ -8,6 +8,10 @@ use core::{mem, ops::Deref};
 /// contiguous, fixed-width value buffers. Sealing prevents unsupported
 /// representations from entering layouts that rely on this guarantee.
 ///
+/// None of these types have interior mutability, so memory borrowed as a
+/// slice of them cannot change while it is borrowed. `narrow-ffi` relies on
+/// this to export buffers of any [`Buffer`](crate::buffer::Buffer) soundly.
+///
 /// # Examples
 ///
 /// ```
@@ -86,6 +90,8 @@ impl<T: FixedSize, const N: usize> Deref for FixedSizeArray<T, N> {
 impl<T: FixedSize, const N: usize> FixedSize for FixedSizeArray<T, N> {}
 
 mod sealed {
+    /// Implemented only for types without interior mutability: `narrow-ffi`
+    /// export is unsound for a [`FixedSize`](super::FixedSize) type with it.
     pub trait Sealed {}
 
     impl Sealed for u8 {}
