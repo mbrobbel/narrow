@@ -43,6 +43,10 @@ impl<Storage: ?Sized> Trusted<Storage> {
     /// the items narrow read when it built, validated or last changed the
     /// collection, for as long as the collection is not accessed through
     /// `&mut`.
+    ///
+    /// Export then skips checking that list offsets do not decrease, so
+    /// narrow's [`Offsets`](narrow::offset::Offsets) must also keep the
+    /// offsets in `Storage` sorted through every safe operation it provides.
     const unsafe fn new() -> Self {
         Self(PhantomData)
     }
