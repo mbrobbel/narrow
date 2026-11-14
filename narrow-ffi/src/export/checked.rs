@@ -23,11 +23,9 @@
 //! the root to [`array`], and to export each buffer of the Arrow layout.
 //!
 //! Offsets of storage with a [`Trusted`](super::Trusted) token are not scanned
-//! for decreases. That relies on narrow's offsets staying sorted, which holds
-//! because the data of an exported list is always one of narrow's layouts:
-//! [`ArrayItem`](narrow::layout::ArrayItem) memory must own the item type, and
-//! downstream crates cannot implement it for the item types of exportable
-//! layouts.
+//! for decreases. That relies on the
+//! [guarantee](narrow::offset::Offsets#guarantees) that narrow's offsets stay
+//! sorted for its own storages.
 
 extern crate alloc;
 
@@ -145,7 +143,8 @@ impl Checker<'_> {
     /// and end within the only child.
     ///
     /// Offsets of [`Trusted`](super::Trusted) storage are not scanned for
-    /// decreases: narrow validates them and only appends to them.
+    /// decreases, as [`Offsets`](narrow::offset::Offsets#guarantees) keeps
+    /// them sorted.
     ///
     /// # Errors
     ///

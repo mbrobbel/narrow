@@ -45,8 +45,9 @@ impl<Storage: ?Sized> Trusted<Storage> {
     /// `&mut`.
     ///
     /// Export then skips checking that list offsets do not decrease, so
-    /// narrow's [`Offsets`](narrow::offset::Offsets) must also keep the
-    /// offsets in `Storage` sorted through every safe operation it provides.
+    /// `Storage` must also be covered by the
+    /// [guarantee](narrow::offset::Offsets#guarantees) that narrow keeps its
+    /// offsets sorted.
     const unsafe fn new() -> Self {
         Self(PhantomData)
     }
