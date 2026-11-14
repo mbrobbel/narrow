@@ -19,6 +19,8 @@ use std::{
 
 use narrow::{buffer::Buffer, collection::Collection, fixed_size::FixedSize, length::Length};
 
+use super::ExportBuffer;
+
 /// Safe [`Buffer`] whose collections are [`Swap`]s.
 #[derive(Default)]
 struct Swapping;
@@ -26,6 +28,8 @@ struct Swapping;
 impl Buffer for Swapping {
     type For<T: FixedSize> = Swap<T>;
 }
+
+impl ExportBuffer for Swapping {}
 
 /// State shared by the [`Swap`] collections of an array, which arms them all
 /// at once and counts their borrows.

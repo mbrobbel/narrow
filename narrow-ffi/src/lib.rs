@@ -74,7 +74,7 @@ pub use arrow_type::ArrowType;
 #[cfg(target_has_atomic = "ptr")]
 mod export;
 #[cfg(target_has_atomic = "ptr")]
-pub use export::{BufferKind, Export, ExportError};
+pub use export::{BufferKind, Export, ExportBuffer, ExportError, Trusted};
 mod import;
 pub use import::{Import, ImportError, Importer};
 

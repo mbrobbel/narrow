@@ -5,11 +5,12 @@ extern crate alloc;
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use core::{fmt, ptr};
 
-use narrow::{array::Array, buffer::Buffer, layout::ArrayItem, length::Length};
+use narrow::{array::Array, layout::ArrayItem, length::Length};
 
 use crate::{ArrowArray, ArrowSchema, ArrowType};
 
 use self::checked::{BufferPointer, Checker, Exported};
+pub use self::trusted::{ExportBuffer, Trusted};
 
 /// Export support for [`narrow::layout::boolean::Boolean`].
 mod boolean;
@@ -19,6 +20,8 @@ mod checked;
 mod fixed_size_list;
 /// Export support for [`narrow::layout::fixed_size_primitive::FixedSizePrimitive`].
 mod fixed_size_primitive;
+/// Storage that export may trust to skip checks that read every item.
+mod trusted;
 #[cfg(test)]
 mod untrusted_buffer;
 /// Export support for [`narrow::layout::variable_size_list::VariableSizeList`].
@@ -28,8 +31,8 @@ mod variable_size_list;
 ///
 /// Export rejects representation details it cannot preserve faithfully instead
 /// of silently changing their meaning, and checks every exported buffer
-/// against the array, because a safe [`Buffer`] implementation may borrow as
-/// a different slice than the one narrow validated. The enum is
+/// against the array, because a safe [`ExportBuffer`] implementation may
+/// borrow as a different slice than the one narrow validated. The enum is
 /// non-exhaustive so further unsupported Arrow conditions can be reported
 /// explicitly.
 ///
@@ -139,9 +142,11 @@ impl fmt::Display for BufferKind {
 /// storage is dropped once the last of them is released.
 ///
 /// Export borrows each buffer once and checks the borrowed slice against the
-/// array, so it is sound for any [`Buffer`], including one whose collections
-/// report a length that differs from the slice they borrow as. Buffers may be
-/// longer than the array requires. Checking list offsets reads each of them.
+/// array, so it is sound for any [`ExportBuffer`], including one whose
+/// collections report a length that differs from the slice they borrow as. Buffers may be
+/// longer than the array requires. Checking that list offsets do not decrease
+/// reads each of them, unless the storage carries a [`Trusted`] token; see
+/// [`ExportBuffer`].
 ///
 /// The consumer may read the exported buffers and release the array on any
 /// thread, so the array's storage must be [`Send`] and [`Sync`]. Export is only
@@ -182,7 +187,7 @@ pub trait Export {
     /// # Panics
     ///
     /// Panics when the length of a layout cannot be computed, such as for a
-    /// fixed-size list of size zero, or for a [`Buffer`] whose offsets
+    /// fixed-size list of size zero, or for an [`ExportBuffer`] whose offsets
     /// collection reports no offsets, and when a length or null count exceeds
     /// [`i64::MAX`].
     ///
@@ -322,7 +327,7 @@ impl<Owner: Send + Sync + 'static, Layout: ArrowArrayLayout + 'static> ArrayData
 impl<T, Storage> Export for Array<T, Storage>
 where
     T: ArrayItem,
-    Storage: Buffer,
+    Storage: ExportBuffer,
     T::Memory<Storage>: ArrowArrayLayout + Send + Sync + 'static,
 {
     fn export(self) -> Result<(ArrowArray, ArrowSchema), ExportError> {

@@ -2,7 +2,8 @@
 //!
 //! # Soundness
 //!
-//! Export accepts any safe [`Buffer`], whose collections may report a length
+//! Export accepts any safe [`Buffer`] that implements
+//! [`ExportBuffer`](super::ExportBuffer), whose collections may report a length
 //! that differs from the slice they borrow as, or borrow as a different slice
 //! on every call. Export stays sound because:
 //!
@@ -20,6 +21,11 @@
 //!
 //! The export module trusts its layouts to pass only layouts that are part of
 //! the root to [`array`], and to export each buffer of the Arrow layout.
+//!
+//! Offsets of storage with a [`Trusted`](super::Trusted) token are not scanned
+//! for decreases. That relies on the
+//! [guarantee](narrow::offset::Offsets#guarantees) that narrow's offsets stay
+//! sorted for its own storages.
 
 extern crate alloc;
 
@@ -34,7 +40,7 @@ use narrow::{
 
 use crate::{ArrowArray, ArrowListOffset};
 
-use super::{ArrayData, ArrowArrayLayout, BufferKind, ExportError};
+use super::{ArrayData, ArrowArrayLayout, BufferKind, ExportBuffer, ExportError};
 
 /// Pointer to a buffer whose slice holds the items the exported array
 /// requires.
@@ -136,14 +142,18 @@ impl Checker<'_> {
     /// the first `length + 1` offsets start at zero or more, do not decrease
     /// and end within the only child.
     ///
+    /// Offsets of [`Trusted`](super::Trusted) storage are not scanned for
+    /// decreases, as [`Offsets`](narrow::offset::Offsets#guarantees) keeps
+    /// them sorted.
+    ///
     /// # Errors
     ///
     /// Returns [`ExportError::BufferTooShort`] when there are too few offsets,
     /// [`ExportError::InvalidOffsets`] when they are negative or decrease, and
     /// [`ExportError::ChildTooShort`] when the last offset exceeds the child.
-    pub(super) fn offsets<OffsetItem: ArrowListOffset>(
+    pub(super) fn offsets<Storage: ExportBuffer, OffsetItem: ArrowListOffset>(
         &self,
-        buffer: &impl Borrow<[OffsetItem]>,
+        buffer: &Storage::For<OffsetItem>,
     ) -> Result<BufferPointer, ExportError> {
         let all: &[OffsetItem] = buffer.borrow();
         let required = self.length.saturating_add(1);
@@ -153,7 +163,9 @@ impl Checker<'_> {
         if first < 0 {
             return Err(ExportError::InvalidOffsets { index: 0 });
         }
-        if !offsets.is_sorted() {
+        if Storage::TRUSTED.is_some() {
+            debug_assert!(offsets.is_sorted(), "trusted storage has sorted offsets");
+        } else if !offsets.is_sorted() {
             let index = offsets
                 .windows(2)
                 .position(|pair| pair[0] > pair[1])
