@@ -1,14 +1,14 @@
 extern crate alloc;
 
 use crate::collection::slice::SliceViews;
-use alloc::vec::{self, Vec};
-use core::alloc::{AllocError, Layout};
+use alloc::vec::Vec;
+use core::alloc::{AllocError, Allocator, Layout};
 
 use crate::collection::{
     Collection, CollectionAllocIn, CollectionRealloc, TryReserveError, view::AsView,
 };
 
-impl<T: for<'any> AsView<'any>> Collection for Vec<T> {
+impl<T: for<'any> AsView<'any>, A: Allocator> Collection for Vec<T, A> {
     type View<'collection>
         = <T as AsView<'collection>>::View
     where
@@ -29,41 +29,41 @@ impl<T: for<'any> AsView<'any>> Collection for Vec<T> {
         SliceViews::new(self)
     }
 
-    type IntoIter = vec::IntoIter<T>;
+    type IntoIter = <Self as IntoIterator>::IntoIter;
 
     fn into_iter_owned(self) -> Self::IntoIter {
         <Self as IntoIterator>::into_iter(self)
     }
 }
 
-// The analogous fallible and allocator-aware `Vec` constructors are nightly-only:
-// https://doc.rust-lang.org/stable/std/vec/struct.Vec.html#method.try_with_capacity
-// https://doc.rust-lang.org/stable/std/vec/struct.Vec.html#method.with_capacity_in
-// This stable implementation represents the global allocator as `()`.
-impl<T: for<'any> AsView<'any>> CollectionAllocIn for Vec<T> {
-    type Alloc = ();
+impl<T: for<'any> AsView<'any>, A: Allocator + Clone> CollectionAllocIn for Vec<T, A> {
+    type Alloc = A;
 
-    fn with_capacity_in(capacity: usize, (): Self::Alloc) -> Self {
-        Vec::with_capacity(capacity)
+    fn with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Self {
+        Vec::with_capacity_in(capacity, alloc)
     }
 
-    fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, (): Self::Alloc) -> Self {
-        iter.into_iter().collect()
+    fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self {
+        let items = iter.into_iter();
+        let (capacity, _) = items.size_hint();
+        let mut collection = Vec::with_capacity_in(capacity, alloc);
+        collection.extend(items);
+        collection
     }
 
-    fn try_with_capacity_in(capacity: usize, (): Self::Alloc) -> Result<Self, TryReserveError> {
-        let mut collection = Vec::new();
+    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, TryReserveError> {
+        let mut collection = Vec::new_in(alloc);
         try_reserve_exact(&mut collection, capacity)?;
         Ok(collection)
     }
 
     fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
         iter: I,
-        (): Self::Alloc,
+        alloc: Self::Alloc,
     ) -> Result<Self, TryReserveError> {
         let mut items = iter.into_iter();
         let (capacity, _) = items.size_hint();
-        let mut collection = <Self as CollectionAllocIn>::try_with_capacity_in(capacity, ())?;
+        let mut collection = <Self as CollectionAllocIn>::try_with_capacity_in(capacity, alloc)?;
         for item in items.by_ref() {
             try_reserve(&mut collection, 1)?;
             collection.push(item);
@@ -79,8 +79,8 @@ impl<T: for<'any> AsView<'any>> CollectionAllocIn for Vec<T> {
 /// Returns [`TryReserveError::CapacityOverflow`] when the capacity would
 /// exceed `usize::MAX` items or `isize::MAX` bytes, and
 /// [`TryReserveError::AllocError`] when the allocator fails.
-pub(crate) fn try_reserve<T>(
-    values: &mut Vec<T>,
+pub(crate) fn try_reserve<T, A: Allocator>(
+    values: &mut Vec<T, A>,
     additional: usize,
 ) -> Result<(), TryReserveError> {
     // Amortized growth can ask for more than is representable even when
@@ -95,8 +95,8 @@ pub(crate) fn try_reserve<T>(
 /// # Errors
 ///
 /// As for [`try_reserve`].
-pub(crate) fn try_reserve_exact<T>(
-    values: &mut Vec<T>,
+pub(crate) fn try_reserve_exact<T, A: Allocator>(
+    values: &mut Vec<T, A>,
     additional: usize,
 ) -> Result<(), TryReserveError> {
     values
@@ -105,7 +105,7 @@ pub(crate) fn try_reserve_exact<T>(
 }
 
 /// Classifies a failure to reserve exactly `additional` items beyond `len`
-/// in a `Vec<T>`, as std does not expose the kind of its error on stable.
+/// in a `Vec<T, A>`, as std does not expose the kind of its error on stable.
 fn reserve_error<T>(len: usize, additional: usize) -> TryReserveError {
     let representable = len
         .checked_add(additional)
@@ -117,8 +117,10 @@ fn reserve_error<T>(len: usize, additional: usize) -> TryReserveError {
     }
 }
 
-impl<T: for<'any> AsView<'any>> CollectionRealloc for Vec<T> {
-    fn allocator(&self) -> Self::Alloc {}
+impl<T: for<'any> AsView<'any>, A: Allocator + Clone> CollectionRealloc for Vec<T, A> {
+    fn allocator(&self) -> Self::Alloc {
+        Vec::allocator(self).clone()
+    }
 
     fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
         try_reserve(self, additional)
@@ -134,7 +136,7 @@ impl<T: for<'any> AsView<'any>> CollectionRealloc for Vec<T> {
         try_reserve(self, additional)?;
 
         for item in items {
-            // `Vec::push_within_capacity` would express this directly, but is nightly-only:
+            // `Vec::push_within_capacity` would express this directly, but is unstable:
             // https://doc.rust-lang.org/stable/std/vec/struct.Vec.html#method.push_within_capacity
             if self.len() == self.capacity()
                 && let Err(error) = try_reserve(self, 1)
@@ -158,6 +160,8 @@ impl<T: for<'any> AsView<'any>> CollectionRealloc for Vec<T> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::alloc::Global;
+
     use super::*;
     use crate::collection::CollectionAlloc;
 
@@ -166,11 +170,11 @@ mod tests {
         let reserved = <Vec<u32> as CollectionAlloc>::with_capacity(4);
         assert!(reserved.capacity() >= 4);
 
-        let collection = <Vec<u32> as CollectionAllocIn>::try_from_iter_in([1, 2, 3, 4], ())
+        let collection = <Vec<u32> as CollectionAllocIn>::try_from_iter_in([1, 2, 3, 4], Global)
             .expect("allocation succeeds");
         assert_eq!(collection, [1, 2, 3, 4]);
 
-        let infallible = <Vec<u32> as CollectionAllocIn>::from_iter_in([5, 6, 7, 8], ());
+        let infallible = <Vec<u32> as CollectionAllocIn>::from_iter_in([5, 6, 7, 8], Global);
         assert_eq!(infallible, [5, 6, 7, 8]);
     }
 
@@ -178,7 +182,7 @@ mod tests {
     fn alloc_in_capacity_overflow() {
         let mut collection = alloc::vec![1_u32, 2, 3, 4];
         assert_eq!(
-            <Vec<u32> as CollectionAllocIn>::try_with_capacity_in(usize::MAX, ()),
+            <Vec<u32> as CollectionAllocIn>::try_with_capacity_in(usize::MAX, Global),
             Err(TryReserveError::CapacityOverflow)
         );
         assert_eq!(
@@ -210,7 +214,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "capacity overflow")]
     fn alloc_in_capacity_overflow_panics() {
-        let _ = <Vec<u32> as CollectionAllocIn>::with_capacity_in(usize::MAX, ());
+        let _ = <Vec<u32> as CollectionAllocIn>::with_capacity_in(usize::MAX, Global);
     }
 
     #[test]

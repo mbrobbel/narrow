@@ -2,10 +2,11 @@
 
 extern crate alloc;
 
+use alloc::alloc::Global;
 #[cfg(target_has_atomic = "ptr")]
 use alloc::sync::Arc;
 use alloc::{boxed::Box, rc::Rc, vec::Vec};
-use core::{borrow::Borrow, marker::PhantomData};
+use core::{alloc::Allocator, borrow::Borrow, fmt, marker::PhantomData};
 
 use crate::{collection::Collection, fixed_size::FixedSize};
 
@@ -126,10 +127,41 @@ impl<const N: usize> Buffer for ArrayBuffer<N> {
     type For<T: FixedSize> = [T; N];
 }
 
+/// Implements the marker traits of a storage type that selects an allocator
+/// type `A`, without requiring anything of `A`.
+macro_rules! allocator_marker {
+    ($storage:ident) => {
+        impl<A> Clone for $storage<A> {
+            fn clone(&self) -> Self {
+                *self
+            }
+        }
+        impl<A> Copy for $storage<A> {}
+        impl<A> Default for $storage<A> {
+            fn default() -> Self {
+                Self(PhantomData)
+            }
+        }
+        impl<A> fmt::Debug for $storage<A> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str(stringify!($storage))
+            }
+        }
+    };
+}
+
 /// Growable vector storage.
 ///
 /// This is the default storage because it supports efficient construction and
-/// extension while retaining Arrow's required contiguous representation.
+/// extension while retaining Arrow's required contiguous representation. Its
+/// vectors allocate with `A`, the global allocator by default. Arrays with
+/// another allocator are built with the `_in` constructors of
+/// [`CollectionAllocIn`](crate::collection::CollectionAllocIn), which take an
+/// `A` and allocate every buffer of the array with it; `Default` and
+/// `collect` need the global allocator, as do owned items such as the `Vec`s
+/// read from a list array. Unit items such as `()`, which use the
+/// [`Nulls`](crate::layout::null::Nulls) layout, need the global allocator
+/// when nested in nullable or list arrays.
 ///
 /// # Examples
 ///
@@ -139,17 +171,24 @@ impl<const N: usize> Buffer for ArrayBuffer<N> {
 /// let values: <VecBuffer as Buffer>::For<u16> = vec![1, 2];
 /// assert_eq!(values.len(), 2);
 /// ```
-#[derive(Clone, Copy, Debug, Default)]
-pub struct VecBuffer;
-impl Buffer for VecBuffer {
-    type For<T: FixedSize> = Vec<T>;
+pub struct VecBuffer<A = Global>(
+    /// Selects the allocator type without holding one.
+    PhantomData<fn() -> A>,
+);
+allocator_marker!(VecBuffer);
+impl<A: Allocator> Buffer for VecBuffer<A> {
+    type For<T: FixedSize> = Vec<T, A>;
 }
-impl EmptyBuffer for VecBuffer {}
+impl<A: Allocator> EmptyBuffer for VecBuffer<A> {}
 
 /// Owned boxed-slice storage.
 ///
 /// Represents an owned, fixed-capacity buffer without retaining the spare
-/// capacity of a [`Vec`].
+/// capacity of a [`Vec`]. Its boxed slices are allocated with `A`, the global
+/// allocator by default. Boxed slices cannot grow, so the `_in` constructors
+/// of [`CollectionAllocIn`](crate::collection::CollectionAllocIn) build
+/// arrays with it only for non-nullable primitive, boolean and fixed-size list
+/// items.
 ///
 /// # Examples
 ///
@@ -159,12 +198,15 @@ impl EmptyBuffer for VecBuffer {}
 /// let values: <BoxBuffer as Buffer>::For<u16> = Box::from([1, 2]);
 /// assert_eq!(&*values, &[1, 2]);
 /// ```
-#[derive(Clone, Copy, Debug, Default)]
-pub struct BoxBuffer;
-impl Buffer for BoxBuffer {
-    type For<T: FixedSize> = Box<[T]>;
+pub struct BoxBuffer<A = Global>(
+    /// Selects the allocator type without holding one.
+    PhantomData<fn() -> A>,
+);
+allocator_marker!(BoxBuffer);
+impl<A: Allocator> Buffer for BoxBuffer<A> {
+    type For<T: FixedSize> = Box<[T], A>;
 }
-impl EmptyBuffer for BoxBuffer {}
+impl<A: Allocator> EmptyBuffer for BoxBuffer<A> {}
 
 /// Reference-counted storage.
 ///

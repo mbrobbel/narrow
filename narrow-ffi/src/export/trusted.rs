@@ -1,6 +1,6 @@
 //! Storage that export may trust to skip checks that read every item.
 
-use core::{fmt, marker::PhantomData};
+use core::{alloc::Allocator, fmt, marker::PhantomData};
 
 use narrow::buffer::{ArcBuffer, ArrayBuffer, BoxBuffer, Buffer, RcBuffer, SliceBuffer, VecBuffer};
 
@@ -96,14 +96,15 @@ pub trait ExportBuffer: Buffer {
     const TRUSTED: Option<Trusted<Self>> = None;
 }
 
-impl ExportBuffer for VecBuffer {
-    // SAFETY: A `Vec` borrows as its items, which only change through `&mut`.
+impl<A: Allocator> ExportBuffer for VecBuffer<A> {
+    // SAFETY: A `Vec` borrows as its items, which only change through `&mut`,
+    // whichever allocator provides its memory.
     const TRUSTED: Option<Trusted<Self>> = Some(unsafe { Trusted::new() });
 }
 
-impl ExportBuffer for BoxBuffer {
+impl<A: Allocator> ExportBuffer for BoxBuffer<A> {
     // SAFETY: A boxed slice borrows as its items, which only change through
-    // `&mut`.
+    // `&mut`, whichever allocator provides its memory.
     const TRUSTED: Option<Trusted<Self>> = Some(unsafe { Trusted::new() });
 }
 

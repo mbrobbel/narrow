@@ -214,6 +214,8 @@ where
 mod tests {
     extern crate alloc;
 
+    use alloc::alloc::Global;
+
     use alloc::{vec, vec::Vec};
 
     use crate::{
@@ -257,13 +259,15 @@ mod tests {
         type Nested = Array<Option<alloc::vec::Vec<i32>>>;
 
         let infallible =
-            <Nested as CollectionAllocIn>::from_iter_in([Some(alloc::vec![1, 2]), None], ());
+            <Nested as CollectionAllocIn>::from_iter_in([Some(alloc::vec![1, 2]), None], Global);
         assert_eq!(infallible.owned(0), Some(Some(alloc::vec![1, 2])));
         assert_eq!(infallible.owned(1), Some(None));
 
-        let mut array =
-            <Nested as CollectionAllocIn>::try_from_iter_in([Some(alloc::vec![1, 2]), None], ())
-                .expect("allocation succeeds");
+        let mut array = <Nested as CollectionAllocIn>::try_from_iter_in(
+            [Some(alloc::vec![1, 2]), None],
+            Global,
+        )
+        .expect("allocation succeeds");
         assert_eq!(array.owned(0), Some(Some(alloc::vec![1, 2])));
         assert_eq!(array.owned(1), Some(None));
         array
@@ -276,7 +280,7 @@ mod tests {
     fn from_iter_with_loose_size_hint() {
         fn from_iter<T: ArrayItem + Clone + Debug + PartialEq>(items: &[T])
         where
-            Array<T>: FromIterator<T> + CollectionAllocIn<Alloc = ()> + Collection<Owned = T>,
+            Array<T>: FromIterator<T> + CollectionAllocIn<Alloc = Global> + Collection<Owned = T>,
         {
             // Reports a size hint of `(0, Some(usize::MAX))`.
             let iter = || (0..usize::MAX).map_while(|index| items.get(index).cloned());
@@ -285,10 +289,11 @@ mod tests {
             let collected = iter().collect::<Array<T>>();
             assert_eq!(collected.into_iter_owned().collect::<Vec<_>>(), items);
 
-            let infallible = Array::<T>::from_iter_in(iter(), ());
+            let infallible = Array::<T>::from_iter_in(iter(), Global);
             assert_eq!(infallible.into_iter_owned().collect::<Vec<_>>(), items);
 
-            let fallible = Array::<T>::try_from_iter_in(iter(), ()).expect("allocation succeeds");
+            let fallible =
+                Array::<T>::try_from_iter_in(iter(), Global).expect("allocation succeeds");
             assert_eq!(fallible.into_iter_owned().collect::<Vec<_>>(), items);
         }
         from_iter(&[Some(1), None, Some(3)]);

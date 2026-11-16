@@ -1,5 +1,8 @@
 //! The Arrow null layout: a length with no data or validity buffers.
 
+extern crate alloc;
+
+use alloc::alloc::Global;
 use core::{
     iter::{RepeatN, repeat_n},
     marker::PhantomData,
@@ -68,9 +71,9 @@ impl<'a> AsView<'a> for () {
 ///
 /// Every slot is null, so the Arrow null count equals the length. Unlike
 /// other layouts, this has no backing buffer and does not implement
-/// `BufferRef`. Its allocator is `()`, independent of the selected storage;
-/// nesting under a nullable or variable-size parent requires storage whose
-/// allocator is also `()`.
+/// `BufferRef`. Its allocator is [`Global`], independent of the selected
+/// storage; nesting under a nullable or variable-size parent requires storage
+/// whose allocator is also [`Global`].
 ///
 /// ```
 /// use narrow::{array::Array, collection::Collection, layout::null::Nulls, length::Length};
@@ -139,20 +142,22 @@ impl<T: Unit> FromIterator<T> for Nulls<T> {
         values
     }
 }
+// Null arrays have no buffers; they accept the global allocator handle so
+// they nest in layouts that share one with their other buffers.
 impl<T: Unit> CollectionAllocIn for Nulls<T> {
-    type Alloc = ();
-    fn with_capacity_in(_: usize, (): ()) -> Self {
+    type Alloc = Global;
+    fn with_capacity_in(_: usize, Global: Global) -> Self {
         Self::default()
     }
-    fn try_with_capacity_in(_: usize, (): ()) -> Result<Self, TryReserveError> {
+    fn try_with_capacity_in(_: usize, Global: Global) -> Result<Self, TryReserveError> {
         Ok(Self::default())
     }
-    fn from_iter_in<I: IntoIterator<Item = T>>(iter: I, (): ()) -> Self {
+    fn from_iter_in<I: IntoIterator<Item = T>>(iter: I, Global: Global) -> Self {
         iter.into_iter().collect()
     }
     fn try_from_iter_in<I: IntoIterator<Item = T>>(
         iter: I,
-        (): (),
+        Global: Global,
     ) -> Result<Self, TryReserveError> {
         let mut values = Self::default();
         values.try_extend(iter)?;
@@ -160,7 +165,9 @@ impl<T: Unit> CollectionAllocIn for Nulls<T> {
     }
 }
 impl<T: Unit> CollectionRealloc for Nulls<T> {
-    fn allocator(&self) {}
+    fn allocator(&self) -> Global {
+        Global
+    }
     fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
         self.len
             .checked_add(additional)
@@ -230,12 +237,12 @@ mod tests {
             core::mem::size_of::<usize>()
         );
         let mut values =
-            Nulls::<Marker>::try_with_capacity_in(usize::MAX, ()).expect("no allocation");
+            Nulls::<Marker>::try_with_capacity_in(usize::MAX, Global).expect("no allocation");
         assert!(values.is_empty());
         values.try_extend([Marker; 2]).expect("length fits");
         assert_eq!(values.owned(1), Some(Marker));
         assert_eq!(values.owned(2), None);
-        let built = Nulls::<Marker>::try_from_iter_in([Marker; 2], ()).expect("length fits");
+        let built = Nulls::<Marker>::try_from_iter_in([Marker; 2], Global).expect("length fits");
         assert_eq!(values, built);
     }
 

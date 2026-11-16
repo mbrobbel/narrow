@@ -1014,6 +1014,8 @@ impl<T: Collection> FusedIterator for OffsetViewIter<'_, T> {}
 mod tests {
     extern crate alloc;
 
+    use alloc::alloc::Global;
+
     use alloc::vec;
 
     use super::*;
@@ -1242,26 +1244,29 @@ mod tests {
     }
 
     impl CollectionAllocIn for MisreportedLen {
-        type Alloc = ();
+        type Alloc = Global;
 
-        fn with_capacity_in(capacity: usize, (): Self::Alloc) -> Self {
+        fn with_capacity_in(capacity: usize, _alloc: Self::Alloc) -> Self {
             Self {
                 values: Vec::with_capacity(capacity),
                 len: 0,
             }
         }
 
-        fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, (): Self::Alloc) -> Self {
+        fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, _alloc: Self::Alloc) -> Self {
             iter.into_iter().collect()
         }
 
-        fn try_with_capacity_in(capacity: usize, (): Self::Alloc) -> Result<Self, TryReserveError> {
-            Ok(Self::with_capacity_in(capacity, ()))
+        fn try_with_capacity_in(
+            capacity: usize,
+            _alloc: Self::Alloc,
+        ) -> Result<Self, TryReserveError> {
+            Ok(Self::with_capacity_in(capacity, Global))
         }
 
         fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
             iter: I,
-            (): Self::Alloc,
+            _alloc: Self::Alloc,
         ) -> Result<Self, TryReserveError> {
             Ok(iter.into_iter().collect())
         }
@@ -1369,32 +1374,37 @@ mod tests {
     impl<const HALVE: bool, const LIMIT: usize, const EXTRA: usize> CollectionAllocIn
         for Misbehaving<HALVE, LIMIT, EXTRA>
     {
-        type Alloc = ();
+        type Alloc = Global;
 
-        fn with_capacity_in(capacity: usize, (): Self::Alloc) -> Self {
+        fn with_capacity_in(capacity: usize, _alloc: Self::Alloc) -> Self {
             Self(Vec::with_capacity(capacity))
         }
 
-        fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, (): Self::Alloc) -> Self {
+        fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, _alloc: Self::Alloc) -> Self {
             Self(iter.into_iter().collect())
         }
 
-        fn try_with_capacity_in(capacity: usize, (): Self::Alloc) -> Result<Self, TryReserveError> {
-            Ok(Self::with_capacity_in(capacity, ()))
+        fn try_with_capacity_in(
+            capacity: usize,
+            _alloc: Self::Alloc,
+        ) -> Result<Self, TryReserveError> {
+            Ok(Self::with_capacity_in(capacity, Global))
         }
 
         fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
             iter: I,
-            (): Self::Alloc,
+            _alloc: Self::Alloc,
         ) -> Result<Self, TryReserveError> {
-            Ok(Self::from_iter_in(iter, ()))
+            Ok(Self::from_iter_in(iter, Global))
         }
     }
 
     impl<const HALVE: bool, const LIMIT: usize, const EXTRA: usize> CollectionRealloc
         for Misbehaving<HALVE, LIMIT, EXTRA>
     {
-        fn allocator(&self) -> Self::Alloc {}
+        fn allocator(&self) -> Self::Alloc {
+            Global
+        }
 
         fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
             crate::collection::vec::try_reserve(&mut self.0, additional)

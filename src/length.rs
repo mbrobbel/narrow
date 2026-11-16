@@ -5,6 +5,7 @@ extern crate alloc;
 #[cfg(target_has_atomic = "ptr")]
 use alloc::sync::Arc;
 use alloc::{boxed::Box, collections::VecDeque, rc::Rc, vec::Vec};
+use core::alloc::Allocator;
 
 /// The length (or number of units) of an item.
 ///
@@ -46,7 +47,7 @@ pub trait Length {
     }
 }
 
-impl<T> Length for Vec<T> {
+impl<T, A: Allocator> Length for Vec<T, A> {
     fn len(&self) -> usize {
         Self::len(self)
     }
@@ -76,7 +77,7 @@ impl<T> Length for &mut [T] {
     }
 }
 
-impl<T> Length for Box<[T]> {
+impl<T, A: Allocator> Length for Box<[T], A> {
     fn len(&self) -> usize {
         self.as_ref().len()
     }
