@@ -3,7 +3,7 @@ use core::fmt::Debug;
 use crate::{
     bitmap::Bitmap,
     buffer::{Buffer, BufferRef, VecBuffer},
-    collection::{AllocError, Collection, CollectionAllocIn, CollectionRealloc},
+    collection::{Collection, CollectionAllocIn, CollectionRealloc, TryReserveError},
     layout::MemoryLayout,
     length::Length,
     nullability::{NonNullable, Nullability},
@@ -175,14 +175,14 @@ where
         Self(Nulls::Collection::from_iter_in(iter, alloc))
     }
 
-    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError> {
+    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, TryReserveError> {
         Nulls::Collection::try_with_capacity_in(capacity, alloc).map(Self)
     }
 
     fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
         iter: I,
         alloc: Self::Alloc,
-    ) -> Result<Self, AllocError> {
+    ) -> Result<Self, TryReserveError> {
         Nulls::Collection::try_from_iter_in(iter, alloc).map(Self)
     }
 }
@@ -195,14 +195,14 @@ where
         self.0.allocator()
     }
 
-    fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+    fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
         self.0.try_reserve(additional)
     }
 
     fn try_extend<I: IntoIterator<Item = Self::Owned>>(
         &mut self,
         iter: I,
-    ) -> Result<(), AllocError> {
+    ) -> Result<(), TryReserveError> {
         self.0.try_extend(iter)
     }
 

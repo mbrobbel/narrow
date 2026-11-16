@@ -8,7 +8,7 @@ use core::{
 use crate::{
     buffer::Buffer,
     collection::{
-        AllocError, Collection, CollectionAllocIn, CollectionRealloc, owned::IntoOwned,
+        Collection, CollectionAllocIn, CollectionRealloc, TryReserveError, owned::IntoOwned,
         view::AsView,
     },
     layout::{ArrayItem, MemoryLayout},
@@ -144,13 +144,16 @@ impl<T: Unit> CollectionAllocIn for Nulls<T> {
     fn with_capacity_in(_: usize, (): ()) -> Self {
         Self::default()
     }
-    fn try_with_capacity_in(_: usize, (): ()) -> Result<Self, AllocError> {
+    fn try_with_capacity_in(_: usize, (): ()) -> Result<Self, TryReserveError> {
         Ok(Self::default())
     }
     fn from_iter_in<I: IntoIterator<Item = T>>(iter: I, (): ()) -> Self {
         iter.into_iter().collect()
     }
-    fn try_from_iter_in<I: IntoIterator<Item = T>>(iter: I, (): ()) -> Result<Self, AllocError> {
+    fn try_from_iter_in<I: IntoIterator<Item = T>>(
+        iter: I,
+        (): (),
+    ) -> Result<Self, TryReserveError> {
         let mut values = Self::default();
         values.try_extend(iter)?;
         Ok(values)
@@ -158,20 +161,22 @@ impl<T: Unit> CollectionAllocIn for Nulls<T> {
 }
 impl<T: Unit> CollectionRealloc for Nulls<T> {
     fn allocator(&self) {}
-    fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+    fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
         self.len
             .checked_add(additional)
             .map(|_| ())
-            .ok_or(AllocError)
+            .ok_or(TryReserveError::CapacityOverflow)
     }
     fn reserve(&mut self, additional: usize) {
         self.try_reserve(additional)
             .expect("null length exceeds usize");
     }
-    fn try_extend<I: IntoIterator<Item = T>>(&mut self, iter: I) -> Result<(), AllocError> {
+    fn try_extend<I: IntoIterator<Item = T>>(&mut self, iter: I) -> Result<(), TryReserveError> {
         let mut len = self.len;
         for _ in iter {
-            len = len.checked_add(1).ok_or(AllocError)?;
+            len = len
+                .checked_add(1)
+                .ok_or(TryReserveError::CapacityOverflow)?;
         }
         self.len = len;
         Ok(())
@@ -239,11 +244,20 @@ mod tests {
         let mut values = Nulls::<()>::new(usize::MAX);
         assert_eq!(values.view(usize::MAX), None);
         assert_eq!(values.view(usize::MAX - 1), Some(()));
-        assert_eq!(values.try_reserve(1), Err(AllocError));
-        assert_eq!(values.try_extend([()]), Err(AllocError));
+        assert_eq!(
+            values.try_reserve(1),
+            Err(TryReserveError::CapacityOverflow)
+        );
+        assert_eq!(
+            values.try_extend([()]),
+            Err(TryReserveError::CapacityOverflow)
+        );
         assert_eq!(values.len(), usize::MAX);
         let mut almost_full = Nulls::<()>::new(usize::MAX - 1);
-        assert_eq!(almost_full.try_extend([(); 2]), Err(AllocError));
+        assert_eq!(
+            almost_full.try_extend([(); 2]),
+            Err(TryReserveError::CapacityOverflow)
+        );
         assert_eq!(almost_full.len(), usize::MAX - 1);
         values.truncate(2);
         values.extend([()]);

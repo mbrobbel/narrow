@@ -3,7 +3,7 @@ extern crate alloc;
 use crate::collection::slice::SliceViews;
 use alloc::{boxed::Box, vec::Vec};
 
-use crate::collection::{AllocError, Collection, CollectionAllocIn, view::AsView};
+use crate::collection::{Collection, CollectionAllocIn, TryReserveError, view::AsView};
 
 impl<T: for<'any> AsView<'any>> Collection for Box<[T]> {
     type View<'collection>
@@ -44,14 +44,14 @@ impl<T: for<'any> AsView<'any>> CollectionAllocIn for Box<[T]> {
         iter.into_iter().collect::<Vec<_>>().into_boxed_slice()
     }
 
-    fn try_with_capacity_in(capacity: usize, (): Self::Alloc) -> Result<Self, AllocError> {
+    fn try_with_capacity_in(capacity: usize, (): Self::Alloc) -> Result<Self, TryReserveError> {
         <Vec<T> as CollectionAllocIn>::try_with_capacity_in(capacity, ()).map(Vec::into_boxed_slice)
     }
 
     fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
         iter: I,
         (): Self::Alloc,
-    ) -> Result<Self, AllocError> {
+    ) -> Result<Self, TryReserveError> {
         <Vec<T> as CollectionAllocIn>::try_from_iter_in(iter, ()).map(Vec::into_boxed_slice)
     }
 }
