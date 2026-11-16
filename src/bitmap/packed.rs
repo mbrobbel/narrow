@@ -19,6 +19,19 @@ where
     /// Fused: once the inner iterator returns `None`, items it might yield
     /// afterwards must not be packed at positions following the gap.
     iter: Fuse<I>,
+    /// Number of items packed so far.
+    bits: usize,
+}
+
+impl<I, T> BitPacked<I, T>
+where
+    I: Iterator<Item = T>,
+    T: Borrow<bool>,
+{
+    /// Returns the number of items packed so far.
+    pub(crate) const fn bits(&self) -> usize {
+        self.bits
+    }
 }
 
 impl<I, T> Iterator for BitPacked<I, T>
@@ -31,18 +44,19 @@ where
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         // Fold up to eight items with internal iteration, which inner adapters
-        // such as `Chain` and `Inspect` implement more efficiently than
-        // repeated calls to `next`.
+        // such as `Chain` implement more efficiently than repeated calls to
+        // `next`.
         let (byte, bits) =
             self.iter
                 .by_ref()
                 .take(8)
-                .fold((0_u8, 0_u32), |(byte, bit_position), next| {
+                .fold((0_u8, 0_u8), |(byte, bit_position), next| {
                     (
                         byte | (u8::from(*next.borrow()) << bit_position),
                         bit_position.strict_add(1),
                     )
                 });
+        self.bits = self.bits.strict_add(usize::from(bits));
         (bits != 0).then_some(byte)
     }
 
@@ -77,7 +91,10 @@ where
     where
         Self: Sized,
     {
-        BitPacked { iter: self.fuse() }
+        BitPacked {
+            iter: self.fuse(),
+            bits: 0,
+        }
     }
 }
 
@@ -119,6 +136,30 @@ mod tests {
         assert_eq!(iter.next(), Some(0b0000_0001));
         assert_eq!(iter.next(), None);
         assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn bits() {
+        let mut empty = [false; 0].iter().bit_packed();
+        assert_eq!(empty.next(), None);
+        assert_eq!(empty.bits(), 0);
+
+        let mut eleven = [true; 11].iter().bit_packed();
+        assert_eq!(eleven.bits(), 0);
+        assert_eq!(eleven.next(), Some(0xff));
+        assert_eq!(eleven.bits(), 8);
+        assert_eq!(eleven.next(), Some(0b0000_0111));
+        assert_eq!(eleven.bits(), 11);
+        assert_eq!(eleven.next(), None);
+        assert_eq!(eleven.bits(), 11);
+
+        // Items yielded after the first `None` are not counted.
+        let input = [Some(true), Some(false), None, Some(true)];
+        let mut source = input.into_iter();
+        let mut iter = core::iter::from_fn(move || source.next().flatten()).bit_packed();
+        assert_eq!(iter.by_ref().count(), 1);
+        assert_eq!(iter.next(), None);
+        assert_eq!(iter.bits(), 2);
     }
 
     #[test]

@@ -43,6 +43,9 @@ fn main() {
     bench("bitmap from_iter", || {
         Bitmap::<VecBuffer>::from_iter(black_box(&bools))
     });
+    bench("bitmap from_iter (inexact size hint)", || {
+        Bitmap::<VecBuffer>::from_iter(black_box(&bools).iter().take_while(|_| true))
+    });
     bench("bitmap extend (unaligned)", || {
         let mut bitmap = Bitmap::<VecBuffer>::from_iter([true; 3]);
         bitmap.extend(black_box(&bools));
