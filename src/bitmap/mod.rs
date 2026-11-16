@@ -522,26 +522,23 @@ impl<T: Borrow<bool>, Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionReall
         // Use bit packed iterator for the remainder. The bit count is
         // committed only when the extension completes; a panic leaves the
         // written bytes beyond the logical end to be overwritten later.
-        if let Some(first) = items.next() {
-            let mut consumed: usize = 0;
-            let mut packed = iter::once(first)
-                .chain(items)
-                .inspect(|_| consumed = consumed.strict_add(1))
-                .bit_packed();
+        let mut packed = items.bit_packed();
 
-            // Overwrite bytes beyond the logical end before appending.
-            let byte_index = self.byte_index(self.bits);
-            self.buffer
-                .borrow_mut()
-                .get_mut(byte_index..)
-                .unwrap_or_default()
-                .iter_mut()
-                .zip(packed.by_ref())
-                .for_each(|(byte, packed_byte)| *byte = packed_byte);
+        // Overwrite bytes beyond the logical end before appending.
+        let byte_index = self.byte_index(self.bits);
+        self.buffer
+            .borrow_mut()
+            .get_mut(byte_index..)
+            .unwrap_or_default()
+            .iter_mut()
+            .zip(packed.by_ref())
+            .for_each(|(byte, packed_byte)| *byte = packed_byte);
 
-            self.buffer.extend(packed);
-            self.bits = self.bits.strict_add(consumed);
-        }
+        self.buffer.extend(packed.by_ref());
+        // Drop the source before committing: its destructor may panic.
+        let packed_bits = packed.bits();
+        drop(packed);
+        self.bits = self.bits.strict_add(packed_bits);
     }
 }
 
@@ -549,17 +546,11 @@ impl<T: Borrow<bool>, Storage: Buffer<For<u8>: CollectionAlloc>> FromIterator<T>
     for Bitmap<Storage>
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut bits: usize = 0;
-        let buffer = iter
-            .into_iter()
-            .inspect(|_| {
-                bits = bits.strict_add(1);
-            })
-            .bit_packed()
-            .collect();
+        let mut packed = iter.into_iter().bit_packed();
+        let buffer = packed.by_ref().collect();
         Self {
             buffer,
-            bits,
+            bits: packed.bits(),
             offset: 0,
         }
     }
@@ -608,16 +599,11 @@ impl<Storage: Buffer<For<u8>: CollectionAllocIn>> CollectionAllocIn for Bitmap<S
     }
 
     fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self {
-        let mut bits: usize = 0;
-        let buffer = Storage::For::<u8>::from_iter_in(
-            iter.into_iter()
-                .inspect(|_| bits = bits.strict_add(1))
-                .bit_packed(),
-            alloc,
-        );
+        let mut packed = iter.into_iter().bit_packed();
+        let buffer = Storage::For::<u8>::from_iter_in(packed.by_ref(), alloc);
         Self {
             buffer,
-            bits,
+            bits: packed.bits(),
             offset: 0,
         }
     }
@@ -636,16 +622,11 @@ impl<Storage: Buffer<For<u8>: CollectionAllocIn>> CollectionAllocIn for Bitmap<S
         iter: I,
         alloc: Self::Alloc,
     ) -> Result<Self, AllocError> {
-        let mut bits: usize = 0;
-        let buffer = Storage::For::<u8>::try_from_iter_in(
-            iter.into_iter()
-                .inspect(|_| bits = bits.strict_add(1))
-                .bit_packed(),
-            alloc,
-        )?;
+        let mut packed = iter.into_iter().bit_packed();
+        let buffer = Storage::For::<u8>::try_from_iter_in(packed.by_ref(), alloc)?;
         Ok(Self {
             buffer,
-            bits,
+            bits: packed.bits(),
             offset: 0,
         })
     }
@@ -720,28 +701,26 @@ impl<Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> CollectionRe
             }
         }
 
-        if let Some(first) = items.next() {
-            let mut consumed: usize = 0;
-            let mut packed = iter::once(first)
-                .chain(items)
-                .inspect(|_| consumed = consumed.strict_add(1))
-                .bit_packed();
+        let mut packed = items.bit_packed();
 
-            let byte_index = self.byte_index(self.bits);
-            self.buffer
-                .borrow_mut()
-                .get_mut(byte_index..)
-                .unwrap_or_default()
-                .iter_mut()
-                .zip(packed.by_ref())
-                .for_each(|(byte, packed_byte)| *byte = packed_byte);
+        let byte_index = self.byte_index(self.bits);
+        self.buffer
+            .borrow_mut()
+            .get_mut(byte_index..)
+            .unwrap_or_default()
+            .iter_mut()
+            .zip(packed.by_ref())
+            .for_each(|(byte, packed_byte)| *byte = packed_byte);
 
-            if let Err(error) = self.buffer.try_extend(packed) {
-                self.bits = original_bits;
-                return Err(error);
-            }
-            self.bits = self.bits.strict_add(consumed);
+        let extended = self.buffer.try_extend(packed.by_ref());
+        // Drop the source before committing: its destructor may panic.
+        let packed_bits = packed.bits();
+        drop(packed);
+        if let Err(error) = extended {
+            self.bits = original_bits;
+            return Err(error);
         }
+        self.bits = self.bits.strict_add(packed_bits);
         Ok(())
     }
 
@@ -909,6 +888,44 @@ mod tests {
     }
 
     #[test]
+    fn extend_panic_on_source_drop_discards_packed_bits() {
+        extern crate std;
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        /// Yields eight `true` items and panics when dropped.
+        struct PanicOnDrop(usize);
+        impl Iterator for PanicOnDrop {
+            type Item = bool;
+            fn next(&mut self) -> Option<bool> {
+                (self.0 < 8).then(|| {
+                    self.0 += 1;
+                    true
+                })
+            }
+        }
+        impl Drop for PanicOnDrop {
+            fn drop(&mut self) {
+                panic!("boom");
+            }
+        }
+
+        let mut bitmap = Bitmap::<VecBuffer>::default();
+        assert!(catch_unwind(AssertUnwindSafe(|| bitmap.extend(PanicOnDrop(0)))).is_err());
+        assert_eq!(bitmap.len(), 0);
+
+        let mut try_extended = Bitmap::<VecBuffer>::default();
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| {
+                try_extended
+                    .try_extend(PanicOnDrop(0))
+                    .expect("allocation succeeds");
+            }))
+            .is_err()
+        );
+        assert_eq!(try_extended.len(), 0);
+    }
+
+    #[test]
     fn extend_panic_discards_uncommitted_packed_bits() {
         extern crate std;
         use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -975,6 +992,87 @@ mod tests {
         assert_eq!(bitmap.view(4), Some(false));
         assert_eq!(bitmap.view(5), Some(true));
         assert_eq!(bitmap.buffer.as_slice(), &[0b1110_1111]);
+    }
+
+    /// Packs `bits` one at a time, LSB first, with zeroed padding bits.
+    fn packed_reference(bits: &[bool]) -> Vec<u8> {
+        let mut bytes = alloc::vec![0_u8; bytes_for_bits(bits.len())];
+        bits.iter()
+            .enumerate()
+            .filter(|&(_, &bit)| bit)
+            .for_each(|(index, _)| bytes[index / 8] |= 1 << (index % 8));
+        bytes
+    }
+
+    /// Bit patterns with lengths around byte boundaries.
+    fn patterns() -> impl Iterator<Item = Vec<bool>> {
+        (0..=41).flat_map(|len| {
+            [
+                (0..len).map(|index| index % 3 != 1).collect(),
+                alloc::vec![true; len],
+                alloc::vec![false; len],
+            ]
+        })
+    }
+
+    #[test]
+    fn constructors_match_reference() {
+        for bits in patterns() {
+            let expected = (packed_reference(&bits), bits.len(), 0);
+            // A filtered source has no exact size hint.
+            let filtered = || bits.iter().copied().filter(|_| true);
+            assert_eq!(Bitmap::<VecBuffer>::from_iter(&bits).into_parts(), expected);
+            assert_eq!(
+                Bitmap::<VecBuffer>::from_iter(filtered()).into_parts(),
+                expected
+            );
+            assert_eq!(
+                Bitmap::<VecBuffer>::from_iter_in(filtered(), ()).into_parts(),
+                expected
+            );
+            assert_eq!(
+                Bitmap::<VecBuffer>::try_from_iter_in(filtered(), ())
+                    .expect("allocation succeeds")
+                    .into_parts(),
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn extensions_match_reference() {
+        for bits in patterns() {
+            for split in 0..=bits.len() {
+                let (head, tail) = bits.split_at(split);
+                let expected = (packed_reference(&bits), bits.len(), 0);
+
+                let mut extended = Bitmap::<VecBuffer>::from_iter(head);
+                extended.extend(tail.iter().copied().filter(|_| true));
+                assert_eq!(extended.into_parts(), expected);
+
+                let mut try_extended = Bitmap::<VecBuffer>::from_iter(head);
+                try_extended
+                    .try_extend(tail.iter().copied())
+                    .expect("allocation succeeds");
+                assert_eq!(try_extended.into_parts(), expected);
+
+                // Overwrite set bytes beyond the logical end.
+                let mut overwritten = Bitmap::<VecBuffer>::from_iter(head.iter().copied().chain(
+                    iter::repeat_n(true, tail.len().next_multiple_of(8).saturating_add(8)),
+                ));
+                overwritten.truncate(split);
+                overwritten.extend(tail);
+                let (buffer, len, offset) = overwritten.into_parts();
+                assert_eq!((len, offset), (bits.len(), 0));
+                assert_eq!(
+                    Bitmap::<VecBuffer>::try_from_parts(buffer, len, 0)
+                        .expect("valid parts")
+                        .iter_views()
+                        .collect::<Vec<_>>(),
+                    bits
+                );
+            }
+        }
     }
 
     #[test]
