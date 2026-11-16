@@ -79,9 +79,44 @@ pub trait Offset:
 }
 
 mod sealed {
-    pub trait Sealed {}
-    impl Sealed for i32 {}
-    impl Sealed for i64 {}
+    use core::ops::BitOr;
+
+    pub trait Sealed: Sized {
+        /// Returns whether all `offsets` are non-negative and never decrease.
+        fn non_negative_sorted(offsets: &[Self]) -> bool;
+    }
+
+    /// Implements [`Sealed`] for signed integer offset types.
+    macro_rules! impl_sealed {
+        ($($ty:ty),*) => {$(
+            impl Sealed for $ty {
+                fn non_negative_sorted(offsets: &[Self]) -> bool {
+                    /// Number of offsets checked per block.
+                    const BLOCK: usize = 1024;
+                    // When all offsets are non-negative the difference of
+                    // adjacent offsets cannot wrap, so the sign bit of the
+                    // bitwise or of all offsets and differences is set if
+                    // and only if an offset is negative or decreases. Blocks
+                    // are checked without early exit so they vectorize.
+                    let Some((&first, rest)) = offsets.split_first() else {
+                        return true;
+                    };
+                    first >= 0
+                        && rest.chunks(BLOCK).zip(offsets.chunks(BLOCK)).all(
+                            |(next_block, previous_block)| {
+                                next_block
+                                    .iter()
+                                    .zip(previous_block)
+                                    .map(|(&next, &previous)| next | next.wrapping_sub(previous))
+                                    .fold(0, BitOr::bitor)
+                                    >= 0
+                            },
+                        )
+                }
+            }
+        )*};
+    }
+    impl_sealed!(i32, i64);
 }
 
 impl Offset for i32 {
@@ -294,8 +329,8 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Offsets<T, OffsetIte
     /// [`Offsets::from_parts`].
     fn validate(data: &T, offsets: &Storage::For<OffsetItem>) -> Result<(), OffsetsError> {
         let zero = OffsetItem::default();
-        let mut iter = offsets.borrow().iter().copied().enumerate();
-        let (_, first) = iter.next().ok_or(OffsetsError::Empty)?;
+        let slice = offsets.borrow();
+        let (&first, rest) = slice.split_first().ok_or(OffsetsError::Empty)?;
         if first < zero {
             return Err(OffsetsError::Negative { index: 0 });
         }
@@ -304,19 +339,26 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Offsets<T, OffsetIte
                 first: first.into(),
             });
         }
-        // Offsets start at zero and never decrease, so only an offset smaller
-        // than its predecessor can be negative.
-        let last = iter.try_fold(first, |previous, (index, current)| {
-            if current < previous {
-                Err(if current < zero {
-                    OffsetsError::Negative { index }
-                } else {
-                    OffsetsError::NonMonotonic { index }
-                })
-            } else {
-                Ok(current)
-            }
-        })?;
+        let last = if OffsetItem::non_negative_sorted(slice) {
+            rest.last().copied().unwrap_or(first)
+        } else {
+            // Offsets start at zero and never decrease, so only an offset
+            // smaller than its predecessor can be negative.
+            rest.iter()
+                .copied()
+                .zip(1..)
+                .try_fold(first, |previous, (current, index)| {
+                    if current < previous {
+                        Err(if current < zero {
+                            OffsetsError::Negative { index }
+                        } else {
+                            OffsetsError::NonMonotonic { index }
+                        })
+                    } else {
+                        Ok(current)
+                    }
+                })?
+        };
         let data_len = data.len();
         if last.try_into().is_ok_and(|end: usize| end <= data_len) {
             Ok(())
@@ -1136,6 +1178,139 @@ mod tests {
                 data: 0
             }
         );
+    }
+
+    /// Validates offsets one at a time, returning the first error.
+    fn validate_scalar<O: Offset>(data_len: usize, offsets: &[O]) -> Result<(), OffsetsError> {
+        let zero = O::default();
+        let (&first, rest) = offsets.split_first().ok_or(OffsetsError::Empty)?;
+        if first < zero {
+            return Err(OffsetsError::Negative { index: 0 });
+        }
+        if first != zero {
+            return Err(OffsetsError::NonZeroFirst {
+                first: first.into(),
+            });
+        }
+        let mut last = first;
+        for (index, &current) in (1..).zip(rest) {
+            if current < last {
+                return Err(if current < zero {
+                    OffsetsError::Negative { index }
+                } else {
+                    OffsetsError::NonMonotonic { index }
+                });
+            }
+            last = current;
+        }
+        if last.try_into().is_ok_and(|end: usize| end <= data_len) {
+            Ok(())
+        } else {
+            Err(OffsetsError::OutOfBounds {
+                last: last.into(),
+                data: data_len,
+            })
+        }
+    }
+
+    /// Runs [`check_validate_lengths`] for lengths around block boundaries.
+    fn check_validate<O: Offset + Debug + TryFrom<i64>>(changes: &[(usize, i64)]) {
+        check_validate_lengths::<O>(
+            [1, 2, 3, 1023, 1024, 1025, 1026, 2047, 2048, 2049, 3000],
+            |_| changes.to_vec(),
+        );
+    }
+
+    /// Checks that [`Offsets::try_from_parts`] agrees with [`validate_scalar`]
+    /// for the offsets `0..len` of each length, with the `(index, offset)`
+    /// changes for that length applied, and data of `len - 1` and `len - 2`
+    /// values.
+    fn check_validate_lengths<O: Offset + Debug + TryFrom<i64>>(
+        lengths: impl IntoIterator<Item = usize>,
+        changes: impl Fn(usize) -> Vec<(usize, i64)>,
+    ) {
+        for len in lengths {
+            let offset = |value: i64| O::try_from(value).ok().expect("offset fits");
+            let mut offsets = (0..len)
+                .map(|index| O::try_from(index).expect("offset fits"))
+                .collect::<Vec<_>>();
+            for (index, value) in changes(len) {
+                if let Some(slot) = offsets.get_mut(index) {
+                    *slot = offset(value);
+                }
+            }
+            for data_len in [len.saturating_sub(1), len.saturating_sub(2)] {
+                let expected = validate_scalar(data_len, &offsets);
+                let actual =
+                    Offsets::<Vec<u8>, O>::try_from_parts(vec![0; data_len], offsets.clone())
+                        .map(|_| ());
+                assert_eq!(actual, expected, "{offsets:?} with {data_len} values");
+            }
+        }
+    }
+
+    /// Runs [`check_validate`] for crafted changes around block boundaries.
+    fn check_validate_changes<O: Offset + Debug + TryFrom<i64>>() {
+        check_validate::<O>(&[]);
+        check_validate::<O>(&[(0, 1)]);
+        check_validate::<O>(&[(0, -1)]);
+        check_validate::<O>(&[(1000, 0), (1030, -1)]);
+        check_validate::<O>(&[(1030, -1), (1031, 0)]);
+        for index in [1, 2, 1022, 1023, 1024, 1025, 1026, 2047, 2048, 2049, 2999] {
+            let at = i64::try_from(index).expect("index fits");
+            check_validate::<O>(&[(index, -1)]);
+            check_validate::<O>(&[(index, 0)]);
+            check_validate::<O>(&[(index, at.strict_add(2))]);
+            check_validate::<O>(&[(index, at.strict_add(4000))]);
+            check_validate::<O>(&[(index, at.strict_sub(1))]);
+            check_validate::<O>(&[(index, -1), (index.strict_add(1), 0)]);
+            check_validate::<O>(&[(index, i64::from(i32::MIN))]);
+        }
+    }
+
+    #[test]
+    fn try_from_parts_extreme_offsets() {
+        let error32 = |offsets: Vec<i32>| {
+            Offsets::<Vec<u8>>::try_from_parts(vec![], offsets).expect_err("invalid offsets")
+        };
+        assert_eq!(
+            error32(vec![0, i32::MAX, i32::MIN]),
+            OffsetsError::Negative { index: 2 }
+        );
+        assert_eq!(
+            error32(vec![0, i32::MAX, -2]),
+            OffsetsError::Negative { index: 2 }
+        );
+        let error64 = |offsets: Vec<i64>| {
+            Offsets::<Vec<u8>, i64>::try_from_parts(vec![], offsets).expect_err("invalid offsets")
+        };
+        assert_eq!(
+            error64(vec![0, i64::MAX, i64::MIN]),
+            OffsetsError::Negative { index: 2 }
+        );
+        assert_eq!(
+            error64(vec![0, i64::MAX, -2]),
+            OffsetsError::Negative { index: 2 }
+        );
+        assert_eq!(
+            error64(vec![0, i64::MAX, 0]),
+            OffsetsError::NonMonotonic { index: 2 }
+        );
+    }
+
+    #[test]
+    fn try_from_parts_matches_scalar_validation() {
+        check_validate_changes::<i32>();
+        check_validate_changes::<i64>();
+    }
+
+    #[test]
+    fn try_from_parts_matches_scalar_validation_every_length() {
+        let last = |len: usize| len.saturating_sub(1);
+        check_validate_lengths::<i32>(1..=2100, |_| vec![]);
+        check_validate_lengths::<i32>(1..=2100, |len| vec![(last(len), -1)]);
+        check_validate_lengths::<i32>(1..=2100, |len| vec![(last(len), 0)]);
+        check_validate_lengths::<i64>(1..=2100, |len| vec![(last(len), 0)]);
     }
 
     #[test]
