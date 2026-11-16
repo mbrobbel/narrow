@@ -10,7 +10,7 @@ use common::bench;
 use narrow::{
     bitmap::{Bitmap, ValidityBitmap},
     buffer::VecBuffer,
-    collection::{Collection, CollectionRealloc},
+    collection::{Collection, CollectionAllocIn, CollectionRealloc},
     validity::Validity,
 };
 
@@ -63,6 +63,34 @@ fn main() {
     bench("validity extend", || {
         let mut validity = Validity::<Vec<u8>>::default();
         validity.extend(black_box(&bools).iter().map(|valid| valid.then_some(0_u8)));
+        validity
+    });
+    bench("validity try_extend", || {
+        let mut validity = Validity::<Vec<u8>>::default();
+        validity
+            .try_extend(black_box(&bools).iter().map(|valid| valid.then_some(0_u8)))
+            .expect("allocates");
+        validity
+    });
+    bench("validity from_iter_in", || {
+        Validity::<Vec<u8>>::from_iter_in(
+            black_box(&bools).iter().map(|valid| valid.then_some(0_u8)),
+            (),
+        )
+    });
+    bench("validity from_iter ([u32; 4])", || {
+        black_box(&bools)
+            .iter()
+            .map(|valid| valid.then_some([0_u32; 4]))
+            .collect::<Validity<Vec<[u32; 4]>>>()
+    });
+    bench("validity extend ([u32; 4])", || {
+        let mut validity = Validity::<Vec<[u32; 4]>>::default();
+        validity.extend(
+            black_box(&bools)
+                .iter()
+                .map(|valid| valid.then_some([0_u32; 4])),
+        );
         validity
     });
 
