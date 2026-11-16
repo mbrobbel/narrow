@@ -8,13 +8,18 @@ use std::hint::black_box;
 
 use common::bench;
 use narrow::{
-    collection::{Collection, owned::IntoOwned},
+    collection::{Collection, CollectionAllocIn, CollectionRealloc, owned::IntoOwned},
     length::Length,
     offset::Offsets,
 };
 
 /// Number of variable-length items in each benchmarked collection.
 const ITEMS: usize = 1 << 16;
+
+/// Number of rows in the byte-row benchmarks.
+const BYTE_ROWS: usize = 1 << 8;
+/// Length of each row in the byte-row benchmarks.
+const BYTE_ROW_LEN: usize = 2 << 10;
 
 /// Deterministic, irregular item length between 0 and 15.
 fn item_len(index: usize) -> usize {
@@ -63,6 +68,15 @@ fn main() {
             .sum::<usize>()
     });
     bench("offsets clone (baseline)", || black_box(&offsets).clone());
+    bench("offsets try_from_iter_in 2 KiB byte rows", || {
+        let rows = (0..BYTE_ROWS).map(|_| vec![0xab_u8; BYTE_ROW_LEN]);
+        <Offsets<Vec<u8>> as CollectionAllocIn>::try_from_iter_in(black_box(rows), ())
+    });
+    bench("vec try_extend u32", || {
+        let mut values = Vec::<u32>::new();
+        let items = 0..u32::try_from(ITEMS).expect("fits");
+        CollectionRealloc::try_extend(&mut values, black_box(items)).map(|()| values)
+    });
     bench("offsets clone + into_iter_owned len sum", || {
         black_box(&offsets)
             .clone()
