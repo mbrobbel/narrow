@@ -16,9 +16,17 @@ use narrow::{
 /// Number of variable-length items in each benchmarked collection.
 const ITEMS: usize = 1 << 16;
 
+/// Number of items in each benchmarked collection of long items.
+const LONG_ITEMS: usize = 1 << 12;
+
 /// Deterministic, irregular item length between 0 and 15.
 fn item_len(index: usize) -> usize {
     index.wrapping_mul(0x9e37_79b9) >> 11 & 0xf
+}
+
+/// Deterministic, irregular item length between 64 and 191.
+fn long_item_len(index: usize) -> usize {
+    64 + (index.wrapping_mul(0x9e37_79b9) >> 11 & 0x7f)
 }
 
 fn main() {
@@ -30,6 +38,13 @@ fn main() {
         })
         .collect::<Vec<Vec<u32>>>();
     let offsets = lists.iter().cloned().collect::<Offsets<Vec<u32>>>();
+    let long = (0..LONG_ITEMS)
+        .map(|index| {
+            (0..long_item_len(index))
+                .map(|value| u32::try_from(value).expect("small"))
+                .collect::<Vec<_>>()
+        })
+        .collect::<Offsets<Vec<u32>>>();
 
     bench("offsets view(index) len sum", || {
         let offsets = black_box(&offsets);
@@ -59,7 +74,7 @@ fn main() {
         black_box(&offsets)
             .iter_views()
             .map(IntoOwned::<Vec<u32>>::into_owned)
-            .map(|item| item.len())
+            .map(|item| black_box(item).len())
             .sum::<usize>()
     });
     bench("offsets clone (baseline)", || black_box(&offsets).clone());
@@ -72,6 +87,31 @@ fn main() {
     });
     bench("offsets clone + into_iter_owned collect", || {
         black_box(&offsets)
+            .clone()
+            .into_iter_owned()
+            .collect::<Vec<Vec<u32>>>()
+    });
+    bench("long offsets iter_views values sum", || {
+        black_box(&long)
+            .iter_views()
+            .map(|item| item.iter_views().sum::<u32>())
+            .sum::<u32>()
+    });
+    bench("long offsets iter_views values max", || {
+        black_box(&long)
+            .iter_views()
+            .filter_map(|item| item.iter_views().max())
+            .sum::<u32>()
+    });
+    bench("long offsets iter_views into_owned", || {
+        black_box(&long)
+            .iter_views()
+            .map(IntoOwned::<Vec<u32>>::into_owned)
+            .map(|item| black_box(item).len())
+            .sum::<usize>()
+    });
+    bench("long clone + into_iter_owned collect", || {
+        black_box(&long)
             .clone()
             .into_iter_owned()
             .collect::<Vec<Vec<u32>>>()

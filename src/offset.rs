@@ -672,13 +672,13 @@ pub struct OffsetIter<'collection, T: Collection, OffsetItem: Offset, Storage: B
 impl<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U>
     OffsetIter<'collection, T, OffsetItem, Storage, U>
 {
-    /// Returns the view of the item between `start` and `end`.
+    /// Returns the view of the item between `start` and `end` in `collection`.
     fn item(
-        &self,
+        collection: &'collection Offsets<T, OffsetItem, Storage, U>,
         (&start, &end): (&OffsetItem, &OffsetItem),
     ) -> OffsetView<'collection, T, OffsetItem, Storage, U> {
         OffsetView {
-            collection: self.collection,
+            collection,
             start: start.as_usize(),
             end: end.as_usize(),
         }
@@ -713,17 +713,28 @@ impl<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U> Iterato
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.bounds.next().map(|bounds| self.item(bounds))
+        self.bounds
+            .next()
+            .map(|bounds| Self::item(self.collection, bounds))
     }
 
     #[inline]
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        self.bounds.nth(n).map(|bounds| self.item(bounds))
+        self.bounds
+            .nth(n)
+            .map(|bounds| Self::item(self.collection, bounds))
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.bounds.size_hint()
+    }
+
+    #[inline]
+    fn fold<B, F: FnMut(B, Self::Item) -> B>(self, init: B, mut f: F) -> B {
+        let collection = self.collection;
+        self.bounds
+            .fold(init, |acc, bounds| f(acc, Self::item(collection, bounds)))
     }
 }
 
@@ -732,12 +743,16 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> DoubleEndedIterator
 {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.bounds.next_back().map(|bounds| self.item(bounds))
+        self.bounds
+            .next_back()
+            .map(|bounds| Self::item(self.collection, bounds))
     }
 
     #[inline]
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        self.bounds.nth_back(n).map(|bounds| self.item(bounds))
+        self.bounds
+            .nth_back(n)
+            .map(|bounds| Self::item(self.collection, bounds))
     }
 }
 
@@ -775,6 +790,17 @@ pub struct OffsetIntoIter<T: Collection, OffsetItem: Offset, Storage: Buffer, U>
     _collection: PhantomData<U>,
 }
 
+impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owned>>
+    OffsetIntoIter<T, OffsetItem, Storage, U>
+{
+    /// Returns the owned item between `start` and `end` in `data`.
+    fn item(data: &T, start: OffsetItem, end: OffsetItem) -> U {
+        (start.as_usize()..end.as_usize())
+            .map(|index| data.view(index).expect("out of bounds").into_owned())
+            .collect()
+    }
+}
+
 impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owned>> Iterator
     for OffsetIntoIter<T, OffsetItem, Storage, U>
 {
@@ -783,16 +809,32 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
     fn next(&mut self) -> Option<Self::Item> {
         let end = self.offsets.next()?;
         let start = mem::replace(&mut self.position, end);
-        Some(
-            (start.as_usize()..end.as_usize())
-                .map(|index| self.data.view(index).expect("out of bounds"))
-                .map(IntoOwned::into_owned)
-                .collect::<U>(),
-        )
+        Some(Self::item(&self.data, start, end))
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        if let Some(skip) = n.checked_sub(1) {
+            self.position = self.offsets.nth(skip)?;
+        }
+        self.next()
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.len(), Some(self.len()))
+    }
+
+    fn fold<B, F: FnMut(B, Self::Item) -> B>(self, init: B, mut f: F) -> B {
+        let Self {
+            data,
+            offsets,
+            position,
+            ..
+        } = self;
+        offsets
+            .fold((init, position), |(acc, start), end| {
+                (f(acc, Self::item(&data, start, end)), end)
+            })
+            .0
     }
 }
 
@@ -870,7 +912,10 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
     for OffsetView<'_, T, OffsetItem, Storage, U>
 {
     fn into_owned(self) -> U {
-        self.into_iter_owned().collect()
+        let data = &self.collection.data;
+        (self.start..self.end)
+            .map(|index| data.view(index).expect("index in range").into_owned())
+            .collect()
     }
 }
 
@@ -964,8 +1009,9 @@ impl<T: Collection> Debug for OffsetViewIter<'_, T> {
 }
 
 /// [`Offsets`] guarantees that its offsets are within its data, so every index
-/// in `indices` has a view. Should one be missing, the iterator ends early
-/// instead of panicking.
+/// in `indices` has a view. Should one be missing, `next` ends early instead of
+/// panicking, while `fold` stops at the data's length when it starts and
+/// panics on a missing view before it.
 impl<'collection, T: Collection> Iterator for OffsetViewIter<'collection, T> {
     type Item = T::View<'collection>;
 
@@ -982,6 +1028,15 @@ impl<'collection, T: Collection> Iterator for OffsetViewIter<'collection, T> {
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.indices.size_hint()
+    }
+
+    #[inline]
+    fn fold<B, F: FnMut(B, Self::Item) -> B>(self, init: B, mut f: F) -> B {
+        let data = self.data;
+        let end = self.indices.end.min(data.len());
+        (self.indices.start..end).fold(init, |acc, index| {
+            f(acc, data.view(index).expect("index within the data"))
+        })
     }
 }
 
@@ -1528,6 +1583,76 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Collects the remaining items of `iter` through `next` only.
+    fn by_next<I: Iterator>(mut iter: I) -> Vec<I::Item> {
+        iter::from_fn(|| iter.next()).collect()
+    }
+
+    /// Collects the remaining items of `iter` through `fold`.
+    fn by_fold<I: Iterator>(iter: I) -> Vec<I::Item> {
+        iter.fold(Vec::new(), |mut items, item| {
+            items.push(item);
+            items
+        })
+    }
+
+    #[test]
+    fn fold_matches_next() {
+        let lists = [vec![1, 2], vec![], vec![3, 4, 5], vec![6], vec![]];
+        for len in 0..=lists.len() {
+            let offsets = lists[..len].iter().cloned().collect::<Offsets<Vec<i32>>>();
+            for skip in 0..=len {
+                let mut views = offsets.iter_views();
+                views.by_ref().take(skip).for_each(drop);
+                assert_eq!(
+                    by_fold(views.clone().map(IntoOwned::<Vec<i32>>::into_owned)),
+                    by_next(views.map(IntoOwned::<Vec<i32>>::into_owned))
+                );
+
+                let mut owned = offsets.clone().into_iter_owned();
+                owned.by_ref().take(skip).for_each(drop);
+                assert_eq!(by_fold(owned), &lists[skip..len]);
+            }
+            for item in offsets.iter_views() {
+                for skip in 0..=item.len() {
+                    let mut values = item.iter_views();
+                    values.by_ref().take(skip).for_each(drop);
+                    assert_eq!(by_fold(values.clone()), by_next(values));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn fold_stops_at_end_of_short_data() {
+        let offsets: Offsets<Vec<i32>> = Offsets {
+            data: vec![1, 2, 3],
+            offsets: vec![0, 2, 5],
+            _collection: PhantomData,
+        };
+        let item = offsets.view(1).expect("a value");
+        let values = item.iter_views();
+        assert_eq!(by_next(values.clone()), [3]);
+        assert_eq!(by_fold(values), [3]);
+    }
+
+    #[test]
+    fn into_iter_owned_nth() {
+        let lists = [vec![1, 2], vec![], vec![3, 4, 5], vec![6], vec![]];
+        let offsets = lists.iter().cloned().collect::<Offsets<Vec<i32>>>();
+        for first in 0..=lists.len() {
+            for second in 0..=lists.len() {
+                let mut expected = lists.iter().cloned();
+                let mut iter = offsets.clone().into_iter_owned();
+                assert_eq!(iter.nth(first), expected.nth(first));
+                assert_eq!(iter.len(), expected.len());
+                assert_eq!(iter.nth(second), expected.nth(second));
+                assert_eq!(by_next(iter), by_next(expected));
+            }
+        }
+        assert_eq!(offsets.into_iter_owned().nth(usize::MAX), None);
     }
 
     #[test]
