@@ -154,8 +154,9 @@ pub trait ChildRef {
 ///
 /// ```
 /// use narrow::collection::{CollectionAllocIn, TryReserveError};
+/// use std::alloc::Global;
 ///
-/// let result = Vec::<u8>::try_with_capacity_in(usize::MAX, ());
+/// let result = <Vec<u8> as CollectionAllocIn>::try_with_capacity_in(usize::MAX, Global);
 /// assert_eq!(result, Err(TryReserveError::CapacityOverflow));
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -202,12 +203,17 @@ impl core::error::Error for TryReserveError {
 /// explicit also lets nested layouts route child allocations through the same
 /// storage policy.
 ///
+/// std's collections have inherent methods with some of these names, such as
+/// `Vec::with_capacity_in`, which take precedence in method-call syntax; call
+/// this trait's methods on them fully qualified, as in the examples.
+///
 /// # Examples
 ///
 /// ```
 /// use narrow::collection::CollectionAllocIn;
+/// use std::alloc::Global;
 ///
-/// let values = Vec::<u8>::from_iter_in([1, 2], ());
+/// let values = <Vec<u8> as CollectionAllocIn>::from_iter_in([1, 2], Global);
 /// assert_eq!(values, [1, 2]);
 /// ```
 pub trait CollectionAllocIn: Collection + Sized {
@@ -225,8 +231,9 @@ pub trait CollectionAllocIn: Collection + Sized {
     ///
     /// ```
     /// use narrow::collection::CollectionAllocIn;
+    /// use std::alloc::Global;
     ///
-    /// let values = <Vec<u8> as CollectionAllocIn>::with_capacity_in(4, ());
+    /// let values = <Vec<u8> as CollectionAllocIn>::with_capacity_in(4, Global);
     /// assert!(values.capacity() >= 4);
     /// ```
     #[must_use]
@@ -242,8 +249,9 @@ pub trait CollectionAllocIn: Collection + Sized {
     ///
     /// ```
     /// use narrow::collection::CollectionAllocIn;
+    /// use std::alloc::Global;
     ///
-    /// assert_eq!(Vec::<u8>::from_iter_in([1, 2], ()), [1, 2]);
+    /// assert_eq!(<Vec<u8> as CollectionAllocIn>::from_iter_in([1, 2], Global), [1, 2]);
     /// ```
     #[must_use]
     fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, alloc: Self::Alloc) -> Self;
@@ -260,8 +268,9 @@ pub trait CollectionAllocIn: Collection + Sized {
     ///
     /// ```
     /// use narrow::collection::CollectionAllocIn;
+    /// use std::alloc::Global;
     ///
-    /// assert!(Vec::<u8>::try_with_capacity_in(4, ()).is_ok());
+    /// assert!(<Vec<u8> as CollectionAllocIn>::try_with_capacity_in(4, Global).is_ok());
     /// ```
     fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, TryReserveError>;
 
@@ -277,8 +286,9 @@ pub trait CollectionAllocIn: Collection + Sized {
     ///
     /// ```
     /// use narrow::collection::CollectionAllocIn;
+    /// use std::alloc::Global;
     ///
-    /// let values = Vec::<u8>::try_from_iter_in([1, 2], ()).unwrap();
+    /// let values = <Vec<u8> as CollectionAllocIn>::try_from_iter_in([1, 2], Global).unwrap();
     /// assert_eq!(values, [1, 2]);
     /// ```
     fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
@@ -337,6 +347,10 @@ where
 /// Arrow buffer can grow. Builders can require this trait without excluding
 /// borrowed or fixed-capacity collections from read-only APIs.
 ///
+/// Like [`CollectionAllocIn`], call its methods fully qualified on std
+/// collections: `Vec::allocator`, for example, returns a reference to the
+/// allocator rather than a handle.
+///
 /// # Examples
 ///
 /// ```
@@ -356,10 +370,13 @@ pub trait CollectionRealloc: CollectionAllocIn + Extend<Self::Owned> {
     /// # Examples
     ///
     /// ```
-    /// use narrow::collection::CollectionRealloc;
+    /// use narrow::collection::{CollectionAllocIn, CollectionRealloc};
+    /// use std::alloc::Global;
     ///
     /// let values = vec![1_u8];
-    /// assert_eq!(CollectionRealloc::allocator(&values), ());
+    /// let alloc: Global = CollectionRealloc::allocator(&values);
+    /// let sibling = <Vec<u16> as CollectionAllocIn>::with_capacity_in(2, alloc);
+    /// assert!(sibling.capacity() >= 2);
     /// ```
     fn allocator(&self) -> Self::Alloc;
 

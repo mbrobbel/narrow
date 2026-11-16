@@ -766,6 +766,8 @@ impl<Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> CollectionRe
 mod tests {
     extern crate alloc;
 
+    use alloc::alloc::Global;
+
     use crate::buffer::SliceBuffer;
     use alloc::vec::Vec;
 
@@ -1041,13 +1043,14 @@ mod tests {
 
     #[test]
     fn all_set_in_masks_tail_bits() {
-        let bitmap = Bitmap::<VecBuffer>::all_set_in(10, ());
+        let bitmap = Bitmap::<VecBuffer>::all_set_in(10, Global);
         assert_eq!(
             bitmap.into_parts(),
             (alloc::vec![u8::MAX, 0b0000_0011], 10, 0)
         );
 
-        let empty = Bitmap::<VecBuffer>::try_all_set_in(0, ()).expect("empty allocation succeeds");
+        let empty =
+            Bitmap::<VecBuffer>::try_all_set_in(0, Global).expect("empty allocation succeeds");
         assert_eq!(empty.into_parts(), (alloc::vec![], 0, 0));
     }
 
@@ -1111,7 +1114,7 @@ mod tests {
     fn builder_matches_from_iter() {
         for len in 0..200 {
             let bools = (0..len).map(|index| index % 3 == 1).collect::<Vec<_>>();
-            let mut builder = BitmapBuilder::<VecBuffer>::with_capacity_in(len, ());
+            let mut builder = BitmapBuilder::<VecBuffer>::with_capacity_in(len, Global);
             for &bit in &bools {
                 builder.push(bit);
             }

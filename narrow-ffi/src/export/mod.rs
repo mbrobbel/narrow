@@ -200,6 +200,38 @@ pub trait Export {
     /// let values = [1, 2].into_iter().collect::<Array<i32>>();
     /// assert!(values.export().is_ok());
     /// ```
+    ///
+    /// The exported buffers outlive the array, so arrays whose allocator
+    /// borrows cannot be exported:
+    ///
+    /// ```compile_fail,E0597
+    /// use std::{
+    ///     alloc::{AllocError, Allocator, Global, Layout},
+    ///     ptr::NonNull,
+    /// };
+    ///
+    /// use narrow::{array::Array, buffer::VecBuffer, collection::CollectionAllocIn};
+    /// use narrow_ffi::Export;
+    ///
+    /// #[derive(Clone, Copy)]
+    /// struct Borrowing<'a>(&'a ());
+    ///
+    /// // SAFETY: Every operation forwards to `Global`.
+    /// unsafe impl Allocator for Borrowing<'_> {
+    ///     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+    ///         Global.allocate(layout)
+    ///     }
+    ///
+    ///     unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+    ///         // SAFETY: `ptr` was allocated by `Global` with `layout`.
+    ///         unsafe { Global.deallocate(ptr, layout) };
+    ///     }
+    /// }
+    ///
+    /// let unit = ();
+    /// let values = Array::<i32, VecBuffer<Borrowing<'_>>>::from_iter_in([1], Borrowing(&unit));
+    /// let _ = values.export();
+    /// ```
     fn export(self) -> Result<(ArrowArray, ArrowSchema), ExportError>;
 }
 
@@ -438,8 +470,17 @@ mod tests {
     extern crate alloc;
     extern crate std;
 
-    use alloc::{sync::Arc, vec::Vec};
-    use core::slice;
+    use alloc::{
+        alloc::{Allocator, Global, Layout},
+        sync::Arc,
+        vec::Vec,
+    };
+    use core::{
+        alloc::AllocError,
+        ptr::NonNull,
+        slice,
+        sync::atomic::{AtomicIsize, Ordering},
+    };
     use std::{
         panic::{AssertUnwindSafe, catch_unwind},
         thread,
@@ -447,8 +488,8 @@ mod tests {
 
     use narrow::{
         array::Array,
-        buffer::ArcBuffer,
-        collection::{Collection, owned::IntoOwned},
+        buffer::{ArcBuffer, BoxBuffer, VecBuffer},
+        collection::{Collection, CollectionAllocIn, owned::IntoOwned},
         layout::{
             ArrayItem, fixed_size_primitive::FixedSizePrimitive,
             variable_size_list::VariableSizeList,
@@ -559,5 +600,49 @@ mod tests {
         worker.join().expect("release on worker thread");
 
         assert_eq!(Arc::strong_count(&retained), 1);
+    }
+
+    /// Forwards to `Global` and counts its live allocations.
+    #[derive(Clone, Copy, Debug)]
+    struct Counting;
+
+    /// Live allocations of [`Counting`], which only
+    /// `releases_buffers_with_their_allocator` may use, as tests run in
+    /// parallel.
+    static LIVE: AtomicIsize = AtomicIsize::new(0);
+
+    // SAFETY: Every operation forwards to `Global` with the same arguments.
+    unsafe impl Allocator for Counting {
+        fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+            let memory = Global.allocate(layout)?;
+            LIVE.fetch_add(1, Ordering::Relaxed);
+            Ok(memory)
+        }
+
+        unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+            LIVE.fetch_sub(1, Ordering::Relaxed);
+            // SAFETY: `ptr` was allocated by `Global` with `layout`, as the
+            // caller guarantees it was allocated by this allocator.
+            unsafe { Global.deallocate(ptr, layout) };
+        }
+    }
+
+    #[test]
+    fn releases_buffers_with_their_allocator() {
+        let array = Array::<Option<Vec<i32>>, VecBuffer<Counting>>::from_iter_in(
+            [Some(Vec::from([1, 2])), None],
+            Counting,
+        );
+        // Validity, offsets and values.
+        assert_eq!(LIVE.load(Ordering::Relaxed), 3);
+        let exported = array.export().expect("export array");
+        assert_eq!(LIVE.load(Ordering::Relaxed), 3);
+        drop(exported);
+        assert_eq!(LIVE.load(Ordering::Relaxed), 0);
+
+        let boxed = Array::<i32, BoxBuffer<Counting>>::from_iter_in([1, 2], Counting);
+        assert_eq!(LIVE.load(Ordering::Relaxed), 1);
+        drop(boxed.export().expect("export array"));
+        assert_eq!(LIVE.load(Ordering::Relaxed), 0);
     }
 }
