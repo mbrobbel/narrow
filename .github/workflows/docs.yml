@@ -49,8 +49,8 @@ jobs:
           name: rustdoc
           path: target/doc
 
-  summary:
-    name: Docs summary
+  check:
+    name: Docs
     if: always()
     needs: [rustdoc]
     runs-on: ubuntu-slim
