@@ -52,9 +52,42 @@ jobs:
       - name: Rustfmt
         run: cargo fmt --all -- --check
 
-  miri:
-    name: Miri
+  targets:
+    name: Check (${{ matrix.target }})
     runs-on: ubuntu-26.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - i686-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+      - run: cargo check --workspace --all-targets --target ${{ matrix.target }}
+
+  miri:
+    name: Miri (${{ matrix.name }})
+    runs-on: ubuntu-26.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: native
+          - name: tree borrows
+            flags: -Zmiri-tree-borrows
+          - name: i686
+            target: i686-unknown-linux-gnu
+          - name: s390x
+            target: s390x-unknown-linux-gnu
+    env:
+      MIRIFLAGS: ${{ matrix.flags }}
+      TARGET_ARGS: ${{ matrix.target && format('--target {0}', matrix.target) || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -63,8 +96,8 @@ jobs:
         with:
           toolchain: nightly
           components: miri, rust-src
-      - run: cargo miri setup
-      - run: cargo miri test -p narrow-ffi
+      - run: cargo miri setup $TARGET_ARGS
+      - run: cargo miri test -p narrow-ffi $TARGET_ARGS
 
   coverage:
     name: Coverage
@@ -80,7 +113,7 @@ jobs:
         with:
           toolchain: stable
           components: llvm-tools-preview
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+      - uses: taiki-e/install-action@4a76afe23f9e08d2d9550fb56e556444e8611d21 # v2.90.4
         with:
           tool: cargo-llvm-cov@0.8.7
           fallback: none
