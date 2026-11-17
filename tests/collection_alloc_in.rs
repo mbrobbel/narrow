@@ -1,4 +1,5 @@
 use std::{
+    alloc::AllocError,
     borrow::Borrow,
     cell::{Cell, RefCell, RefMut},
     marker::PhantomData,
@@ -8,7 +9,7 @@ use std::{
 use narrow::{
     array::Array,
     buffer::Buffer,
-    collection::{AllocError, Collection, CollectionAllocIn},
+    collection::{Collection, CollectionAllocIn, TryReserveError},
     fixed_size::FixedSize,
     length::Length,
 };
@@ -30,9 +31,9 @@ impl<T: FixedSize, const CAPACITY: usize, const CHUNKS: usize> FixedArena<T, CAP
     }
 
     /// Claims the next chunk when it can satisfy the requested capacity.
-    fn try_allocate(&self, capacity: usize) -> Result<RefMut<'_, [T; CAPACITY]>, AllocError> {
+    fn try_allocate(&self, capacity: usize) -> Result<RefMut<'_, [T; CAPACITY]>, TryReserveError> {
         if capacity > CAPACITY {
-            return Err(AllocError);
+            return Err(TryReserveError::CapacityOverflow);
         }
 
         let index = self.next.get();
@@ -117,18 +118,18 @@ impl<'arena, T: FixedSize, const CAPACITY: usize, const CHUNKS: usize> Collectio
     fn with_capacity_in(capacity: usize, arena: Self::Alloc) -> Self {
         match Self::try_with_capacity_in(capacity, arena) {
             Ok(collection) => collection,
-            Err(AllocError) => panic!("fixed arena exhausted"),
+            Err(error) => panic!("{error}"),
         }
     }
 
     fn from_iter_in<I: IntoIterator<Item = Self::Owned>>(iter: I, arena: Self::Alloc) -> Self {
         match Self::try_from_iter_in(iter, arena) {
             Ok(collection) => collection,
-            Err(AllocError) => panic!("fixed arena exhausted"),
+            Err(error) => panic!("{error}"),
         }
     }
 
-    fn try_with_capacity_in(capacity: usize, arena: Self::Alloc) -> Result<Self, AllocError> {
+    fn try_with_capacity_in(capacity: usize, arena: Self::Alloc) -> Result<Self, TryReserveError> {
         Ok(Self {
             values: arena.try_allocate(capacity)?,
             len: 0,
@@ -139,13 +140,13 @@ impl<'arena, T: FixedSize, const CAPACITY: usize, const CHUNKS: usize> Collectio
     fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
         iter: I,
         arena: Self::Alloc,
-    ) -> Result<Self, AllocError> {
+    ) -> Result<Self, TryReserveError> {
         // Stage values first so oversized input leaves the arena unchanged.
         let mut values = [None; CAPACITY];
         let mut len = 0;
         for value in iter {
             if len == CAPACITY {
-                return Err(AllocError);
+                return Err(TryReserveError::CapacityOverflow);
             }
             values[len] = Some(value);
             len += 1;
@@ -218,7 +219,7 @@ fn collection_alloc_in_uses_a_fixed_preallocated_arena() {
     // Exhaustion is recoverable and does not advance the arena cursor.
     assert!(matches!(
         ArenaCollection::try_with_capacity_in(1, &arena),
-        Err(AllocError)
+        Err(TryReserveError::AllocError(AllocError))
     ));
     assert_eq!(arena.remaining_chunks(), 0);
 }

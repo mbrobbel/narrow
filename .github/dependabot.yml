@@ -21,8 +21,6 @@ updates:
       github-actions:
         patterns:
           - "*"
-    ignore:
-      - dependency-name: "dtolnay/rust-toolchain"
 
   - package-ecosystem: "nix"
     directory: "/"

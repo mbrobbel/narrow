@@ -13,7 +13,7 @@ pub mod vec;
 
 pub mod flatten;
 
-use core::fmt;
+use core::{alloc::AllocError, fmt};
 
 use crate::{collection::owned::IntoOwned, length::Length};
 
@@ -142,29 +142,58 @@ pub trait ChildRef {
     fn child_ref(&self) -> &Self::Child;
 }
 
-/// Error returned when storage for a collection cannot be reserved.
+/// Error returned when a collection cannot reserve capacity.
 ///
-/// A backend-neutral error keeps fallible construction generic over the
-/// storage selected by [`Buffer`](crate::buffer::Buffer).
+/// Like `alloc`'s [`TryReserveError`][std], it tells apart a request the
+/// collection cannot represent from an allocator that failed to provide the
+/// memory.
+///
+/// [std]: https://doc.rust-lang.org/alloc/collections/struct.TryReserveError.html
 ///
 /// # Examples
 ///
 /// ```
-/// use narrow::collection::{AllocError, CollectionAllocIn};
+/// use narrow::collection::{CollectionAllocIn, TryReserveError};
 ///
 /// let result = Vec::<u8>::try_with_capacity_in(usize::MAX, ());
-/// assert_eq!(result, Err(AllocError));
+/// assert_eq!(result, Err(TryReserveError::CapacityOverflow));
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct AllocError;
+#[non_exhaustive]
+pub enum TryReserveError {
+    /// The requested capacity exceeds what the collection can address, such
+    /// as more than `isize::MAX` bytes or more items than its offsets can
+    /// represent.
+    CapacityOverflow,
+    /// The allocator failed to provide the memory.
+    AllocError(AllocError),
+}
 
-impl fmt::Display for AllocError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "collection capacity could not be reserved")
+impl From<AllocError> for TryReserveError {
+    fn from(error: AllocError) -> Self {
+        Self::AllocError(error)
     }
 }
 
-impl core::error::Error for AllocError {}
+impl fmt::Display for TryReserveError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::CapacityOverflow => {
+                f.write_str("capacity exceeds what the collection can address")
+            }
+            Self::AllocError(_) => f.write_str("memory allocation failed"),
+        }
+    }
+}
+
+impl core::error::Error for TryReserveError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
+        match *self {
+            Self::CapacityOverflow => None,
+            Self::AllocError(ref error) => Some(error),
+        }
+    }
+}
 
 /// An allocatable collection of items using a caller-provided allocator.
 ///
@@ -223,8 +252,9 @@ pub trait CollectionAllocIn: Collection + Sized {
     ///
     /// # Errors
     ///
-    /// Returns an [`AllocError`] when the requested capacity cannot be
-    /// reserved.
+    /// Returns [`TryReserveError::CapacityOverflow`] when `capacity` exceeds
+    /// what the collection can address, or [`TryReserveError::AllocError`]
+    /// when the allocator fails.
     ///
     /// # Examples
     ///
@@ -233,14 +263,15 @@ pub trait CollectionAllocIn: Collection + Sized {
     ///
     /// assert!(Vec::<u8>::try_with_capacity_in(4, ()).is_ok());
     /// ```
-    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError>;
+    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, TryReserveError>;
 
     /// Tries to construct a collection from `iter`.
     ///
     /// # Errors
     ///
-    /// Returns an [`AllocError`] when storage for the items cannot be
-    /// reserved.
+    /// Returns [`TryReserveError::CapacityOverflow`] when the items exceed what
+    /// the collection can address, or [`TryReserveError::AllocError`] when the
+    /// allocator fails.
     ///
     /// # Examples
     ///
@@ -253,7 +284,7 @@ pub trait CollectionAllocIn: Collection + Sized {
     fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
         iter: I,
         alloc: Self::Alloc,
-    ) -> Result<Self, AllocError>;
+    ) -> Result<Self, TryReserveError>;
 }
 
 /// An allocatable collection of items using its default allocator.
@@ -336,8 +367,9 @@ pub trait CollectionRealloc: CollectionAllocIn + Extend<Self::Owned> {
     ///
     /// # Errors
     ///
-    /// Returns an [`AllocError`] when the requested capacity cannot be
-    /// reserved.
+    /// Returns [`TryReserveError::CapacityOverflow`] when the new capacity
+    /// exceeds what the collection can address, or
+    /// [`TryReserveError::AllocError`] when the allocator fails.
     ///
     /// # Examples
     ///
@@ -347,15 +379,16 @@ pub trait CollectionRealloc: CollectionAllocIn + Extend<Self::Owned> {
     /// let mut values = Vec::<u8>::new();
     /// assert!(CollectionRealloc::try_reserve(&mut values, 4).is_ok());
     /// ```
-    fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError>;
+    fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError>;
 
     /// Tries to extend this collection with the contents of `iter`.
     ///
     /// # Errors
     ///
-    /// Returns an [`AllocError`] when storage for the additional items cannot
-    /// be reserved. The collection's logical contents are unchanged when a
-    /// reservation fails.
+    /// Returns [`TryReserveError::CapacityOverflow`] when the extended
+    /// collection would exceed what it can address, or
+    /// [`TryReserveError::AllocError`] when the allocator fails. The
+    /// collection's logical contents are unchanged when this fails.
     ///
     /// # Examples
     ///
@@ -369,7 +402,7 @@ pub trait CollectionRealloc: CollectionAllocIn + Extend<Self::Owned> {
     fn try_extend<I: IntoIterator<Item = Self::Owned>>(
         &mut self,
         iter: I,
-    ) -> Result<(), AllocError>;
+    ) -> Result<(), TryReserveError>;
 
     /// Reserves capacity for at least `additional` more items to be inserted in this collection.
     ///
@@ -419,6 +452,24 @@ pub(crate) mod tests {
     use super::*;
 
     fn assert_collection_alloc<C: CollectionAlloc>() {}
+
+    #[test]
+    fn try_reserve_error_source() {
+        use alloc::string::ToString;
+        use core::error::Error;
+
+        let overflow = TryReserveError::CapacityOverflow;
+        assert!(overflow.source().is_none());
+        assert_eq!(
+            overflow.to_string(),
+            "capacity exceeds what the collection can address"
+        );
+
+        let failed = TryReserveError::from(AllocError);
+        assert_eq!(failed, TryReserveError::AllocError(AllocError));
+        assert!(failed.source().is_some_and(<dyn Error>::is::<AllocError>));
+        assert_eq!(failed.to_string(), "memory allocation failed");
+    }
 
     #[test]
     fn collection_alloc_is_blanket_implemented() {

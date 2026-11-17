@@ -27,7 +27,9 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.token.outputs.token }}
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+        with:
+          toolchain: stable
       - uses: release-plz/action@66b324fd6c72d05d2a08568492ecdd62bfb8a62b # v0.5.148
         with:
           command: release
@@ -35,8 +37,8 @@ jobs:
           GITHUB_TOKEN: ${{ steps.token.outputs.token }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
 
-  pr:
-    name: PR
+  release-pr:
+    name: Release PR
     runs-on: ubuntu-26.04-arm
     permissions: {}
     concurrency:
@@ -55,7 +57,9 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.token.outputs.token }}
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+        with:
+          toolchain: stable
       - uses: release-plz/action@66b324fd6c72d05d2a08568492ecdd62bfb8a62b # v0.5.148
         with:
           command: release-pr
