@@ -18,8 +18,8 @@ use core::{
 use crate::{
     buffer::{Buffer, BufferRef, VecBuffer},
     collection::{
-        AllocError, ChildRef, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
-        owned::IntoOwned,
+        ChildRef, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
+        TryReserveError, owned::IntoOwned,
     },
     fixed_size::FixedSize,
     length::Length,
@@ -437,8 +437,10 @@ where
         offsets
     }
 
-    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError> {
-        let offset_capacity = capacity.checked_add(1).ok_or(AllocError)?;
+    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, TryReserveError> {
+        let offset_capacity = capacity
+            .checked_add(1)
+            .ok_or(TryReserveError::CapacityOverflow)?;
         let data = T::try_with_capacity_in(capacity, alloc.clone())?;
         let mut offsets = Storage::For::<OffsetItem>::try_with_capacity_in(offset_capacity, alloc)?;
         offsets.try_extend(iter::once(OffsetItem::default()))?;
@@ -452,7 +454,7 @@ where
     fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
         iter: I,
         alloc: Self::Alloc,
-    ) -> Result<Self, AllocError> {
+    ) -> Result<Self, TryReserveError> {
         let items = iter.into_iter();
         let (capacity, _) = items.size_hint();
         let mut offsets = Self::try_with_capacity_in(capacity, alloc)?;
@@ -588,7 +590,7 @@ where
         self.data.allocator()
     }
 
-    fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+    fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
         // This is only enough for collections with len 1
         self.data.try_reserve(additional)?;
         self.offsets.try_reserve(additional)
@@ -601,7 +603,7 @@ where
     fn try_extend<I: IntoIterator<Item = Self::Owned>>(
         &mut self,
         iter: I,
-    ) -> Result<(), AllocError> {
+    ) -> Result<(), TryReserveError> {
         let rows = self.len();
         let mut previous = self
             .offsets
@@ -616,7 +618,10 @@ where
             let appended = self
                 .data
                 .try_extend(collection.into_iter_owned())
-                .and_then(|()| OffsetItem::try_from(self.data.len()).map_err(|_| AllocError))
+                .and_then(|()| {
+                    OffsetItem::try_from(self.data.len())
+                        .map_err(|_| TryReserveError::CapacityOverflow)
+                })
                 .and_then(|next_position| {
                     assert!(next_position >= previous, "data length decreased");
                     previous = next_position;
@@ -1250,14 +1255,14 @@ mod tests {
             iter.into_iter().collect()
         }
 
-        fn try_with_capacity_in(capacity: usize, (): Self::Alloc) -> Result<Self, AllocError> {
+        fn try_with_capacity_in(capacity: usize, (): Self::Alloc) -> Result<Self, TryReserveError> {
             Ok(Self::with_capacity_in(capacity, ()))
         }
 
         fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
             iter: I,
             (): Self::Alloc,
-        ) -> Result<Self, AllocError> {
+        ) -> Result<Self, TryReserveError> {
             Ok(iter.into_iter().collect())
         }
     }
@@ -1309,24 +1314,30 @@ mod tests {
 
     /// Data that reports half the values it holds as its length when
     /// `HALVE` is set, so its length can decrease while values are appended,
-    /// and whose `try_extend` fails once it holds more than `LIMIT` values.
+    /// adds `EXTRA` to its reported length, and whose `try_extend` fails once
+    /// it holds more than `LIMIT` values.
     #[derive(Debug, Default)]
-    struct Misbehaving<const HALVE: bool, const LIMIT: usize>(Vec<i32>);
+    struct Misbehaving<const HALVE: bool, const LIMIT: usize, const EXTRA: usize = 0>(Vec<i32>);
 
     /// Data whose length decreases when it is truncated and appended to.
     type HalfLen = Misbehaving<true, { usize::MAX }>;
 
-    impl<const HALVE: bool, const LIMIT: usize> Length for Misbehaving<HALVE, LIMIT> {
+    impl<const HALVE: bool, const LIMIT: usize, const EXTRA: usize> Length
+        for Misbehaving<HALVE, LIMIT, EXTRA>
+    {
         fn len(&self) -> usize {
-            if HALVE {
+            let len = if HALVE {
                 self.0.len() / 2
             } else {
                 self.0.len()
-            }
+            };
+            len.strict_add(EXTRA)
         }
     }
 
-    impl<const HALVE: bool, const LIMIT: usize> Collection for Misbehaving<HALVE, LIMIT> {
+    impl<const HALVE: bool, const LIMIT: usize, const EXTRA: usize> Collection
+        for Misbehaving<HALVE, LIMIT, EXTRA>
+    {
         type View<'collection> = i32;
         type Owned = i32;
 
@@ -1347,13 +1358,17 @@ mod tests {
         }
     }
 
-    impl<const HALVE: bool, const LIMIT: usize> Extend<i32> for Misbehaving<HALVE, LIMIT> {
+    impl<const HALVE: bool, const LIMIT: usize, const EXTRA: usize> Extend<i32>
+        for Misbehaving<HALVE, LIMIT, EXTRA>
+    {
         fn extend<I: IntoIterator<Item = i32>>(&mut self, iter: I) {
             self.0.extend(iter);
         }
     }
 
-    impl<const HALVE: bool, const LIMIT: usize> CollectionAllocIn for Misbehaving<HALVE, LIMIT> {
+    impl<const HALVE: bool, const LIMIT: usize, const EXTRA: usize> CollectionAllocIn
+        for Misbehaving<HALVE, LIMIT, EXTRA>
+    {
         type Alloc = ();
 
         fn with_capacity_in(capacity: usize, (): Self::Alloc) -> Self {
@@ -1364,32 +1379,34 @@ mod tests {
             Self(iter.into_iter().collect())
         }
 
-        fn try_with_capacity_in(capacity: usize, (): Self::Alloc) -> Result<Self, AllocError> {
+        fn try_with_capacity_in(capacity: usize, (): Self::Alloc) -> Result<Self, TryReserveError> {
             Ok(Self::with_capacity_in(capacity, ()))
         }
 
         fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
             iter: I,
             (): Self::Alloc,
-        ) -> Result<Self, AllocError> {
+        ) -> Result<Self, TryReserveError> {
             Ok(Self::from_iter_in(iter, ()))
         }
     }
 
-    impl<const HALVE: bool, const LIMIT: usize> CollectionRealloc for Misbehaving<HALVE, LIMIT> {
+    impl<const HALVE: bool, const LIMIT: usize, const EXTRA: usize> CollectionRealloc
+        for Misbehaving<HALVE, LIMIT, EXTRA>
+    {
         fn allocator(&self) -> Self::Alloc {}
 
-        fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
-            self.0.try_reserve(additional).map_err(|_| AllocError)
+        fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
+            crate::collection::vec::try_reserve(&mut self.0, additional)
         }
 
         fn try_extend<I: IntoIterator<Item = Self::Owned>>(
             &mut self,
             iter: I,
-        ) -> Result<(), AllocError> {
+        ) -> Result<(), TryReserveError> {
             self.0.extend(iter);
             if self.0.len() > LIMIT {
-                Err(AllocError)
+                Err(TryReserveError::AllocError(core::alloc::AllocError))
             } else {
                 Ok(())
             }
@@ -1431,10 +1448,27 @@ mod tests {
     }
 
     #[test]
+    fn try_extend_reports_offset_overflow() {
+        // The data reports `i32::MAX` more values than it holds, so the first
+        // appended value takes its length past what `i32` offsets can address.
+        type Overflowing = Misbehaving<false, { usize::MAX }, 0x7fff_ffff>;
+        let mut offsets = Offsets::<Overflowing>::default();
+        assert_eq!(
+            offsets.try_extend([vec![1]]),
+            Err(TryReserveError::CapacityOverflow)
+        );
+        assert_eq!(offsets.offsets, [0]);
+        assert_eq!(offsets.data.0, [0_i32; 0]);
+    }
+
+    #[test]
     fn try_extend_rolls_back_on_failure() {
         let mut offsets = Offsets::<Misbehaving<false, 3>>::default();
         offsets.extend([vec![1]]);
-        assert_eq!(offsets.try_extend([vec![2], vec![3, 4]]), Err(AllocError));
+        assert_eq!(
+            offsets.try_extend([vec![2], vec![3, 4]]),
+            Err(TryReserveError::AllocError(core::alloc::AllocError))
+        );
         assert_eq!(offsets.offsets, [0, 1]);
         assert_eq!(offsets.data.0, [1]);
     }

@@ -15,28 +15,30 @@ permissions:
 
 jobs:
   msrv:
-    name: Minimum supported Rust version
+    name: Test (MSRV)
     runs-on: ubuntu-26.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@ab40b01f54fe82bdf65693ea090a1e4942c136e7 # 1.91
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+        with:
+          toolchain: "1.100"
       - run: cargo check --workspace --all-targets
       - run: cargo test --workspace --lib --bins --examples --tests
       - run: cargo test --workspace --benches
       - run: cargo test --workspace --doc
 
-  check:
-    name: Check
+  test:
+    name: Test (stable)
     runs-on: ubuntu-26.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
         with:
-          components: clippy, rustfmt
+          toolchain: stable
           targets: thumbv6m-none-eabi
       - name: Check without atomics
         run: cargo check -p narrow -p narrow-ffi --target thumbv6m-none-eabi
@@ -44,21 +46,71 @@ jobs:
         run: cargo test --workspace --all-targets
       - name: Doctest
         run: cargo test --workspace --doc
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -Dwarnings
-      - name: Rustfmt
-        run: cargo fmt --all -- --check
 
-  miri:
-    name: Miri
+  lint:
+    name: Lint
     runs-on: ubuntu-26.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@49a8ff4eadd9ad85042f0e2f761eaab3888d767a # miri
-      - run: cargo miri setup
-      - run: cargo miri test -p narrow-ffi
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -Dwarnings
+      - name: Rustfmt
+        run: cargo fmt --all -- --check
+
+  targets:
+    name: Check (${{ matrix.name }})
+    runs-on: ubuntu-26.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: x86_64
+            target: x86_64-unknown-linux-gnu
+          - name: i686
+            target: i686-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+      - run: cargo check --workspace --all-targets --target ${{ matrix.target }}
+
+  miri:
+    name: Miri (${{ matrix.name }})
+    runs-on: ubuntu-26.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: native
+          - name: tree borrows
+            flags: -Zmiri-tree-borrows
+          - name: i686
+            target: i686-unknown-linux-gnu
+          - name: s390x
+            target: s390x-unknown-linux-gnu
+    env:
+      MIRIFLAGS: ${{ matrix.flags }}
+      TARGET_ARGS: ${{ matrix.target && format('--target {0}', matrix.target) || '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+        with:
+          toolchain: nightly
+          components: miri, rust-src
+      - run: cargo miri setup $TARGET_ARGS
+      - run: cargo miri test -p narrow-ffi $TARGET_ARGS
 
   coverage:
     name: Coverage
@@ -70,10 +122,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
         with:
+          toolchain: stable
           components: llvm-tools-preview
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+      - uses: taiki-e/install-action@4a76afe23f9e08d2d9550fb56e556444e8611d21 # v2.90.4
         with:
           tool: cargo-llvm-cov@0.8.7
           fallback: none
@@ -86,3 +139,12 @@ jobs:
           disable_search: true
           plugins: noop
           fail_ci_if_error: true
+
+  check:
+    name: Test
+    if: always()
+    needs: [msrv, test, lint, targets, miri, coverage]
+    runs-on: ubuntu-slim
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
