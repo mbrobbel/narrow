@@ -8,8 +8,8 @@ use core::{
 
 use crate::{
     collection::{
-        AllocError, ChildRef, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
-        owned::IntoOwned,
+        ChildRef, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
+        TryReserveError, owned::IntoOwned,
     },
     length::Length,
 };
@@ -254,15 +254,17 @@ impl<C: CollectionAllocIn, const N: usize> CollectionAllocIn for Flatten<C, N> {
         Self::new(C::from_iter_in(iter.into_iter().flatten(), alloc))
     }
 
-    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError> {
-        let child_capacity = capacity.checked_mul(N).ok_or(AllocError)?;
+    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, TryReserveError> {
+        let child_capacity = capacity
+            .checked_mul(N)
+            .ok_or(TryReserveError::CapacityOverflow)?;
         C::try_with_capacity_in(child_capacity, alloc).map(Self::new)
     }
 
     fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
         iter: I,
         alloc: Self::Alloc,
-    ) -> Result<Self, AllocError> {
+    ) -> Result<Self, TryReserveError> {
         C::try_from_iter_in(iter.into_iter().flatten(), alloc).map(Self::new)
     }
 }
@@ -272,15 +274,17 @@ impl<C: CollectionRealloc, const N: usize> CollectionRealloc for Flatten<C, N> {
         self.0.allocator()
     }
 
-    fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
-        let child_additional = additional.checked_mul(N).ok_or(AllocError)?;
+    fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
+        let child_additional = additional
+            .checked_mul(N)
+            .ok_or(TryReserveError::CapacityOverflow)?;
         self.0.try_reserve(child_additional)
     }
 
     fn try_extend<I: IntoIterator<Item = Self::Owned>>(
         &mut self,
         iter: I,
-    ) -> Result<(), AllocError> {
+    ) -> Result<(), TryReserveError> {
         self.0.truncate(self.len().strict_mul(N));
         self.0.try_extend(iter.into_iter().flatten())
     }
