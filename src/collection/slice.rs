@@ -90,6 +90,9 @@ impl<'collection, T: AsView<'collection>> FusedIterator for SliceViews<'collecti
 /// This adapter materializes one view at a time, avoiding an intermediate
 /// collection.
 ///
+/// `collect` and `fold` run over the remaining slice directly, so prefer them
+/// over stepping with `next`, which `Vec::extend` does.
+///
 /// # Examples
 ///
 /// ```
@@ -107,6 +110,22 @@ pub struct SliceIntoIter<T, U> {
     index: usize,
     /// Item type
     _ty: PhantomData<U>,
+}
+
+impl<T: Borrow<[U]>, U: for<'slice> AsView<'slice, View: IntoOwned<U>>> SliceIntoIter<T, U> {
+    /// Returns an iterator over the remaining items, without advancing this
+    /// iterator.
+    ///
+    /// Consuming methods delegate to it so they run over the slice iterator
+    /// directly, keeping its specializations, such as those of `collect`.
+    fn remaining(&self) -> impl Iterator<Item = U> {
+        self.slice
+            .borrow()
+            .get(self.index..)
+            .unwrap_or_default()
+            .iter()
+            .map(|item| item.as_view().into_owned())
+    }
 }
 
 impl<T: Borrow<[U]>, U: for<'slice> AsView<'slice, View: IntoOwned<U>>> Iterator
@@ -128,6 +147,14 @@ impl<T: Borrow<[U]>, U: for<'slice> AsView<'slice, View: IntoOwned<U>>> Iterator
         let remaining = self.slice.borrow().len().strict_sub(self.index);
         (remaining, Some(remaining))
     }
+
+    fn fold<B, F: FnMut(B, Self::Item) -> B>(self, init: B, f: F) -> B {
+        self.remaining().fold(init, f)
+    }
+
+    fn collect<B: FromIterator<Self::Item>>(self) -> B {
+        self.remaining().collect()
+    }
 }
 
 impl<T: Borrow<[U]>, U: for<'slice> AsView<'slice, View: IntoOwned<U>>> ExactSizeIterator
@@ -147,7 +174,10 @@ impl<T, U> From<T> for SliceIntoIter<T, U> {
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+
     use super::*;
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn slice_into_iter_size_hint() {
@@ -160,5 +190,45 @@ mod tests {
         assert_eq!(iter.size_hint(), (0, Some(0)));
         let _ = Iterator::next(&mut iter);
         assert_eq!(iter.size_hint(), (0, Some(0)));
+    }
+
+    #[test]
+    fn slice_into_iter_consuming() {
+        let input = [1, 2, 3, 4].as_slice();
+        let fresh = || SliceIntoIter::<_, i32>::from(input);
+        let advanced = || {
+            let mut iter = fresh();
+            assert_eq!(Iterator::next(&mut iter), Some(1));
+            iter
+        };
+        let exhausted = || {
+            let mut iter = fresh();
+            assert_eq!(iter.nth(4), None);
+            iter
+        };
+
+        assert_eq!(fresh().collect::<Vec<_>>(), [1, 2, 3, 4]);
+        assert_eq!(advanced().collect::<Vec<_>>(), [2, 3, 4]);
+        assert_eq!(exhausted().collect::<Vec<_>>(), []);
+
+        assert_eq!(fresh().fold(0, |acc, x| acc * 10 + x), 1234);
+        assert_eq!(advanced().fold(0, |acc, x| acc * 10 + x), 234);
+        assert_eq!(exhausted().fold(0, |acc, x| acc * 10 + x), 0);
+
+        let empty = SliceIntoIter::<_, i32>::from([].as_slice());
+        assert_eq!(empty.collect::<Vec<_>>(), []);
+    }
+
+    #[test]
+    fn slice_into_iter_nested() {
+        let input = [Some(1), None, Some(3)].as_slice();
+        let mut iter = SliceIntoIter::<_, Option<i32>>::from(input);
+        assert_eq!(Iterator::next(&mut iter), Some(Some(1)));
+        assert_eq!(iter.collect::<Vec<_>>(), [None, Some(3)]);
+
+        let lists = [vec![1], vec![], vec![2, 3]];
+        let mut lists_iter = SliceIntoIter::<_, Vec<i32>>::from(lists.as_slice());
+        assert_eq!(lists_iter.nth(1), Some(vec![]));
+        assert_eq!(lists_iter.collect::<Vec<_>>(), [vec![2, 3]]);
     }
 }
