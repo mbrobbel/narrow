@@ -218,6 +218,19 @@ impl fmt::Display for OffsetsError {
 impl core::error::Error for OffsetsError {}
 
 impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Offsets<T, OffsetItem, Storage, U> {
+    /// Returns the view of the item between the `start` and `end` offsets.
+    fn view_between(
+        &self,
+        start: OffsetItem,
+        end: OffsetItem,
+    ) -> OffsetView<'_, T, OffsetItem, Storage, U> {
+        OffsetView {
+            collection: self,
+            start: start.as_usize(),
+            end: end.as_usize(),
+        }
+    }
+
     /// Constructs [`Offsets`] from a `data` collection and its `offsets`
     /// buffer.
     ///
@@ -538,13 +551,9 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
     type Owned = U;
 
     fn view(&self, index: usize) -> Option<Self::View<'_>> {
-        let start = self.offsets.owned(index);
-        let end = self.offsets.owned(index.checked_add(1)?);
-        start.zip(end).map(|(s, e)| OffsetView {
-            collection: self,
-            start: s.as_usize(),
-            end: e.as_usize(),
-        })
+        let start = self.offsets.owned(index)?;
+        let end = self.offsets.owned(index.checked_add(1)?)?;
+        Some(self.view_between(start, end))
     }
 
     type Iter<'collection>
@@ -674,22 +683,6 @@ pub struct OffsetIter<'collection, T: Collection, OffsetItem: Offset, Storage: B
     bounds: Zip<slice::Iter<'collection, OffsetItem>, slice::Iter<'collection, OffsetItem>>,
 }
 
-impl<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U>
-    OffsetIter<'collection, T, OffsetItem, Storage, U>
-{
-    /// Returns the view of the item between `start` and `end` in `collection`.
-    fn item(
-        collection: &'collection Offsets<T, OffsetItem, Storage, U>,
-        (&start, &end): (&OffsetItem, &OffsetItem),
-    ) -> OffsetView<'collection, T, OffsetItem, Storage, U> {
-        OffsetView {
-            collection,
-            start: start.as_usize(),
-            end: end.as_usize(),
-        }
-    }
-}
-
 impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Clone
     for OffsetIter<'_, T, OffsetItem, Storage, U>
 {
@@ -720,14 +713,14 @@ impl<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U> Iterato
     fn next(&mut self) -> Option<Self::Item> {
         self.bounds
             .next()
-            .map(|bounds| Self::item(self.collection, bounds))
+            .map(|(&start, &end)| self.collection.view_between(start, end))
     }
 
     #[inline]
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
         self.bounds
             .nth(n)
-            .map(|bounds| Self::item(self.collection, bounds))
+            .map(|(&start, &end)| self.collection.view_between(start, end))
     }
 
     #[inline]
@@ -738,8 +731,9 @@ impl<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U> Iterato
     #[inline]
     fn fold<B, F: FnMut(B, Self::Item) -> B>(self, init: B, mut f: F) -> B {
         let collection = self.collection;
-        self.bounds
-            .fold(init, |acc, bounds| f(acc, Self::item(collection, bounds)))
+        self.bounds.fold(init, |acc, (&start, &end)| {
+            f(acc, collection.view_between(start, end))
+        })
     }
 }
 
@@ -750,14 +744,14 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> DoubleEndedIterator
     fn next_back(&mut self) -> Option<Self::Item> {
         self.bounds
             .next_back()
-            .map(|bounds| Self::item(self.collection, bounds))
+            .map(|(&start, &end)| self.collection.view_between(start, end))
     }
 
     #[inline]
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
         self.bounds
             .nth_back(n)
-            .map(|bounds| Self::item(self.collection, bounds))
+            .map(|(&start, &end)| self.collection.view_between(start, end))
     }
 }
 
@@ -795,15 +789,15 @@ pub struct OffsetIntoIter<T: Collection, OffsetItem: Offset, Storage: Buffer, U>
     _collection: PhantomData<U>,
 }
 
-impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owned>>
-    OffsetIntoIter<T, OffsetItem, Storage, U>
-{
-    /// Returns the owned item between `start` and `end` in `data`.
-    fn item(data: &T, start: OffsetItem, end: OffsetItem) -> U {
-        (start.as_usize()..end.as_usize())
-            .map(|index| data.view(index).expect("out of bounds").into_owned())
-            .collect()
-    }
+/// Returns the owned item between the `start` and `end` offsets in `data`.
+fn owned_between<T: Collection, OffsetItem: Offset, U: FromIterator<T::Owned>>(
+    data: &T,
+    start: OffsetItem,
+    end: OffsetItem,
+) -> U {
+    (start.as_usize()..end.as_usize())
+        .map(|index| data.view(index).expect("out of bounds").into_owned())
+        .collect()
 }
 
 impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owned>> Iterator
@@ -814,7 +808,7 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
     fn next(&mut self) -> Option<Self::Item> {
         let end = self.offsets.next()?;
         let start = mem::replace(&mut self.position, end);
-        Some(Self::item(&self.data, start, end))
+        Some(owned_between(&self.data, start, end))
     }
 
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
@@ -837,7 +831,7 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
         } = self;
         offsets
             .fold((init, position), |(acc, start), end| {
-                (f(acc, Self::item(&data, start, end)), end)
+                (f(acc, owned_between(&data, start, end)), end)
             })
             .0
     }
