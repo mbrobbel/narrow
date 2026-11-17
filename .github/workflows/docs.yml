@@ -49,6 +49,15 @@ jobs:
           name: rustdoc
           path: target/doc
 
+  summary:
+    name: Docs summary
+    if: always()
+    needs: [rustdoc]
+    runs-on: ubuntu-slim
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
+
   deploy:
     name: Deploy
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
