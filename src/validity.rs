@@ -9,8 +9,8 @@ use crate::{
     bitmap::{Bitmap, BitmapBuilder, ValidityBitmap},
     buffer::{Buffer, VecBuffer},
     collection::{
-        AllocError, ChildRef, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
-        view::AsView,
+        ChildRef, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
+        TryReserveError, view::AsView,
     },
     length::Length,
 };
@@ -423,7 +423,7 @@ impl<
     /// Returns the collection and its bitmap, first trying to materialize an
     /// explicit all-valid bitmap with the collection's allocator if there is
     /// none.
-    fn try_materialized_mut(&mut self) -> Result<(&mut T, &mut Bitmap<Storage>), AllocError> {
+    fn try_materialized_mut(&mut self) -> Result<(&mut T, &mut Bitmap<Storage>), TryReserveError> {
         let &mut Self {
             ref mut collection,
             ref mut bitmap,
@@ -536,7 +536,7 @@ impl<
         }
     }
 
-    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError> {
+    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, TryReserveError> {
         let collection = T::try_with_capacity_in(capacity, alloc.clone())?;
         let bitmap = Bitmap::<Storage>::try_with_capacity_in(capacity, alloc)?;
         Ok(Self {
@@ -548,7 +548,7 @@ impl<
     fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
         iter: I,
         alloc: Self::Alloc,
-    ) -> Result<Self, AllocError> {
+    ) -> Result<Self, TryReserveError> {
         let items = iter.into_iter();
         let (capacity, _) = items.size_hint();
         let mut validity = Self::try_with_capacity_in(capacity, alloc)?;
@@ -566,7 +566,7 @@ impl<
         self.collection.allocator()
     }
 
-    fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+    fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
         let (collection, bitmap) = self.try_materialized_mut()?;
         collection.try_reserve(additional)?;
         bitmap.try_reserve(additional)
@@ -575,7 +575,7 @@ impl<
     fn try_extend<I: IntoIterator<Item = Self::Owned>>(
         &mut self,
         iter: I,
-    ) -> Result<(), AllocError> {
+    ) -> Result<(), TryReserveError> {
         let len = self.len();
         let mut items = iter.into_iter();
         let (collection, bitmap) = self.try_materialized_mut()?;
@@ -774,16 +774,16 @@ mod tests {
         fn try_with_capacity_in(
             capacity: usize,
             allocator: Self::Alloc,
-        ) -> Result<Self, AllocError> {
+        ) -> Result<Self, TryReserveError> {
             let mut values = Vec::new();
-            values.try_reserve_exact(capacity).map_err(|_| AllocError)?;
+            crate::collection::vec::try_reserve_exact(&mut values, capacity)?;
             Ok(Self { values, allocator })
         }
 
         fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
             iter: I,
             allocator: Self::Alloc,
-        ) -> Result<Self, AllocError> {
+        ) -> Result<Self, TryReserveError> {
             let items = iter.into_iter();
             let (capacity, _) = items.size_hint();
             let mut collection = Self::try_with_capacity_in(capacity, allocator)?;
@@ -803,14 +803,14 @@ mod tests {
             self.allocator.clone()
         }
 
-        fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
-            self.values.try_reserve(additional).map_err(|_| AllocError)
+        fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
+            crate::collection::vec::try_reserve(&mut self.values, additional)
         }
 
         fn try_extend<I: IntoIterator<Item = Self::Owned>>(
             &mut self,
             iter: I,
-        ) -> Result<(), AllocError> {
+        ) -> Result<(), TryReserveError> {
             let items = iter.into_iter();
             let (additional, _) = items.size_hint();
             self.try_reserve(additional)?;

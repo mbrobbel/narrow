@@ -17,7 +17,9 @@ use packed::BitPackedExt;
 
 use crate::{
     buffer::{Buffer, BufferRef, EmptyBuffer, VecBuffer},
-    collection::{AllocError, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc},
+    collection::{
+        Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc, TryReserveError,
+    },
     length::Length,
 };
 
@@ -622,7 +624,7 @@ impl<Storage: Buffer<For<u8>: CollectionAllocIn>> CollectionAllocIn for Bitmap<S
         }
     }
 
-    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, AllocError> {
+    fn try_with_capacity_in(capacity: usize, alloc: Self::Alloc) -> Result<Self, TryReserveError> {
         Storage::For::<u8>::try_with_capacity_in(bytes_for_bits(capacity), alloc).map(|buffer| {
             Self {
                 buffer,
@@ -635,7 +637,7 @@ impl<Storage: Buffer<For<u8>: CollectionAllocIn>> CollectionAllocIn for Bitmap<S
     fn try_from_iter_in<I: IntoIterator<Item = Self::Owned>>(
         iter: I,
         alloc: Self::Alloc,
-    ) -> Result<Self, AllocError> {
+    ) -> Result<Self, TryReserveError> {
         let mut bits: usize = 0;
         let buffer = Storage::For::<u8>::try_from_iter_in(
             iter.into_iter()
@@ -668,7 +670,7 @@ impl<Storage: Buffer<For<u8>: CollectionAllocIn>> Bitmap<Storage> {
     pub(crate) fn try_all_set_in(
         bits: usize,
         alloc: <Storage::For<u8> as CollectionAllocIn>::Alloc,
-    ) -> Result<Self, AllocError> {
+    ) -> Result<Self, TryReserveError> {
         let buffer = Storage::For::<u8>::try_from_iter_in(Self::all_set_bytes(bits), alloc)?;
         Ok(Self {
             buffer,
@@ -693,7 +695,7 @@ impl<Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> CollectionRe
         self.buffer.allocator()
     }
 
-    fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+    fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
         if let Some(bits) = additional.checked_sub(self.trailing_bits()) {
             self.buffer.try_reserve(bytes_for_bits(bits))?;
         }
@@ -703,7 +705,7 @@ impl<Storage: Buffer<For<u8>: BorrowMut<[u8]> + CollectionRealloc>> CollectionRe
     fn try_extend<I: IntoIterator<Item = Self::Owned>>(
         &mut self,
         iter: I,
-    ) -> Result<(), AllocError> {
+    ) -> Result<(), TryReserveError> {
         let original_bits = self.bits;
         let mut items = iter.into_iter().fuse();
 
