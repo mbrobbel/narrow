@@ -7,7 +7,7 @@ use alloc::vec::Vec;
 use core::{
     borrow::Borrow,
     fmt::{self, Debug},
-    iter::{self, FusedIterator, Map, RepeatN, Zip},
+    iter::{self, FusedIterator, Map, Zip},
     marker::PhantomData,
     mem,
     num::TryFromIntError,
@@ -19,7 +19,7 @@ use crate::{
     buffer::{Buffer, BufferRef, VecBuffer},
     collection::{
         ChildRef, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
-        TryReserveError, owned::IntoOwned,
+        TryReserveError, clamp_range, owned::IntoOwned,
     },
     fixed_size::FixedSize,
     length::Length,
@@ -228,6 +228,18 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U> Offsets<T, OffsetIte
             collection: self,
             start: start.as_usize(),
             end: end.as_usize(),
+        }
+    }
+
+    /// Returns an iterator over the items bounded by each pair of adjacent
+    /// offsets in `offsets`.
+    fn iter_between<'collection>(
+        &'collection self,
+        offsets: &'collection [OffsetItem],
+    ) -> OffsetIter<'collection, T, OffsetItem, Storage, U> {
+        OffsetIter {
+            collection: self,
+            bounds: offsets.iter().zip(offsets.get(1..).unwrap_or_default()),
         }
     }
 
@@ -562,11 +574,12 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
         Self: 'collection;
 
     fn iter_views(&self) -> Self::Iter<'_> {
-        let offsets = self.offsets.borrow();
-        OffsetIter {
-            collection: self,
-            bounds: offsets.iter().zip(offsets.get(1..).unwrap_or_default()),
-        }
+        self.iter_between(self.offsets.borrow())
+    }
+
+    fn iter_views_range(&self, range: Range<usize>) -> Self::Iter<'_> {
+        let Range { start, end } = clamp_range(range, self.len());
+        self.iter_between(self.offsets.borrow().get(start..=end).unwrap_or_default())
     }
 
     type IntoIter = OffsetIntoIter<T, OffsetItem, Storage, U>;
@@ -795,8 +808,8 @@ fn owned_between<T: Collection, OffsetItem: Offset, U: FromIterator<T::Owned>>(
     start: OffsetItem,
     end: OffsetItem,
 ) -> U {
-    (start.as_usize()..end.as_usize())
-        .map(|index| data.view(index).expect("out of bounds").into_owned())
+    data.iter_views_range(start.as_usize()..end.as_usize())
+        .map(IntoOwned::into_owned)
         .collect()
 }
 
@@ -851,7 +864,8 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
 /// remains valid only while the collection is borrowed.
 ///
 /// Keeping only a range and a reference avoids allocating a temporary
-/// container when reading a variable-size item.
+/// container when reading a variable-size item. Iterating the view iterates
+/// that range of the flat data with [`Collection::iter_views_range`].
 ///
 /// # Examples
 ///
@@ -911,10 +925,7 @@ impl<T: Collection, OffsetItem: Offset, Storage: Buffer, U: FromIterator<T::Owne
     for OffsetView<'_, T, OffsetItem, Storage, U>
 {
     fn into_owned(self) -> U {
-        let data = &self.collection.data;
-        (self.start..self.end)
-            .map(|index| data.view(index).expect("index in range").into_owned())
-            .collect()
+        self.iter_views().map(IntoOwned::into_owned).collect()
     }
 }
 
@@ -946,118 +957,31 @@ impl<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U> Collect
     }
 
     type Iter<'view>
-        = OffsetViewIter<'view, T>
+        = T::Iter<'view>
     where
         Self: 'view;
 
     fn iter_views(&self) -> Self::Iter<'_> {
-        OffsetViewIter {
-            data: &self.collection.data,
-            indices: self.start..self.end,
-        }
+        self.collection.data.iter_views_range(self.start..self.end)
     }
 
-    /// Collecting through `Map<Zip<Range<usize>, _>, _>` keeps `Vec`'s fast
-    /// path for iterators of known length (the unstable `TrustedLen`), which
-    /// [`OffsetViewIter`] can not implement on stable Rust. Collecting owned
-    /// items through it is about three times slower.
-    type IntoIter =
-        Map<Zip<Range<usize>, RepeatN<&'collection T>>, fn((usize, &'collection T)) -> Self::Owned>;
+    fn iter_views_range(&self, range: Range<usize>) -> Self::Iter<'_> {
+        let Range { start, end } = clamp_range(range, self.len());
+        self.collection
+            .data
+            .iter_views_range(self.start.strict_add(start)..self.start.strict_add(end))
+    }
+
+    type IntoIter = Map<T::Iter<'collection>, fn(T::View<'collection>) -> Self::Owned>;
 
     fn into_iter_owned(self) -> Self::IntoIter {
-        (self.start..self.end)
-            .zip(iter::repeat_n(&self.collection.data, self.len()))
-            .map(|(index, data)| data.view(index).expect("index in range").into_owned())
+        let into_owned: fn(T::View<'collection>) -> Self::Owned = IntoOwned::into_owned;
+        self.collection
+            .data
+            .iter_views_range(self.start..self.end)
+            .map(into_owned)
     }
 }
-
-/// An iterator over the values of one item in an [`Offsets`] collection,
-/// returned by iterating an [`OffsetView`].
-///
-/// # Examples
-///
-/// ```
-/// use narrow::{collection::Collection, offset::{OffsetViewIter, Offsets}};
-///
-/// let values = [vec![1, 2, 3]].into_iter().collect::<Offsets<Vec<i32>>>();
-/// let item = values.view(0).unwrap();
-/// let iter: OffsetViewIter<'_, Vec<i32>> = item.iter_views();
-/// assert_eq!(iter.rev().collect::<Vec<_>>(), [3, 2, 1]);
-/// ```
-pub struct OffsetViewIter<'collection, T: Collection> {
-    data: &'collection T,
-    /// The indices in `data` of the values that remain to be yielded.
-    indices: Range<usize>,
-}
-
-impl<T: Collection> Clone for OffsetViewIter<'_, T> {
-    fn clone(&self) -> Self {
-        Self {
-            data: self.data,
-            indices: self.indices.clone(),
-        }
-    }
-}
-
-impl<T: Collection> Debug for OffsetViewIter<'_, T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("OffsetViewIter")
-            .field("indices", &self.indices)
-            .finish_non_exhaustive()
-    }
-}
-
-/// [`Offsets`] guarantees that its offsets are within its data, so every index
-/// in `indices` has a view. Should one be missing, `next` ends early instead of
-/// panicking, while `fold` stops at the data's length when it starts and
-/// panics on a missing view before it.
-impl<'collection, T: Collection> Iterator for OffsetViewIter<'collection, T> {
-    type Item = T::View<'collection>;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.indices.next().and_then(|index| self.data.view(index))
-    }
-
-    #[inline]
-    fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        self.indices.nth(n).and_then(|index| self.data.view(index))
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.indices.size_hint()
-    }
-
-    #[inline]
-    fn fold<B, F: FnMut(B, Self::Item) -> B>(self, init: B, mut f: F) -> B {
-        let data = self.data;
-        let end = self.indices.end.min(data.len());
-        (self.indices.start..end).fold(init, |acc, index| {
-            f(acc, data.view(index).expect("index within the data"))
-        })
-    }
-}
-
-impl<T: Collection> DoubleEndedIterator for OffsetViewIter<'_, T> {
-    #[inline]
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.indices
-            .next_back()
-            .and_then(|index| self.data.view(index))
-    }
-
-    #[inline]
-    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        self.indices
-            .nth_back(n)
-            .and_then(|index| self.data.view(index))
-    }
-}
-
-impl<T: Collection> ExactSizeIterator for OffsetViewIter<'_, T> {}
-
-impl<T: Collection> FusedIterator for OffsetViewIter<'_, T> {}
 
 #[cfg(test)]
 mod tests {
@@ -1275,6 +1199,12 @@ mod tests {
             self.values.iter().copied()
         }
 
+        fn iter_views_range(&self, range: Range<usize>) -> Self::Iter<'_> {
+            self.values[clamp_range(range, self.values.len())]
+                .iter()
+                .copied()
+        }
+
         type IntoIter = alloc::vec::IntoIter<i32>;
 
         fn into_iter_owned(self) -> Self::IntoIter {
@@ -1398,6 +1328,10 @@ mod tests {
 
         fn iter_views(&self) -> Self::Iter<'_> {
             self.0.iter().copied()
+        }
+
+        fn iter_views_range(&self, range: Range<usize>) -> Self::Iter<'_> {
+            self.0[clamp_range(range, self.0.len())].iter().copied()
         }
 
         type IntoIter = alloc::vec::IntoIter<i32>;
@@ -1654,16 +1588,46 @@ mod tests {
     }
 
     #[test]
-    fn fold_stops_at_end_of_short_data() {
+    fn iteration_stops_at_end_of_short_data() {
         let offsets: Offsets<Vec<i32>> = Offsets {
             data: vec![1, 2, 3],
             offsets: vec![0, 2, 5],
             _collection: PhantomData,
         };
         let item = offsets.view(1).expect("a value");
+        // The view's length is the span between its offsets, which only
+        // matches its values when the data is at least as long as the offsets
+        // require.
+        assert_eq!(item.len(), 3);
         let values = item.iter_views();
+        assert_eq!(values.len(), 1);
         assert_eq!(by_next(values.clone()), [3]);
         assert_eq!(by_fold(values), [3]);
+        assert_eq!(item.iter_views_range(1..3).len(), 0);
+        assert_eq!(item.into_iter_owned().len(), 1);
+        assert_eq!(item.into_iter_owned().collect::<Vec<_>>(), [3]);
+        assert_eq!(IntoOwned::<Vec<i32>>::into_owned(item), [3]);
+        assert_eq!(
+            offsets.into_iter_owned().collect::<Vec<Vec<i32>>>(),
+            [vec![1, 2], vec![3]]
+        );
+    }
+
+    #[test]
+    fn view_into_iter_owned_from_back() {
+        let offsets = [vec![1, 2, 3], vec![], vec![4]]
+            .into_iter()
+            .collect::<Offsets<Vec<i32>>>();
+        let item = offsets.view(0).expect("a value");
+        assert_eq!(item.into_iter_owned().rev().collect::<Vec<_>>(), [3, 2, 1]);
+        let mut iter = item.into_iter_owned();
+        assert_eq!(iter.next_back(), Some(3));
+        assert_eq!(iter.next(), Some(1));
+        assert_eq!(iter.len(), 1);
+        assert_eq!(iter.next_back(), Some(2));
+        assert_eq!(iter.next(), None);
+        let empty = offsets.view(1).expect("a value");
+        assert_eq!(empty.into_iter_owned().next_back(), None);
     }
 
     #[test]

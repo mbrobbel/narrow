@@ -13,7 +13,7 @@ pub mod vec;
 
 pub mod flatten;
 
-use core::{alloc::AllocError, fmt};
+use core::{alloc::AllocError, fmt, ops::Range};
 
 use crate::{collection::owned::IntoOwned, length::Length};
 
@@ -75,7 +75,10 @@ pub trait Collection: Length {
     }
 
     /// Iterator over referenced items in this collection.
-    type Iter<'collection>: Iterator<Item = Self::View<'collection>>
+    ///
+    /// It knows its exact length, so iterators built on it, such as those of
+    /// variable-size list items, can as well.
+    type Iter<'collection>: ExactSizeIterator<Item = Self::View<'collection>>
     where
         Self: 'collection;
 
@@ -89,6 +92,28 @@ pub trait Collection: Length {
     /// assert_eq!([1, 2].iter_views().sum::<i32>(), 3);
     /// ```
     fn iter_views(&self) -> Self::Iter<'_>;
+
+    /// Returns an iterator over references to the items at the indices in
+    /// `range`.
+    ///
+    /// Indices beyond the length of this collection are ignored, so a range
+    /// that starts past the end, or past its own end, yields nothing.
+    ///
+    /// Nested collections read the items of one row through it, which lets
+    /// implementations iterate a contiguous part of their storage directly
+    /// instead of looking up one index at a time.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use narrow::collection::Collection;
+    ///
+    /// let values = [1, 2, 3, 4];
+    /// assert_eq!(values.iter_views_range(1..3).collect::<Vec<_>>(), [2, 3]);
+    /// assert_eq!(values.iter_views_range(3..10).collect::<Vec<_>>(), [4]);
+    /// assert_eq!(values.iter_views_range(5..10).len(), 0);
+    /// ```
+    fn iter_views_range(&self, range: Range<usize>) -> Self::Iter<'_>;
 
     /// Iterator over owned items in this collection.
     type IntoIter: ExactSizeIterator<Item = Self::Owned>;
@@ -104,6 +129,14 @@ pub trait Collection: Length {
     /// assert_eq!(values, [1, 2]);
     /// ```
     fn into_iter_owned(self) -> Self::IntoIter;
+}
+
+/// Returns `range` restricted to the indices below `len`.
+///
+/// A range that starts past `len`, or past its own end, becomes empty.
+pub(crate) fn clamp_range(range: Range<usize>, len: usize) -> Range<usize> {
+    let end = range.end.min(len);
+    range.start.min(end)..end
 }
 
 /// Immutable access to a physical child collection.
@@ -444,7 +477,7 @@ pub trait CollectionRealloc: CollectionAllocIn + Extend<Self::Owned> {
 pub(crate) mod tests {
     extern crate alloc;
 
-    use alloc::vec::Vec;
+    use alloc::{vec, vec::Vec};
     use core::fmt::Debug;
 
     use crate::collection::view::AsView;
@@ -474,6 +507,218 @@ pub(crate) mod tests {
     #[test]
     fn collection_alloc_is_blanket_implemented() {
         assert_collection_alloc::<Vec<u32>>();
+    }
+
+    /// The ranges checked against each collection of length `len`: every
+    /// range up to two past the end, including reversed ones, and ranges
+    /// that end or start at `usize::MAX`.
+    fn ranges(len: usize) -> impl Iterator<Item = Range<usize>> {
+        let bounds = 0..=len.strict_add(2);
+        bounds
+            .clone()
+            .flat_map(move |start| bounds.clone().map(move |end| start..end))
+            .chain((0..=len.strict_add(1)).map(|start| start..usize::MAX))
+            .chain([
+                usize::MAX..usize::MAX,
+                Range {
+                    start: usize::MAX,
+                    end: 0,
+                },
+            ])
+    }
+
+    /// Asserts that [`Collection::iter_views_range`] yields the items that
+    /// skipping and taking from [`Collection::iter_views`] yields, and knows
+    /// how many.
+    pub(crate) fn assert_iter_views_range<'collection, C: Collection<Owned: Debug + PartialEq>>(
+        collection: &'collection C,
+    ) {
+        let owned = |views: C::Iter<'collection>| {
+            views.map(IntoOwned::into_owned).collect::<Vec<C::Owned>>()
+        };
+        for range in ranges(collection.len()) {
+            let expected = collection
+                .iter_views()
+                .skip(range.start)
+                .take(range.end.saturating_sub(range.start))
+                .map(IntoOwned::into_owned)
+                .collect::<Vec<_>>();
+            let views = collection.iter_views_range(range.clone());
+            assert_eq!(views.len(), expected.len(), "{range:?}");
+            assert_eq!(
+                views.size_hint(),
+                (expected.len(), Some(expected.len())),
+                "{range:?}"
+            );
+            let mut stepped = collection.iter_views_range(range.clone());
+            assert_eq!(
+                stepped.next().map(IntoOwned::into_owned).as_ref(),
+                expected.first(),
+                "{range:?}"
+            );
+            assert_eq!(stepped.len(), expected.len().saturating_sub(1), "{range:?}");
+            assert_eq!(owned(views), expected, "{range:?}");
+        }
+    }
+
+    /// Like [`assert_iter_views_range`], and also asserts that iterating the
+    /// range from the back yields its items in reverse.
+    pub(crate) fn assert_iter_views_range_rev<
+        'collection,
+        C: Collection<Owned: Debug + PartialEq, Iter<'collection>: DoubleEndedIterator>,
+    >(
+        collection: &'collection C,
+    ) {
+        assert_iter_views_range(collection);
+        for range in ranges(collection.len()) {
+            let mut expected = collection
+                .iter_views_range(range.clone())
+                .map(IntoOwned::into_owned)
+                .collect::<Vec<_>>();
+            expected.reverse();
+            let mut views = collection.iter_views_range(range.clone());
+            assert_eq!(
+                views.next_back().map(IntoOwned::into_owned).as_ref(),
+                expected.first(),
+                "{range:?}"
+            );
+            assert_eq!(views.len(), expected.len().saturating_sub(1), "{range:?}");
+            assert_eq!(
+                views.rev().map(IntoOwned::into_owned).collect::<Vec<_>>(),
+                expected.get(1..).unwrap_or_default(),
+                "{range:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn iter_views_range_slices() {
+        let values = [1, 2, 3, 4, 5];
+        assert_iter_views_range_rev(&values);
+        assert_iter_views_range_rev(&values.as_slice());
+        assert_iter_views_range_rev(&values.to_vec());
+        assert_iter_views_range_rev(&Vec::<i32>::new());
+        assert_iter_views_range_rev(&alloc::boxed::Box::<[i32]>::from(values));
+        assert_iter_views_range_rev(&alloc::rc::Rc::<[i32]>::from(values));
+        #[cfg(target_has_atomic = "ptr")]
+        assert_iter_views_range_rev(&alloc::sync::Arc::<[i32]>::from(values));
+        assert_iter_views_range_rev(&[Some(1), None, Some(3)].to_vec());
+        assert_iter_views_range_rev(&[alloc::vec![1], alloc::vec![], alloc::vec![2, 3]]);
+        assert_iter_views_range_rev(&[[1, 2], [3, 4], [5, 6]].to_vec());
+        assert_iter_views_range_rev(&[true, false, true].to_vec());
+        assert_iter_views_range_rev(&[(), (), ()].to_vec());
+        assert_iter_views_range_rev(&[Some(alloc::vec![1]), None, Some(alloc::vec![])].to_vec());
+        assert_iter_views_range_rev(&[Some([1, 2]), None, Some([5, 6])].to_vec());
+    }
+
+    #[test]
+    fn iter_views_range_bitmaps() {
+        use crate::{
+            bitmap::Bitmap,
+            buffer::{SliceBuffer, VecBuffer},
+        };
+
+        let bits = [
+            true, false, true, true, false, false, true, false, true, true,
+        ];
+        assert_iter_views_range_rev(&bits.iter().collect::<Bitmap>());
+        let bytes = [0b1010_1101, 0b0110_0011, 0b1111_0000];
+        for offset in [0, 1, 7, 8, 9] {
+            for len in [0, 1, 7, 8, 9, 15] {
+                assert_iter_views_range_rev(&Bitmap::<SliceBuffer>::from_parts(
+                    &bytes, len, offset,
+                ));
+            }
+        }
+        assert_iter_views_range_rev(&Bitmap::<VecBuffer>::default());
+    }
+
+    #[test]
+    fn iter_views_range_nulls() {
+        use crate::layout::null::Nulls;
+
+        assert_iter_views_range_rev(&Nulls::<()>::new(0));
+        assert_iter_views_range_rev(&Nulls::<()>::new(5));
+    }
+
+    #[test]
+    fn iter_views_range_validity() {
+        use crate::validity::Validity;
+
+        let nullable = [Some(1), None, Some(3), None, None, Some(6)]
+            .into_iter()
+            .collect::<Validity<Vec<i32>>>();
+        assert_iter_views_range(&nullable);
+        let valid = [Some(1), Some(2), Some(3)]
+            .into_iter()
+            .collect::<Validity<Vec<i32>>>();
+        assert_iter_views_range(&valid);
+        assert_iter_views_range(&Validity::<Vec<i32>>::from_collection(vec![1, 2, 3]));
+        assert_iter_views_range(&Validity::<Vec<i32>>::default());
+    }
+
+    #[test]
+    fn iter_views_range_flatten() {
+        use crate::collection::flatten::Flatten;
+
+        let lists = [[1, 2], [3, 4], [5, 6], [7, 8]]
+            .into_iter()
+            .collect::<Flatten<Vec<i32>, 2>>();
+        assert_iter_views_range_rev(&lists);
+        assert_iter_views_range_rev(&Flatten::<Vec<i32>, 3>::default());
+    }
+
+    #[test]
+    fn iter_views_range_offsets() {
+        use crate::offset::Offsets;
+
+        let lists = [vec![1, 2], vec![], vec![3, 4, 5], vec![6], vec![]]
+            .into_iter()
+            .collect::<Offsets<Vec<i32>>>();
+        assert_iter_views_range_rev(&lists);
+        lists.iter_views().for_each(|list| {
+            assert_iter_views_range_rev(&list);
+        });
+        assert_iter_views_range_rev(&Offsets::<Vec<i32>>::default());
+
+        let nested = [vec![vec![1], vec![]], vec![], vec![vec![2, 3], vec![4]]]
+            .into_iter()
+            .collect::<Offsets<Offsets<Vec<i32>>>>();
+        assert_iter_views_range_rev(&nested);
+        nested.iter_views().for_each(|list| {
+            assert_iter_views_range_rev(&list);
+        });
+    }
+
+    #[test]
+    fn iter_views_range_arrays() {
+        use crate::array::Array;
+
+        assert_iter_views_range_rev(&[1, 2, 3].into_iter().collect::<Array<i32>>());
+        assert_iter_views_range_rev(&[true, false, true].into_iter().collect::<Array<bool>>());
+        assert_iter_views_range_rev(&[(), (), ()].into_iter().collect::<Array<()>>());
+        assert_iter_views_range_rev(&[[1, 2], [3, 4]].into_iter().collect::<Array<[i32; 2]>>());
+        assert_iter_views_range_rev(
+            &[vec![1], vec![], vec![2, 3]]
+                .into_iter()
+                .collect::<Array<Vec<i32>>>(),
+        );
+        assert_iter_views_range(&[Some(1), None].into_iter().collect::<Array<Option<i32>>>());
+        assert_iter_views_range(
+            &[Some(true), None, Some(false)]
+                .into_iter()
+                .collect::<Array<Option<bool>>>(),
+        );
+        assert_iter_views_range(
+            &[Some([1, 2]), None]
+                .into_iter()
+                .collect::<Array<Option<[i32; 2]>>>(),
+        );
+        assert_iter_views_range(
+            &[Some(vec![1]), None, Some(vec![2, 3])]
+                .into_iter()
+                .collect::<Array<Option<Vec<i32>>>>(),
+        );
     }
 
     pub(crate) fn round_trip<

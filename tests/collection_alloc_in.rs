@@ -3,6 +3,7 @@ use std::{
     borrow::Borrow,
     cell::{Cell, RefCell, RefMut},
     marker::PhantomData,
+    ops::Range,
     slice,
 };
 
@@ -95,6 +96,11 @@ impl<'arena, T: FixedSize, const CAPACITY: usize, const CHUNKS: usize> Collectio
 
     fn iter_views(&self) -> Self::Iter<'_> {
         self.values[..self.len].iter().copied()
+    }
+
+    fn iter_views_range(&self, range: Range<usize>) -> Self::Iter<'_> {
+        let end = range.end.min(self.len);
+        self.values[range.start.min(end)..end].iter().copied()
     }
 
     type IntoIter = ArenaIntoIter<'arena, T, CAPACITY>;

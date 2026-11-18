@@ -8,6 +8,7 @@ extern crate std;
 use std::{
     borrow::Borrow,
     iter::Copied,
+    ops::Range,
     slice,
     sync::{
         Arc,
@@ -132,6 +133,11 @@ impl<T: FixedSize> Collection for Swap<T> {
 
     fn iter_views(&self) -> Self::Iter<'_> {
         self.items.iter().copied()
+    }
+
+    fn iter_views_range(&self, range: Range<usize>) -> Self::Iter<'_> {
+        let end = range.end.min(self.items.len());
+        self.items[range.start.min(end)..end].iter().copied()
     }
 
     type IntoIter = vec::IntoIter<T>;

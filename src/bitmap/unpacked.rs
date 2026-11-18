@@ -3,7 +3,7 @@
 use core::{borrow::Borrow, iter::FusedIterator, ops::Range};
 
 use super::Bitmap;
-use crate::buffer::Buffer;
+use crate::{buffer::Buffer, collection::clamp_range};
 
 /// An iterator over a bitmap's logical bits in LSB-first order.
 ///
@@ -42,6 +42,18 @@ impl<'bitmap, Storage: Buffer> IntoIterator for &'bitmap Bitmap<Storage> {
         BitmapIter {
             bytes: self.buffer.borrow(),
             indices: self.offset..self.offset.strict_add(self.bits),
+        }
+    }
+}
+
+impl<Storage: Buffer> Bitmap<Storage> {
+    /// Returns an iterator over the bits at the indices in `range`, ignoring
+    /// indices beyond the length of this bitmap.
+    pub(super) fn iter_range(&self, range: Range<usize>) -> BitmapIter<&[u8]> {
+        let Range { start, end } = clamp_range(range, self.bits);
+        BitmapIter {
+            bytes: self.buffer.borrow(),
+            indices: self.offset.strict_add(start)..self.offset.strict_add(end),
         }
     }
 }

@@ -1,4 +1,4 @@
-use core::fmt::Debug;
+use core::{fmt::Debug, ops::Range};
 
 use crate::{
     bitmap::Bitmap,
@@ -152,6 +152,10 @@ impl<Nulls: Nullability, Storage: Buffer> Collection for Boolean<Nulls, Storage>
 
     fn iter_views(&self) -> Self::Iter<'_> {
         self.0.iter_views()
+    }
+
+    fn iter_views_range(&self, range: Range<usize>) -> Self::Iter<'_> {
+        self.0.iter_views_range(range)
     }
 
     type IntoIter = <Nulls::Collection<Bitmap<Storage>, Storage> as Collection>::IntoIter;

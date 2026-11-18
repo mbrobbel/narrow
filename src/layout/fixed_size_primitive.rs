@@ -1,4 +1,4 @@
-use core::fmt::Debug;
+use core::{fmt::Debug, ops::Range};
 
 use crate::{
     buffer::{Buffer, BufferRef, EmptyBuffer, VecBuffer},
@@ -161,6 +161,10 @@ impl<T: FixedSize, Nulls: Nullability, Storage: Buffer> Collection
 
     fn iter_views(&self) -> Self::Iter<'_> {
         self.0.iter_views()
+    }
+
+    fn iter_views_range(&self, range: Range<usize>) -> Self::Iter<'_> {
+        self.0.iter_views_range(range)
     }
 
     type IntoIter = <Nulls::Collection<Storage::For<T>, Storage> as Collection>::IntoIter;
