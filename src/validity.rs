@@ -3,6 +3,9 @@
 use core::{
     borrow::BorrowMut,
     fmt::{self, Debug},
+    iter::Map,
+    ops::Range,
+    slice,
 };
 
 use crate::{
@@ -248,8 +251,15 @@ impl<T: Default + Collection, Storage: Buffer> Default for Validity<T, Storage> 
 
 impl<'collection, T: AsView<'collection>> AsView<'collection> for Option<T> {
     type View = Option<<T as AsView<'collection>>::View>;
+    type Views = Map<slice::Iter<'collection, Self>, fn(&'collection Self) -> Self::View>;
+
     fn as_view(&'collection self) -> Option<<T as AsView<'collection>>::View> {
         self.as_ref().map(AsView::as_view)
+    }
+
+    fn views(slice: &'collection [Self]) -> Self::Views {
+        let as_view: fn(&'collection Self) -> Self::View = Self::as_view;
+        slice.iter().map(as_view)
     }
 }
 
@@ -392,6 +402,16 @@ impl<T: Collection, Storage: Buffer> Collection for Validity<T, Storage> {
 
     fn iter_views(&self) -> Self::Iter<'_> {
         <&Self as IntoIterator>::into_iter(self)
+    }
+
+    fn iter_views_range(&self, range: Range<usize>) -> Self::Iter<'_> {
+        ValidityIter {
+            values: self.collection.iter_views_range(range.clone()),
+            bits: self
+                .bitmap
+                .as_ref()
+                .map(|bitmap| bitmap.iter_views_range(range)),
+        }
     }
 
     type IntoIter = <Self as IntoIterator>::IntoIter;
@@ -637,7 +657,7 @@ mod tests {
     };
 
     use super::*;
-    use crate::fixed_size::FixedSize;
+    use crate::{collection::clamp_range, fixed_size::FixedSize};
 
     #[test]
     fn iter_fold_matches_next() {
@@ -736,6 +756,12 @@ mod tests {
 
         fn iter_views(&self) -> Self::Iter<'_> {
             self.values.iter().copied()
+        }
+
+        fn iter_views_range(&self, range: Range<usize>) -> Self::Iter<'_> {
+            self.values[clamp_range(range, self.values.len())]
+                .iter()
+                .copied()
         }
 
         type IntoIter = alloc::vec::IntoIter<T>;
@@ -1006,6 +1032,9 @@ mod tests {
         // Only the prefix committed before this extension remains visible.
         assert_eq!(validity.len(), 2);
         assert_eq!(validity.view(2), None);
+        // The values pushed before the panic remain beyond the bitmap.
+        assert_eq!(validity.collection.len(), 4);
+        crate::collection::tests::assert_iter_views_range(&validity);
 
         validity.extend([Some(5)]);
         assert_eq!(
@@ -1033,6 +1062,10 @@ mod tests {
 
         assert_eq!(validity.len(), VALIDITY_CHUNK);
         assert_eq!(validity.view(0), Some(Some(0)));
+        assert_eq!(validity.collection.len(), VALIDITY_CHUNK + 2);
+        let tail = validity.iter_views_range(VALIDITY_CHUNK - 1..VALIDITY_CHUNK + 2);
+        assert_eq!(tail.len(), 1);
+        assert_eq!(tail.collect::<Vec<_>>(), [Some(VALIDITY_CHUNK - 1)]);
         assert_eq!(
             validity.view(VALIDITY_CHUNK - 1),
             Some(Some(VALIDITY_CHUNK - 1))

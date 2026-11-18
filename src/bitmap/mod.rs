@@ -11,6 +11,7 @@ use core::{
     borrow::{Borrow, BorrowMut},
     fmt::{self, Debug},
     iter,
+    ops::Range,
 };
 
 use packed::BitPackedExt;
@@ -589,6 +590,10 @@ impl<Storage: Buffer> Collection for Bitmap<Storage> {
 
     fn iter_views(&self) -> Self::Iter<'_> {
         <&Self as IntoIterator>::into_iter(self)
+    }
+
+    fn iter_views_range(&self, range: Range<usize>) -> Self::Iter<'_> {
+        self.iter_range(range)
     }
 
     type IntoIter = <Self as IntoIterator>::IntoIter;

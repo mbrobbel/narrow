@@ -1,7 +1,7 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use core::fmt::Debug;
+use core::{fmt::Debug, ops::Range};
 
 use crate::{
     buffer::{Buffer, BufferRef, EmptyBuffer, VecBuffer},
@@ -171,6 +171,10 @@ impl<T: ArrayItem, Nulls: Nullability, OffsetItem: Offset, Storage: Buffer> Coll
 
     fn iter_views(&self) -> Self::Iter<'_> {
         self.0.iter_views()
+    }
+
+    fn iter_views_range(&self, range: Range<usize>) -> Self::Iter<'_> {
+        self.0.iter_views_range(range)
     }
 
     type IntoIter = <Nulls::Collection<Offsets<T::Memory<Storage>, OffsetItem, Storage>, Storage> as Collection>::IntoIter;

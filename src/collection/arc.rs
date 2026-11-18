@@ -1,7 +1,8 @@
 extern crate alloc;
 
-use crate::collection::slice::SliceViews;
+use crate::collection::slice::views_range;
 use alloc::sync::Arc;
+use core::ops::Range;
 
 use crate::collection::{Collection, slice::SliceIntoIter, view::AsView};
 
@@ -18,12 +19,16 @@ impl<T: for<'any> AsView<'any>> Collection for Arc<[T]> {
     }
 
     type Iter<'collection>
-        = SliceViews<'collection, T>
+        = <T as AsView<'collection>>::Views
     where
         Self: 'collection;
 
     fn iter_views(&self) -> Self::Iter<'_> {
-        SliceViews::new(self)
+        T::views(self)
+    }
+
+    fn iter_views_range(&self, range: Range<usize>) -> Self::Iter<'_> {
+        views_range(self, range)
     }
 
     type IntoIter = SliceIntoIter<Self, T>;

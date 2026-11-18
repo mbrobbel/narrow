@@ -9,7 +9,7 @@ use core::{
 use crate::{
     collection::{
         ChildRef, Collection, CollectionAlloc, CollectionAllocIn, CollectionRealloc,
-        TryReserveError, owned::IntoOwned,
+        TryReserveError, clamp_range, owned::IntoOwned,
     },
     length::Length,
 };
@@ -231,8 +231,14 @@ impl<C: Collection, const N: usize> Collection for Flatten<C, N> {
         Self: 'collection;
 
     fn iter_views(&self) -> Self::Iter<'_> {
-        (0..self.len())
-            .zip(iter::repeat_n(self, self.len()))
+        self.iter_views_range(0..self.len())
+    }
+
+    fn iter_views_range(&self, range: Range<usize>) -> Self::Iter<'_> {
+        let indices = clamp_range(range, self.len());
+        let len = indices.len();
+        indices
+            .zip(iter::repeat_n(self, len))
             .map(|(idx, collection)| collection.view(idx).expect("out of bounds"))
     }
 

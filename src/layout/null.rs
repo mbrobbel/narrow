@@ -1,15 +1,17 @@
 //! The Arrow null layout: a length with no data or validity buffers.
 
 use core::{
-    iter::{RepeatN, repeat_n},
+    iter::{Copied, RepeatN, repeat_n},
     marker::PhantomData,
+    ops::Range,
+    slice,
 };
 
 use crate::{
     buffer::Buffer,
     collection::{
-        Collection, CollectionAllocIn, CollectionRealloc, TryReserveError, owned::IntoOwned,
-        view::AsView,
+        Collection, CollectionAllocIn, CollectionRealloc, TryReserveError, clamp_range,
+        owned::IntoOwned, view::AsView,
     },
     layout::{ArrayItem, MemoryLayout},
     length::Length,
@@ -61,7 +63,11 @@ impl IntoOwned<()> for () {
 
 impl<'a> AsView<'a> for () {
     type View = Self;
+    type Views = Copied<slice::Iter<'a, Self>>;
     fn as_view(&'a self) {}
+    fn views(slice: &'a [Self]) -> Self::Views {
+        slice.iter().copied()
+    }
 }
 
 /// A sequence containing only nulls, without allocated buffers.
@@ -122,6 +128,9 @@ impl<T: Unit> Collection for Nulls<T> {
     }
     fn iter_views(&self) -> Self::Iter<'_> {
         repeat_n(T::default(), self.len)
+    }
+    fn iter_views_range(&self, range: Range<usize>) -> Self::Iter<'_> {
+        repeat_n(T::default(), clamp_range(range, self.len).len())
     }
     fn into_iter_owned(self) -> Self::IntoIter {
         repeat_n(T::default(), self.len)
@@ -215,8 +224,12 @@ mod tests {
         impl Unit for Marker {}
         impl<'a> AsView<'a> for Marker {
             type View = Self;
+            type Views = Copied<slice::Iter<'a, Self>>;
             fn as_view(&'a self) -> Self {
                 *self
+            }
+            fn views(slice: &'a [Self]) -> Self::Views {
+                slice.iter().copied()
             }
         }
         impl ArrayItem for Marker {
