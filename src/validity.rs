@@ -447,8 +447,10 @@ impl<
         let (capacity, _) = items.size_hint();
         let mut validity = BitmapBuilder::<Storage>::with_capacity_in(capacity, Default::default());
         let collection = items
-            .inspect(|opt| validity.push(opt.is_some()))
-            .map(Option::unwrap_or_default)
+            .map(|opt| {
+                validity.push(opt.is_some());
+                opt.unwrap_or_default()
+            })
             .collect();
         Self {
             collection,
@@ -486,16 +488,11 @@ impl<
         loop {
             let mut validity = [false; VALIDITY_CHUNK];
             let mut count: usize = 0;
-            collection.extend(
-                items
-                    .by_ref()
-                    .take(VALIDITY_CHUNK)
-                    .inspect(|opt| {
-                        validity[count] = opt.is_some();
-                        count = count.strict_add(1);
-                    })
-                    .map(Option::unwrap_or_default),
-            );
+            collection.extend(items.by_ref().take(VALIDITY_CHUNK).map(|opt| {
+                validity[count] = opt.is_some();
+                count = count.strict_add(1);
+                opt.unwrap_or_default()
+            }));
             bitmap.extend(validity.iter().take(count));
             if count < VALIDITY_CHUNK {
                 break;
@@ -525,9 +522,10 @@ impl<
         let (capacity, _) = items.size_hint();
         let mut validity = BitmapBuilder::<Storage>::with_capacity_in(capacity, alloc.clone());
         let collection = T::from_iter_in(
-            items
-                .inspect(|item| validity.push(item.is_some()))
-                .map(Option::unwrap_or_default),
+            items.map(|item| {
+                validity.push(item.is_some());
+                item.unwrap_or_default()
+            }),
             alloc,
         );
         Self {
@@ -589,14 +587,11 @@ impl<
         loop {
             let mut validity = [false; VALIDITY_CHUNK];
             let mut count: usize = 0;
-            let values = items
-                .by_ref()
-                .take(VALIDITY_CHUNK)
-                .inspect(|item| {
-                    validity[count] = item.is_some();
-                    count = count.strict_add(1);
-                })
-                .map(Option::unwrap_or_default);
+            let values = items.by_ref().take(VALIDITY_CHUNK).map(|item| {
+                validity[count] = item.is_some();
+                count = count.strict_add(1);
+                item.unwrap_or_default()
+            });
             let extended = collection
                 .try_extend(values)
                 .and_then(|()| bitmap.try_extend(validity.into_iter().take(count)));
@@ -984,6 +979,77 @@ mod tests {
         validity.extend(input.clone());
         assert_eq!(validity.len(), input.len());
         assert_eq!(validity.iter_views().collect::<Vec<_>>(), input);
+    }
+
+    #[test]
+    fn build_paths_match_input_at_chunk_boundaries() {
+        for len in [
+            0,
+            1,
+            VALIDITY_CHUNK - 1,
+            VALIDITY_CHUNK,
+            VALIDITY_CHUNK + 1,
+            2 * VALIDITY_CHUNK,
+        ] {
+            for nulls in [false, true] {
+                let input = (0..len)
+                    .map(|index| (!nulls || index % 3 != 0).then_some(index))
+                    .collect::<Vec<_>>();
+                // A `Range` adapter is `TrustedLen`; `filter` is not.
+                let trusted = || (0..len).map(|index| input[index]);
+                let untrusted = || input.iter().copied().filter(|_| true);
+                let check = |validity: Validity<Vec<usize>>| {
+                    assert_eq!(validity.iter_views().collect::<Vec<_>>(), input);
+                };
+
+                check(trusted().collect());
+                check(untrusted().collect());
+                check(Validity::from_iter_in(trusted(), ()));
+                check(Validity::from_iter_in(untrusted(), ()));
+                check(Validity::try_from_iter_in(trusted(), ()).expect("allocates"));
+                check(Validity::try_from_iter_in(untrusted(), ()).expect("allocates"));
+
+                let extended = |f: &dyn Fn(&mut Validity<Vec<usize>>)| {
+                    let mut validity = Validity::default();
+                    f(&mut validity);
+                    validity
+                };
+                check(extended(&|validity| validity.extend(trusted())));
+                check(extended(&|validity| validity.extend(untrusted())));
+                check(extended(&|validity| {
+                    validity.try_extend(trusted()).expect("allocates");
+                }));
+                check(extended(&|validity| {
+                    validity.try_extend(untrusted()).expect("allocates");
+                }));
+            }
+        }
+    }
+
+    #[test]
+    fn extend_trusted_len_panic_preserves_committed_chunks() {
+        extern crate std;
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        let mut validity = Validity::<Vec<usize>>::default();
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| {
+                validity.extend((0..(VALIDITY_CHUNK + 3)).map(|index| {
+                    assert!(index != VALIDITY_CHUNK + 2, "boom");
+                    Some(index)
+                }));
+            }))
+            .is_err()
+        );
+
+        assert_eq!(validity.len(), VALIDITY_CHUNK);
+        validity.extend([None]);
+        assert_eq!(validity.len(), VALIDITY_CHUNK + 1);
+        assert_eq!(
+            validity.view(VALIDITY_CHUNK - 1),
+            Some(Some(VALIDITY_CHUNK - 1))
+        );
+        assert_eq!(validity.view(VALIDITY_CHUNK), Some(None));
     }
 
     #[test]
