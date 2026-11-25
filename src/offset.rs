@@ -930,7 +930,7 @@ impl<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U> Collect
     for OffsetView<'collection, T, OffsetItem, Storage, U>
 {
     type View<'view>
-        = <T as Collection>::View<'view>
+        = <T as Collection>::View<'collection>
     where
         Self: 'view;
 
@@ -946,7 +946,7 @@ impl<'collection, T: Collection, OffsetItem: Offset, Storage: Buffer, U> Collect
     }
 
     type Iter<'view>
-        = OffsetViewIter<'view, T>
+        = OffsetViewIter<'collection, T>
     where
         Self: 'view;
 
@@ -1066,6 +1066,7 @@ mod tests {
     use alloc::vec;
 
     use super::*;
+    use crate::array::Array;
 
     #[test]
     fn default_len() {
@@ -1717,5 +1718,85 @@ mod tests {
         assert_eq!(views[0].into_owned(), vec![1, 2]);
         assert_eq!(views[1].into_iter_owned().collect::<Vec<_>>(), vec![3]);
         assert_eq!(views[2].iter_views().collect::<Vec<_>>(), vec![4]);
+    }
+
+    fn inner_iter(
+        array: &Array<Vec<Vec<i32>>>,
+        outer: usize,
+        inner: usize,
+    ) -> Option<impl DoubleEndedIterator<Item = i32>> {
+        Some(array.view(outer)?.view(inner)?.iter_views())
+    }
+
+    #[test]
+    fn inner_iterator_outlives_view() {
+        let array = [vec![vec![1, 2], vec![3]], vec![vec![4, 5, 6]]]
+            .into_iter()
+            .collect::<Array<Vec<Vec<i32>>>>();
+        assert_eq!(
+            inner_iter(&array, 0, 0).map(Iterator::collect::<Vec<_>>),
+            Some(vec![1, 2])
+        );
+        assert_eq!(
+            inner_iter(&array, 1, 0).map(Iterator::collect::<Vec<_>>),
+            Some(vec![4, 5, 6])
+        );
+        assert!(inner_iter(&array, 0, 2).is_none());
+        assert!(inner_iter(&array, 2, 0).is_none());
+    }
+
+    #[test]
+    fn flat_map_nested() {
+        let array = [vec![vec![1, 2], vec![3]], vec![], vec![vec![], vec![4]]]
+            .into_iter()
+            .collect::<Array<Vec<Vec<i32>>>>();
+        assert_eq!(
+            array
+                .iter_views()
+                .flat_map(|outer| outer.iter_views())
+                .map(IntoOwned::into_owned)
+                .collect::<Vec<_>>(),
+            [vec![1, 2], vec![3], vec![], vec![4]]
+        );
+        assert_eq!(
+            array
+                .iter_views()
+                .flat_map(|outer| outer.iter_views())
+                .flat_map(|inner| inner.iter_views())
+                .collect::<Vec<_>>(),
+            [1, 2, 3, 4]
+        );
+    }
+
+    #[test]
+    fn flat_map_nullable() {
+        let array = [vec![Some(1), None], vec![], vec![None, Some(2)]]
+            .into_iter()
+            .collect::<Array<Vec<Option<i32>>>>();
+        assert_eq!(
+            array
+                .iter_views()
+                .flat_map(|row| row.iter_views())
+                .collect::<Vec<_>>(),
+            [Some(1), None, None, Some(2)]
+        );
+    }
+
+    #[test]
+    fn views_outlive_outer_views() {
+        let array = [vec![vec![1, 2], vec![3]], vec![vec![4]]]
+            .into_iter()
+            .collect::<Array<Vec<Vec<i32>>>>();
+        let first = array
+            .view(0)
+            .and_then(|outer| outer.view(1))
+            .expect("in bounds");
+        let second = array
+            .view(1)
+            .and_then(|outer| outer.view(0))
+            .expect("in bounds");
+        assert_eq!(first.into_owned(), [3]);
+        assert_eq!(second.into_owned(), [4]);
+        assert_eq!(first.len() + second.len(), 2);
     }
 }
